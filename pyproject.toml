@@ -1,0 +1,43 @@
+[project]
+name = "eklavya"
+version = "0.0.1"
+description = "Ekalavya — an AI coding tutor that teaches, tests, and won't let you atrophy. Swadhyaya · Sadhana · Siddhi."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+authors = [{ name = "Govind Mittal" }]
+license = { text = "MIT" }
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.7",
+    "python-dotenv>=1.0",
+]
+
+# The AI + practice stack lands as we wire each phase, so `doctor` degrades
+# gracefully until these are installed. Install with: uv sync --extra agent
+[project.optional-dependencies]
+agent = [
+    "deepagents>=0.6",
+    "langchain>=1.0",
+    "langgraph>=1.0",
+    "langchain-anthropic>=0.3",
+    "langchain-mcp-adapters>=0.1",
+    "fsrs>=4.0",
+]
+tui = ["textual>=0.80"]
+web = ["fastapi>=0.115", "uvicorn>=0.30"]
+
+[project.scripts]
+eklavya = "eklavya.cli:main"
+
+[dependency-groups]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eklavya"]
