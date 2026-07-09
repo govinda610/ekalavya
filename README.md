@@ -32,8 +32,10 @@ alone, through sheer devotion — no teacher handing him anything.
   illusion of knowing) costs you far more than an honest "I'm not sure." That's
   the signal that actually moves you forward.
 - **Won't let you cheat** — the built-in editor is where you write code. Paste an
-  answer from an AI and you *die*, Souls-style: souls dropped, streak broken. It
-  only counts if it came from your own head.
+  answer from an AI and you *die*, Souls-style: souls dropped, streak broken. You
+  reclaim the dropped souls only by typing the next one yourself.
+- **Simulates take-home assignments** — a demanding, scoped brief like the ones
+  top companies send, then reviews your submission like a senior engineer.
 - **Learns from your real code** — point it at a repo you work on and it tailors
   your practice to the frameworks you actually use.
 - **Shows your progress** — a mastery heatmap, streak, level, and XP.
@@ -74,6 +76,7 @@ uv run eklavya tui            # then practice
 | `eklavya onboard` | One-time Socratic interview → your baseline mastery map |
 | `eklavya tui` | The immersive terminal UI, with a built-in code editor |
 | `eklavya practice --minutes N` | A plain-CLI practice session |
+| `eklavya takehome --minutes N` | A simulated company take-home, reviewed like the real thing |
 | `eklavya serve` | A local web dashboard of your progress |
 | `eklavya scan PATH` | Tailor your pillars to a repo you work on (asks first) |
 | `eklavya doctor` | Check Python, dependencies, providers, and state |
