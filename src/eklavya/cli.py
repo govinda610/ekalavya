@@ -61,18 +61,18 @@ def onboard(
     from . import prompts
     from .agent import build_agent
     from .chat import chat_loop
-    from .providers import get_provider
+    from .providers import pick
     from .tools import ONBOARDING_TOOLS
 
     init_db()  # make sure state exists
-    p = get_provider(provider)
+    p = pick(provider)
     if not p.is_configured():
         console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
         raise typer.Exit(1)
 
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model}[/]\n")
-    agent = build_agent(prompts.ONBOARDING, ONBOARDING_TOOLS, provider=provider)
+    agent = build_agent(prompts.ONBOARDING, ONBOARDING_TOOLS, provider=p.key)
     chat_loop(agent, kickoff="Begin my first-time onboarding now.", console=console)
 
 
@@ -85,11 +85,11 @@ def practice(
     from . import prompts
     from .agent import build_agent
     from .chat import chat_loop
-    from .providers import get_provider
+    from .providers import pick
     from .tools import SESSION_TOOLS
 
     init_db()
-    p = get_provider(provider)
+    p = pick(provider)
     if not p.is_configured():
         console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
         raise typer.Exit(1)
@@ -98,7 +98,7 @@ def practice(
 
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model} · {minutes} min[/]\n")
-    agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=provider)
+    agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
     progress.start_session(minutes)
     try:
         chat_loop(agent, kickoff=f"Start today's practice session. I have {minutes} minutes.",
@@ -117,17 +117,17 @@ def tui(
     from . import progress, prompts
     from .agent import build_agent
     from .chat import new_thread
-    from .providers import get_provider
+    from .providers import pick
     from .tools import SESSION_TOOLS
     from .tui import EklavyaApp, make_responder
 
     init_db()
-    p = get_provider(provider)
+    p = pick(provider)
     if not p.is_configured():
         console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
         raise typer.Exit(1)
 
-    agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=provider)
+    agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
     responder = make_responder(agent, new_thread())
     tui_app = EklavyaApp(
         responder=responder,
@@ -138,6 +138,35 @@ def tui(
     progress.start_session(minutes)
     try:
         tui_app.run()
+    finally:
+        progress.end_session()
+
+
+@app.command()
+def takehome(
+    minutes: int = typer.Option(90, help="how long you have for the assignment"),
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+) -> None:
+    """Simulate a company take-home assignment, then get reviewed like the real thing."""
+    from . import progress, prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .providers import pick
+    from .tools import SESSION_TOOLS
+
+    init_db()
+    p = pick(provider)
+    if not p.is_configured():
+        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
+        raise typer.Exit(1)
+
+    banner.render(console)
+    console.print(f"\n[dim]interviewer: {p.label} · {p.default_model} · {minutes} min take-home[/]\n")
+    agent = build_agent(prompts.TAKEHOME, SESSION_TOOLS, provider=p.key)
+    progress.start_session(minutes, mode="takehome")
+    try:
+        chat_loop(agent, kickoff=f"Give me a take-home assignment. I have {minutes} minutes.",
+                  console=console)
     finally:
         progress.end_session()
 

@@ -67,6 +67,19 @@ def configured_providers() -> list[Provider]:
     return [p for p in PROVIDERS.values() if p.is_configured()]
 
 
+def pick(key: str | None = None) -> Provider:
+    """Choose a provider: an explicit key as-is; otherwise the default if it's
+    configured, else any configured one (so it just works with a single key set).
+    """
+    if key:
+        return get_provider(key)
+    default = get_provider()
+    if default.is_configured():
+        return default
+    others = configured_providers()
+    return others[0] if others else default
+
+
 def build_chat_model(provider_key: str | None = None, model: str | None = None, **kwargs):
     """Build a chat model for a provider.
 
