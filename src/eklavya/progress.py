@@ -45,6 +45,27 @@ def award_xp(amount: int, label: str = "", cause: str = "") -> int:
     return total
 
 
+def penalise(reason: str = "", xp_loss: int = 50) -> dict:
+    """Souls-like penalty: drop XP, break the streak, log it. Returns what was lost."""
+    from .db import connect
+
+    conn = connect()
+    try:
+        xp = int(_get(conn, "xp", "0"))
+        lost = min(xp, xp_loss)
+        _set(conn, "xp", xp - lost)
+        _set(conn, "streak", 0)
+        _set(conn, "last_active", "")  # break the chain
+        conn.execute(
+            "INSERT INTO rewards(kind, amount, label, cause) VALUES('penalty', ?, 'souls dropped', ?)",
+            (-lost, reason),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return {"lost": lost}
+
+
 def touch_streak(today: str | None = None) -> int:
     """Register activity for `today`; extend the streak if yesterday was active."""
     from .db import connect

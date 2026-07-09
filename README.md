@@ -31,6 +31,9 @@ alone, through sheer devotion — no teacher handing him anything.
 - **Scores calibration, not just correctness** — being confident *and wrong* (the
   illusion of knowing) costs you far more than an honest "I'm not sure." That's
   the signal that actually moves you forward.
+- **Won't let you cheat** — the built-in editor is where you write code. Paste an
+  answer from an AI and you *die*, Souls-style: souls dropped, streak broken. It
+  only counts if it came from your own head.
 - **Learns from your real code** — point it at a repo you work on and it tailors
   your practice to the frameworks you actually use.
 - **Shows your progress** — a mastery heatmap, streak, level, and XP.
@@ -40,6 +43,12 @@ alone, through sheer devotion — no teacher handing him anything.
 | Practice (TUI) | Progress dashboard |
 |---|---|
 | ![TUI](docs/screenshots/tui.png) | ![Dashboard](docs/screenshots/dashboard.png) |
+
+Paste an answer from an AI, and:
+
+<p align="center">
+  <img src="docs/screenshots/anticheat.png" width="70%" alt="You Died — pasted code is penalised">
+</p>
 
 <p align="center">
   <img src="docs/screenshots/cli.png" width="60%" alt="Ekalavya CLI">

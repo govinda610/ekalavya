@@ -38,14 +38,16 @@ class EklavyaApp(App):
     ]
 
     def __init__(self, responder: Callable[[str], str], stats_fn: Callable[[], dict] | None = None,
-                 kickoff: str = "", use_worker: bool = True) -> None:
+                 kickoff: str = "", use_worker: bool = True, guard: bool = True) -> None:
         super().__init__()
         self.responder = responder
         self.stats_fn = stats_fn
         self.kickoff = kickoff
         self.use_worker = use_worker
+        self.guard = guard  # anti-cheat on?
         self.history: list[tuple[str, str]] = []  # (role, text) — for tests + record
-        self.pastes = 0  # editor paste count (detection surface for anti-cheat later)
+        self.pastes = 0            # total editor pastes seen
+        self._editor_pasted = False  # was the current editor buffer pasted into?
 
     def compose(self) -> ComposeResult:
         yield Static("🏹 Ekalavya", id="stats")
@@ -116,14 +118,17 @@ class EklavyaApp(App):
         self.send(text)
 
     def on_paste(self, event) -> None:
-        # The built-in editor is our honest-signal surface: note pastes so the
-        # anti-cheat layer (later phase) can weigh them.
-        self.pastes += 1
+        # The built-in editor is our honest-signal surface: a paste into an open
+        # editor is the tell we watch for.
+        if self.query_one("#editor", TextArea).has_class("on"):
+            self.pastes += 1
+            self._editor_pasted = True
 
     def action_toggle_editor(self) -> None:
         editor = self.query_one("#editor", TextArea)
         editor.toggle_class("on")
         if editor.has_class("on"):
+            self._editor_pasted = False  # fresh buffer
             editor.focus()
         else:
             self.query_one("#msg", Input).focus()
@@ -133,9 +138,29 @@ class EklavyaApp(App):
         code = editor.text.strip()
         if not code:
             return
+        pasted = self._editor_pasted
         editor.text = ""
         editor.remove_class("on")
+        self._editor_pasted = False
+        if self.guard and pasted:
+            self._souls_death("code was pasted into the editor")
+            return  # the point is to practice — a pasted answer isn't one
         self.send(f"Here is my code:\n```python\n{code}\n```")
+
+    def _souls_death(self, reason: str) -> None:
+        from . import progress
+
+        result = progress.penalise(reason)
+        self.history.append(("death", reason))
+        self.query_one("#log", RichLog).write(
+            Panel(
+                f"[bold red]YOU DIED[/]\n\n{reason}.\n"
+                f"Souls dropped: [red]-{result['lost']} XP[/]. Streak broken.\n"
+                "[dim]Clear a drill unaided to recover.[/]",
+                border_style="red", title="⚰  caught", title_align="left",
+            )
+        )
+        self._refresh_stats()
 
 
 def make_responder(agent, config) -> Callable[[str], str]:

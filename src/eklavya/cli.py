@@ -111,6 +111,7 @@ def practice(
 def tui(
     minutes: int = typer.Option(30, help="how long you have today"),
     provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+    guard: bool = typer.Option(True, help="anti-cheat: penalise pasted code (Souls-like)"),
 ) -> None:
     """The immersive terminal UI — practice with a built-in code editor."""
     from . import progress, prompts
@@ -132,6 +133,7 @@ def tui(
         responder=responder,
         stats_fn=progress.stats,
         kickoff=f"Start today's practice session. I have {minutes} minutes.",
+        guard=guard,
     )
     progress.start_session(minutes)
     try:

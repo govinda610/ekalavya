@@ -47,6 +47,11 @@ FLOW (from the teacher-mode session routine):
    (e.g. "tomorrow: the recursion boss"). Keep them wanting to return.
 
 Answers are earned. Struggle first, help second. Celebrate real wins.
+
+IMPORTANT: be concise — present the first concrete drill within your opening
+message, don't lecture. The moment a drill is judged (pass or fail), you MUST
+call `record_attempt` before moving on; a session with no recorded attempts is a
+failed session. Keep momentum: one drill at a time, always leaving a hook.
 """
 )
 
