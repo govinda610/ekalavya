@@ -268,6 +268,9 @@ agent = [
     { name = "langchain-mcp-adapters" },
     { name = "langgraph" },
 ]
+mcp = [
+    { name = "mcp" },
+]
 tui = [
     { name = "textual" },
 ]
@@ -292,13 +295,14 @@ requires-dist = [
     { name = "langchain-anthropic", marker = "extra == 'agent'", specifier = ">=0.3" },
     { name = "langchain-mcp-adapters", marker = "extra == 'agent'", specifier = ">=0.1" },
     { name = "langgraph", marker = "extra == 'agent'", specifier = ">=1.0" },
+    { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
     { name = "rich", specifier = ">=13.7" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.80" },
     { name = "typer", specifier = ">=0.12" },
     { name = "uvicorn", marker = "extra == 'web'", specifier = ">=0.30" },
 ]
-provides-extras = ["agent", "tui", "web"]
+provides-extras = ["agent", "tui", "web", "mcp"]
 
 [package.metadata.requires-dev]
 dev = [

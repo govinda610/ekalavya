@@ -25,6 +25,7 @@ agent = [
 ]
 tui = ["textual>=0.80"]
 web = ["fastapi>=0.115", "uvicorn>=0.30"]
+mcp = ["mcp>=1.0"]
 
 [project.scripts]
 eklavya = "eklavya.cli:main"

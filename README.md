@@ -79,7 +79,25 @@ uv run eklavya tui            # then practice
 | `eklavya takehome --minutes N` | A simulated company take-home, reviewed like the real thing |
 | `eklavya serve` | A local web dashboard of your progress |
 | `eklavya scan PATH` | Tailor your pillars to a repo you work on (asks first) |
+| `eklavya mcp` | Run as an MCP server so another agent can drive your practice |
 | `eklavya doctor` | Check Python, dependencies, providers, and state |
+
+## Drive it from another agent (MCP)
+
+Ekalavya can run as an [MCP](https://modelcontextprotocol.io) server, exposing its
+spine (progress, focus suggestions, sandboxed grading, spaced-repetition recording)
+as tools. Point a coding agent at it and *that* agent becomes the tutor brain while
+Ekalavya keeps the state. For Claude Code:
+
+```bash
+claude mcp add ekalavya -- eklavya mcp
+```
+
+or in an `.mcp.json`:
+
+```json
+{ "mcpServers": { "ekalavya": { "command": "eklavya", "args": ["mcp"] } } }
+```
 
 ## How it works
 

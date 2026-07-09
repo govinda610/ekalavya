@@ -187,6 +187,14 @@ def serve(
     uvicorn.run(create_app(), host=host, port=port, log_level="warning")
 
 
+@app.command("mcp")
+def mcp_server() -> None:
+    """Run Ekalavya as an MCP server (stdio) so any agent can drive your practice."""
+    from .mcp_server import run
+
+    run()  # blocks; stdout is the MCP wire, so we print nothing
+
+
 @app.command()
 def scan(path: str = typer.Argument(..., help="path to a repo you allow Ekalavya to read")) -> None:
     """Tailor your pillars to a repo you work on (asks permission first)."""
