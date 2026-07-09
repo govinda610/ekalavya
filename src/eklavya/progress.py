@@ -46,7 +46,8 @@ def award_xp(amount: int, label: str = "", cause: str = "") -> int:
 
 
 def penalise(reason: str = "", xp_loss: int = 50) -> dict:
-    """Souls-like penalty: drop XP, break the streak, log it. Returns what was lost."""
+    """Souls-like penalty: drop XP, break the streak, and leave the dropped souls
+    on the ground (reclaimable). Returns what was lost."""
     from .db import connect
 
     conn = connect()
@@ -56,6 +57,7 @@ def penalise(reason: str = "", xp_loss: int = 50) -> dict:
         _set(conn, "xp", xp - lost)
         _set(conn, "streak", 0)
         _set(conn, "last_active", "")  # break the chain
+        _set(conn, "penance", lost)    # souls waiting to be reclaimed
         conn.execute(
             "INSERT INTO rewards(kind, amount, label, cause) VALUES('penalty', ?, 'souls dropped', ?)",
             (-lost, reason),
@@ -64,6 +66,38 @@ def penalise(reason: str = "", xp_loss: int = 50) -> dict:
     finally:
         conn.close()
     return {"lost": lost}
+
+
+def penance() -> int:
+    """XP currently dropped and waiting to be reclaimed (0 if none)."""
+    from .db import connect
+
+    conn = connect()
+    try:
+        return int(_get(conn, "penance", "0"))
+    finally:
+        conn.close()
+
+
+def reclaim() -> int:
+    """Reclaim dropped souls by proving you'll do it yourself. Returns amount restored."""
+    from .db import connect
+
+    conn = connect()
+    try:
+        amount = int(_get(conn, "penance", "0"))
+        if amount:
+            _set(conn, "xp", int(_get(conn, "xp", "0")) + amount)
+            _set(conn, "penance", 0)
+            conn.execute(
+                "INSERT INTO rewards(kind, amount, label, cause) "
+                "VALUES('xp', ?, 'souls reclaimed', 'typed it yourself')",
+                (amount,),
+            )
+            conn.commit()
+    finally:
+        conn.close()
+    return amount
 
 
 def touch_streak(today: str | None = None) -> int:

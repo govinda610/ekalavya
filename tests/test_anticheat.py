@@ -54,6 +54,38 @@ async def test_pasted_code_triggers_death_and_is_not_sent():
         assert not any("def f()" in s for s in sent)
 
 
+def test_penalise_sets_penance_and_reclaim_restores():
+    progress.award_xp(100)
+    progress.penalise("t", xp_loss=40)
+    assert progress.penance() == 40 and progress.stats()["xp"] == 60
+    assert progress.reclaim() == 40
+    assert progress.penance() == 0 and progress.stats()["xp"] == 100
+
+
+async def test_typed_after_death_reclaims_souls():
+    sent = []
+    app = EklavyaApp(responder=lambda t: sent.append(t) or "ok", use_worker=False, guard=True)
+    async with app.run_test():
+        progress.award_xp(100)
+        # die by pasting
+        app.action_toggle_editor()
+        app._editor_pasted = True
+        app.query_one("#editor").text = "x = 1"
+        app.action_submit_code()
+        xp_after_death = progress.stats()["xp"]
+        assert progress.penance() > 0 and xp_after_death < 100
+
+        # type the next answer yourself -> reclaim
+        app.action_toggle_editor()
+        app._editor_pasted = False
+        app.query_one("#editor").text = "def f(): return 1"
+        app.action_submit_code()
+        assert progress.penance() == 0
+        assert progress.stats()["xp"] > xp_after_death
+        assert any(role == "reclaim" for role, _ in app.history)
+        assert any("def f()" in s for s in sent)
+
+
 async def test_typed_code_is_sent_normally():
     sent = []
     app = EklavyaApp(responder=lambda t: sent.append(t) or "ok", use_worker=False, guard=True)

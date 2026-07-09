@@ -145,6 +145,8 @@ class EklavyaApp(App):
         if self.guard and pasted:
             self._souls_death("code was pasted into the editor")
             return  # the point is to practice — a pasted answer isn't one
+        if self.guard:
+            self._maybe_reclaim()  # typed it yourself → reclaim any dropped souls
         self.send(f"Here is my code:\n```python\n{code}\n```")
 
     def _souls_death(self, reason: str) -> None:
@@ -156,11 +158,26 @@ class EklavyaApp(App):
             Panel(
                 f"[bold red]YOU DIED[/]\n\n{reason}.\n"
                 f"Souls dropped: [red]-{result['lost']} XP[/]. Streak broken.\n"
-                "[dim]Clear a drill unaided to recover.[/]",
+                "[dim]Type your next answer yourself to reclaim your souls.[/]",
                 border_style="red", title="⚰  caught", title_align="left",
             )
         )
         self._refresh_stats()
+
+    def _maybe_reclaim(self) -> None:
+        from . import progress
+
+        amount = progress.reclaim()
+        if amount:
+            self.history.append(("reclaim", str(amount)))
+            self.query_one("#log", RichLog).write(
+                Panel(
+                    f"[bold green]SOULS RECLAIMED[/]  +{amount} XP\n"
+                    "[dim]You typed it yourself. That's the whole point.[/]",
+                    border_style="green", title="⚔  recovered", title_align="left",
+                )
+            )
+            self._refresh_stats()
 
 
 def make_responder(agent, config) -> Callable[[str], str]:
