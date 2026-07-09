@@ -36,6 +36,20 @@ async def test_kickoff_and_chat():
         assert ("user", "hello there") in app.history
 
 
+async def test_streaming_accumulates_then_finalizes():
+    def stream_fn(_text):
+        yield from ["Hel", "lo ", "wor", "ld"]
+
+    app = EklavyaApp(responder=lambda t: "unused", stream_fn=stream_fn, use_worker=False)
+    async with app.run_test() as pilot:
+        app.query_one("#msg").focus()
+        app.query_one("#msg").value = "hi"
+        await pilot.press("enter")
+        # Streamed tokens were assembled into one final reply, and the live pane closed.
+        assert ("agent", "Hello world") in app.history
+        assert not app.query_one("#streaming").has_class("live")
+
+
 async def test_code_editor_submit_sends_fenced_code():
     rec = Recorder()
     app = EklavyaApp(responder=rec, stats_fn=_stats, use_worker=False)

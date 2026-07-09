@@ -28,6 +28,8 @@ class EklavyaApp(App):
     #log { border: round $primary; padding: 0 1; }
     #editor { display: none; height: 12; border: round $secondary; }
     #editor.on { display: block; }
+    #streaming { display: none; }
+    #streaming.live { display: block; }
     #msg { dock: bottom; }
     """
 
@@ -38,9 +40,11 @@ class EklavyaApp(App):
     ]
 
     def __init__(self, responder: Callable[[str], str], stats_fn: Callable[[], dict] | None = None,
-                 kickoff: str = "", use_worker: bool = True, guard: bool = True) -> None:
+                 kickoff: str = "", use_worker: bool = True, guard: bool = True,
+                 stream_fn: Callable[[str], object] | None = None) -> None:
         super().__init__()
         self.responder = responder
+        self.stream_fn = stream_fn  # optional: yields reply tokens for live streaming
         self.stats_fn = stats_fn
         self.kickoff = kickoff
         self.use_worker = use_worker
@@ -53,6 +57,7 @@ class EklavyaApp(App):
         yield Static("🏹 Ekalavya", id="stats")
         with Vertical():
             yield RichLog(id="log", wrap=True, markup=True, highlight=False)
+            yield Static("", id="streaming")
             yield TextArea.code_editor("", language="python", id="editor")
             yield Input(placeholder="type your answer…  (Ctrl+E to open the code editor)", id="msg")
         yield Footer()
@@ -89,7 +94,9 @@ class EklavyaApp(App):
         msg = self.query_one("#msg", Input)
         msg.disabled = True
         msg.placeholder = "thinking…"
-        if self.use_worker:
+        if self.stream_fn:
+            self._stream_worker(text) if self.use_worker else self._stream_sync(text)
+        elif self.use_worker:
             self._respond(text)
         else:  # synchronous path for tests
             self._deliver(self.responder(text))
@@ -98,6 +105,37 @@ class EklavyaApp(App):
     def _respond(self, text: str) -> None:
         reply = self.responder(text)
         self.call_from_thread(self._deliver, reply)
+
+    @work(thread=True, exclusive=True)
+    def _stream_worker(self, text: str) -> None:
+        buf: list[str] = []
+        self.call_from_thread(self._stream_start)
+        for token in self.stream_fn(text):
+            buf.append(token)
+            self.call_from_thread(self._stream_update, "".join(buf))
+        self.call_from_thread(self._stream_end, "".join(buf))
+
+    def _stream_sync(self, text: str) -> None:
+        buf: list[str] = []
+        self._stream_start()
+        for token in self.stream_fn(text):
+            buf.append(token)
+            self._stream_update("".join(buf))
+        self._stream_end("".join(buf))
+
+    def _stream_start(self) -> None:
+        self.query_one("#streaming", Static).add_class("live")
+
+    def _stream_update(self, text: str) -> None:
+        self.query_one("#streaming", Static).update(
+            Panel(text, title="[cyan]Ekalavya…[/]", border_style="cyan", title_align="left")
+        )
+
+    def _stream_end(self, text: str) -> None:
+        streaming = self.query_one("#streaming", Static)
+        streaming.remove_class("live")
+        streaming.update("")
+        self._deliver(text)  # finalize as a rendered markdown panel in the log
 
     def _deliver(self, reply: str) -> None:
         self.history.append(("agent", reply))
@@ -188,3 +226,31 @@ def make_responder(agent, config) -> Callable[[str], str]:
         return run_turn(agent, config, text)
 
     return respond
+
+
+def _chunk_text(message_chunk) -> str:
+    """Pull visible text out of a streamed AIMessageChunk (content is text blocks)."""
+    content = message_chunk.content
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(
+            b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text"
+        )
+    return ""
+
+
+def make_stream_responder(agent, config):
+    """Yield the agent's reply token-by-token for live streaming in the UI."""
+
+    def stream(text: str):
+        for message_chunk, _meta in agent.stream(
+            {"messages": [{"role": "user", "content": text}]},
+            config=config,
+            stream_mode="messages",
+        ):
+            token = _chunk_text(message_chunk)
+            if token:
+                yield token
+
+    return stream

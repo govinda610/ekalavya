@@ -119,7 +119,7 @@ def tui(
     from .chat import new_thread
     from .providers import pick
     from .tools import SESSION_TOOLS
-    from .tui import EklavyaApp, make_responder
+    from .tui import EklavyaApp, make_responder, make_stream_responder
 
     init_db()
     p = pick(provider)
@@ -128,9 +128,10 @@ def tui(
         raise typer.Exit(1)
 
     agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
-    responder = make_responder(agent, new_thread())
+    config = new_thread()
     tui_app = EklavyaApp(
-        responder=responder,
+        responder=make_responder(agent, config),
+        stream_fn=make_stream_responder(agent, config),
         stats_fn=progress.stats,
         kickoff=f"Start today's practice session. I have {minutes} minutes.",
         guard=guard,
