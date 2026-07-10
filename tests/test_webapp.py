@@ -47,6 +47,26 @@ def test_dashboard_and_apis():
     assert "practice" in cfg["kickoff"] and "provider" in cfg
 
 
+def test_config_includes_first_run_and_onboard():
+    from starlette.testclient import TestClient
+
+    from eklavya import config
+    from eklavya.db import connect
+
+    client = TestClient(create_app())
+    # seeded fixture added a rating -> not a first run
+    assert client.get("/api/config").json()["first_run"] is False
+    assert "onboard" in client.get("/api/config").json()["kickoff"]
+    # wipe ratings + profile -> first run
+    conn = connect()
+    conn.execute("DELETE FROM ratings")
+    conn.commit()
+    conn.close()
+    if config.PROFILE_PATH.exists():
+        config.PROFILE_PATH.unlink()
+    assert client.get("/api/config").json()["first_run"] is True
+
+
 def test_death_and_reclaim_endpoints():
     from starlette.testclient import TestClient
 

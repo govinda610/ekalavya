@@ -13,11 +13,13 @@ import uuid
 
 from . import prompts, report
 
-_PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK, "takehome": prompts.TAKEHOME}
+_PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK,
+            "takehome": prompts.TAKEHOME, "onboard": prompts.ONBOARDING}
 _KICKOFF = {
     "practice": "Start today's practice session. I have 30 minutes.",
     "mock": "Start a mock interview. I have 45 minutes.",
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
+    "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
 
 
@@ -30,7 +32,7 @@ def create_app():
     from .dashboard import render as render_dashboard
     from .db import init_db
     from .providers import pick
-    from .tools import SESSION_TOOLS
+    from .tools import ONBOARDING_TOOLS, SESSION_TOOLS
     from .tui import _chunk_text
 
     init_db()
@@ -40,7 +42,8 @@ def create_app():
     def agent_for(mode: str):
         mode = mode if mode in _PROMPTS else "practice"
         if mode not in agents:
-            agents[mode] = build_agent(_PROMPTS[mode], SESSION_TOOLS, provider=provider.key)
+            tools = ONBOARDING_TOOLS if mode == "onboard" else SESSION_TOOLS
+            agents[mode] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
         return agents[mode]
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
@@ -60,7 +63,8 @@ def create_app():
     @app.get("/api/config")
     def cfg() -> dict:
         return {"provider": provider.label, "model": provider.default_model,
-                "kickoff": _KICKOFF, "configured": provider.is_configured()}
+                "kickoff": _KICKOFF, "configured": provider.is_configured(),
+                "first_run": report.is_first_run()}
 
     @app.post("/api/stream")
     async def stream(request: Request):
@@ -217,6 +221,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
           <option value="practice">Daily practice</option>
           <option value="mock">Mock interview</option>
           <option value="takehome">Take-home</option>
+          <option value="onboard">First-time setup</option>
         </select>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
@@ -349,6 +354,7 @@ function newSession(){
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set';
-  stream(c.kickoff['practice']);
+  if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
+  stream(c.kickoff[mode]);
 });
 </script></body></html>"""

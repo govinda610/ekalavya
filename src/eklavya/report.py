@@ -63,6 +63,22 @@ def due_count() -> int:
     return len(due_now())
 
 
+def is_first_run() -> bool:
+    """True when there's no learner profile and no ratings yet — needs onboarding."""
+    from . import config
+    from .db import connect, schema_version
+
+    if config.PROFILE_PATH.exists():
+        return False
+    if schema_version() is None:
+        return True
+    conn = connect()
+    try:
+        return conn.execute("SELECT COUNT(*) AS c FROM ratings").fetchone()["c"] == 0
+    finally:
+        conn.close()
+
+
 def ai_gap() -> dict:
     """Unaided vs AI-assisted accuracy — the gap you're closing (Atrophy's idea).
 

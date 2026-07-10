@@ -140,6 +140,20 @@ CREATE TABLE IF NOT EXISTS rewards (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- A growing bank of interview questions, tagged by company/role/topic. The agent
+-- pulls from it and adds fresh ones it finds via web search.
+CREATE TABLE IF NOT EXISTS questions (
+    id          INTEGER PRIMARY KEY,
+    company     TEXT,
+    role        TEXT,
+    topic       TEXT,
+    difficulty  TEXT,
+    question    TEXT NOT NULL,
+    source      TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_questions_q ON questions(question);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
