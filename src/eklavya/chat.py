@@ -21,9 +21,14 @@ def new_thread() -> dict:
 
 
 def run_turn(agent, config: dict, user_text: str) -> str:
-    """Send one user message, return the agent's final reply text."""
+    """Send one user message, return the agent's final reply text (with a self-check
+    correction appended if a second model flags a technical error)."""
+    from .verify import selfcheck
+
     result = agent.invoke({"messages": [{"role": "user", "content": user_text}]}, config=config)
-    return result["messages"][-1].text
+    reply = result["messages"][-1].text
+    note = selfcheck(reply)
+    return reply + note if note else reply
 
 
 def _show(console: Console, text: str) -> None:

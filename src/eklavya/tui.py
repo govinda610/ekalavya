@@ -143,12 +143,18 @@ class EklavyaApp(App):
 
     @work(thread=True, exclusive=True)
     def _stream_worker(self, text: str) -> None:
+        from .verify import selfcheck
+
         buf: list[str] = []
         self.call_from_thread(self._stream_start)
         for token in self.stream_fn(text):
             buf.append(token)
             self.call_from_thread(self._stream_update, "".join(buf))
-        self.call_from_thread(self._stream_end, "".join(buf))
+        full = "".join(buf)
+        self.call_from_thread(self._stream_end, full)
+        note = selfcheck(full)  # blocking model call, but we're on the worker thread
+        if note:
+            self.call_from_thread(self._write_agent, note)
 
     def _stream_sync(self, text: str) -> None:
         buf: list[str] = []

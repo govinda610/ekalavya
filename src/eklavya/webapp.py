@@ -72,6 +72,9 @@ def create_app():
         config = {"configurable": {"thread_id": thread}}
 
         def gen():
+            from .verify import selfcheck
+
+            buf = []
             try:
                 for chunk, _meta in agent.stream(
                     {"messages": [{"role": "user", "content": text}]},
@@ -79,9 +82,13 @@ def create_app():
                 ):
                     tok = _chunk_text(chunk)
                     if tok:
+                        buf.append(tok)
                         yield json.dumps({"t": tok}) + "\n"
             except Exception as exc:  # surface errors to the UI instead of hanging
                 yield json.dumps({"t": f"\n\n_(error: {exc})_"}) + "\n"
+            note = selfcheck("".join(buf))  # a second model reviews the reply
+            if note:
+                yield json.dumps({"t": note}) + "\n"
             yield json.dumps({"done": True}) + "\n"
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
