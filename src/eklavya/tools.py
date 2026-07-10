@@ -347,6 +347,78 @@ def progress_report() -> str:
     )
 
 
+def get_questions(topic: str = "", company: str = "", role: str = "", n: int = 3) -> str:
+    """Pull interview questions from the local bank, optionally filtered by topic,
+    company, or role. Returns a few matching questions (random order)."""
+    conn = connect()
+    try:
+        where, params = [], []
+        for col, val in (("topic", topic), ("company", company), ("role", role)):
+            if val.strip():
+                where.append(f"{col} LIKE ?")
+                params.append(f"%{val.strip()}%")
+        sql = "SELECT question, company, difficulty FROM questions"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY RANDOM() LIMIT ?"
+        params.append(int(n))
+        rows = conn.execute(sql, params).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return ("(no matching questions in the bank yet — use web_search to find real "
+                "ones for this company/role, then add_question the good ones)")
+    return "\n".join(
+        f"- [{r['company'] or 'general'} · {r['difficulty'] or '?'}] {r['question']}" for r in rows
+    )
+
+
+def add_question(question: str, topic: str = "", company: str = "", role: str = "",
+                 difficulty: str = "", source: str = "agent") -> str:
+    """Add an interview question to the bank so it grows. Only tag a company if you
+    genuinely found it associated with that company (e.g. via web_search)."""
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT OR IGNORE INTO questions(company, role, topic, difficulty, question, source) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            (company.strip(), role.strip(), topic.strip(), difficulty.strip(),
+             question.strip(), source),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return "added to the question bank"
+
+
+def web_search(query: str) -> str:
+    """Search the web for real, current interview questions or references. Use this
+    to find company/role-specific questions when the bank is thin, then
+    add_question the good ones. Requires TAVILY_API_KEY in the environment."""
+    import os
+
+    import requests
+
+    key = os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
+    if not key:
+        return "Web search unavailable — set TAVILY_API_KEY to enable fresh questions."
+    try:
+        resp = requests.post(
+            "https://api.tavily.com/search",
+            json={"api_key": key, "query": query, "max_results": 6},
+            timeout=25,
+        )
+        results = resp.json().get("results", [])
+    except Exception as exc:
+        return f"Web search failed: {exc}"
+    if not results:
+        return "No results."
+    return _clip("\n".join(
+        f"- {r.get('title', '')}: {str(r.get('content', ''))[:220]} ({r.get('url', '')})"
+        for r in results[:6]
+    ))
+
+
 # The tools exposed to the practice-session agent.
 SESSION_TOOLS = [
     read_profile,
@@ -358,4 +430,7 @@ SESSION_TOOLS = [
     diff_code,
     record_attempt,
     progress_report,
+    get_questions,
+    add_question,
+    web_search,
 ]

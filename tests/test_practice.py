@@ -168,6 +168,25 @@ def test_grade_and_record_records_the_verified_verdict():
     assert ok["correct"] == 1 and bad["correct"] == 0
 
 
+def test_question_bank_add_get_and_dedup():
+    tools.add_question("Reverse a linked list", topic="linked lists",
+                       company="Google", difficulty="medium")
+    out = tools.get_questions(company="Google")
+    assert "Reverse a linked list" in out and "Google" in out
+    tools.add_question("Reverse a linked list", company="Google")  # duplicate ignored
+    c = connect()
+    n = c.execute("SELECT COUNT(*) AS n FROM questions WHERE question='Reverse a linked list'").fetchone()["n"]
+    c.close()
+    assert n == 1
+    assert "no matching" in tools.get_questions(topic="zzz-nonexistent-topic")
+
+
+def test_web_search_without_key(monkeypatch):
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+    monkeypatch.delenv("EKLAVYA_TAVILY_API_KEY", raising=False)
+    assert "unavailable" in tools.web_search("some interview questions")
+
+
 def test_diff_code():
     out = tools.diff_code("def f():\n    return 2", "def f():\n    return 1")
     assert "return 1" in out and "return 2" in out and "-" in out
