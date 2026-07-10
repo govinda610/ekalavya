@@ -153,17 +153,30 @@ def test_record_attempt_updates_everything():
 def test_grade_and_record_records_the_verified_verdict():
     # Correct code -> recorded correct; wrong code -> recorded wrong. The stored
     # result equals the real sandbox verdict, not a model claim.
+    good = "def is_even(n):\n    return n % 2 == 0"
     tools.grade_and_record("Python idioms", "debugging", "is_even_ok",
-                           "def is_even(n):\n    return n % 2 == 0",
-                           "assert is_even(4) and not is_even(3)", confidence=2)
+                           good, "assert is_even(4) and not is_even(3)",
+                           confidence=2, reference=good)
     tools.grade_and_record("Python idioms", "debugging", "is_even_bad",
                            "def is_even(n):\n    return n % 2 == 1",  # wrong
-                           "assert is_even(4)", confidence=3)
+                           "assert is_even(4)", confidence=3, reference=good)
     c = connect()
     ok = c.execute("SELECT correct FROM attempts WHERE detail='is_even_ok'").fetchone()
     bad = c.execute("SELECT correct FROM attempts WHERE detail='is_even_bad'").fetchone()
     c.close()
     assert ok["correct"] == 1 and bad["correct"] == 0
+
+
+def test_broken_tutor_tests_do_not_grade_the_learner():
+    # The reference doesn't pass the (wrong) tests -> tests are bad -> learner not graded.
+    out = tools.grade_and_record("Python idioms", "debugging", "broken_test",
+                                 "def f():\n    return 1", "assert f() == 2",  # wrong test
+                                 confidence=2, reference="def f():\n    return 1")
+    assert "SANITY CHECK FAILED" in out
+    c = connect()
+    row = c.execute("SELECT 1 FROM attempts WHERE detail='broken_test'").fetchone()
+    c.close()
+    assert row is None  # nothing recorded on broken tests
 
 
 def test_session_links_attempts_and_finalises():

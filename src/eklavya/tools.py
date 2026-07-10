@@ -287,21 +287,34 @@ def record_attempt(
 
 
 def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
-                     confidence: int, seconds: float = 0.0) -> str:
-    """Run hidden `tests` against `code` in the sandbox AND record the VERIFIED
-    result in one step. The recorded pass/fail is the real sandbox verdict — you
-    cannot fake it. Use this for EVERY code drill instead of grading and recording
-    separately. (For non-code drills — teach-backs, explanations — use record_attempt.)
+                     confidence: int, reference: str, seconds: float = 0.0) -> str:
+    """Grade a code drill and record the VERIFIED result in one tamper-proof step.
+
+    You MUST pass `reference` — your own correct solution. Before grading the
+    learner, the sandbox checks that YOUR reference passes YOUR tests. If it
+    doesn't, the tests are wrong and the learner is NOT graded (this catches your
+    own mistakes, which the learner can't). Only when the reference passes do we
+    run the learner's `code` and record the real sandbox pass/fail — you cannot
+    fake the outcome. Use this for EVERY code drill.
 
     axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
     confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
     """
     from .sandbox import run_tests
 
+    # Self-check: the tests must be valid — your reference solution must pass them.
+    ref = run_tests(reference, tests)
+    if not ref.ok:
+        return _clip(
+            "⚠ TEST SANITY CHECK FAILED — your reference solution does not pass your "
+            f"own tests, so the tests are wrong. Fix them before grading.\nerror:\n"
+            f"{(ref.stderr or ref.stdout).strip()}\n(The learner was NOT graded.)"
+        )
+
     r = run_tests(code, tests)
     verdict = "PASS ✓" if r.ok else "FAIL ✗"
     summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds, ai_off=True)
-    out = f"{verdict} (verified in sandbox, {r.seconds:.2f}s)\n"
+    out = f"{verdict} (verified in sandbox, {r.seconds:.2f}s; tests validated against reference)\n"
     if r.stdout.strip():
         out += f"stdout:\n{r.stdout.strip()}\n"
     if not r.ok and r.stderr.strip():
