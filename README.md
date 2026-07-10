@@ -48,6 +48,13 @@ Prefer a browser? `eklavya serve` gives you the whole thing — chat, a real cod
   <img src="docs/screenshots/webui.png" width="90%" alt="Ekalavya web app">
 </p>
 
+It explains **visually** when a diagram helps — Mermaid flowcharts, sequence, class,
+and state diagrams, rendered inline:
+
+<p align="center">
+  <img src="docs/screenshots/webui-diagram.png" width="72%" alt="Ekalavya explaining with a diagram">
+</p>
+
 | Practice (TUI) | Progress dashboard |
 |---|---|
 | ![TUI](docs/screenshots/tui.png) | ![Dashboard](docs/screenshots/dashboard.png) |

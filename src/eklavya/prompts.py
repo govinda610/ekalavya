@@ -50,6 +50,12 @@ TEACHING_PRINCIPLES = """
   `run_code` first. Never state what code prints or returns from memory — run it
   and confirm. Trust the sandbox, not your recollection. The learner can't catch
   your mistakes, so you must.
+- EXPLAIN VISUALLY when it helps: for a data structure, control flow, call graph,
+  algorithm steps, a state machine, an architecture, or a relationship, draw a
+  small correct **Mermaid** diagram in a ```mermaid code block (flowchart,
+  sequenceDiagram, classDiagram, stateDiagram, or erDiagram). Diagrams render as
+  pictures in the web app; in a plain terminal they show as text, so add a
+  one-line prose summary. Don't force a diagram where prose is clearer.
 """
 
 DRILL_TYPES = """
