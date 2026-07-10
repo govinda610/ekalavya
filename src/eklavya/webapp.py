@@ -56,6 +56,12 @@ def create_app():
     def dashboard() -> str:
         return render_dashboard(report.overview())
 
+    @app.get("/journey", response_class=HTMLResponse)
+    def journey() -> str:
+        from .journey import render as render_journey
+
+        return render_journey()
+
     @app.get("/api/overview")
     def overview() -> dict:
         return report.overview()
@@ -165,7 +171,7 @@ button.submit{font-family:var(--disp);letter-spacing:.06em;background:#0c1f18;co
 border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
 button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
 #editor{flex:1;min-height:0}
-#dash{display:none;height:100%}#dash iframe{width:100%;height:100%;border:0;background:var(--bg)}
+#dash,#journey{display:none;height:100%}#dash iframe,#journey iframe{width:100%;height:100%;border:0;background:var(--bg)}
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -201,6 +207,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
   <div class="tabs">
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
+    <button class="tab" data-view="journey">Journey</button>
   </div>
   <div class="spacer"></div>
   <div class="hud" id="hud"></div>
@@ -231,6 +238,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
     </div>
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
+  <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
 </main>
 
 <div id="death"><div class="deathcard">
@@ -255,7 +263,9 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   const v=t.dataset.view;
   document.getElementById('practice').style.display = v==='practice'?'grid':'none';
   document.getElementById('dash').style.display = v==='dash'?'block':'none';
+  document.getElementById('journey').style.display = v==='journey'?'block':'none';
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
+  if(v==='journey') document.getElementById('jframe').src='/journey';
 });
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});

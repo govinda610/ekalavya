@@ -55,6 +55,13 @@ and state diagrams, rendered inline:
   <img src="docs/screenshots/webui-diagram.png" width="72%" alt="Ekalavya explaining with a diagram">
 </p>
 
+And a **Journey** view shows how far you've come — a milestone timeline, unlockable
+achievements, an activity heatmap, and your XP curve:
+
+<p align="center">
+  <img src="docs/screenshots/journey.png" width="80%" alt="Ekalavya journey view">
+</p>
+
 | Practice (TUI) | Progress dashboard |
 |---|---|
 | ![TUI](docs/screenshots/tui.png) | ![Dashboard](docs/screenshots/dashboard.png) |

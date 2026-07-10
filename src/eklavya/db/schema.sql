@@ -130,6 +130,16 @@ CREATE TABLE IF NOT EXISTS repos (
     granted_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Every rating change over time, so the Journey view can show "then vs now".
+CREATE TABLE IF NOT EXISTS rating_history (
+    id          INTEGER PRIMARY KEY,
+    pillar      TEXT NOT NULL,
+    axis        TEXT NOT NULL,
+    old_rating  REAL,
+    new_rating  REAL NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Gamification ledger: XP, streak, level, badges — and Souls-like penalties.
 CREATE TABLE IF NOT EXISTS rewards (
     id          INTEGER PRIMARY KEY,

@@ -265,6 +265,10 @@ def record_attempt(
             (pid, axis, new_rating, tighten(band), _now(), _now()),
         )
         conn.execute(
+            "INSERT INTO rating_history(pillar, axis, old_rating, new_rating) VALUES(?, ?, ?, ?)",
+            (pillar.strip(), axis, current, new_rating),
+        )
+        conn.execute(
             """INSERT INTO attempts(item_id, session_id, confidence, correct, seconds, ai_off, detail)
                VALUES(NULL, ?, ?, ?, ?, ?, ?)""",
             (progress.current_session(conn), int(confidence), int(bool(correct)),
