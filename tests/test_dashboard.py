@@ -20,7 +20,8 @@ from eklavya.db import init_db  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def seeded_db():
-    db = Path(_TMP) / "eklavya.db"
+    from eklavya import config as _cfg  # reset the REAL db (shared across test files)
+    db = _cfg.DB_PATH
     if db.exists():
         db.unlink()
     init_db()
@@ -36,6 +37,16 @@ def test_report_grid_and_overview():
     assert ov["grid"]["pillars"]["FastAPI"]["debugging"]["level"] == "gap"
     assert any("AI engineer" in g["text"] for g in ov["goals"])
     assert set(ov["stats"]) == {"xp", "streak", "level"}
+
+
+def test_ai_gap_computes_unaided_vs_assisted():
+    tools.record_attempt("X", "debugging", "c1", 2, True)                 # unaided, right
+    tools.record_attempt("X", "debugging", "c2", 2, False)                # unaided, wrong
+    tools.record_attempt("X", "debugging", "c3", 2, True, ai_off=False)   # assisted, right
+    ag = report.ai_gap()
+    assert ag["unaided_n"] == 2 and ag["unaided_rate"] == 50
+    assert ag["assisted_n"] == 1 and ag["assisted_rate"] == 100
+    assert ag["gap"] == 50 and len(ag["trend"]) >= 1
 
 
 def test_render_is_pure_html_with_data():

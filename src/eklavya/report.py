@@ -63,6 +63,44 @@ def due_count() -> int:
     return len(due_now())
 
 
+def ai_gap() -> dict:
+    """Unaided vs AI-assisted accuracy — the gap you're closing (Atrophy's idea).
+
+    Returns the overall unaided/assisted success rates and a recent unaided-accuracy
+    trend (per-day buckets), so the dashboard can show whether unaided skill is
+    actually rising.
+    """
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
+            "ORDER BY created_at"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    def rate(items):
+        return round(100 * sum(r["correct"] for r in items) / len(items)) if items else None
+
+    unaided = [r for r in rows if r["ai_off"]]
+    assisted = [r for r in rows if not r["ai_off"]]
+
+    # recent unaided accuracy per day (last 10 active days)
+    days: dict[str, list] = {}
+    for r in unaided:
+        days.setdefault(r["day"], []).append(r)
+    trend = [{"day": d, "rate": rate(days[d]), "n": len(days[d])}
+             for d in sorted(days)][-10:]
+
+    ur, ar = rate(unaided), rate(assisted)
+    return {
+        "unaided_rate": ur, "unaided_n": len(unaided),
+        "assisted_rate": ar, "assisted_n": len(assisted),
+        "gap": (ar - ur) if (ur is not None and ar is not None) else None,
+        "trend": trend,
+    }
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),
@@ -70,4 +108,5 @@ def overview() -> dict:
         "goals": goals(),
         "sessions": recent_sessions(),
         "due": due_count(),
+        "ai_gap": ai_gap(),
     }

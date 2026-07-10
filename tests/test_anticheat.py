@@ -17,7 +17,8 @@ from eklavya.tui import EklavyaApp  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def fresh_db():
-    db = Path(_TMP) / "eklavya.db"
+    from eklavya import config as _cfg  # reset the REAL db (shared across test files)
+    db = _cfg.DB_PATH
     if db.exists():
         db.unlink()
     init_db()

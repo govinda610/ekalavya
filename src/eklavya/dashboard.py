@@ -116,6 +116,25 @@ def render(ov: dict) -> str:
                  f'background:linear-gradient(90deg,{col}55,{col});box-shadow:0 0 10px {col}66">'
                  f'</div></div></div>')
 
+    # unaided vs AI-assisted gap
+    ag = ov.get("ai_gap", {})
+    if not ag.get("unaided_n"):
+        aigap = '<span class="muted">No attempts yet — practice to watch your unaided accuracy climb.</span>'
+    else:
+        tbars = "".join(
+            f'<div class="tbar" style="height:{max(6, t["rate"] or 0)}%" '
+            f'title="{t["day"]}: {t["rate"]}% ({t["n"]})"></div>' for t in ag["trend"]
+        )
+        if ag.get("assisted_n"):
+            extra = (f'<div class="agstat"><b>{ag["assisted_rate"]}%</b><span>with AI</span></div>'
+                     f'<div class="agstat gap"><b>{ag["gap"]:+d}</b><span>gap to close</span></div>')
+        else:
+            extra = '<div class="agnote muted">Do an "AI-on check" sometime to measure your gap.</div>'
+        aigap = (f'<div class="agrow"><div class="agstat"><b>{ag["unaided_rate"]}%</b>'
+                 f'<span>unaided</span></div>{extra}</div>'
+                 f'<div class="trend">{tbars}</div>'
+                 f'<div class="muted" style="font-size:11px;margin-top:6px">unaided accuracy · recent days</div>')
+
     goals = "".join(
         f'<div class="quest"><span class="hz {x["horizon"]}">{x["horizon"]}</span>'
         f'<span>{x["text"]}</span>'
@@ -177,10 +196,16 @@ def render(ov: dict) -> str:
     </section>
   </div>
 
-  <section class="card">
-    <h2>✦ Active quests</h2>
-    <div class="quests">{goals}</div>
-  </section>
+  <div class="grid2">
+    <section class="card">
+      <h2>✦ Active quests</h2>
+      <div class="quests">{goals}</div>
+    </section>
+    <section class="card">
+      <h2>◎ Unaided vs AI-assisted</h2>
+      {aigap}
+    </section>
+  </div>
 
   <div class="grid2">
     <section class="card">
@@ -312,6 +337,16 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
   border-radius:12px;padding:9px 13px;min-width:150px}
 .badge .bico{font-size:22px;filter:drop-shadow(0 0 8px #0008)}
 .badge b{display:block;font-size:13px}.badge .muted{font-size:11px}
+
+/* ai gap */
+.agrow{display:flex;gap:22px;align-items:flex-end;margin-bottom:12px}
+.agstat b{display:block;font-family:var(--disp);font-size:30px;color:var(--acc);line-height:1}
+.agstat span{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+.agstat.gap b{color:var(--amber)}
+.trend{display:flex;align-items:flex-end;gap:5px;height:56px;padding:4px 0;border-bottom:1px solid var(--line)}
+.tbar{flex:1;min-width:6px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--acc),#2f7d5e);
+  box-shadow:0 0 8px var(--acc)44}
+.agnote{align-self:center;font-size:13px}
 
 /* chronicle */
 .chron td{padding:7px 8px;border-bottom:1px solid var(--line);font-size:13px}

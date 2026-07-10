@@ -127,6 +127,10 @@ FLOW (from the teacher-mode session routine):
    met, what they learned, and give them a hook for next time
    (e.g. "tomorrow: the recursion boss"). Keep them wanting to return.
 
+Occasionally (about monthly, or if they ask for an "AI-on check") run ONE rep where
+they may use AI freely, and record it with `record_attempt(..., ai_off=False)`. That
+measures the gap between their assisted and unaided ability — the gap we're closing.
+
 Answers are earned. Struggle first, help second. Celebrate real wins.
 
 IMPORTANT: be concise — present the first concrete drill within your opening
