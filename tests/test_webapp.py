@@ -1,0 +1,46 @@
+"""Web app route tests (no live model — just wiring + rendering)."""
+
+import os
+import tempfile
+from pathlib import Path
+
+_TMP = tempfile.mkdtemp(prefix="eklavya-web-")
+os.environ["EKLAVYA_HOME"] = _TMP
+os.environ["EKLAVYA_PROFILE"] = str(Path(_TMP) / "profile.md")
+
+import pytest  # noqa: E402
+
+from eklavya import tools  # noqa: E402
+from eklavya.db import init_db  # noqa: E402
+from eklavya.webapp import create_app  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def seeded():
+    db = Path(_TMP) / "eklavya.db"
+    if db.exists():
+        db.unlink()
+    init_db()
+    tools.set_baseline_rating("FastAPI", "debugging", "gap")
+    yield
+
+
+def test_index_serves_the_spa():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    r = c.get("/")
+    assert r.status_code == 200
+    assert "EKALAVYA" in r.text and "Practice" in r.text and "monaco-editor" in r.text
+
+
+def test_dashboard_and_apis():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    assert c.get("/dashboard").status_code == 200
+    assert "FastAPI" in c.get("/dashboard").text
+    ov = c.get("/api/overview")
+    assert ov.status_code == 200 and "FastAPI" in ov.json()["grid"]["pillars"]
+    cfg = c.get("/api/config").json()
+    assert "practice" in cfg["kickoff"] and "provider" in cfg

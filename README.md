@@ -42,6 +42,12 @@ alone, through sheer devotion — no teacher handing him anything.
 
 ## Screenshots
 
+Prefer a browser? `eklavya serve` gives you the whole thing — chat, a real code editor, and your progress — no terminal required:
+
+<p align="center">
+  <img src="docs/screenshots/webui.png" width="90%" alt="Ekalavya web app">
+</p>
+
 | Practice (TUI) | Progress dashboard |
 |---|---|
 | ![TUI](docs/screenshots/tui.png) | ![Dashboard](docs/screenshots/dashboard.png) |
@@ -79,7 +85,7 @@ uv run eklavya tui            # then practice
 | `eklavya practice --minutes N` | A plain-CLI practice session |
 | `eklavya mock --minutes N` | A mock technical interview with an honest scorecard |
 | `eklavya takehome --minutes N` | A simulated company take-home, reviewed like the real thing |
-| `eklavya serve` | A local web dashboard of your progress |
+| `eklavya serve` | The full web app — practice in the browser, no terminal needed |
 | `eklavya scan PATH` | Tailor your pillars to a repo you work on (asks first) |
 | `eklavya mcp` | Run as an MCP server so another agent can drive your practice |
 | `eklavya doctor` | Check Python, dependencies, providers, and state |

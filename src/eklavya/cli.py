@@ -223,13 +223,13 @@ def serve(
     host: str = typer.Option("127.0.0.1", help="bind host"),
     port: int = typer.Option(4646, help="bind port"),
 ) -> None:
-    """Open the local web dashboard — your mastery map, streak, and progress."""
+    """Open the full web app — practice in the browser, no terminal needed."""
     import uvicorn
 
-    from .dashboard import create_app
+    from .webapp import create_app
 
     init_db()
-    console.print(f"[green]›[/green] dashboard at [bold]http://{host}:{port}[/bold]  (Ctrl+C to stop)")
+    console.print(f"[green]›[/green] Ekalavya at [bold]http://{host}:{port}[/bold]  (Ctrl+C to stop)")
     uvicorn.run(create_app(), host=host, port=port, log_level="warning")
 
 
