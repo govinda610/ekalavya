@@ -273,6 +273,12 @@ Then PERSIST the results with your tools:
   mastery map (strong/familiar/gap/unknown), misconceptions observed, learning
   style, and goals. Write it as clean markdown.
 
+Then DRAFT A STARTER CURRICULUM (a skill tree) toward their top goals: call
+`add_curriculum(concept, prereqs, pillar)` for ~8–14 concepts with sensible
+prerequisites (e.g. 'async' requires 'generators'; 'dynamic programming' requires
+'recursion'). Show it with `get_curriculum`, and adjust it based on their feedback —
+it's theirs to approve.
+
 Finally, show a short summary of what you recorded (use `mastery_summary` and
 `list_goals`) and tell them onboarding is complete.
 

@@ -64,12 +64,10 @@ def due_count() -> int:
 
 
 def is_first_run() -> bool:
-    """True when there's no learner profile and no ratings yet — needs onboarding."""
-    from . import config
+    """True when Ekalavya has no ratings yet — i.e. the learner hasn't onboarded
+    to Ekalavya (keyed off our own state, not a shared teacher-mode profile)."""
     from .db import connect, schema_version
 
-    if config.PROFILE_PATH.exists():
-        return False
     if schema_version() is None:
         return True
     conn = connect()
@@ -115,6 +113,48 @@ def ai_gap() -> dict:
         "gap": (ar - ur) if (ur is not None and ar is not None) else None,
         "trend": trend,
     }
+
+
+def curriculum_mermaid() -> dict:
+    """The curriculum graph as a Mermaid diagram, nodes coloured by mastery.
+
+    A concept is 'done' if it has a correct attempt, 'avail' if all its prereqs are
+    done (so it's unlocked), else 'lock'.
+    """
+    conn = connect()
+    try:
+        rows = conn.execute("SELECT concept, prereqs FROM curriculum ORDER BY id").fetchall()
+        mastered = {r["detail"] for r in
+                    conn.execute("SELECT DISTINCT detail FROM attempts WHERE correct = 1")}
+    finally:
+        conn.close()
+    if not rows:
+        return {"empty": True, "mermaid": ""}
+
+    concepts = [r["concept"] for r in rows]
+    ids = {c: f"n{i}" for i, c in enumerate(concepts)}
+    prereqs = {r["concept"]: [p.strip() for p in (r["prereqs"] or "").split(",") if p.strip()]
+               for r in rows}
+
+    def status(c: str) -> str:
+        if c in mastered:
+            return "done"
+        return "avail" if all(p in mastered for p in prereqs[c]) else "lock"
+
+    lines = ["graph TD"]
+    for c in concepts:
+        label = c.replace('"', "'")
+        lines.append(f'  {ids[c]}["{label}"]:::{status(c)}')
+    for c in concepts:
+        for p in prereqs[c]:
+            if p in ids:
+                lines.append(f"  {ids[p]} --> {ids[c]}")
+    lines += [
+        "  classDef done fill:#0e2a1f,stroke:#5ef2b8,color:#5ef2b8;",
+        "  classDef avail fill:#0a1a22,stroke:#57d3ff,color:#57d3ff;",
+        "  classDef lock fill:#0e1622,stroke:#2b3a4d,color:#5a6b80;",
+    ]
+    return {"empty": False, "mermaid": "\n".join(lines)}
 
 
 def overview() -> dict:

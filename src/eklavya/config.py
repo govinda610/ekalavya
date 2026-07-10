@@ -19,11 +19,10 @@ load_dotenv()
 EKLAVYA_HOME = Path(os.environ.get("EKLAVYA_HOME", Path.home() / ".eklavya"))
 DB_PATH = EKLAVYA_HOME / "eklavya.db"
 
-# The learner profile is deliberately shared with the teacher-mode skill, so a
-# Teacher Mode chat and Ekalavya read/write the same picture of the student.
-PROFILE_PATH = Path(
-    os.environ.get("EKLAVYA_PROFILE", Path.home() / ".ai-teacher" / "profile.md")
-)
+# Ekalavya keeps its own learner profile inside its home, so it never overwrites a
+# teacher-mode profile you may already have. Point EKLAVYA_PROFILE at
+# ~/.ai-teacher/profile.md yourself if you want them shared.
+PROFILE_PATH = Path(os.environ.get("EKLAVYA_PROFILE", EKLAVYA_HOME / "profile.md"))
 
 # Which provider/model to teach with by default (overridable via env).
 DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "glm")

@@ -66,6 +66,10 @@ def create_app():
     def overview() -> dict:
         return report.overview()
 
+    @app.get("/api/curriculum")
+    def curriculum() -> dict:
+        return report.curriculum_mermaid()
+
     @app.get("/api/config")
     def cfg() -> dict:
         return {"provider": provider.label, "model": provider.default_model,
@@ -172,6 +176,10 @@ border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
 button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
 #editor{flex:1;min-height:0}
 #dash,#journey{display:none;height:100%}#dash iframe,#journey iframe{width:100%;height:100%;border:0;background:var(--bg)}
+#tree{display:none;height:100%;overflow:auto;padding:24px}
+.treehead{font-family:var(--disp);letter-spacing:.06em;font-size:16px;margin-bottom:14px}
+.treehead .g{background:linear-gradient(100deg,var(--acc),var(--cyan) 60%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
+#treediagram{display:flex;justify-content:center}
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -208,6 +216,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
     <button class="tab" data-view="journey">Journey</button>
+    <button class="tab" data-view="tree">Skill Tree</button>
   </div>
   <div class="spacer"></div>
   <div class="hud" id="hud"></div>
@@ -239,6 +248,10 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
   <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
+  <div id="tree">
+    <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span></div>
+    <div id="treediagram"></div>
+  </div>
 </main>
 
 <div id="death"><div class="deathcard">
@@ -264,9 +277,21 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.getElementById('practice').style.display = v==='practice'?'grid':'none';
   document.getElementById('dash').style.display = v==='dash'?'block':'none';
   document.getElementById('journey').style.display = v==='journey'?'block':'none';
+  document.getElementById('tree').style.display = v==='tree'?'block':'none';
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
+  if(v==='tree') loadTree();
 });
+async function loadTree(){
+  const d=document.getElementById('treediagram');
+  d.innerHTML='<div class="dim">loading…</div>';
+  try{
+    const c=await (await fetch('/api/curriculum')).json();
+    if(c.empty){ d.innerHTML='<div class="dim" style="padding:50px;text-align:center;max-width:440px">No skill tree yet — finish onboarding and Ekalavya will draft a skill tree you can approve.</div>'; return; }
+    d.innerHTML=''; const m=document.createElement('div'); m.className='mermaid'; m.textContent=c.mermaid; d.appendChild(m);
+    await mermaid.run({nodes:[m]});
+  }catch(e){ d.innerHTML='<div class="dim">could not load the skill tree.</div>'; }
+}
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
 require(['vs/editor/editor.main'], function(){

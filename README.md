@@ -62,6 +62,13 @@ achievements, an activity heatmap, and your XP curve:
   <img src="docs/screenshots/journey.png" width="80%" alt="Ekalavya journey view">
 </p>
 
+And a **skill tree** — a curriculum graph the tutor drafts for your goals, coloured by
+what you've mastered (green), what's unlocked (cyan), and what's still locked:
+
+<p align="center">
+  <img src="docs/screenshots/skilltree.png" width="80%" alt="Ekalavya skill tree">
+</p>
+
 | Practice (TUI) | Progress dashboard |
 |---|---|
 | ![TUI](docs/screenshots/tui.png) | ![Dashboard](docs/screenshots/dashboard.png) |

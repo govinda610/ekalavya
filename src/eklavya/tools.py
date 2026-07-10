@@ -145,6 +145,49 @@ def list_goals() -> str:
     )
 
 
+def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
+    """Add a concept to the learner's curriculum graph (a skill tree). `prereqs` is a
+    comma-separated list of concept names to master first (empty for a starting concept).
+    """
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO curriculum(concept, prereqs, pillar) VALUES(?, ?, ?) "
+            "ON CONFLICT(concept) DO UPDATE SET prereqs=excluded.prereqs, pillar=excluded.pillar",
+            (concept.strip(), prereqs.strip(), pillar.strip()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return f"curriculum: '{concept}' added"
+
+
+def clear_curriculum() -> str:
+    """Wipe the curriculum graph — use before drafting a fresh one."""
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM curriculum")
+        conn.commit()
+    finally:
+        conn.close()
+    return "curriculum cleared"
+
+
+def get_curriculum() -> str:
+    """Return the current curriculum graph as text (concept ← prerequisites)."""
+    conn = connect()
+    try:
+        rows = conn.execute("SELECT concept, prereqs FROM curriculum ORDER BY id").fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return "(no curriculum yet — draft one with add_curriculum, then confirm it with the learner)"
+    return "\n".join(
+        f"- {r['concept']}" + (f" ← {r['prereqs']}" if r["prereqs"] else " (start here)")
+        for r in rows
+    )
+
+
 # The tools exposed to the onboarding agent.
 ONBOARDING_TOOLS = [
     read_profile,
@@ -154,6 +197,9 @@ ONBOARDING_TOOLS = [
     add_goal,
     mastery_summary,
     list_goals,
+    add_curriculum,
+    clear_curriculum,
+    get_curriculum,
 ]
 
 
@@ -437,4 +483,6 @@ SESSION_TOOLS = [
     get_questions,
     add_question,
     web_search,
+    get_curriculum,
+    add_curriculum,
 ]

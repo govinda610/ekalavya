@@ -130,6 +130,16 @@ CREATE TABLE IF NOT EXISTS repos (
     granted_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- The curriculum graph: a concept map with prerequisites the agent drafts and the
+-- planner navigates. prereqs is a comma-separated list of concept names.
+CREATE TABLE IF NOT EXISTS curriculum (
+    id          INTEGER PRIMARY KEY,
+    concept     TEXT NOT NULL UNIQUE,
+    prereqs     TEXT,
+    pillar      TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Every rating change over time, so the Journey view can show "then vs now".
 CREATE TABLE IF NOT EXISTS rating_history (
     id          INTEGER PRIMARY KEY,

@@ -40,18 +40,9 @@ def _root(ctx: typer.Context) -> None:
 
 
 def _first_run() -> bool:
-    """True when there's no learner profile and no ratings yet."""
-    if config.PROFILE_PATH.exists():
-        return False
-    if schema_version() is None:
-        return True
-    from .db import connect
+    from .report import is_first_run
 
-    conn = connect()
-    try:
-        return conn.execute("SELECT COUNT(*) AS c FROM ratings").fetchone()["c"] == 0
-    finally:
-        conn.close()
+    return is_first_run()
 
 
 @app.command()
