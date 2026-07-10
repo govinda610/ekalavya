@@ -73,14 +73,18 @@ uv run eklavya tui            # then practice
 
 | Command | What it does |
 |---|---|
+| `eklavya` | Just run it — onboards you on the first run, else drops into practice |
 | `eklavya onboard` | One-time Socratic interview → your baseline mastery map |
 | `eklavya tui` | The immersive terminal UI, with a built-in code editor |
 | `eklavya practice --minutes N` | A plain-CLI practice session |
+| `eklavya mock --minutes N` | A mock technical interview with an honest scorecard |
 | `eklavya takehome --minutes N` | A simulated company take-home, reviewed like the real thing |
 | `eklavya serve` | A local web dashboard of your progress |
 | `eklavya scan PATH` | Tailor your pillars to a repo you work on (asks first) |
 | `eklavya mcp` | Run as an MCP server so another agent can drive your practice |
 | `eklavya doctor` | Check Python, dependencies, providers, and state |
+
+Inside any session, type `/` for commands (`/help`, `/stats`, `/goals`, `/exit`) — prefixes work, like the agents you already use.
 
 ## Drive it from another agent (MCP)
 
@@ -108,6 +112,39 @@ scheduling, streaks — is plain Python the agent calls as tools. The agent deci
 *when*; the tools decide *what actually happens*, so your record never depends on
 a model remembering. State lives locally in SQLite; the learner profile is a
 markdown file you can read.
+
+## Why it works — the science
+
+Ekalavya isn't just gamified drills; every design choice traces to the learning-science
+literature. The core bet is counterintuitive but well established: **AI that hands you
+answers quietly erodes real skill, while AI that forces you to retrieve and reason builds
+it.**
+
+- **Giving answers hurts durable learning.** In a randomized trial (~1,000 students),
+  unrestricted GPT-4 raised *assisted* practice scores by **+48%** but dropped *unaided*
+  exam performance by **−17%** vs. controls — cognitive offloading feels productive and
+  isn't ([Bastani et al., 2025](https://arxiv.org/pdf/2605.21629)). This is the whole
+  reason Ekalavya makes you earn it (and penalises pasted code).
+- **A well-designed tutor beats even great teaching.** A Harvard RCT (N=194) found a
+  Socratic, scaffolded AI tutor made students learn **significantly more in less time**
+  than an active-learning classroom — and feel more engaged
+  ([Kestin et al., *Nature* 2025](https://www.nature.com/articles/s41598-025-97652-6)).
+- **Retrieval practice + spacing are the most effective techniques**, and they *transfer*
+  to new problems (retrieval beat rereading by **~24%** on transfer)
+  ([Dunlosky et al.](https://www.kent.edu/psychology/all-study-strategies-not-created-equal-according-kent-state-researchers),
+  [Nature Reviews Psychology](https://www.nature.com/articles/s44159-022-00089-1)).
+  So Ekalavya schedules reviews with **FSRS** and makes you reproduce solutions from
+  memory rather than reread them.
+- **Worked examples help novices but slow experts** (the expertise-reversal effect), so
+  Ekalavya shows the idiomatic solution as a reward for *new/weak* concepts and withholds
+  it once you're strong ([worked-example effect](https://en.wikipedia.org/wiki/Worked-example_effect)).
+- **The illusion of knowing is the key signal**, so confident-and-wrong costs you far more
+  than an honest "I'm not sure."
+
+It also bakes in **self-explanation**, **elaborative interrogation** ("why is this right?"),
+**interleaving** of old and new, and pushes past recall toward analysis and creation —
+the methods the evidence supports, and the ones that *feel* hard because they're the ones
+that work.
 
 ## Running the tests
 

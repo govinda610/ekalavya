@@ -12,6 +12,8 @@ from rich.console import Console
 from rich.markdown import Markdown
 from rich.panel import Panel
 
+from .commands import EXIT, handle_slash
+
 
 def new_thread() -> dict:
     """A fresh conversation id, so history persists across turns via the checkpointer."""
@@ -38,17 +40,21 @@ def chat_loop(agent, kickoff: str, console: Console | None = None) -> None:
         reply = run_turn(agent, config, kickoff)
     _show(console, reply)
 
-    console.print("[dim](type your answer · /exit to leave)[/]\n")
+    console.print("[dim](type your answer · /help for commands · /exit to leave)[/]\n")
     while True:
         try:
             user = console.input("[bold green]you ›[/] ").strip()
         except (EOFError, KeyboardInterrupt):
             console.print("\n[dim]session paused. your progress is saved.[/]")
             break
-        if user.lower() in ("/exit", "/quit"):
-            console.print("[dim]session paused. your progress is saved.[/]")
-            break
         if not user:
+            continue
+        slash = handle_slash(user)
+        if slash is not None:
+            if slash == EXIT:
+                console.print("[dim]session paused. your progress is saved.[/]")
+                break
+            console.print(Panel(slash, border_style="magenta", title="[magenta]/[/]", padding=(0, 2)))
             continue
         with console.status("[dim]thinking…[/]"):
             reply = run_turn(agent, config, user)

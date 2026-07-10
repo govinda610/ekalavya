@@ -17,19 +17,47 @@ from rich.panel import Panel
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
+from textual.theme import Theme
 from textual.widgets import Footer, Input, RichLog, Static, TextArea
+
+from .commands import EXIT, handle_slash
+
+# One brand theme, shared with the dashboard's palette (centralized theming).
+EKALAVYA_THEME = Theme(
+    name="ekalavya",
+    primary="#5ef2b8",
+    secondary="#57d3ff",
+    accent="#ffcf6b",
+    foreground="#d6e2f0",
+    background="#080b11",
+    surface="#111a28",
+    panel="#0e1622",
+    success="#5ef2b8",
+    warning="#ffcf6b",
+    error="#ff5c7a",
+    dark=True,
+)
+
+
+def _rank(level: int) -> str:
+    for threshold, name in ((17, "Grandmaster"), (12, "Master"), (8, "Expert"),
+                            (5, "Adept"), (3, "Apprentice"), (1, "Novice")):
+        if level >= threshold:
+            return name
+    return "Novice"
 
 
 class EklavyaApp(App):
     TITLE = "Ekalavya"
 
     CSS = """
-    #stats { dock: top; height: 1; background: $panel; color: $accent; padding: 0 1; }
-    #log { border: round $primary; padding: 0 1; }
-    #editor { display: none; height: 12; border: round $secondary; }
+    Screen { background: $background; }
+    #stats { dock: top; height: 1; background: $panel; color: $foreground; padding: 0 1; }
+    #log { border: round $primary; background: $surface; padding: 0 1; }
+    #editor { display: none; height: 12; border: round $secondary; background: $surface; }
     #editor.on { display: block; }
     #streaming { display: none; }
-    #streaming.live { display: block; }
+    #streaming.live { display: block; height: auto; }
     #msg { dock: bottom; }
     """
 
@@ -63,6 +91,8 @@ class EklavyaApp(App):
         yield Footer()
 
     def on_mount(self) -> None:
+        self.register_theme(EKALAVYA_THEME)
+        self.theme = "ekalavya"
         self._refresh_stats()
         if self.kickoff:
             self.send(self.kickoff, show=False)
@@ -73,8 +103,13 @@ class EklavyaApp(App):
         if not self.stats_fn:
             return
         s = self.stats_fn()
+        into = s["xp"] % 100
+        filled = round(into / 10)
+        bar = "█" * filled + "░" * (10 - filled)
         self.query_one("#stats", Static).update(
-            f"🏹 Ekalavya    🔥 streak {s['streak']}    ⭐ level {s['level']}    {s['xp']} XP"
+            f"🏹 [b]Ekalavya[/]   🔥 [#ffcf6b]{s['streak']}[/]   "
+            f"⭐ Lv [b]{s['level']}[/] [#b48cff]{_rank(s['level'])}[/]   "
+            f"[#5ef2b8]{bar}[/] [dim]{into}/100[/]"
         )
 
     def _write_user(self, text: str) -> None:
@@ -153,6 +188,15 @@ class EklavyaApp(App):
         if not text:
             return
         self.query_one("#msg", Input).value = ""
+        slash = handle_slash(text)
+        if slash is not None:
+            if slash == EXIT:
+                self.exit()
+            else:
+                self.query_one("#log", RichLog).write(
+                    Panel(slash, border_style="magenta", title="[magenta]/[/]", title_align="left")
+                )
+            return
         self.send(text)
 
     def on_paste(self, event) -> None:

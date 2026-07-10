@@ -57,10 +57,17 @@ def recent_sessions(limit: int = 10) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def due_count() -> int:
+    from .scheduling import due_now
+
+    return len(due_now())
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),
         "grid": grid(),
         "goals": goals(),
         "sessions": recent_sessions(),
+        "due": due_count(),
     }

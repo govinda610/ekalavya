@@ -41,7 +41,7 @@ def test_report_grid_and_overview():
 def test_render_is_pure_html_with_data():
     html = render(report.overview())
     assert "<!DOCTYPE html>" in html
-    assert "FastAPI" in html and "Mastery map" in html
+    assert "FastAPI" in html and "Skill map" in html
     assert "Become an AI engineer" in html
 
 

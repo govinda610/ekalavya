@@ -28,13 +28,30 @@ console = Console()
 
 @app.callback(invoke_without_command=True)
 def _root(ctx: typer.Context) -> None:
-    """Show the splash when called with no subcommand."""
-    if ctx.invoked_subcommand is None:
-        banner.render(console)
-        console.print(
-            "\n  Run [bold green]eklavya doctor[/bold green] to check your setup, "
-            "or [bold green]eklavya --help[/bold green] for commands.\n"
-        )
+    """Bare `eklavya`: onboard on the first run, else jump straight into practice."""
+    if ctx.invoked_subcommand is not None:
+        return
+    init_db()
+    if _first_run():
+        console.print("[dim]Welcome — first run. Let's build your baseline.[/]\n")
+        onboard(provider=None)
+    else:
+        tui(minutes=30, provider=None, guard=True)
+
+
+def _first_run() -> bool:
+    """True when there's no learner profile and no ratings yet."""
+    if config.PROFILE_PATH.exists():
+        return False
+    if schema_version() is None:
+        return True
+    from .db import connect
+
+    conn = connect()
+    try:
+        return conn.execute("SELECT COUNT(*) AS c FROM ratings").fetchone()["c"] == 0
+    finally:
+        conn.close()
 
 
 @app.command()
@@ -74,6 +91,35 @@ def onboard(
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model}[/]\n")
     agent = build_agent(prompts.ONBOARDING, ONBOARDING_TOOLS, provider=p.key)
     chat_loop(agent, kickoff="Begin my first-time onboarding now.", console=console)
+
+
+@app.command()
+def mock(
+    minutes: int = typer.Option(45, help="how long you have"),
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+) -> None:
+    """A mock technical interview — coding / design / behavioral, with a scorecard."""
+    from . import progress, prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .providers import pick
+    from .tools import SESSION_TOOLS
+
+    init_db()
+    p = pick(provider)
+    if not p.is_configured():
+        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
+        raise typer.Exit(1)
+
+    banner.render(console)
+    console.print(f"\n[dim]interviewer: {p.label} · {p.default_model} · {minutes} min[/]\n")
+    agent = build_agent(prompts.MOCK, SESSION_TOOLS, provider=p.key)
+    progress.start_session(minutes, mode="mock")
+    try:
+        chat_loop(agent, kickoff=f"Start a mock interview. I have {minutes} minutes.",
+                  console=console)
+    finally:
+        progress.end_session()
 
 
 @app.command()
