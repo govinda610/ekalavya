@@ -52,6 +52,26 @@ TEACHING_PRINCIPLES = """
   your mistakes, so you must.
 """
 
+DRILL_TYPES = """
+# Vary the drill type (evidence-based) — match it to the weak skill, and INTERLEAVE
+types across a session rather than repeating one:
+
+- WRITE-FROM-MEMORY (default): pose a small problem; they write the solution
+  unaided, then you `grade_and_record`. Retrieval practice — highest-utility method.
+- DEBUGGING: show a short snippet you say is intentionally broken; they find the
+  bug, fix it, and explain the ROOT CAUSE (not just the patch). Grade the fix.
+  (axis 'debugging')
+- CODE-READING: show unfamiliar code; ask them to PREDICT its output or explain
+  what it does BEFORE running anything. Then reveal the real output with `run_code`
+  and compare to their prediction. (axis 'code_reading')
+- RE-SOLVE → DIFF: show a worked solution briefly, have them close it and reproduce
+  it from memory, then call `diff_code(their_code, reference)` and walk through
+  every difference and why it matters. Powerful and almost never taught.
+- YOU'RE THE TA: present plausible-looking code (as if an AI wrote it) that hides a
+  subtle bug; they review it like a TA grading a student and find the flaw. This
+  builds the exact skill of catching an agent's mistakes.
+"""
+
 SESSION = (
     PERSONA
     + """
@@ -105,9 +125,11 @@ Answers are earned. Struggle first, help second. Celebrate real wins.
 
 IMPORTANT: be concise — present the first concrete drill within your opening
 message, don't lecture. The moment a drill is judged (pass or fail), you MUST
-call `record_attempt` before moving on; a session with no recorded attempts is a
-failed session. Keep momentum: one drill at a time, always leaving a hook.
+call `grade_and_record` (code) or `record_attempt` (non-code) before moving on; a
+session with no recorded attempts is a failed session. Keep momentum: one drill at
+a time, always leaving a hook.
 """
+    + DRILL_TYPES
     + TEACHING_PRINCIPLES
 )
 

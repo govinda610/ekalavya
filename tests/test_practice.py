@@ -167,6 +167,12 @@ def test_grade_and_record_records_the_verified_verdict():
     assert ok["correct"] == 1 and bad["correct"] == 0
 
 
+def test_diff_code():
+    out = tools.diff_code("def f():\n    return 2", "def f():\n    return 1")
+    assert "return 1" in out and "return 2" in out and "-" in out
+    assert "Identical" in tools.diff_code("x = 1", "x = 1")
+
+
 def test_broken_tutor_tests_do_not_grade_the_learner():
     # The reference doesn't pass the (wrong) tests -> tests are bad -> learner not graded.
     out = tools.grade_and_record("Python idioms", "debugging", "broken_test",

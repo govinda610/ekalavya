@@ -286,6 +286,20 @@ def record_attempt(
     )
 
 
+def diff_code(learner_code: str, reference_code: str) -> str:
+    """Return a unified diff between the learner's reproduction and the reference,
+    for the re-solve→diff drill. Call this after they reproduce a solution from
+    memory, then walk them through each difference and why it matters.
+    """
+    import difflib
+
+    diff = "\n".join(difflib.unified_diff(
+        reference_code.splitlines(), learner_code.splitlines(),
+        fromfile="reference", tofile="yours", lineterm="",
+    ))
+    return _clip(diff if diff.strip() else "Identical to the reference — perfect reproduction. ✓")
+
+
 def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
                      confidence: int, reference: str, seconds: float = 0.0) -> str:
     """Grade a code drill and record the VERIFIED result in one tamper-proof step.
@@ -341,6 +355,7 @@ SESSION_TOOLS = [
     run_code,
     grade_code,
     grade_and_record,
+    diff_code,
     record_attempt,
     progress_report,
 ]
