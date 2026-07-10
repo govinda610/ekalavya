@@ -44,3 +44,18 @@ def test_dashboard_and_apis():
     assert ov.status_code == 200 and "FastAPI" in ov.json()["grid"]["pillars"]
     cfg = c.get("/api/config").json()
     assert "practice" in cfg["kickoff"] and "provider" in cfg
+
+
+def test_death_and_reclaim_endpoints():
+    from starlette.testclient import TestClient
+
+    from eklavya import progress
+
+    c = TestClient(create_app())
+    progress.award_xp(80)
+    st = c.get("/api/stats").json()
+    assert st["xp"] >= 80
+    pen = c.post("/api/penalise").json()
+    assert pen["lost"] > 0 and pen["stats"]["streak"] == 0  # souls dropped, streak broken
+    rec = c.post("/api/reclaim").json()
+    assert rec["reclaimed"] == pen["lost"]  # typed-it-yourself reclaims the drop

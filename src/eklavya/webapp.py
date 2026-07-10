@@ -25,6 +25,7 @@ def create_app():
     from fastapi import FastAPI, Request
     from fastapi.responses import HTMLResponse, StreamingResponse
 
+    from . import progress
     from .agent import build_agent
     from .dashboard import render as render_dashboard
     from .db import init_db
@@ -85,6 +86,19 @@ def create_app():
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
 
+    @app.get("/api/stats")
+    def stats() -> dict:
+        return progress.stats()
+
+    @app.post("/api/penalise")
+    def penalise() -> dict:
+        result = progress.penalise("pasted code in the web editor")
+        return {"lost": result["lost"], "stats": progress.stats()}
+
+    @app.post("/api/reclaim")
+    def reclaim() -> dict:
+        return {"reclaimed": progress.reclaim(), "stats": progress.stats()}
+
     return app
 
 
@@ -144,6 +158,32 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
+/* game HUD */
+.hud{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px}
+.hud .flame{color:var(--amber)} .hud .lvl{color:var(--acc);font-weight:600}
+.hud .rank{color:var(--violet)}
+.hud .xpbar{width:88px;height:9px;border-radius:999px;background:#0b1420;border:1px solid var(--line);overflow:hidden}
+.hud .xpfill{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyan));box-shadow:0 0 8px var(--acc)}
+/* death overlay */
+#death{position:fixed;inset:0;z-index:100;display:none;place-items:center;
+ background:radial-gradient(circle at 50% 42%,rgba(70,0,12,.9),rgba(2,0,1,.97));backdrop-filter:blur(3px)}
+#death.on{display:grid;animation:fadein .5s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.deathcard{text-align:center;max-width:540px;padding:30px}
+.youdied{font-family:var(--disp);font-size:76px;font-weight:700;letter-spacing:.16em;color:#c9182b;
+ text-shadow:0 0 30px #ff2d4a99,0 0 70px #ff2d4a55;animation:dpulse 2.4s ease infinite}
+@keyframes dpulse{50%{opacity:.8;text-shadow:0 0 22px #ff2d4a77}}
+.deathsub{color:#e7c9cf;margin:16px 0;font-size:16px;line-height:1.7}
+.deathsub b{color:#ff5c7a}
+#death button{font-family:var(--disp);letter-spacing:.12em;margin-top:12px;background:#1a0508;color:#ff8a9c;
+ border:1px solid #5a1520;border-radius:11px;padding:11px 26px;cursor:pointer;font-weight:600;font-size:14px}
+#death button:hover{background:#260a0f;color:#ffb3bf}
+/* reclaim toast */
+#reclaim{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:90;display:none;
+ background:#0c1f18;border:1px solid #1c3d30;color:var(--acc);font-family:var(--disp);letter-spacing:.08em;
+ padding:12px 24px;border-radius:12px;box-shadow:0 0 34px #5ef2b855;font-weight:600}
+#reclaim.on{display:block;animation:pop .4s ease}
+@keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 </style></head><body>
 <header>
   <div><div class="logo">🏹 <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
@@ -152,6 +192,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
     <button class="tab" data-view="dash">Progress</button>
   </div>
   <div class="spacer"></div>
+  <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
 </header>
 <main>
@@ -180,13 +221,20 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
 </main>
 
+<div id="death"><div class="deathcard">
+  <div class="youdied">YOU DIED</div>
+  <div class="deathsub" id="deathsub"></div>
+  <button onclick="dismissDeath()">CONTINUE</button>
+</div></div>
+<div id="reclaim"></div>
+
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark'});
-let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
+let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false, pasted = false;
 
 // tabs
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
@@ -203,7 +251,31 @@ require(['vs/editor/editor.main'], function(){
   editor = monaco.editor.create(document.getElementById('editor'),
     {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
      scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
+  editor.onDidPaste(()=>{ pasted = true; });  // anti-cheat: the editor is our honest-signal surface
 });
+
+function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
+  for(const [t,n] of R) if(l>=t) return n; return 'Novice';}
+function setHud(s){const into=s.xp%100;
+  document.getElementById('hud').innerHTML =
+   "<span class='flame'>🔥 "+s.streak+"</span><span class='lvl'>⭐ Lv "+s.level+"</span>"+
+   "<span class='rank'>"+rank(s.level)+"</span>"+
+   "<span class='xpbar'><span class='xpfill' style='width:"+into+"%'></span></span>";}
+function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(setHud).catch(()=>{}); }
+function showReclaim(amt){ const r=document.getElementById('reclaim');
+  r.textContent="⚔ SOULS RECLAIMED  +"+amt+" XP"; r.classList.add('on');
+  setTimeout(()=>r.classList.remove('on'),2600); }
+function death(){
+  fetch('/api/penalise',{method:'POST'}).then(r=>r.json()).then(d=>{
+    document.getElementById('deathsub').innerHTML =
+      "Code was pasted into the editor — that's not practice.<br>"+
+      "Souls dropped: <b>-"+d.lost+" XP</b>. Streak broken.<br>"+
+      "<span class='dim'>Type your next answer yourself to reclaim your souls.</span>";
+    setHud(d.stats); document.getElementById('death').classList.add('on');
+  });
+  if(editor) editor.setValue("# write your solution here\n"); pasted=false;
+}
+function dismissDeath(){ document.getElementById('death').classList.remove('on'); }
 
 function el(cls){const d=document.createElement('div');d.className=cls;return d;}
 function addMsg(role, html){
@@ -239,7 +311,7 @@ async function stream(text){
   }catch(e){ buf+='\n\n_(connection error)_'; }
   body.classList.remove('typing'); body.innerHTML=renderMd(buf);
   try{ await mermaid.run({nodes:body.querySelectorAll('.mermaid')}); }catch(e){}
-  scroll(); streaming=false;
+  scroll(); streaming=false; refreshHud();
 }
 
 function sendChat(){
@@ -250,6 +322,9 @@ document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Ent
 
 function submitCode(){
   if(!editor||streaming)return; const code=editor.getValue().trim(); if(!code)return;
+  if(pasted){ death(); return; }                       // caught — you die
+  fetch('/api/reclaim',{method:'POST'}).then(r=>r.json()).then(d=>{  // typed it yourself
+    if(d.reclaimed>0) showReclaim(d.reclaimed); setHud(d.stats); }).catch(()=>{});
   const msg="Here is my code:\n```python\n"+code+"\n```";
   addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
   document.querySelectorAll('.msg.you pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
@@ -257,11 +332,13 @@ function submitCode(){
 }
 
 function newSession(){
-  mode=document.getElementById('mode').value; thread=crypto.randomUUID();
+  mode=document.getElementById('mode').value; thread=crypto.randomUUID(); pasted=false;
+  if(editor) editor.setValue("# write your solution here\n");
   document.getElementById('log').innerHTML='';
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
 
+refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set';
   stream(c.kickoff['practice']);
