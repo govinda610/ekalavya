@@ -45,6 +45,14 @@ def test_run_python_timeout():
     assert "Timed out" in r.stderr
 
 
+def test_sandbox_does_not_leak_the_environment():
+    # LLM-authored code must not be able to read the parent's env (API keys live there).
+    os.environ["EKLAVYA_GLM_API_KEY"] = "LEAK_CANARY_XYZ"
+    r = run_python("import os; print(os.environ.get('EKLAVYA_GLM_API_KEY', 'NONE'))")
+    assert "LEAK_CANARY_XYZ" not in r.stdout
+    assert "NONE" in r.stdout
+
+
 def test_run_tests_pass_and_fail():
     code = "def add(a, b):\n    return a + b"
     assert run_tests(code, "assert add(2, 3) == 5").ok
@@ -140,6 +148,22 @@ def test_record_attempt_updates_everything():
     assert attempt["correct"] == 1          # logged
     assert card is not None                 # review scheduled
     assert progress.stats()["xp"] > 0       # XP awarded
+
+
+def test_grade_and_record_records_the_verified_verdict():
+    # Correct code -> recorded correct; wrong code -> recorded wrong. The stored
+    # result equals the real sandbox verdict, not a model claim.
+    tools.grade_and_record("Python idioms", "debugging", "is_even_ok",
+                           "def is_even(n):\n    return n % 2 == 0",
+                           "assert is_even(4) and not is_even(3)", confidence=2)
+    tools.grade_and_record("Python idioms", "debugging", "is_even_bad",
+                           "def is_even(n):\n    return n % 2 == 1",  # wrong
+                           "assert is_even(4)", confidence=3)
+    c = connect()
+    ok = c.execute("SELECT correct FROM attempts WHERE detail='is_even_ok'").fetchone()
+    bad = c.execute("SELECT correct FROM attempts WHERE detail='is_even_bad'").fetchone()
+    c.close()
+    assert ok["correct"] == 1 and bad["correct"] == 0
 
 
 def test_session_links_attempts_and_finalises():

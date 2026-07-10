@@ -286,6 +286,29 @@ def record_attempt(
     )
 
 
+def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
+                     confidence: int, seconds: float = 0.0) -> str:
+    """Run hidden `tests` against `code` in the sandbox AND record the VERIFIED
+    result in one step. The recorded pass/fail is the real sandbox verdict — you
+    cannot fake it. Use this for EVERY code drill instead of grading and recording
+    separately. (For non-code drills — teach-backs, explanations — use record_attempt.)
+
+    axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
+    confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
+    """
+    from .sandbox import run_tests
+
+    r = run_tests(code, tests)
+    verdict = "PASS ✓" if r.ok else "FAIL ✗"
+    summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds, ai_off=True)
+    out = f"{verdict} (verified in sandbox, {r.seconds:.2f}s)\n"
+    if r.stdout.strip():
+        out += f"stdout:\n{r.stdout.strip()}\n"
+    if not r.ok and r.stderr.strip():
+        out += f"error:\n{r.stderr.strip()}\n"
+    return _clip(out.strip() + "\n\n" + summary)
+
+
 def progress_report() -> str:
     """Return the learner's streak, XP, level, and current mastery grid."""
     from . import progress
@@ -304,6 +327,7 @@ SESSION_TOOLS = [
     suggest_focus,
     run_code,
     grade_code,
+    grade_and_record,
     record_attempt,
     progress_report,
 ]

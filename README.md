@@ -126,11 +126,12 @@ literature. The core bet is counterintuitive but well established: **AI that han
 answers quietly erodes real skill, while AI that forces you to retrieve and reason builds
 it.**
 
-- **Giving answers hurts durable learning.** In a randomized trial (~1,000 students),
-  unrestricted GPT-4 raised *assisted* practice scores by **+48%** but dropped *unaided*
-  exam performance by **−17%** vs. controls — cognitive offloading feels productive and
-  isn't ([Bastani et al., 2025](https://arxiv.org/pdf/2605.21629)). This is the whole
-  reason Ekalavya makes you earn it (and penalises pasted code).
+- **Giving answers hurts durable learning.** In a randomized field experiment (~1,000
+  students), an unrestricted GPT-4 tutor raised *assisted* practice performance by ~48%
+  but dropped *unaided* exam scores by **~17%** vs. controls — while a *safeguarded* tutor
+  that gives hints instead of answers kept the gains **without** the harm
+  ([Bastani et al., 2024, SSRN](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4895486)).
+  That safeguarded design is exactly what Ekalavya is (and why it penalises pasted code).
 - **A well-designed tutor beats even great teaching.** A Harvard RCT (N=194) found a
   Socratic, scaffolded AI tutor made students learn **significantly more in less time**
   than an active-learning classroom — and feel more engaged

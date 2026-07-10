@@ -229,6 +229,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 <div id="reclaim"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
@@ -285,7 +286,7 @@ function addMsg(role, html){
 }
 function scroll(){const l=document.getElementById('log'); l.scrollTop=l.scrollHeight;}
 function renderMd(text){
-  const html = marked.parse(text);
+  const html = DOMPurify.sanitize(marked.parse(text));  // never trust model output in the DOM
   const tmp=document.createElement('div'); tmp.innerHTML=html;
   tmp.querySelectorAll('pre code').forEach(c=>{
     if(c.className.includes('mermaid')||c.className.includes('language-mermaid')){
