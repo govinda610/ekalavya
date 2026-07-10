@@ -17,25 +17,19 @@ _TARGET = 0.65
 _CONFIDENCE_P = {1: 0.25, 2: 0.6, 3: 0.9}
 
 
-def update_elo(current: float, correct: bool, confidence: int = 2,
-               item_difficulty: float | None = None) -> float:
+def update_elo(current: float, correct: bool, confidence: int = 2) -> float:
     """Return the new rating after one attempt.
 
-    - `expected` is the Elo-predicted success (uses item difficulty if known).
-    - `surprise` amplifies the update when the outcome contradicts the learner's
-      stated confidence — punishing confident-wrong and rewarding unsure-right.
+    The calibration signal is confidence, not item difficulty (we don't have a
+    reliable per-item difficulty): `surprise` amplifies the update when the outcome
+    contradicts the learner's stated confidence — punishing confident-wrong (the
+    illusion of knowing) and rewarding unsure-right.
     """
-    if item_difficulty is not None:
-        expected = 1.0 / (1.0 + 10 ** ((item_difficulty - current) / 400.0))
-    else:
-        expected = _TARGET
     score = 1.0 if correct else 0.0
-
     claimed = _CONFIDENCE_P.get(int(confidence), 0.6)
     surprise = abs(score - claimed)  # 0 = perfectly calibrated, 1 = maximally wrong
     k = _BASE_K * (1.0 + surprise)   # up to 2× on a big miscalibration
-
-    return round(current + k * (score - expected), 1)
+    return round(current + k * (score - _TARGET), 1)
 
 
 def tighten(band: float) -> float:

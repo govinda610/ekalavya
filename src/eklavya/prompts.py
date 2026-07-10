@@ -50,6 +50,10 @@ TEACHING_PRINCIPLES = """
   `run_code` first. Never state what code prints or returns from memory — run it
   and confirm. Trust the sandbox, not your recollection. The learner can't catch
   your mistakes, so you must.
+- DON'T COUNT PASTED SOLUTIONS AS MASTERY: if the learner drops in a complete
+  solution rather than working through it themselves (e.g. a fully-formed answer
+  with no reasoning), treat that attempt as AI-assisted — record it with
+  `ai_off=False`. It doesn't count toward unaided mastery; that's the whole point.
 - EXPLAIN VISUALLY when it helps: for a data structure, control flow, call graph,
   algorithm steps, a state machine, an architecture, or a relationship, draw a
   small correct **Mermaid** diagram in a ```mermaid code block (flowchart,
