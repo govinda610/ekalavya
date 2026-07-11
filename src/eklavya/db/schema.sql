@@ -174,6 +174,21 @@ CREATE TABLE IF NOT EXISTS questions (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_questions_q ON questions(question);
 
+-- AI-enabled interview mode: every exchange with the in-interview AI assistant,
+-- logged so the interviewer can grade HOW the candidate used it. `behavior` is
+-- help | plant | withhold; `planted_bug` is the ground-truth flaw when we
+-- deliberately made the assistant subtly wrong (the candidate never saw this).
+CREATE TABLE IF NOT EXISTS ai_assists (
+    id          INTEGER PRIMARY KEY,
+    thread      TEXT NOT NULL,
+    prompt      TEXT NOT NULL,
+    reply       TEXT NOT NULL,
+    behavior    TEXT NOT NULL DEFAULT 'help',
+    planted_bug TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_ai_assists_thread ON ai_assists(thread);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,

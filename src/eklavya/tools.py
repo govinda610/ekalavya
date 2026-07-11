@@ -486,3 +486,9 @@ SESSION_TOOLS = [
     get_curriculum,
     add_curriculum,
 ]
+
+# The AI-enabled interview agent = the session tools plus the AI-usage review tool
+# it calls to grade how the candidate used the (deliberately imperfect) assistant.
+from .assist import review_ai_usage  # noqa: E402
+
+AIINTERVIEW_TOOLS = SESSION_TOOLS + [review_ai_usage]

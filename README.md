@@ -36,6 +36,11 @@ alone, through sheer devotion — no teacher handing him anything.
   reclaim the dropped souls only by typing the next one yourself.
 - **Simulates take-home assignments** — a demanding, scoped brief like the ones
   top companies send, then reviews your submission like a senior engineer.
+- **Trains you to work *with* AI** — an "AI-allowed" interview mode (the format top
+  companies are moving to). You get an AI assistant in the room, but it's
+  deliberately imperfect: it sometimes plants a subtle bug or only half-helps. You're
+  scored on how well you *use* it — prompting, verifying its output, and catching its
+  mistakes — not just the final code.
 - **Learns from your real code** — point it at a repo you work on and it tailors
   your practice to the frameworks you actually use.
 - **Shows your progress** — a mastery heatmap, streak, level, and XP.
@@ -67,6 +72,15 @@ what you've mastered (green), what's unlocked (cyan), and what's still locked:
 
 <p align="center">
   <img src="docs/screenshots/skilltree.png" width="80%" alt="Ekalavya skill tree">
+</p>
+
+And an **AI-enabled interview** — the "AI-allowed" format. An AI assistant sits in a
+side panel; it's deliberately imperfect (it sometimes plants a subtle bug, sometimes
+only half-helps), and the interviewer grades how well you *used* it — prompting,
+verifying, and bug-catching — alongside your solution:
+
+<p align="center">
+  <img src="docs/screenshots/aiinterview.png" width="90%" alt="Ekalavya AI-enabled interview mode">
 </p>
 
 | Practice (TUI) | Progress dashboard |

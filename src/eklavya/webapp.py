@@ -14,10 +14,12 @@ import uuid
 from . import prompts, report
 
 _PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK,
+            "aiinterview": prompts.AI_INTERVIEW,
             "takehome": prompts.TAKEHOME, "onboard": prompts.ONBOARDING}
 _KICKOFF = {
     "practice": "Start today's practice session. I have 30 minutes.",
     "mock": "Start a mock interview. I have 45 minutes.",
+    "aiinterview": "Start an AI-assisted mock interview. I have 45 minutes.",
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
     "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
@@ -32,17 +34,18 @@ def create_app():
     from .dashboard import render as render_dashboard
     from .db import init_db
     from .providers import pick
-    from .tools import ONBOARDING_TOOLS, SESSION_TOOLS
+    from .tools import AIINTERVIEW_TOOLS, ONBOARDING_TOOLS, SESSION_TOOLS
     from .tui import _chunk_text
 
     init_db()
     provider = pick(None)
     agents: dict = {}  # mode -> agent (one per mode, threads keyed per browser session)
+    _TOOLS = {"onboard": ONBOARDING_TOOLS, "aiinterview": AIINTERVIEW_TOOLS}
 
     def agent_for(mode: str):
         mode = mode if mode in _PROMPTS else "practice"
         if mode not in agents:
-            tools = ONBOARDING_TOOLS if mode == "onboard" else SESSION_TOOLS
+            tools = _TOOLS.get(mode, SESSION_TOOLS)
             agents[mode] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
         return agents[mode]
 
@@ -82,6 +85,10 @@ def create_app():
         mode = body.get("mode", "practice")
         thread = body.get("thread") or str(uuid.uuid4())
         text = body.get("text", "")
+        if mode == "aiinterview":
+            from .assist import mark_interview
+
+            mark_interview(thread)  # scope AI-usage grading to this interview
         agent = agent_for(mode)
         config = {"configurable": {"thread_id": thread}}
 
@@ -106,6 +113,18 @@ def create_app():
             yield json.dumps({"done": True}) + "\n"
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
+
+    @app.post("/api/assist")
+    async def assist(request: Request):
+        from starlette.concurrency import run_in_threadpool
+
+        from .assist import respond
+
+        body = await request.json()
+        thread = body.get("thread") or ""
+        prompt = body.get("text", "")
+        reply = await run_in_threadpool(respond, thread, prompt)
+        return {"reply": reply}
 
     @app.get("/api/stats")
     def stats() -> dict:
@@ -183,6 +202,19 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
+/* AI-assistant drawer (AI-enabled interview mode) */
+#assistpanel{display:flex;flex-direction:column;height:42%;border-bottom:1px solid var(--line);background:#0c1322}
+.asshead{font-family:var(--disp);letter-spacing:.06em;font-size:12px;color:var(--violet);
+ padding:8px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center}
+.asslog{flex:1;min-height:0;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:1.5}
+.asslog .am{padding:8px 11px;border-radius:10px;max-width:92%}
+.asslog .am.you{align-self:flex-end;background:#131a2a;border:1px solid var(--line)}
+.asslog .am.bot{align-self:flex-start;background:#0e1830;border:1px solid #26325a}
+.asslog .am pre{background:#0a1018 !important;border:1px solid var(--line);border-radius:8px;padding:9px;overflow-x:auto}
+.asslog .am code{font-family:var(--mono);font-size:12.5px}
+.asshint{color:var(--dim);font-weight:400;font-size:11px}
+.assbar{display:flex;gap:6px;padding:8px;border-top:1px solid var(--line)}
+.assbar input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:8px 10px;font-size:13px;font-family:var(--sans)}
 /* game HUD */
 .hud{display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:12px}
 .hud .flame{color:var(--amber)} .hud .lvl{color:var(--acc);font-weight:600}
@@ -236,12 +268,21 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
         <select id="mode" onchange="newSession()">
           <option value="practice">Daily practice</option>
           <option value="mock">Mock interview</option>
+          <option value="aiinterview">AI-enabled interview</option>
           <option value="takehome">Take-home</option>
           <option value="onboard">First-time setup</option>
         </select>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
         <button class="submit" onclick="submitCode()">▶ Submit code</button>
+      </div>
+      <div id="assistpanel" class="hidden">
+        <div class="asshead">🤖 AI Assistant <span class="asshint">— allowed here, but it's imperfect. Verify it.</span></div>
+        <div class="asslog" id="asslog"></div>
+        <div class="assbar">
+          <input id="assin" placeholder="ask the AI assistant for help…" autocomplete="off">
+          <button class="ghost" onclick="sendAssist()">Ask</button>
+        </div>
       </div>
       <div id="editor"></div>
     </div>
@@ -370,19 +411,44 @@ document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Ent
 
 function submitCode(){
   if(!editor||streaming)return; const code=editor.getValue().trim(); if(!code)return;
-  if(pasted){ death(); return; }                       // caught — you die
-  fetch('/api/reclaim',{method:'POST'}).then(r=>r.json()).then(d=>{  // typed it yourself
-    if(d.reclaimed>0) showReclaim(d.reclaimed); setHud(d.stats); }).catch(()=>{});
+  if(mode!=='aiinterview'){                              // AI is allowed in aiinterview — no death
+    if(pasted){ death(); return; }                      // caught — you die
+    fetch('/api/reclaim',{method:'POST'}).then(r=>r.json()).then(d=>{  // typed it yourself
+      if(d.reclaimed>0) showReclaim(d.reclaimed); setHud(d.stats); }).catch(()=>{});
+  } else { pasted=false; }
   const msg="Here is my code:\n```python\n"+code+"\n```";
   addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
   document.querySelectorAll('.msg.you pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
   stream(msg);
 }
 
+// --- AI assistant panel (AI-enabled interview mode) ---
+let assbusy=false;
+function applyMode(){  // show the AI-assistant drawer only in aiinterview mode
+  document.getElementById('assistpanel').classList.toggle('hidden', mode!=='aiinterview');
+}
+function addAssist(role, html){
+  const d=document.createElement('div'); d.className='am '+role; d.innerHTML=html;
+  const log=document.getElementById('asslog'); log.appendChild(d); log.scrollTop=log.scrollHeight; return d;
+}
+function sendAssist(){
+  const inp=document.getElementById('assin'); const t=inp.value.trim(); if(!t||assbusy)return;
+  inp.value=''; addAssist('you', t.replace(/</g,'&lt;'));
+  const b=addAssist('bot','<span class="dim">thinking…</span>'); assbusy=true;
+  fetch('/api/assist',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({thread,text:t})})
+   .then(r=>r.json()).then(d=>{ b.innerHTML=renderMd(d.reply||'');
+     b.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+     assbusy=false; document.getElementById('asslog').scrollTop=1e9; })
+   .catch(()=>{ b.innerHTML='<span class="dim">assistant unavailable.</span>'; assbusy=false; });
+}
+document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Enter')sendAssist();});
+
 function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); pasted=false;
   if(editor) editor.setValue("# write your solution here\n");
-  document.getElementById('log').innerHTML='';
+  document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML='';
+  applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
 
@@ -390,6 +456,7 @@ refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set';
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
+  applyMode();
   stream(c.kickoff[mode]);
 });
 </script></body></html>"""
