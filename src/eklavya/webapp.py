@@ -23,6 +23,9 @@ _KICKOFF = {
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
     "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
+_MODE_LABEL = {"practice": "Practice session", "mock": "Mock interview",
+               "aiinterview": "AI-enabled interview", "takehome": "Take-home",
+               "onboard": "Onboarding"}
 
 
 def create_app():
@@ -89,6 +92,9 @@ def create_app():
             from .assist import mark_interview
 
             mark_interview(thread)  # scope AI-usage grading to this interview
+        from .chatstore import touch_chat
+
+        touch_chat(thread, mode=mode)  # persist/refresh this chat in the history
         agent = agent_for(mode)
         config = {"configurable": {"thread_id": thread}}
 
@@ -110,6 +116,15 @@ def create_app():
             note = selfcheck("".join(buf))  # a second model reviews the reply
             if note:
                 yield json.dumps({"t": note}) + "\n"
+            try:  # auto-name the chat from the learner's first real message
+                from .chatstore import auto_title, get_title, rename_chat
+
+                if get_title(thread) is None:
+                    title = auto_title(thread, skip=set(_KICKOFF.values()))
+                    if title:
+                        rename_chat(thread, title)
+            except Exception:
+                pass
             yield json.dumps({"done": True}) + "\n"
 
         return StreamingResponse(gen(), media_type="application/x-ndjson")
@@ -138,6 +153,30 @@ def create_app():
     @app.post("/api/reclaim")
     def reclaim() -> dict:
         return {"reclaimed": progress.reclaim(), "stats": progress.stats()}
+
+    @app.get("/api/chats")
+    def chats_list() -> list:
+        from .chatstore import list_chats
+
+        return [{**c, "title": c["title"] or _MODE_LABEL.get(c["mode"], "Chat")}
+                for c in list_chats()]
+
+    @app.get("/api/chats/{thread_id}")
+    def chat_get(thread_id: str) -> dict:
+        from .chatstore import get_chat, transcript
+
+        meta = get_chat(thread_id) or {}
+        return {"thread_id": thread_id, "mode": meta.get("mode"),
+                "title": meta.get("title") or _MODE_LABEL.get(meta.get("mode"), "Chat"),
+                "transcript": transcript(thread_id)}
+
+    @app.patch("/api/chats/{thread_id}")
+    async def chat_rename(thread_id: str, request: Request):
+        from .chatstore import rename_chat
+
+        body = await request.json()
+        rename_chat(thread_id, body.get("title", ""))
+        return {"ok": True}
 
     return app
 
@@ -202,6 +241,31 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
+/* chats drawer */
+#chatsbtn{font-family:var(--disp);letter-spacing:.08em;font-size:12px;color:var(--dim);background:#0c1622;
+ border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;margin-left:4px}
+#chatsbtn:hover{color:var(--acc);border-color:#1c3d30}
+#drawerscrim{position:fixed;inset:0;z-index:110;background:rgba(2,6,12,.55);opacity:0;pointer-events:none;transition:opacity .22s}
+#drawerscrim.open{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:300px;z-index:120;transform:translateX(-105%);
+ transition:transform .22s ease;display:flex;flex-direction:column;
+ background:linear-gradient(180deg,var(--panel),var(--panel2));border-right:1px solid var(--line);box-shadow:2px 0 30px #0008}
+#drawer.open{transform:translateX(0)}
+.drawerhead{display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--line)}
+.drawerhead .t{font-family:var(--disp);letter-spacing:.12em;font-size:14px;color:var(--acc);text-transform:uppercase}
+.drawerhead .x{margin-left:auto;background:none;border:none;color:var(--dim);cursor:pointer;font-size:18px}
+.newchat{margin:10px 12px 6px;font-family:var(--disp);letter-spacing:.06em;background:#0c1f18;color:var(--acc);
+ border:1px solid #1c3d30;border-radius:9px;padding:9px 12px;cursor:pointer;text-align:left}
+.newchat:hover{background:#0f2a20}
+.chatlist{flex:1;overflow-y:auto;padding:6px 8px}
+.chatitem{display:flex;align-items:center;gap:8px;padding:9px 11px;border-radius:9px;cursor:pointer;border:1px solid transparent}
+.chatitem:hover{background:#0c1622;border-color:var(--line)}
+.chatitem.active{background:#0c1622;border-color:#1c3d30}
+.chatitem .ci{flex:1;min-width:0}
+.chatitem .ct{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chatitem .cm{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+.chatitem .cedit{opacity:0;color:var(--dim);background:none;border:none;cursor:pointer;font-size:12px;flex:none}
+.chatitem:hover .cedit{opacity:1}
 /* AI-assistant drawer (AI-enabled interview mode) */
 #assistpanel{display:flex;flex-direction:column;height:42%;border-bottom:1px solid var(--line);background:#0c1322}
 .asshead{font-family:var(--disp);letter-spacing:.06em;font-size:12px;color:var(--violet);
@@ -244,6 +308,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 </style></head><body>
 <header>
   <div><div class="logo">🏹 <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
+  <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
   <div class="tabs">
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
@@ -294,6 +359,13 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
     <div id="treediagram"></div>
   </div>
 </main>
+
+<div id="drawerscrim" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="drawerhead"><span class="t">Chats</span><button class="x" onclick="closeDrawer()">×</button></div>
+  <button class="newchat" onclick="newChat()">+ New chat</button>
+  <div class="chatlist" id="chatlist"></div>
+</div>
 
 <div id="death"><div class="deathcard">
   <div class="youdied">YOU DIED</div>
@@ -450,6 +522,50 @@ function newSession(){
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML='';
   applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
+}
+
+// --- chats drawer (persistent history) ---
+function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
+async function loadChats(){
+  const box=document.getElementById('chatlist');
+  try{
+    const l=await (await fetch('/api/chats')).json();
+    box.innerHTML='';
+    if(!l.length){ box.innerHTML='<div class="dim" style="padding:14px;font-size:12px">No past chats yet.</div>'; return; }
+    for(const c of l){
+      const it=el('chatitem'); if(c.thread_id===thread) it.classList.add('active');
+      const ci=el('ci'), ct=el('ct'), cm=el('cm');
+      ct.textContent=c.title||'(untitled)'; cm.textContent=(c.mode||'')+' · '+rel(c.updated_at);
+      ci.appendChild(ct); ci.appendChild(cm);
+      const ed=document.createElement('button'); ed.className='cedit'; ed.textContent='✎'; ed.title='rename';
+      it.appendChild(ci); it.appendChild(ed);
+      ci.onclick=()=>openChat(c.thread_id);
+      ed.onclick=(e)=>{ e.stopPropagation(); renameChat(c.thread_id, c.title); };
+      box.appendChild(it);
+    }
+  }catch(e){ box.innerHTML='<div class="dim" style="padding:14px">could not load chats.</div>'; }
+}
+function openDrawer(){ loadChats(); document.getElementById('drawer').classList.add('open'); document.getElementById('drawerscrim').classList.add('open'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('drawerscrim').classList.remove('open'); }
+async function openChat(id){
+  if(streaming) return;
+  try{
+    const c=await (await fetch('/api/chats/'+id)).json();
+    thread=id; mode=c.mode||mode; document.getElementById('mode').value=mode; applyMode();
+    const log=document.getElementById('log'); log.innerHTML='';
+    for(const m of (c.transcript||[])){
+      const b=addMsg(m.role==='you'?'you':'ai',''); b.innerHTML=renderMd(m.text);
+      b.querySelectorAll('pre code').forEach(x=>{try{hljs.highlightElement(x);}catch(e){}});
+      try{ await mermaid.run({nodes:b.querySelectorAll('.mermaid')}); }catch(e){}
+    }
+    document.getElementById('asslog').innerHTML=''; closeDrawer(); scroll(); refreshHud();
+  }catch(e){}
+}
+function newChat(){ closeDrawer(); newSession(); }
+function renameChat(id, cur){
+  const t=prompt('Rename chat:', cur||''); if(t==null) return;
+  fetch('/api/chats/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:t})})
+   .then(()=>loadChats()).catch(()=>{});
 }
 
 refreshHud();

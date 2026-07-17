@@ -189,6 +189,19 @@ CREATE TABLE IF NOT EXISTS ai_assists (
 );
 CREATE INDEX IF NOT EXISTS idx_ai_assists_thread ON ai_assists(thread);
 
+-- The chats index for the chats window (history / continue / rename). The actual
+-- conversation state lives in the LangGraph SQLite checkpointer
+-- (~/.eklavya/checkpoints.sqlite), keyed by the same thread_id; this table just
+-- holds the sidebar metadata so we can list, title, and order past chats.
+CREATE TABLE IF NOT EXISTS chats (
+    thread_id   TEXT PRIMARY KEY,
+    title       TEXT,
+    mode        TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_chats_updated ON chats(updated_at DESC);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,

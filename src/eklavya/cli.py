@@ -213,6 +213,7 @@ def takehome(
 def serve(
     host: str = typer.Option("127.0.0.1", help="bind host"),
     port: int = typer.Option(4646, help="bind port"),
+    open_browser: bool = typer.Option(True, "--open/--no-open", help="open the browser automatically"),
 ) -> None:
     """Open the full web app — practice in the browser, no terminal needed."""
     import uvicorn
@@ -220,7 +221,13 @@ def serve(
     from .webapp import create_app
 
     init_db()
-    console.print(f"[green]›[/green] Ekalavya at [bold]http://{host}:{port}[/bold]  (Ctrl+C to stop)")
+    url = f"http://{host}:{port}"
+    console.print(f"[green]›[/green] Ekalavya at [bold]{url}[/bold]  (Ctrl+C to stop)")
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()  # after the server is up
     uvicorn.run(create_app(), host=host, port=port, log_level="warning")
 
 

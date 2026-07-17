@@ -14,15 +14,24 @@ _MAX_TOKENS = 4096
 
 
 def build_agent(system_prompt: str, tools: list, provider: str | None = None,
-                model: str | None = None):
-    """Create a deep agent with our tools and prompt, wired to a provider."""
+                model: str | None = None, checkpointer=None):
+    """Create a deep agent with our tools and prompt, wired to a provider.
+
+    Defaults to the persistent SQLite checkpointer so conversations survive restarts
+    and can be listed/resumed from the chats window. Pass `checkpointer` to override
+    (e.g. an in-memory one for a throwaway agent).
+    """
     from deepagents import create_deep_agent
-    from langgraph.checkpoint.memory import MemorySaver
+
+    if checkpointer is None:
+        from .chatstore import get_checkpointer
+
+        checkpointer = get_checkpointer()
 
     chat = build_chat_model(provider, model=model, max_tokens=_MAX_TOKENS)
     return create_deep_agent(
         model=chat,
         tools=tools,
         system_prompt=system_prompt,
-        checkpointer=MemorySaver(),
+        checkpointer=checkpointer,
     )
