@@ -28,6 +28,40 @@ AXIS_COLOR = {
 _RANKS = [(17, "Grandmaster"), (12, "Master"), (8, "Expert"), (5, "Adept"),
           (3, "Apprentice"), (1, "Novice")]
 
+# --- line icons -------------------------------------------------------------
+# A tiny Feather/Lucide-style stroke-icon set. Each value is the inner SVG paths;
+# `_icon` wraps them in a 16px <svg> that inherits the current text color, so a
+# header's dim color flows straight into the glyph. Emoji retired everywhere
+# except the two brand marks (bow logo, death skull) which stay inline.
+_ICON_PATHS = {
+    "grid":     '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+    "bars":     '<line x1="4" y1="20" x2="4" y2="12"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="9"/><line x1="22" y1="20" x2="22" y2="14"/>',
+    "target":   '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/>',
+    "scale":    '<path d="M12 3v18"/><path d="M5 8h14"/><path d="M5 8l-2 5a3 3 0 0 0 6 0z"/><path d="M19 8l-2 5a3 3 0 0 0 6 0z"/>',
+    "medal":    '<circle cx="12" cy="15" r="5"/><path d="M9 10L6 3M15 10l3-7"/>',
+    "scroll":   '<path d="M6 4h11a2 2 0 0 1 2 2v12a2 2 0 0 0 2 2H8a2 2 0 0 1-2-2z"/><path d="M6 4a2 2 0 0 0-2 2v2h4"/>',
+    "sword":    '<path d="M14 3h7v7l-9 9-5-5z"/><line x1="5" y1="14" x2="10" y2="19"/><line x1="3" y1="21" x2="7" y2="17"/>',
+    "flame":    '<path d="M12 3c1 4 5 5 5 9a5 5 0 0 1-10 0c0-2 1-3 2-4 0 1 1 2 2 2 0-2-1-4 1-7z"/>',
+    "calendar": '<rect x="4" y="5" width="16" height="15" rx="2"/><line x1="4" y1="9" x2="20" y2="9"/><line x1="8" y1="3" x2="8" y2="6"/><line x1="16" y1="3" x2="16" y2="6"/>',
+    "infinity": '<path d="M7 12c-2.5 0-4-1.6-4-3.5S4.5 5 7 5s3.5 2 5 3.5c1.5 1.5 2.5 3.5 5 3.5s4-1.6 4-3.5S24.5 8 22 8"/>',
+    "star":     '<path d="M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z"/>',
+    "crown":    '<path d="M4 18h16M4 18l-1-9 5 4 4-7 4 7 5-4-1 9"/>',
+    "gem":      '<path d="M6 3h12l3 6-9 12L3 9z"/><path d="M3 9h18M9 3l-3 6 6 12 6-12-3-6"/>',
+    "prayer":   '<circle cx="12" cy="12" r="8"/><path d="M12 6v6l4 2"/>',
+    "hourglass": '<path d="M6 3h12M6 21h12"/><path d="M6 3c0 5 6 6 6 9s-6 4-6 9M18 3c0 5-6 6-6 9s6 4 6 9"/>',
+    "lock":     '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    "trend":    '<path d="M3 17l6-6 4 4 8-8"/><path d="M17 7h4v4"/>',
+    "layers":   '<path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/>',
+    "compass":  '<circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/>',
+    "activity": '<path d="M3 12h4l3 8 4-16 3 8h4"/>',
+}
+
+
+def _icon(name: str, size: int = 16) -> str:
+    return (f'<svg class="ic" width="{size}" height="{size}" viewBox="0 0 24 24" '
+            f'fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" '
+            f'stroke-linejoin="round" aria-hidden="true">{_ICON_PATHS[name]}</svg>')
+
 
 def _rank(level: int) -> str:
     for threshold, name in _RANKS:
@@ -50,19 +84,19 @@ def _cell(cell: dict | None) -> str:
 
 def _achievements(stats: dict, strong: int, sessions: int) -> str:
     earned = []
-    if stats["streak"] >= 3: earned.append(("🔥", "On Fire", "3-day streak"))
-    if stats["streak"] >= 7: earned.append(("🗓️", "Week Warrior", "7-day streak"))
-    if stats["streak"] >= 30: earned.append(("♾️", "Unbroken", "30-day streak"))
-    if stats["level"] >= 5: earned.append(("⭐", "Adept", "reached level 5"))
-    if stats["level"] >= 10: earned.append(("👑", "Master", "reached level 10"))
-    if strong >= 1: earned.append(("💎", "First Mastery", "a skill hit strong"))
-    if strong >= 5: earned.append(("🗡️", "Sharpened", "5 skills at strong"))
-    if sessions >= 1: earned.append(("🏹", "Initiate", "completed a session"))
-    if sessions >= 10: earned.append(("📿", "Devoted", "10 sessions"))
+    if stats["streak"] >= 3: earned.append(("flame", "On Fire", "3-day streak"))
+    if stats["streak"] >= 7: earned.append(("calendar", "Week Warrior", "7-day streak"))
+    if stats["streak"] >= 30: earned.append(("infinity", "Unbroken", "30-day streak"))
+    if stats["level"] >= 5: earned.append(("star", "Adept", "reached level 5"))
+    if stats["level"] >= 10: earned.append(("crown", "Master", "reached level 10"))
+    if strong >= 1: earned.append(("gem", "First Mastery", "a skill hit strong"))
+    if strong >= 5: earned.append(("sword", "Sharpened", "5 skills at strong"))
+    if sessions >= 1: earned.append(("target", "Initiate", "completed a session"))
+    if sessions >= 10: earned.append(("prayer", "Devoted", "10 sessions"))
     if not earned:
         return '<span class="muted">No badges yet — your first session earns one.</span>'
     return "".join(
-        f'<div class="badge"><div class="bico">{i}</div><div><b>{t}</b>'
+        f'<div class="badge"><div class="bico">{_icon(i, 20)}</div><div><b>{t}</b>'
         f'<span class="muted">{d}</span></div></div>' for i, t, d in earned
     )
 
@@ -174,14 +208,14 @@ def render(ov: dict) -> str:
   </header>
 
   <section class="quest-banner">
-    <div class="qtitle">⚔ TODAY'S QUEST</div>
+    <div class="qtitle">{_icon("sword")} TODAY'S QUEST</div>
     <div class="qbody">{quest}</div>
     <div class="qmeta">{due_line}</div>
   </section>
 
-  <div class="grid2">
-    <section class="card">
-      <h2>◈ Skill map</h2>
+  <div class="bento">
+    <section class="card b-map">
+      <h2>{_icon("grid")} Skill map</h2>
       <table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table>
       <div class="legend">
         <span><i style="background:#3a4658"></i>unknown</span>
@@ -190,30 +224,24 @@ def render(ov: dict) -> str:
         <span><i style="background:#5ef2b8"></i>strong</span>
       </div>
     </section>
-    <section class="card">
-      <h2>▲ Skill axes</h2>
+    <section class="card b-axes">
+      <h2>{_icon("bars")} Skill axes</h2>
       <div class="bars">{bars}</div>
     </section>
-  </div>
-
-  <div class="grid2">
-    <section class="card">
-      <h2>✦ Active quests</h2>
+    <section class="card b-quests">
+      <h2>{_icon("target")} Active quests</h2>
       <div class="quests">{goals}</div>
     </section>
-    <section class="card">
-      <h2>◎ Unaided vs AI-assisted</h2>
+    <section class="card b-gap">
+      <h2>{_icon("scale")} Unaided vs AI-assisted</h2>
       {aigap}
     </section>
-  </div>
-
-  <div class="grid2">
-    <section class="card">
-      <h2>🏅 Achievements</h2>
+    <section class="card b-ach">
+      <h2>{_icon("medal")} Achievements</h2>
       <div class="badges">{badges}</div>
     </section>
-    <section class="card">
-      <h2>📜 Chronicle</h2>
+    <section class="card b-chron">
+      <h2>{_icon("scroll")} Chronicle</h2>
       <table class="chron">{sessions}</table>
     </section>
   </div>
@@ -260,7 +288,9 @@ body{margin:0;font-family:var(--sans);color:var(--ink);
 .muted{color:var(--dim)} code{font-family:var(--mono);color:var(--acc);background:#0c1622;
   padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
 h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--dim);margin:0 0 14px;font-weight:500}
+  color:var(--dim);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:8px}
+.ic{flex:none;opacity:.85}
+h2 .ic{width:15px;height:15px}
 
 /* hero / character */
 .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
@@ -291,13 +321,33 @@ h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:up
 .quest-banner{background:linear-gradient(100deg,#13233a,#0e1622);border:1px solid #244;
   border-left:3px solid var(--acc);border-radius:14px;padding:16px 22px;
   box-shadow:0 0 40px -20px var(--acc)}
-.qtitle{font-family:var(--disp);letter-spacing:.2em;color:var(--acc);font-size:13px;font-weight:700}
+.qtitle{font-family:var(--disp);letter-spacing:.2em;color:var(--acc);font-size:13px;font-weight:700;
+  display:flex;align-items:center;gap:8px}
+.qtitle .ic{width:16px;height:16px;opacity:1}
 .qbody{font-size:17px;margin:4px 0 6px}
 .qmeta .due{color:var(--amber);font-family:var(--mono);font-size:13px}
 
 /* cards */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}.char{width:100%}}
+
+/* bento — asymmetric, skill map is the hero */
+.bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);
+  grid-template-areas:
+    "map map map map axes axes"
+    "quests quests gap gap gap gap"
+    "ach ach ach ach chron chron";}
+.b-map{grid-area:map}
+.b-axes{grid-area:axes}
+.b-quests{grid-area:quests}
+.b-gap{grid-area:gap}
+.b-ach{grid-area:ach}
+.b-chron{grid-area:chron}
+.bento .card{margin:0}
+@media(max-width:820px){
+  .bento{grid-template-columns:1fr;
+    grid-template-areas:"map" "axes" "quests" "gap" "ach" "chron";}
+}
 .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
   border-radius:16px;padding:18px 20px;box-shadow:0 1px 0 #ffffff0d inset,0 18px 50px -34px #000;
   transition:transform .22s cubic-bezier(.22,.61,.36,1),border-color .22s,box-shadow .22s}
@@ -338,7 +388,9 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 .badges{display:flex;flex-wrap:wrap;gap:10px}
 .badge{display:flex;align-items:center;gap:10px;background:#0c1622;border:1px solid #24344a;
   border-radius:12px;padding:9px 13px;min-width:150px}
-.badge .bico{font-size:22px;filter:drop-shadow(0 0 8px #0008)}
+.badge .bico{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;
+  color:var(--acc);background:#0a1a14;border:1px solid #1c3d30}
+.badge .bico .ic{opacity:1}
 .badge b{display:block;font-size:13px}.badge .muted{font-size:11px}
 
 /* ai gap */

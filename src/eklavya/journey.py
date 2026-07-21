@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from . import progress
 from .db import connect
-from .dashboard import _CSS
+from .dashboard import _CSS, _icon, _rank
 
 
 def _all(sql: str, params=()):
@@ -39,18 +39,18 @@ def milestones() -> list[tuple[str, str, str]]:
     first = _all("SELECT MIN(created_at) AS m FROM rewards")[0]["m"] \
         or _all("SELECT MIN(started_at) AS m FROM sessions")[0]["m"]
     if first:
-        events.append((first[:10], "🏹", "Began the journey"))
+        events.append((first[:10], "target", "Began the journey"))
 
     level = 1
     for stamp, xp in xp_curve():
         new_level = 1 + xp // 100
         while new_level > level:
             level += 1
-            events.append((stamp[:10], "⭐", f"Reached Level {level}"))
+            events.append((stamp[:10], "star", f"Reached Level {level}"))
 
     for r in _all("SELECT pillar, axis, MIN(created_at) AS m FROM rating_history "
                   "WHERE new_rating >= 1300 GROUP BY pillar, axis"):
-        events.append((r["m"][:10], "💎", f"Mastered {r['pillar']} · {r['axis'].replace('_', ' ')}"))
+        events.append((r["m"][:10], "gem", f"Mastered {r['pillar']} · {r['axis'].replace('_', ' ')}"))
 
     events.sort(key=lambda e: e[0])
     return events
@@ -66,15 +66,15 @@ def achievements() -> list[dict]:
     strong = len(_all("SELECT 1 FROM ratings WHERE rating >= 1300"))
     sessions = _all("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
     defs = [
-        ("🔥", "On Fire", "3-day streak", s["streak"], 3),
-        ("🗓️", "Week Warrior", "7-day streak", s["streak"], 7),
-        ("♾️", "Unbroken", "30-day streak", s["streak"], 30),
-        ("⭐", "Adept", "reach level 5", s["level"], 5),
-        ("👑", "Master", "reach level 10", s["level"], 10),
-        ("💎", "First Mastery", "one skill to strong", strong, 1),
-        ("🗡️", "Sharpened", "5 skills to strong", strong, 5),
-        ("🏹", "Initiate", "complete a session", sessions, 1),
-        ("📿", "Devoted", "10 sessions", sessions, 10),
+        ("flame", "On Fire", "3-day streak", s["streak"], 3),
+        ("calendar", "Week Warrior", "7-day streak", s["streak"], 7),
+        ("infinity", "Unbroken", "30-day streak", s["streak"], 30),
+        ("star", "Adept", "reach level 5", s["level"], 5),
+        ("crown", "Master", "reach level 10", s["level"], 10),
+        ("gem", "First Mastery", "one skill to strong", strong, 1),
+        ("sword", "Sharpened", "5 skills to strong", strong, 5),
+        ("target", "Initiate", "complete a session", sessions, 1),
+        ("prayer", "Devoted", "10 sessions", sessions, 10),
     ]
     return [{"icon": i, "title": t, "desc": d, "cur": min(cur, goal), "goal": goal,
              "earned": cur >= goal} for i, t, d, cur, goal in defs]
@@ -86,9 +86,27 @@ def render() -> str:
     achs = achievements()
     curve = xp_curve()
 
+    # hero stat ribbon — a game-HUD summary of the journey so far
+    st = progress.stats()
+    strong = _all("SELECT COUNT(*) AS n FROM ratings WHERE rating >= 1300")[0]["n"]
+    sessions = _all("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
+    ribbon_cells = [
+        ("layers", "Level", str(st["level"])),
+        ("crown", "Rank", _rank(st["level"])),
+        ("flame", "Streak", f"{st['streak']}d"),
+        ("trend", "Total XP", str(st["xp"])),
+        ("scroll", "Sessions", str(sessions)),
+        ("gem", "Skills strong", str(strong)),
+    ]
+    ribbon = "".join(
+        f'<div class="rcell"><div class="rico">{_icon(ic, 16)}</div>'
+        f'<div class="rval">{val}</div><div class="rlabel">{label}</div></div>'
+        for ic, label, val in ribbon_cells
+    )
+
     if ms:
         timeline = "".join(
-            f'<div class="mile"><div class="mdot">{ic}</div>'
+            f'<div class="mile"><div class="mdot">{_icon(ic, 18)}</div>'
             f'<div class="mbody"><b>{lbl}</b><span class="muted">{dt}</span></div></div>'
             for dt, ic, lbl in reversed(ms[-40:])
         )
@@ -98,11 +116,12 @@ def render() -> str:
     ach_html = ""
     for a in achs:
         if a["earned"]:
-            ach_html += (f'<div class="ach"><div class="aico">{a["icon"]}</div>'
+            ach_html += (f'<div class="ach"><div class="aico">{_icon(a["icon"], 22)}</div>'
                          f'<div><b>{a["title"]}</b><span class="muted">{a["desc"]}</span></div></div>')
         else:
             pct = round(100 * a["cur"] / a["goal"])
-            ach_html += (f'<div class="ach lock"><div class="aico">🔒</div><div><b>{a["title"]}</b>'
+            ach_html += (f'<div class="ach lock"><div class="aico">{_icon("lock", 22)}</div>'
+                         f'<div><b>{a["title"]}</b>'
                          f'<span class="muted">{a["desc"]}</span>'
                          f'<div class="pbar"><div class="pfill" style="width:{pct}%"></div></div>'
                          f'<span class="muted">{a["cur"]}/{a["goal"]}</span></div></div>')
@@ -138,32 +157,56 @@ def render() -> str:
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>{_CSS}{_JCSS}</style></head><body><div class="wrap">
-  <header class="hero"><div class="brand"><div class="logo">🏹 <span class="g">YOUR JOURNEY</span></div>
-    <div class="creed">how far you've come</div></div></header>
-  <section class="card"><h2>⏳ Milestones</h2><div class="timeline">{timeline}</div></section>
-  <section class="card"><h2>🏅 Achievements</h2><div class="achgrid">{ach_html}</div></section>
+  <header class="jhero">
+    <div class="brand"><div class="logo">🏹 <span class="g">YOUR JOURNEY</span></div>
+      <div class="creed">how far you've come</div></div>
+    <div class="ribbon">{ribbon}</div>
+  </header>
+  <section class="card"><h2>{_icon("hourglass")} Milestones</h2><div class="timeline">{timeline}</div></section>
+  <section class="card"><h2>{_icon("medal")} Achievements</h2><div class="achgrid">{ach_html}</div></section>
   <div class="grid2">
-    <section class="card"><h2>🗓️ Activity</h2><div class="heat">{heat}</div>
+    <section class="card"><h2>{_icon("calendar")} Activity</h2><div class="heat">{heat}</div>
       <div class="muted" style="font-size:11px;margin-top:8px">last 12 weeks · brighter = more practice</div></section>
-    <section class="card"><h2>📈 XP over time</h2>{spark}</section>
+    <section class="card"><h2>{_icon("trend")} XP over time</h2>{spark}</section>
   </div>
 </div></body></html>"""
 
 
 _JCSS = """
+/* journey hero + stat ribbon (game HUD) */
+.jhero{background:linear-gradient(120deg,var(--panel),var(--panel2));border:1px solid var(--line);
+  border-radius:18px;padding:20px 24px;box-shadow:0 1px 0 #ffffff0d inset,0 20px 60px -30px #000;
+  display:flex;flex-direction:column;gap:18px}
+.jhero .brand{display:flex;flex-direction:column;gap:2px}
+.ribbon{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+.rcell{background:#0c1622;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
+  display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 0 #ffffff08 inset;
+  transition:transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s}
+.rcell:hover{transform:translateY(-2px);border-color:#2a3a52}
+.rico{color:var(--dim);margin-bottom:2px}.rico .ic{opacity:.9}
+.rval{font-family:var(--disp);font-size:24px;font-weight:700;line-height:1;color:#eafff6;
+  font-variant-numeric:tabular-nums}
+.rlabel{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+@media(max-width:820px){.ribbon{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:520px){.ribbon{grid-template-columns:repeat(2,1fr)}}
+
 .timeline{display:flex;flex-direction:column}
 .mile{display:flex;gap:14px;align-items:flex-start;padding:7px 0;position:relative}
 .mile::before{content:"";position:absolute;left:19px;top:0;bottom:0;width:2px;background:var(--line)}
 .mdot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--panel);
-  border:1px solid var(--line);z-index:1;font-size:17px;box-shadow:0 0 0 4px var(--bg)}
+  border:1px solid var(--line);z-index:1;color:var(--acc);box-shadow:0 0 0 4px var(--bg)}
+.mdot .ic{opacity:1}
 .mbody b{display:block;font-size:14px}.mbody .muted{font-family:var(--mono);font-size:11px}
 .achgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
 .ach{display:flex;gap:12px;align-items:center;background:#0c1622;border:1px solid #24344a;border-radius:12px;
   padding:11px 14px;transition:transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s}
 .ach:hover{transform:translateY(-2px);border-color:#2a3a52}
 .ach.lock{filter:grayscale(.75)}
-.ach.lock .aico{opacity:.65}
-.aico{font-size:25px;filter:drop-shadow(0 0 8px #0008)}
+.ach.lock .aico{color:var(--dim)}
+.aico{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;
+  color:var(--acc);background:#0a1a14;border:1px solid #1c3d30}
+.aico .ic{opacity:1}
+.ach.lock .aico{background:#0c1622;border-color:#24344a}
 .ach b{display:block;font-size:13px}.ach .muted{font-size:11px}
 .pbar{height:6px;background:#0b1420;border-radius:999px;margin:5px 0 2px;overflow:hidden;width:130px}
 .pfill{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyan))}
