@@ -20,12 +20,32 @@ def new_thread() -> dict:
     return {"configurable": {"thread_id": str(uuid.uuid4())}}
 
 
-def run_turn(agent, config: dict, user_text: str) -> str:
+def _approve_bash(console: Console | None, appr: dict) -> str:
+    """Ask the learner to approve a run_bash command in the terminal (safe default: reject)."""
+    if console is None:
+        return "reject"
+    console.print(Panel(f"[bold]{appr['command']}[/]\n\n[dim]{appr['explanation']}[/]",
+                        title="[yellow]⏻ run this command?[/]", border_style="yellow", padding=(0, 2)))
+    ans = console.input("[yellow]approve? [y/N] ›[/] ").strip().lower()
+    return "approve" if ans in ("y", "yes") else "reject"
+
+
+def run_turn(agent, config: dict, user_text: str, console: Console | None = None) -> str:
     """Send one user message, return the agent's final reply text (with a self-check
-    correction appended if a second model flags a technical error)."""
+    correction appended). Pauses for terminal approval when the agent calls run_bash."""
+    from langgraph.types import Command
+
+    from .agent import pending_bash_approval
     from .verify import selfcheck
 
-    result = agent.invoke({"messages": [{"role": "user", "content": user_text}]}, config=config)
+    inputs = {"messages": [{"role": "user", "content": user_text}]}
+    while True:
+        result = agent.invoke(inputs, config=config)
+        appr = pending_bash_approval(agent, config)
+        if not appr:
+            break
+        decision = _approve_bash(console, appr)
+        inputs = Command(resume={"decisions": [{"type": decision}]})
     reply = result["messages"][-1].text
     note = selfcheck(reply)
     return reply + note if note else reply
@@ -71,7 +91,7 @@ def chat_loop(agent, kickoff: str | None, console: Console | None = None,
                 _show(console, m["text"])
     elif kickoff:
         with console.status("[dim]thinking…[/]"):
-            reply = run_turn(agent, config, kickoff)
+            reply = run_turn(agent, config, kickoff, console)
         _show(console, reply)
 
     console.print("[dim](type your answer · /help for commands · /exit to leave)[/]\n")
@@ -91,7 +111,7 @@ def chat_loop(agent, kickoff: str | None, console: Console | None = None,
             console.print(Panel(slash, border_style="magenta", title="[magenta]/[/]", padding=(0, 2)))
             continue
         with console.status("[dim]thinking…[/]"):
-            reply = run_turn(agent, config, user)
+            reply = run_turn(agent, config, user, console)
         _show(console, reply)
         if mode:
             _autoname(thread_id, kickoff)

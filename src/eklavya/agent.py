@@ -13,6 +13,22 @@ from .providers import build_chat_model
 _MAX_TOKENS = 4096
 
 
+def pending_bash_approval(agent, config) -> dict | None:
+    """If the agent paused for run_bash approval, return {tool, command, explanation}; else None."""
+    try:
+        interrupts = getattr(agent.get_state(config), "interrupts", None) or ()
+    except Exception:
+        return None
+    if not interrupts:
+        return None
+    reqs = (interrupts[0].value or {}).get("action_requests") or []
+    if not reqs:
+        return None
+    args = reqs[0].get("args") or {}
+    return {"tool": reqs[0].get("name", "run_bash"),
+            "command": args.get("command", ""), "explanation": args.get("explanation", "")}
+
+
 def build_agent(system_prompt: str, tools: list, provider: str | None = None,
                 model: str | None = None, checkpointer=None):
     """Create a deep agent with our tools and prompt, wired to a provider.
@@ -38,4 +54,5 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
         system_prompt=system_prompt,
         backend=build_backend(),  # read-broad host + write-confined /workspace
         checkpointer=checkpointer,
+        interrupt_on={"run_bash": {"allowed_decisions": ["approve", "reject"]}},  # human approval
     )

@@ -28,6 +28,23 @@ _MODE_LABEL = {"practice": "Practice session", "mock": "Mock interview",
                "onboard": "Onboarding"}
 
 
+def _pending_approval(agent, config) -> dict | None:
+    """If the agent paused for run_bash approval, return the command + explanation."""
+    try:
+        interrupts = getattr(agent.get_state(config), "interrupts", None) or ()
+    except Exception:
+        return None
+    if not interrupts:
+        return None
+    reqs = (interrupts[0].value or {}).get("action_requests") or []
+    if not reqs:
+        return None
+    args = reqs[0].get("args") or {}
+    return {"tool": reqs[0].get("name", "run_bash"),
+            "command": args.get("command", ""),
+            "explanation": args.get("explanation", "")}
+
+
 def create_app():
     from fastapi import FastAPI, Request
     from fastapi.responses import HTMLResponse, StreamingResponse
@@ -82,6 +99,51 @@ def create_app():
                 "kickoff": _KICKOFF, "configured": provider.is_configured(),
                 "first_run": report.is_first_run()}
 
+    def _events(agent, config, thread, inputs):
+        """One agent run (a new turn OR a resume): route tool activity to the trace,
+        stream the reply, and pause for run_bash approval."""
+        from .verify import selfcheck
+
+        buf = []
+        try:
+            for chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
+                # deepagents' documented routing: tool result / tool call → trace;
+                # the assistant's own text (an AI chunk with no tool call) → the bubble.
+                if getattr(chunk, "type", None) == "tool":
+                    yield json.dumps({"result": {"name": getattr(chunk, "name", "") or "",
+                                                 "content": str(chunk.content)[:400]}}) + "\n"
+                elif getattr(chunk, "tool_call_chunks", None):
+                    for tc in chunk.tool_call_chunks:
+                        if tc.get("name"):
+                            yield json.dumps({"tool": tc["name"]}) + "\n"
+                else:
+                    tok = _chunk_text(chunk)
+                    if tok:
+                        buf.append(tok)
+                        yield json.dumps({"t": tok}) + "\n"
+        except Exception as exc:  # surface errors to the UI instead of hanging
+            yield json.dumps({"t": f"\n\n_(error: {exc})_"}) + "\n"
+
+        approval = _pending_approval(agent, config)  # paused for run_bash?
+        if approval:
+            yield json.dumps({"approval": approval}) + "\n"
+            yield json.dumps({"done": True, "paused": True}) + "\n"
+            return
+
+        note = selfcheck("".join(buf))  # a second model reviews the reply
+        if note:
+            yield json.dumps({"t": note}) + "\n"
+        try:  # auto-name the chat from the learner's first real message
+            from .chatstore import auto_title, get_title, rename_chat
+
+            if get_title(thread) is None:
+                title = auto_title(thread, skip=set(_KICKOFF.values()))
+                if title:
+                    rename_chat(thread, title)
+        except Exception:
+            pass
+        yield json.dumps({"done": True}) + "\n"
+
     @app.post("/api/stream")
     async def stream(request: Request):
         body = await request.json()
@@ -95,39 +157,23 @@ def create_app():
         from .chatstore import touch_chat
 
         touch_chat(thread, mode=mode)  # persist/refresh this chat in the history
-        agent = agent_for(mode)
         config = {"configurable": {"thread_id": thread}}
+        inputs = {"messages": [{"role": "user", "content": text}]}
+        return StreamingResponse(_events(agent_for(mode), config, thread, inputs),
+                                 media_type="application/x-ndjson")
 
-        def gen():
-            from .verify import selfcheck
+    @app.post("/api/resume")
+    async def resume(request: Request):
+        from langgraph.types import Command
 
-            buf = []
-            try:
-                for chunk, _meta in agent.stream(
-                    {"messages": [{"role": "user", "content": text}]},
-                    config=config, stream_mode="messages",
-                ):
-                    tok = _chunk_text(chunk)
-                    if tok:
-                        buf.append(tok)
-                        yield json.dumps({"t": tok}) + "\n"
-            except Exception as exc:  # surface errors to the UI instead of hanging
-                yield json.dumps({"t": f"\n\n_(error: {exc})_"}) + "\n"
-            note = selfcheck("".join(buf))  # a second model reviews the reply
-            if note:
-                yield json.dumps({"t": note}) + "\n"
-            try:  # auto-name the chat from the learner's first real message
-                from .chatstore import auto_title, get_title, rename_chat
-
-                if get_title(thread) is None:
-                    title = auto_title(thread, skip=set(_KICKOFF.values()))
-                    if title:
-                        rename_chat(thread, title)
-            except Exception:
-                pass
-            yield json.dumps({"done": True}) + "\n"
-
-        return StreamingResponse(gen(), media_type="application/x-ndjson")
+        body = await request.json()
+        mode = body.get("mode", "practice")
+        thread = body.get("thread") or ""
+        decision = "approve" if body.get("decision") == "approve" else "reject"
+        config = {"configurable": {"thread_id": thread}}
+        cmd = Command(resume={"decisions": [{"type": decision}]})
+        return StreamingResponse(_events(agent_for(mode), config, thread, cmd),
+                                 media_type="application/x-ndjson")
 
     @app.post("/api/assist")
     async def assist(request: Request):
@@ -241,6 +287,27 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
+/* thinking trace (tool calls/results, collapsed by default) */
+.trace{margin:0 0 8px;border:1px solid var(--line);border-radius:9px;background:#0a121c;overflow:hidden}
+.trace .tsum{list-style:none;cursor:pointer;padding:6px 11px;font-family:var(--mono);font-size:11px;
+ letter-spacing:.02em;color:var(--dim);user-select:none;display:flex;align-items:center;gap:6px}
+.trace .tsum::-webkit-details-marker{display:none}
+.trace .tsum:before{content:'▸';color:var(--violet);font-size:10px}
+.trace[open] .tsum:before{content:'▾'}
+.trace[open] .tsum{border-bottom:1px solid var(--line);color:var(--cyan)}
+.trace .tbody{padding:6px 11px;display:flex;flex-direction:column;gap:3px}
+.tline{font-family:var(--mono);font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tline.call{color:var(--violet)} .tline.res{color:var(--acc)}
+/* bash approval card */
+.approve{margin:2px 0 8px;border:1px solid var(--amber);border-radius:11px;background:#1a1405;padding:12px 14px}
+.approve .ah{font-family:var(--disp);letter-spacing:.06em;color:var(--amber);font-size:12px;margin-bottom:6px}
+.approve .acmd{font-family:var(--mono);font-size:12px;background:#0a1018;border:1px solid var(--line);border-radius:8px;
+ padding:8px 10px;color:var(--ink);white-space:pre-wrap;word-break:break-all;margin-bottom:6px}
+.approve .awhy{font-size:12.5px;color:var(--dim);margin-bottom:10px}
+.approve .abtns{display:flex;gap:8px}
+.approve button{font-family:var(--disp);letter-spacing:.06em;border-radius:9px;padding:8px 16px;cursor:pointer;font-weight:600;border:1px solid}
+.approve .ok{background:#0c1f18;color:var(--acc);border-color:#1c3d30}
+.approve .no{background:#1a0508;color:#ff8a9c;border-color:#5a1520}
 /* chats drawer */
 #chatsbtn{font-family:var(--disp);letter-spacing:.08em;font-size:12px;color:var(--dim);background:#0c1622;
  border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;margin-left:4px}
@@ -456,23 +523,84 @@ function renderMd(text){
   return tmp.innerHTML;
 }
 
+function prettyTool(name){
+  const M={save_baseline:'Saving your baseline',record_attempt:'Recording the attempt',
+    suggest_focus:'Choosing what to practise',review_ai_usage:'Reviewing AI usage',
+    run_bash:'Running a command',tavily_search:'Searching the web',tavily_extract:'Reading a page',
+    'resolve-library-id':'Finding the docs','query-docs':'Reading the docs',read_file:'Reading a file',
+    write_file:'Writing a file',edit_file:'Editing a file',ls:'Listing files',glob:'Finding files',
+    grep:'Searching files',write_todos:'Planning'};
+  return M[name]||name;
+}
+function addAiMsg(){
+  const m=el('msg ai'); const who=el('who'); who.textContent='Ekalavya';
+  const trace=document.createElement('details'); trace.className='trace'; trace.style.display='none';
+  const sum=document.createElement('summary'); sum.className='tsum'; sum.textContent='working…';
+  const tb=el('tbody'); trace.appendChild(sum); trace.appendChild(tb);
+  const reply=el('reply'); reply.classList.add('typing');
+  m.appendChild(who); m.appendChild(trace); m.appendChild(reply);
+  document.getElementById('log').appendChild(m); scroll();
+  return {m,trace,sum,tb,reply,buf:'',steps:0};
+}
+function traceLine(tb,cls,text){ const d=el('tline '+cls); d.textContent=text; tb.appendChild(d); }
+function finalizeMsg(ui){
+  ui.reply.classList.remove('typing');
+  ui.reply.innerHTML=renderMd(ui.buf||'');
+  ui.reply.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  try{ mermaid.run({nodes:ui.reply.querySelectorAll('.mermaid')}); }catch(e){}
+  if(ui.steps>0){ ui.sum.textContent=ui.steps+' step'+(ui.steps>1?'s':'')+' · tap to view'; }
+  else { ui.trace.style.display='none'; }
+  scroll();
+}
+function askApproval(ui, req){
+  return new Promise(resolve=>{
+    ui.trace.style.display='block';
+    traceLine(ui.tb,'call','⏸ awaiting approval — '+req.command);
+    const card=el('approve');
+    card.innerHTML='<div class="ah">⏻ RUN THIS COMMAND?</div><div class="acmd"></div>'+
+      '<div class="awhy"></div><div class="abtns">'+
+      '<button class="ok">Approve &amp; run</button><button class="no">Reject</button></div>';
+    card.querySelector('.acmd').textContent=req.command||'(no command)';
+    card.querySelector('.awhy').textContent=req.explanation||'';
+    ui.m.insertBefore(card, ui.reply); scroll();
+    const finish=async(decision)=>{
+      card.remove();
+      traceLine(ui.tb,'res',(decision==='approve'?'✓ approved: ':'✗ rejected: ')+req.command);
+      try{
+        const res=await fetch('/api/resume',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({thread,mode,decision})});
+        await consume(res, ui);
+      }catch(e){}
+      resolve();
+    };
+    card.querySelector('.ok').onclick=()=>finish('approve');
+    card.querySelector('.no').onclick=()=>finish('reject');
+  });
+}
+async function consume(res, ui){
+  const reader=res.body.getReader(); const dec=new TextDecoder(); let partial='';
+  while(true){
+    const {value,done}=await reader.read(); if(done) break;
+    partial += dec.decode(value,{stream:true}); const lines=partial.split('\n'); partial=lines.pop();
+    for(const line of lines){ if(!line.trim())continue;
+      let o; try{o=JSON.parse(line);}catch(e){continue;}
+      if(o.t){ ui.buf+=o.t; ui.reply.textContent=ui.buf; scroll(); }
+      else if(o.tool){ ui.steps++; ui.trace.style.display='block';
+        traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
+      else if(o.result){ traceLine(ui.tb,'res','✓ '+prettyTool(o.result.name)); }
+      else if(o.approval){ await askApproval(ui, o.approval); }
+    }
+  }
+}
 async function stream(text){
   if(streaming) return; streaming=true;
-  const body = addMsg('ai',''); body.classList.add('typing'); let buf='';
+  const ui=addAiMsg();
   try{
-    const res = await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
+    const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({thread,mode,text})});
-    const reader=res.body.getReader(); const dec=new TextDecoder(); let partial='';
-    while(true){
-      const {value,done}=await reader.read(); if(done) break;
-      partial += dec.decode(value,{stream:true}); const lines=partial.split('\n'); partial=lines.pop();
-      for(const line of lines){ if(!line.trim())continue; const o=JSON.parse(line);
-        if(o.t){ buf+=o.t; body.textContent=buf; scroll(); } }
-    }
-  }catch(e){ buf+='\n\n_(connection error)_'; }
-  body.classList.remove('typing'); body.innerHTML=renderMd(buf);
-  try{ await mermaid.run({nodes:body.querySelectorAll('.mermaid')}); }catch(e){}
-  scroll(); streaming=false; refreshHud();
+    await consume(res, ui);
+  }catch(e){ ui.buf+='\n\n_(connection error)_'; }
+  finalizeMsg(ui); streaming=false; refreshHud();
 }
 
 function sendChat(){

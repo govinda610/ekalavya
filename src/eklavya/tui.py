@@ -291,16 +291,23 @@ def _chunk_text(message_chunk) -> str:
 
 
 def make_stream_responder(agent, config):
-    """Yield the agent's reply token-by-token for live streaming in the UI."""
+    """Yield the agent's reply token-by-token for live streaming in the UI. If the agent
+    asks to run a shell command we reject it here with a note — run_bash has a real
+    approval prompt in the CLI and web; a Textual approval modal is a follow-up."""
+    from langgraph.types import Command
+
+    from .agent import pending_bash_approval
 
     def stream(text: str):
-        for message_chunk, _meta in agent.stream(
-            {"messages": [{"role": "user", "content": text}]},
-            config=config,
-            stream_mode="messages",
-        ):
-            token = _chunk_text(message_chunk)
-            if token:
-                yield token
+        inputs = {"messages": [{"role": "user", "content": text}]}
+        while True:
+            for message_chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
+                token = _chunk_text(message_chunk)
+                if token:
+                    yield token
+            if pending_bash_approval(agent, config) is None:
+                break
+            yield "\n\n_(a command needs approval — approve it in the web app for now)_\n"
+            inputs = Command(resume={"decisions": [{"type": "reject"}]})
 
     return stream
