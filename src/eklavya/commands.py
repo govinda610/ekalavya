@@ -17,6 +17,7 @@ _COMMANDS = {
     "help": "list commands",
     "stats": "your streak, level, XP and mastery map",
     "goals": "your active goals",
+    "chats": "your past chats (resume with `eklavya resume <#>`)",
     "exit": "leave the session (progress is saved)",
 }
 
@@ -56,4 +57,14 @@ def handle_slash(text: str) -> str | None:
         from .tools import list_goals
 
         return "Your goals:\n" + list_goals()
+    if name == "chats":
+        from .chatstore import list_chats
+
+        rows = list_chats()
+        if not rows:
+            return "No past chats yet."
+        lines = ["Your chats (resume with `eklavya resume <#>`):"]
+        lines += [f"  {i}. {c['title'] or '(untitled)'}  [{c['mode'] or ''}]"
+                  for i, c in enumerate(rows, 1)]
+        return "\n".join(lines)
     return _help()

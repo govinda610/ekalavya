@@ -36,14 +36,43 @@ def _show(console: Console, text: str) -> None:
                         padding=(1, 2)))
 
 
-def chat_loop(agent, kickoff: str, console: Console | None = None) -> None:
-    """Run the REPL. `kickoff` is the (hidden) first instruction that starts it."""
-    console = console or Console()
-    config = new_thread()
+def _autoname(thread_id: str, kickoff: str | None) -> None:
+    """Name a chat from the learner's first real message (skipping the kickoff)."""
+    try:
+        from .chatstore import auto_title, get_title, rename_chat
 
-    with console.status("[dim]thinking…[/]"):
-        reply = run_turn(agent, config, kickoff)
-    _show(console, reply)
+        if get_title(thread_id) is None:
+            title = auto_title(thread_id, skip={kickoff} if kickoff else None)
+            if title:
+                rename_chat(thread_id, title)
+    except Exception:
+        pass
+
+
+def chat_loop(agent, kickoff: str | None, console: Console | None = None,
+              config: dict | None = None, mode: str | None = None,
+              replay: list | None = None) -> None:
+    """Run the REPL. `kickoff` starts a NEW chat; pass `config` + `replay` to resume an
+    existing one. `mode` registers the chat in the shared history (listable/resumable
+    from both the terminal and the web)."""
+    console = console or Console()
+    config = config or new_thread()
+    thread_id = config["configurable"]["thread_id"]
+    if mode:
+        from .chatstore import touch_chat
+
+        touch_chat(thread_id, mode=mode)
+
+    if replay:  # resuming — show the prior turns, don't re-run the kickoff
+        for m in replay:
+            if m["role"] == "you":
+                console.print(f"[bold green]you ›[/] {m['text']}")
+            else:
+                _show(console, m["text"])
+    elif kickoff:
+        with console.status("[dim]thinking…[/]"):
+            reply = run_turn(agent, config, kickoff)
+        _show(console, reply)
 
     console.print("[dim](type your answer · /help for commands · /exit to leave)[/]\n")
     while True:
@@ -64,3 +93,5 @@ def chat_loop(agent, kickoff: str, console: Console | None = None) -> None:
         with console.status("[dim]thinking…[/]"):
             reply = run_turn(agent, config, user)
         _show(console, reply)
+        if mode:
+            _autoname(thread_id, kickoff)

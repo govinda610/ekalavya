@@ -81,7 +81,7 @@ def onboard(
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model}[/]\n")
     agent = build_agent(prompts.ONBOARDING, ONBOARDING_TOOLS, provider=p.key)
-    chat_loop(agent, kickoff="Begin my first-time onboarding now.", console=console)
+    chat_loop(agent, kickoff="Begin my first-time onboarding now.", console=console, mode="onboard")
 
 
 @app.command()
@@ -108,7 +108,7 @@ def mock(
     progress.start_session(minutes, mode="mock")
     try:
         chat_loop(agent, kickoff=f"Start a mock interview. I have {minutes} minutes.",
-                  console=console)
+                  console=console, mode="mock")
     finally:
         progress.end_session()
 
@@ -139,7 +139,7 @@ def practice(
     progress.start_session(minutes)
     try:
         chat_loop(agent, kickoff=f"Start today's practice session. I have {minutes} minutes.",
-                  console=console)
+                  console=console, mode="practice")
     finally:
         progress.end_session()
 
@@ -166,6 +166,9 @@ def tui(
 
     agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
     config = new_thread()
+    from .chatstore import touch_chat
+
+    touch_chat(config["configurable"]["thread_id"], mode="practice")  # register in history
     tui_app = EklavyaApp(
         responder=make_responder(agent, config),
         stream_fn=make_stream_responder(agent, config),
@@ -204,9 +207,76 @@ def takehome(
     progress.start_session(minutes, mode="takehome")
     try:
         chat_loop(agent, kickoff=f"Give me a take-home assignment. I have {minutes} minutes.",
-                  console=console)
+                  console=console, mode="takehome")
     finally:
         progress.end_session()
+
+
+def _mode_agent(mode: str):
+    """(prompt, tools) for a chat's mode, used to rebuild the agent when resuming.
+    (Temporary duplication with webapp; #40 unifies the agent across interfaces.)"""
+    from . import prompts
+    from .tools import AIINTERVIEW_TOOLS, ONBOARDING_TOOLS, SESSION_TOOLS
+
+    table = {
+        "practice": (prompts.SESSION, SESSION_TOOLS),
+        "mock": (prompts.MOCK, SESSION_TOOLS),
+        "aiinterview": (prompts.AI_INTERVIEW, AIINTERVIEW_TOOLS),
+        "takehome": (prompts.TAKEHOME, SESSION_TOOLS),
+        "onboard": (prompts.ONBOARDING, ONBOARDING_TOOLS),
+    }
+    return table.get(mode, (prompts.SESSION, SESSION_TOOLS))
+
+
+@app.command()
+def chats() -> None:
+    """List your past chats (resume one with `eklavya resume <#>`)."""
+    from .chatstore import list_chats
+
+    init_db()
+    rows = list_chats()
+    if not rows:
+        console.print("[dim]No past chats yet.[/]")
+        return
+    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
+    table.add_column("#")
+    table.add_column("chat")
+    table.add_column("mode")
+    table.add_column("updated")
+    for i, c in enumerate(rows, 1):
+        table.add_row(str(i), c["title"] or "(untitled)", c["mode"] or "", (c["updated_at"] or "")[:16])
+    console.print(table)
+    console.print("\n[dim]resume with:  eklavya resume <#>[/]")
+
+
+@app.command()
+def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `eklavya chats`)")) -> None:
+    """Resume a past chat and continue it (most recent by default)."""
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .chatstore import list_chats, transcript
+    from .providers import pick
+
+    init_db()
+    rows = list_chats()
+    if not rows:
+        console.print("[dim]No past chats to resume.[/]")
+        raise typer.Exit()
+    if n < 1 or n > len(rows):
+        console.print(f"[red]✗[/red] pick a number between 1 and {len(rows)} (see `eklavya chats`).")
+        raise typer.Exit(1)
+    c = rows[n - 1]
+    p = pick(None)
+    if not p.is_configured():
+        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
+        raise typer.Exit(1)
+    prompt, tools = _mode_agent(c["mode"])
+    agent = build_agent(prompt, tools, provider=p.key)
+    banner.render(console)
+    console.print(f"\n[dim]resuming:[/] [bold]{c['title'] or c['mode']}[/]  ({c['mode']})\n")
+    chat_loop(agent, kickoff=None, console=console,
+              config={"configurable": {"thread_id": c["thread_id"]}},
+              mode=c["mode"], replay=transcript(c["thread_id"]))
 
 
 @app.command()
