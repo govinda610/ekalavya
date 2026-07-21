@@ -188,6 +188,38 @@ def get_curriculum() -> str:
     )
 
 
+def save_baseline(pillars: list | None = None, ratings: list | None = None,
+                  goals: list | None = None, curriculum: list | None = None,
+                  replace_curriculum: bool = False) -> str:
+    """Persist onboarding results (or later edits) in ONE call — upserts any subset.
+
+    - pillars:    list of pillar names, e.g. ["Python Fundamentals", "DS&A"]
+    - ratings:    list of {"pillar","axis","level"} — axis in syntax_recall/debugging/
+                  code_reading/api_memory/decomposition; level in unknown/gap/familiar/strong
+    - goals:      list of {"horizon","text","deadline"?} — horizon in long/medium/short/adhoc
+    - curriculum: list of {"concept","prereqs"?,"pillar"?} — prereqs a comma-separated list
+    - replace_curriculum: True to clear the existing curriculum tree before adding
+    """
+    n = {"pillars": 0, "ratings": 0, "goals": 0, "curriculum": 0}
+    for p in pillars or []:
+        add_pillar(p)
+        n["pillars"] += 1
+    for r in ratings or []:
+        set_baseline_rating(r["pillar"], r["axis"], r["level"])
+        n["ratings"] += 1
+    for g in goals or []:
+        add_goal(g["horizon"], g["text"], g.get("deadline", ""))
+        n["goals"] += 1
+    if curriculum is not None:
+        if replace_curriculum:
+            clear_curriculum()
+        for c in curriculum:
+            add_curriculum(c["concept"], c.get("prereqs", ""), c.get("pillar", ""))
+            n["curriculum"] += 1
+    return (f"saved: {n['pillars']} pillars, {n['ratings']} ratings, "
+            f"{n['goals']} goals, {n['curriculum']} curriculum nodes")
+
+
 # The tools exposed to the onboarding agent.
 ONBOARDING_TOOLS = [
     read_profile,
@@ -254,6 +286,37 @@ def run_code(code: str) -> str:
     if r.stderr:
         out += f"stderr:\n{r.stderr}\n"
     return _clip(out.strip())
+
+
+def run_bash(command: str, explanation: str) -> str:
+    """Run a shell command in the learner's workspace. Use it to run/verify code,
+    inspect files, or query the learner db with sqlite3 (the db is `eklavya.db` in the
+    workspace). You MUST pass `explanation`: one plain sentence saying what the command
+    does and why it's safe — the learner sees it and approves before it runs. The
+    command runs with the workspace as its working directory.
+    """
+    import re
+    import subprocess
+
+    deny = re.compile(
+        r"rm\s+-rf\s+[~/]|:\s*\(\)\s*\{|\bmkfs\b|\bdd\s+if=|>\s*/dev/(sd|disk)|"
+        r"(curl|wget)[^|]*\|\s*(sh|bash)|chmod\s+-R\s+777\s+/",
+        re.IGNORECASE,
+    )
+    if deny.search(command):
+        return "Refused: this command matches a blocked destructive pattern."
+
+    from .workspace import workspace_dir
+
+    try:
+        r = subprocess.run(command, shell=True, cwd=str(workspace_dir()),
+                           capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        return "Command timed out (60s)."
+    out = (r.stdout or "").strip()
+    if r.stderr.strip():
+        out += "\n[stderr]\n" + r.stderr.strip()
+    return _clip(out or f"(exit {r.returncode}, no output)")
 
 
 def grade_code(code: str, tests: str) -> str:
