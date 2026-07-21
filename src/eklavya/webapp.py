@@ -115,9 +115,20 @@ def create_app():
 
     @app.get("/api/config")
     def cfg() -> dict:
+        from . import settings
+
         return {"provider": provider.label, "model": provider.default_model,
                 "kickoff": _KICKOFF, "configured": provider.is_configured(),
-                "first_run": report.is_first_run()}
+                "first_run": report.is_first_run(),
+                "death_on_cheat": settings.get_death_on_cheat()}
+
+    @app.put("/api/settings")
+    async def settings_put(request: Request):
+        from . import settings
+
+        body = await request.json()
+        settings.set_death_on_cheat(bool(body.get("death_on_cheat", True)))
+        return {"death_on_cheat": settings.get_death_on_cheat()}
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
@@ -364,6 +375,10 @@ button:disabled{opacity:.45;cursor:default}
 #chatsbtn{font-family:var(--disp);letter-spacing:.08em;font-size:12px;color:var(--dim);background:#0c1622;
  border:1px solid var(--line);border-radius:9px;padding:7px 12px;cursor:pointer;margin-left:4px}
 #chatsbtn:hover{color:var(--acc);border-color:#1c3d30}
+#penaltybtn{font-family:var(--mono);font-size:11px;color:var(--dim);background:#0c1622;border:1px solid var(--line);
+ border-radius:9px;padding:6px 11px;cursor:pointer;margin-right:4px}
+#penaltybtn:hover{border-color:#2a3a52}
+#penaltybtn.off{color:#ff8a9c;border-color:#3a1520}
 #drawerscrim{position:fixed;inset:0;z-index:110;background:rgba(2,6,12,.55);opacity:0;pointer-events:none;transition:opacity .22s}
 #drawerscrim.open{opacity:1;pointer-events:auto}
 #drawer{position:fixed;top:0;left:0;bottom:0;width:300px;z-index:120;transform:translateX(-105%);
@@ -437,6 +452,7 @@ button:disabled{opacity:.45;cursor:default}
   </div>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <div class="spacer"></div>
+  <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
   <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
 </header>
@@ -504,8 +520,16 @@ button:disabled{opacity:.45;cursor:default}
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark'});
-let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false, pasted = false;
+let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
+let biggestPaste = 0, deathOnCheat = true;   // anti-cheat: size of the largest paste; whether a trigger penalises
 const STUB = "# write your solution here\n";
+// mirror of progress.looks_pasted — only a big paste dominating a code-like solution counts
+function looksPasted(code, biggest){
+  code=(code||'').trim();
+  if(!code || biggest < 240) return false;
+  if(biggest < 0.6*code.length) return false;
+  return /\b(def|return|for|while|class|import)\b|[={}()]/.test(code);
+}
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
@@ -552,7 +576,12 @@ require(['vs/editor/editor.main'], function(){
   editor = monaco.editor.create(document.getElementById('editor'),
     {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
      scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
-  editor.onDidPaste(()=>{ pasted = true; });  // anti-cheat: the editor is our honest-signal surface
+  editor.onDidPaste(e=>{  // measure the paste; only a big one that dominates the solution counts
+    try{ const n=editor.getModel().getValueLengthInRange(e.range); if(n>biggestPaste) biggestPaste=n; }catch(_){}
+  });
+  editor.onDidChangeModelContent(()=>{  // pasted block deleted → forget it (avoids false positives)
+    if(editor.getValue().length < biggestPaste) biggestPaste = 0;
+  });
 });
 
 function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
@@ -566,17 +595,25 @@ function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(setHud).catch(
 function showReclaim(amt){ const r=document.getElementById('reclaim');
   r.textContent="⚔ SOULS RECLAIMED  +"+amt+" XP"; r.classList.add('on');
   setTimeout(()=>r.classList.remove('on'),2600); }
-function death(){
+function flagCheat(reason){
+  // NEVER wipe the editor — the learner's work always stays.
+  if(!deathOnCheat){                 // penalty disabled → a quiet note, no punishment
+    addMsg('ai','<span class="dim">⚠ '+reason+" — noticed, but the penalty is off, so nothing happens.</span>");
+    return;
+  }
   fetch('/api/penalise',{method:'POST'}).then(r=>r.json()).then(d=>{
     document.getElementById('deathsub').innerHTML =
-      "Code was pasted into the editor — that's not practice.<br>"+
-      "Souls dropped: <b>-"+d.lost+" XP</b>. Streak broken.<br>"+
-      "<span class='dim'>Type your next answer yourself to reclaim your souls.</span>";
+      reason+".<br>Souls dropped: <b>-"+d.lost+" XP</b>. Streak broken.<br>"+
+      "<span class='dim'>Your code is untouched. Type your next answer yourself to reclaim your souls.</span>";
     setHud(d.stats); document.getElementById('death').classList.add('on');
   });
-  if(editor) editor.setValue(STUB); pasted=false; lastSentCode='';
 }
 function dismissDeath(){ document.getElementById('death').classList.remove('on'); }
+function updatePenaltyBtn(){ const b=document.getElementById('penaltybtn');
+  b.textContent = deathOnCheat ? '☠ penalty on' : '☠ penalty off'; b.classList.toggle('off', !deathOnCheat); }
+function togglePenalty(){ deathOnCheat=!deathOnCheat; updatePenaltyBtn();
+  fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({death_on_cheat:deathOnCheat})}).catch(()=>{}); }
 
 function el(cls){const d=document.createElement('div');d.className=cls;return d;}
 function addMsg(role, html){
@@ -720,11 +757,15 @@ async function runCode(){
 
 function submitCode(){
   if(!editor||streaming)return; const code=editor.getValue().trim(); if(!code)return;
-  if(mode!=='aiinterview'){                              // AI is allowed in aiinterview — no death
-    if(pasted){ death(); return; }                      // caught — you die
-    fetch('/api/reclaim',{method:'POST'}).then(r=>r.json()).then(d=>{  // typed it yourself
+  const guarded = (mode!=='aiinterview' && mode!=='onboard');  // no anti-cheat in AI-interview or onboarding
+  if(guarded && looksPasted(code, biggestPaste)){             // a big paste dominates → flag, but keep the code
+    flagCheat('A full solution was pasted into the editor'); return;
+  }
+  if(guarded){
+    fetch('/api/reclaim',{method:'POST'}).then(r=>r.json()).then(d=>{  // typed it yourself → reclaim
       if(d.reclaimed>0) showReclaim(d.reclaimed); setHud(d.stats); }).catch(()=>{});
-  } else { pasted=false; }
+  }
+  biggestPaste = 0;
   const msg="Here is my code:\n```python\n"+code+"\n```";
   addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
   document.querySelectorAll('.msg.you pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
@@ -755,7 +796,7 @@ function sendAssist(){
 document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Enter')sendAssist();});
 
 function newSession(){
-  mode=document.getElementById('mode').value; thread=crypto.randomUUID(); pasted=false; lastSentCode='';
+  mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML='';
   applyMode();
@@ -809,6 +850,7 @@ function renameChat(id, cur){
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set';
+  deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
   stream(c.kickoff[mode]);

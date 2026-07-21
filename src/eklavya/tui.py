@@ -64,6 +64,7 @@ class EklavyaApp(App):
     BINDINGS = [
         ("ctrl+e", "toggle_editor", "Code editor"),
         ("ctrl+s", "submit_code", "Submit code"),
+        ("ctrl+g", "toggle_penalty", "Penalty on/off"),
         ("ctrl+q", "quit", "Quit"),
     ]
 
@@ -76,10 +77,13 @@ class EklavyaApp(App):
         self.stats_fn = stats_fn
         self.kickoff = kickoff
         self.use_worker = use_worker
-        self.guard = guard  # anti-cheat on?
+        self.guard = guard  # anti-cheat detection on?
+        from . import settings
+
+        self.death_on_cheat = settings.get_death_on_cheat()  # penalise, or just a quiet note?
         self.history: list[tuple[str, str]] = []  # (role, text) — for tests + record
         self.pastes = 0            # total editor pastes seen
-        self._editor_pasted = False  # was the current editor buffer pasted into?
+        self._biggest_paste = 0    # chars in the largest paste into the current editor buffer
 
     def compose(self) -> ComposeResult:
         yield Static("🏹 Ekalavya", id="stats")
@@ -206,47 +210,64 @@ class EklavyaApp(App):
         self.send(text)
 
     def on_paste(self, event) -> None:
-        # The built-in editor is our honest-signal surface: a paste into an open
-        # editor is the tell we watch for.
+        # The editor is our honest-signal surface. We don't treat any paste as
+        # cheating — we just remember the biggest one; only a large paste that
+        # dominates the submitted solution is later flagged.
         if self.query_one("#editor", TextArea).has_class("on"):
             self.pastes += 1
-            self._editor_pasted = True
+            self._biggest_paste = max(self._biggest_paste, len(getattr(event, "text", "") or ""))
+
+    def on_text_area_changed(self, event) -> None:
+        # If the pasted block was deleted, forget it (avoids false positives).
+        if len(event.text_area.text) < self._biggest_paste:
+            self._biggest_paste = 0
 
     def action_toggle_editor(self) -> None:
         editor = self.query_one("#editor", TextArea)
         editor.toggle_class("on")
         if editor.has_class("on"):
-            self._editor_pasted = False  # fresh buffer
+            self._biggest_paste = 0  # fresh buffer
             editor.focus()
         else:
             self.query_one("#msg", Input).focus()
 
     def action_submit_code(self) -> None:
+        from . import progress
+
         editor = self.query_one("#editor", TextArea)
         code = editor.text.strip()
         if not code:
             return
-        pasted = self._editor_pasted
+        if self.guard and progress.looks_pasted(code, self._biggest_paste):
+            self._flag_cheat("a full solution was pasted into the editor")
+            return  # keep the code on-screen — never wipe on a (possibly false) trigger
         editor.text = ""
         editor.remove_class("on")
-        self._editor_pasted = False
-        if self.guard and pasted:
-            self._souls_death("code was pasted into the editor")
-            return  # the point is to practice — a pasted answer isn't one
+        self._biggest_paste = 0
         if self.guard:
             self._maybe_reclaim()  # typed it yourself → reclaim any dropped souls
         self.send(f"Here is my code:\n```python\n{code}\n```")
 
-    def _souls_death(self, reason: str) -> None:
+    def action_toggle_penalty(self) -> None:
+        from . import settings
+
+        self.death_on_cheat = not self.death_on_cheat
+        settings.set_death_on_cheat(self.death_on_cheat)
+        self._write_agent(f"Cheat penalty is now **{'on' if self.death_on_cheat else 'off'}**.")
+
+    def _flag_cheat(self, reason: str) -> None:
         from . import progress
 
+        if not self.death_on_cheat:  # penalty off → a quiet note, no punishment, code untouched
+            self._write_agent(f"⚠ {reason} — noticed, but the penalty is off, so nothing happens.")
+            return
         result = progress.penalise(reason)
         self.history.append(("death", reason))
         self.query_one("#log", RichLog).write(
             Panel(
                 f"[bold red]YOU DIED[/]\n\n{reason}.\n"
                 f"Souls dropped: [red]-{result['lost']} XP[/]. Streak broken.\n"
-                "[dim]Type your next answer yourself to reclaim your souls.[/]",
+                "[dim]Your code stays. Type your next answer yourself to reclaim your souls.[/]",
                 border_style="red", title="⚰  caught", title_align="left",
             )
         )

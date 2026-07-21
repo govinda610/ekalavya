@@ -83,6 +83,16 @@ def test_profile_view_and_edit_roundtrip():
     assert "PhD at ETH" in c.get("/profile").text
 
 
+def test_settings_toggle_persists_and_shows_in_config():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    assert c.get("/api/config").json()["death_on_cheat"] is True  # default on
+    assert c.put("/api/settings", json={"death_on_cheat": False}).json()["death_on_cheat"] is False
+    assert c.get("/api/config").json()["death_on_cheat"] is False  # persisted
+    c.put("/api/settings", json={"death_on_cheat": True})          # restore for other tests
+
+
 def test_death_and_reclaim_endpoints():
     from starlette.testclient import TestClient
 

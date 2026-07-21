@@ -7,7 +7,24 @@ tables so the dashboard and the agent can read the same numbers.
 
 from __future__ import annotations
 
+import re
 from datetime import date, timedelta
+
+# Anti-cheat: only a LARGE paste that makes up most of the submitted solution
+# counts. Small/agent-provided pastes and dictation inserts are ignored — we bias
+# hard toward false negatives (a missed cheat is far cheaper than a false accusation).
+PASTE_MIN_CHARS = 240
+PASTE_DOMINANCE = 0.6
+
+
+def looks_pasted(code: str, biggest_paste: int) -> bool:
+    """True only when a single big paste dominates a code-like submission."""
+    code = (code or "").strip()
+    if not code or biggest_paste < PASTE_MIN_CHARS:
+        return False
+    if biggest_paste < PASTE_DOMINANCE * len(code):
+        return False
+    return bool(re.search(r"\b(def|return|for|while|class|import)\b|[={}()]", code))
 
 
 def _get(conn, key: str, default: str | None = None) -> str | None:
