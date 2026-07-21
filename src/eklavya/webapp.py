@@ -150,6 +150,10 @@ def create_app():
         mode = body.get("mode", "practice")
         thread = body.get("thread") or str(uuid.uuid4())
         text = body.get("text", "")
+        code = (body.get("code") or "").strip()  # editor contents, when changed
+        if code:  # let the agent see what's in the editor, as labeled context
+            text = (f"{text}\n\n(For context — my code editor currently contains:)\n"
+                    f"```python\n{code[:8000]}\n```")
         if mode == "aiinterview":
             from .assist import mark_interview
 
@@ -161,6 +165,19 @@ def create_app():
         inputs = {"messages": [{"role": "user", "content": text}]}
         return StreamingResponse(_events(agent_for(mode), config, thread, inputs),
                                  media_type="application/x-ndjson")
+
+    @app.post("/api/run")
+    async def run_code(request: Request):
+        """Run the editor's code in the isolated sandbox and return its output.
+        No agent, no grading — a plain run→output loop the learner can lean on."""
+        from starlette.concurrency import run_in_threadpool
+
+        from .sandbox import run_python
+
+        body = await request.json()
+        r = await run_in_threadpool(run_python, body.get("code", ""))
+        return {"ok": r.ok, "stdout": r.stdout, "stderr": r.stderr,
+                "exit_code": r.exit_code, "seconds": r.seconds}
 
     @app.post("/api/resume")
     async def resume(request: Request):
@@ -278,7 +295,18 @@ color:#04120c;border:none;border-radius:10px;padding:0 18px;font-weight:700;curs
 button.submit{font-family:var(--disp);letter-spacing:.06em;background:#0c1f18;color:var(--acc);border:1px solid #1c3d30;
 border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
 button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
+button.ghost.run{color:var(--cyan);border-color:#1c3a48}
+button:disabled{opacity:.45;cursor:default}
 #editor{flex:1;min-height:0;min-width:0}
+/* run output block (Run button → sandbox stdout/stderr) */
+.runout{align-self:stretch;border:1px solid var(--line);border-radius:12px;background:#0a1018;overflow:hidden}
+.runout .rohead{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--dim);
+ padding:7px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:7px}
+.runout .rohead .ok{color:var(--acc)} .runout .rohead .bad{color:#ff8a9c}
+.runout pre{margin:0;padding:10px 12px;font-family:var(--mono);font-size:12.5px;line-height:1.5;
+ white-space:pre-wrap;word-break:break-word;overflow-x:auto}
+.runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line)}
+.runout .roempty{padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--dim)}
 #dash,#journey{display:none;height:100%}#dash iframe,#journey iframe{width:100%;height:100%;border:0;background:var(--bg)}
 #tree{display:none;height:100%;overflow:auto;padding:24px}
 .treehead{font-family:var(--disp);letter-spacing:.06em;font-size:16px;margin-bottom:14px}
@@ -406,7 +434,8 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
         </select>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
-        <button class="submit" onclick="submitCode()">▶ Submit code</button>
+        <button class="ghost run" onclick="runCode()">▶ Run</button>
+        <button class="submit" onclick="submitCode()">✓ Submit code</button>
       </div>
       <div id="assistpanel" class="hidden">
         <div class="asshead">🤖 AI Assistant <span class="asshint">— allowed here, but it's imperfect. Verify it.</span></div>
@@ -449,6 +478,9 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark'});
 let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false, pasted = false;
+const STUB = "# write your solution here\n";
+let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
+function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
 // tabs
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
@@ -501,7 +533,7 @@ function death(){
       "<span class='dim'>Type your next answer yourself to reclaim your souls.</span>";
     setHud(d.stats); document.getElementById('death').classList.add('on');
   });
-  if(editor) editor.setValue("# write your solution here\n"); pasted=false;
+  if(editor) editor.setValue(STUB); pasted=false; lastSentCode='';
 }
 function dismissDeath(){ document.getElementById('death').classList.remove('on'); }
 
@@ -596,12 +628,12 @@ async function consume(res, ui){
 }
 let queued=null;
 function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
-async function stream(text){
+async function stream(text, code){
   if(streaming) return; streaming=true; setBusy(true);
   const ui=addAiMsg();
   try{
     const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({thread,mode,text})});
+      body:JSON.stringify({thread,mode,text,code:code||undefined})});
     await consume(res, ui);
   }catch(e){ ui.buf+='\n\n_(connection error)_'; }
   finalizeMsg(ui); streaming=false; setBusy(false); refreshHud();
@@ -612,7 +644,33 @@ function sendChat(){
   const inp=document.getElementById('chatin'); const t=inp.value.trim(); if(!t)return;
   inp.value=''; inp.style.height='auto'; addMsg('you', renderMd(t));
   if(streaming){ queued=t; return; }   // queue it; it fires when the current turn ends
-  stream(t);
+  const code=editorCode();                                  // let the agent see the editor,
+  const attach=(code && code!==lastSentCode)?code:null;     // but only when it changed
+  if(attach) lastSentCode=code;
+  stream(t, attach);
+}
+
+function addRunOut(label){
+  const d=el('runout'); d.innerHTML='<div class="rohead">'+label+'</div>';
+  document.getElementById('log').appendChild(d); scroll(); return d;
+}
+function esc(s){ return (s||'').replace(/</g,'&lt;'); }
+function renderRunOut(box, r){
+  const head = r.ok ? '<span class="ok">▶ ran</span>' : '<span class="bad">▶ exit '+r.exit_code+'</span>';
+  let html = '<div class="rohead">'+head+' · '+r.seconds+'s</div>';
+  if(r.stdout) html += '<pre class="rostd">'+esc(r.stdout)+'</pre>';
+  if(r.stderr) html += '<pre class="roerr">'+esc(r.stderr)+'</pre>';
+  if(!r.stdout && !r.stderr) html += '<div class="roempty">(no output)</div>';
+  box.innerHTML = html; scroll();
+}
+async function runCode(){
+  if(!editor) return; const code=editor.getValue(); if(!code.trim()) return;
+  const box=addRunOut('<span class="dim">▶ running…</span>');
+  try{
+    const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({code})})).json();
+    renderRunOut(box, r);
+  }catch(e){ box.innerHTML='<div class="rohead bad">▶ could not run</div>'; }
 }
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
@@ -629,6 +687,7 @@ function submitCode(){
   const msg="Here is my code:\n```python\n"+code+"\n```";
   addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
   document.querySelectorAll('.msg.you pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  lastSentCode = editor.getValue();   // the agent just saw this code — don't re-attach it next chat
   stream(msg);
 }
 
@@ -655,8 +714,8 @@ function sendAssist(){
 document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Enter')sendAssist();});
 
 function newSession(){
-  mode=document.getElementById('mode').value; thread=crypto.randomUUID(); pasted=false;
-  if(editor) editor.setValue("# write your solution here\n");
+  mode=document.getElementById('mode').value; thread=crypto.randomUUID(); pasted=false; lastSentCode='';
+  if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML='';
   applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
@@ -689,7 +748,7 @@ async function openChat(id){
   if(streaming) return;
   try{
     const c=await (await fetch('/api/chats/'+id)).json();
-    thread=id; mode=c.mode||mode; document.getElementById('mode').value=mode; applyMode();
+    thread=id; mode=c.mode||mode; lastSentCode=''; document.getElementById('mode').value=mode; applyMode();
     const log=document.getElementById('log'); log.innerHTML='';
     for(const m of (c.transcript||[])){
       const b=addMsg(m.role==='you'?'you':'ai',''); b.innerHTML=renderMd(m.text);
