@@ -659,8 +659,7 @@ function addAiMsg(){
 function traceLine(tb,cls,text){ const d=el('tline '+cls); d.textContent=text; tb.appendChild(d); }
 function finalizeMsg(ui){
   ui.reply.classList.remove('typing');
-  ui.reply.innerHTML=renderMd(ui.buf||'');
-  ui.reply.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  ui.reply.innerHTML=renderMd(ui.buf||'');  // renderMd already highlights code blocks
   try{ mermaid.run({nodes:ui.reply.querySelectorAll('.mermaid')}); }catch(e){}
   if(ui.steps>0){ ui.sum.textContent=ui.steps+' step'+(ui.steps>1?'s':'')+' · tap to view'; }
   else { ui.trace.style.display='none'; }
@@ -708,7 +707,7 @@ async function consume(res, ui){
     }
   }
 }
-let queued=null;
+let queued=null, queuedSubmit=false;
 function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
 async function stream(text, code){
   if(streaming) return; streaming=true; setBusy(true);
@@ -719,7 +718,8 @@ async function stream(text, code){
     await consume(res, ui);
   }catch(e){ ui.buf+='\n\n_(connection error)_'; }
   finalizeMsg(ui); streaming=false; setBusy(false); refreshHud();
-  if(queued){ const q=queued; queued=null; stream(q); }   // send a message typed mid-stream
+  if(queued){ const q=queued; queued=null; stream(q); }        // a message typed mid-stream
+  else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
 }
 
 function sendChat(){
@@ -759,8 +759,11 @@ async function runCode(){
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
 })();
 
+function flashSubmit(t){ const b=document.querySelector('button.submit'); if(b) b.textContent=t; }
 function submitCode(){
-  if(!editor||streaming)return; const code=editor.getValue().trim(); if(!code)return;
+  if(!editor) return; const code=editor.getValue().trim(); if(!code)return;
+  if(streaming){ queuedSubmit=true; flashSubmit('✓ queued…'); return; }  // sends after the current reply, not silently dropped
+  flashSubmit('✓ Submit code');
   const guarded = (mode!=='aiinterview' && mode!=='onboard');  // no anti-cheat in AI-interview or onboarding
   if(guarded && looksPasted(code, biggestPaste)){             // a big paste dominates → flag, but keep the code
     flagCheat('A full solution was pasted into the editor'); return;
@@ -771,8 +774,8 @@ function submitCode(){
   }
   biggestPaste = 0;
   const msg="Here is my code:\n```python\n"+code+"\n```";
-  addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
-  document.querySelectorAll('.msg.you pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  const body=addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
+  body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});  // only the new bubble
   lastSentCode = editor.getValue();   // the agent just saw this code — don't re-attach it next chat
   stream(msg);
 }
@@ -837,8 +840,7 @@ async function openChat(id){
     thread=id; mode=c.mode||mode; lastSentCode=''; document.getElementById('mode').value=mode; applyMode();
     const log=document.getElementById('log'); log.innerHTML='';
     for(const m of (c.transcript||[])){
-      const b=addMsg(m.role==='you'?'you':'ai',''); b.innerHTML=renderMd(m.text);
-      b.querySelectorAll('pre code').forEach(x=>{try{hljs.highlightElement(x);}catch(e){}});
+      const b=addMsg(m.role==='you'?'you':'ai',''); b.innerHTML=renderMd(m.text);  // renderMd already highlights
       try{ await mermaid.run({nodes:b.querySelectorAll('.mermaid')}); }catch(e){}
     }
     document.getElementById('asslog').innerHTML=''; closeDrawer(); scroll(); refreshHud();

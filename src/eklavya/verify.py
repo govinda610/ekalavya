@@ -35,6 +35,12 @@ CONVERSATION CONTEXT (what the learner asked / the situation):
 {context}
 \"\"\"
 
+LEARNER PROFILE (the tutor legitimately has this file about the learner — treat it \
+as GROUND TRUTH about who the learner is; may be empty):
+\"\"\"
+{profile}
+\"\"\"
+
 TUTOR MESSAGE (what you are checking):
 \"\"\"
 {message}
@@ -53,6 +59,10 @@ that contradicts the CONTEXT (e.g. says a file was saved when the context shows 
 failed) or a plainly false real-world fact (e.g. a company's actual interview style).
 
 Do NOT flag — these are NOT issues:
+  - ANY statement about the LEARNER themselves — their background, education, job, \
+employer, skills, goals, history, or plan. The tutor can see the learner's PROFILE \
+and progress data (above), which is authoritative and may exceed what you know. \
+NEVER flag a claim about the learner as wrong or as "unverifiable"/"no profile available";
   - questions the tutor asks the learner;
   - code or claims the tutor deliberately presents as a BUG, a wrong example, or \
 "what NOT to do";
@@ -101,6 +111,17 @@ def parse_verdict(raw: str) -> dict:
         return json.loads(match.group(0))
     except json.JSONDecodeError:
         return {"verdict": "ok", "issues": []}
+
+
+def learner_profile() -> str:
+    """The learner's profile.md — given to the judge so it never flags the tutor's
+    legitimate, profile-grounded statements about the learner as hallucinations."""
+    try:
+        from . import config
+
+        return config.PROFILE_PATH.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
+        return ""
 
 
 def _judge_provider_key():
@@ -184,6 +205,7 @@ def selfcheck(reply: str, context: str = "") -> str | None:
     docs = ground_docs(reply)
     prompt = _JUDGE_PROMPT.format(
         context=(context or "").strip()[:1500] or "(no prior context available)",
+        profile=learner_profile().strip()[:3000] or "(no learner profile on file)",
         message=reply,
         docs=docs or "(no documentation retrieved)",
     )

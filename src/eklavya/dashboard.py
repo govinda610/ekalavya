@@ -172,9 +172,10 @@ def render(ov: dict) -> str:
                  f'<div class="muted" style="font-size:11px;margin-top:6px">unaided accuracy · recent days</div>')
 
     goals = "".join(
-        f'<div class="quest"><span class="hz {x["horizon"]}">{x["horizon"]}</span>'
-        f'<span>{x["text"]}</span>'
-        + (f'<span class="muted">· {x["deadline"]}</span>' if x.get("deadline") else "") + "</div>"
+        f'<div class="quest" onclick="this.classList.toggle(\'open\')" title="click to expand">'
+        f'<span class="hz {x["horizon"]}">{x["horizon"]}</span>'
+        f'<span class="qtext">{x["text"]}</span>'
+        + (f'<span class="muted qd">· {x["deadline"]}</span>' if x.get("deadline") else "") + "</div>"
         for x in ov["goals"]
     ) or '<span class="muted">No quests yet.</span>'
 
@@ -330,11 +331,11 @@ h2 .ic{width:15px;height:15px}
 .qmeta .due{color:var(--amber);font-family:var(--mono);font-size:13px}
 
 /* cards */
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}.char{width:100%}}
 
 /* bento — asymmetric, skill map is the hero */
-.bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);
+.bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
   grid-template-areas:
     "map map map map axes axes"
     "quests quests gap gap gap gap"
@@ -375,10 +376,15 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 .bartrack{height:12px;border-radius:999px;background:#0b1420;border:1px solid var(--line);overflow:hidden}
 .bar{height:100%;border-radius:999px;transition:width .5s}
 
-/* quests / goals */
+/* quests / goals — long text is clamped to 2 lines and expands on click */
 .quests{display:flex;flex-direction:column;gap:9px}
-.quest{display:flex;align-items:center;gap:10px;background:#0c1622;border:1px solid var(--line);
-  border-radius:10px;padding:10px 13px;font-size:14px}
+.quest{display:flex;align-items:flex-start;gap:10px;background:#0c1622;border:1px solid var(--line);
+  border-radius:10px;padding:10px 13px;font-size:14px;cursor:pointer}
+.quest:hover{border-color:#2a3a52}
+.quest .hz,.quest .qd{flex:none;margin-top:1px}
+.quest .qtext{flex:1;min-width:0;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.quest.open .qtext{-webkit-line-clamp:unset;overflow:visible}
 .hz{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
   padding:2px 8px;border-radius:5px;border:1px solid}
 .hz.long{color:var(--violet);border-color:#3a2c55;background:#160f22}

@@ -86,6 +86,17 @@ def test_selfcheck_passes_context_and_docs_into_the_prompt(monkeypatch):
     assert "PANDAS DOCS" in fake.seen_prompt                    # grounded docs threaded in
 
 
+def test_selfcheck_threads_learner_profile_so_it_isnt_flagged(monkeypatch):
+    monkeypatch.setenv("EKLAVYA_VERIFY", "1")
+    monkeypatch.setattr(verify, "_judge_provider_key", lambda: "glm")
+    monkeypatch.setattr(verify, "ground_docs", lambda reply: "")
+    monkeypatch.setattr(verify, "learner_profile", lambda: "Govind is a Senior Data Scientist at Gartner.")
+    fake = _FakeModel('{"verdict":"ok","issues":[]}')
+    monkeypatch.setattr("eklavya.providers.build_chat_model", lambda *a, **k: fake)
+    verify.selfcheck("You work at Gartner as a senior DS. " * 10, context="who am I?")
+    assert "Senior Data Scientist at Gartner" in fake.seen_prompt  # profile fed to the judge
+
+
 def test_candidate_library_targets_known_libs_only():
     assert verify.candidate_library("import pandas as pd\npd.read_csv('x')") == "pandas"
     assert verify.candidate_library("We'll use FastAPI for the endpoint.") == "fastapi"

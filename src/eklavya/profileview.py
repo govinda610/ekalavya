@@ -45,9 +45,10 @@ def render() -> str:
     # goals with deadlines
     if goals:
         goal_html = "".join(
-            f'<div class="quest"><span class="hz {g["horizon"]}">{g["horizon"]}</span>'
-            f'<span>{html.escape(g["text"])}</span>'
-            + (f'<span class="muted">· {html.escape(g["deadline"])}</span>' if g.get("deadline") else "")
+            f'<div class="quest" onclick="this.classList.toggle(\'open\')" title="click to expand">'
+            f'<span class="hz {g["horizon"]}">{g["horizon"]}</span>'
+            f'<span class="qtext">{html.escape(g["text"])}</span>'
+            + (f'<span class="muted qd">· {html.escape(g["deadline"])}</span>' if g.get("deadline") else "")
             + "</div>"
             for g in goals
         )
