@@ -11,6 +11,24 @@ SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_VERSION = "1"
 
 
+def _migrate_home_to_workspace() -> None:
+    """Move a db/profile created by an earlier version (at the EKLAVYA_HOME root) into
+    the workspace, so existing learners keep their data. Moves (not copies), and only
+    when the workspace copy doesn't exist yet — safe and idempotent."""
+    from ..config import EKLAVYA_HOME, PROFILE_PATH, WORKSPACE, ensure_home
+
+    ensure_home()
+    old_db = EKLAVYA_HOME / "eklavya.db"
+    if old_db.exists() and not DB_PATH.exists():
+        for suffix in ("", "-wal", "-shm"):  # move the WAL sidecars too
+            src = old_db.parent / (old_db.name + suffix)
+            if src.exists():
+                src.rename(DB_PATH.parent / (DB_PATH.name + suffix))
+    old_profile = EKLAVYA_HOME / "profile.md"
+    if old_profile.exists() and not PROFILE_PATH.exists() and PROFILE_PATH.parent == WORKSPACE:
+        old_profile.rename(PROFILE_PATH)
+
+
 def connect(path: Path | None = None) -> sqlite3.Connection:
     """Return a connection with rows accessible by column name."""
     ensure_home()
@@ -29,6 +47,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
 
 def init_db(path: Path | None = None) -> Path:
     """Create the schema if needed. Idempotent — safe to call every launch."""
+    if path is None:
+        _migrate_home_to_workspace()  # bring pre-workspace data forward
     target = path or DB_PATH
     conn = connect(target)
     try:

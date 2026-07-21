@@ -17,28 +17,32 @@ from pathlib import Path
 
 from . import config
 
-# Never readable, even though the host backend is otherwise read-broad.
-_FORBIDDEN = (".ssh", ".aws", ".gnupg", ".netrc", ".config/gcloud", ".eklavya",
+# Secrets under the home dir that are never readable (the host backend is otherwise
+# read-broad). The eklavya home itself is handled specially in _is_forbidden.
+_FORBIDDEN = (".ssh", ".aws", ".gnupg", ".netrc", ".config/gcloud",
               "Library/Keychains", "Library/Application Support")
 
 _DENY_MSG = "(access to this path is not allowed)"
 
 
 def workspace_dir() -> Path:
-    ws = config.EKLAVYA_HOME / "workspace"
-    ws.mkdir(parents=True, exist_ok=True)
-    return ws
+    config.WORKSPACE.mkdir(parents=True, exist_ok=True)
+    return config.WORKSPACE
 
 
 def _is_forbidden(file_path: str) -> bool:
     try:
-        resolved = Path(file_path).expanduser().resolve()
+        resolved = str(Path(file_path).expanduser().resolve())
     except Exception:
         return True
-    if resolved.name == ".env":
+    if resolved.startswith(str(config.WORKSPACE.resolve())):
+        return False  # the agent's own workspace (db + profile) — always allowed
+    if Path(resolved).name == ".env":
         return True
+    if resolved.startswith(str(config.EKLAVYA_HOME.resolve())):
+        return True  # backups, checkpointer, other app internals — off limits
     home = Path.home()
-    return any(str(resolved).startswith(str(home / f)) for f in _FORBIDDEN)
+    return any(resolved.startswith(str(home / f)) for f in _FORBIDDEN)
 
 
 def build_backend():
