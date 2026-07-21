@@ -45,6 +45,17 @@ def _first_run() -> bool:
     return is_first_run()
 
 
+def _configured_provider(provider):
+    """Warm the MCP tools (sync) so terminal agents get web search + docs too, then
+    return a configured provider — or exit with a friendly message."""
+    from .mcp_client import load_mcp_tools
+    from .providers import pick
+
+    load_mcp_tools()
+    p = _configured_provider(provider)
+    return p
+
+
 @app.command()
 def version() -> None:
     """Print the version."""
@@ -73,10 +84,7 @@ def onboard(
     from .tools import ONBOARDING_TOOLS
 
     init_db()  # make sure state exists
-    p = pick(provider)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(provider)
 
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model}[/]\n")
@@ -97,10 +105,7 @@ def mock(
     from .tools import SESSION_TOOLS
 
     init_db()
-    p = pick(provider)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(provider)
 
     banner.render(console)
     console.print(f"\n[dim]interviewer: {p.label} · {p.default_model} · {minutes} min[/]\n")
@@ -126,10 +131,7 @@ def practice(
     from .tools import SESSION_TOOLS
 
     init_db()
-    p = pick(provider)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(provider)
 
     from . import progress
 
@@ -159,10 +161,7 @@ def tui(
     from .tui import EklavyaApp, make_responder, make_stream_responder
 
     init_db()
-    p = pick(provider)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(provider)
 
     agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
     config = new_thread()
@@ -196,10 +195,7 @@ def takehome(
     from .tools import SESSION_TOOLS
 
     init_db()
-    p = pick(provider)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(provider)
 
     banner.render(console)
     console.print(f"\n[dim]interviewer: {p.label} · {p.default_model} · {minutes} min take-home[/]\n")
@@ -266,10 +262,7 @@ def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `ek
         console.print(f"[red]✗[/red] pick a number between 1 and {len(rows)} (see `eklavya chats`).")
         raise typer.Exit(1)
     c = rows[n - 1]
-    p = pick(None)
-    if not p.is_configured():
-        console.print(f"[red]✗[/red] {p.label} has no key. Add {p.token_env[0]} to .env.")
-        raise typer.Exit(1)
+    p = _configured_provider(None)
     prompt, tools = _mode_agent(c["mode"])
     agent = build_agent(prompt, tools, provider=p.key)
     banner.render(console)
