@@ -255,10 +255,10 @@ background:none;border:1px solid transparent;padding:6px 14px;border-radius:9px;
 main{flex:1;min-height:0}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
-.col{display:flex;flex-direction:column;min-height:0}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0}
 .col.chat{border-right:1px solid var(--line)}
 .log{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
-.msg{max-width:92%;padding:12px 15px;border-radius:14px;line-height:1.55;font-size:14.5px}
+.msg{max-width:92%;padding:12px 15px;border-radius:14px;line-height:1.55;font-size:14.5px;overflow-wrap:anywhere}
 .msg.you{align-self:flex-end;background:#0c1f18;border:1px solid #1c3d30}
 .msg.ai{align-self:flex-start;background:var(--panel);border:1px solid var(--line)}
 .msg.ai .who,.msg.you .who{font-family:var(--disp);letter-spacing:.1em;font-size:11px;color:var(--acc);text-transform:uppercase;margin-bottom:4px}
@@ -268,8 +268,8 @@ main{flex:1;min-height:0}
 .msg blockquote{border-left:3px solid var(--acc);margin:8px 0;padding:2px 12px;color:var(--dim)}
 .mermaid{background:#0a1018;border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
 .inbar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);background:var(--panel2)}
-.inbar input{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);
-padding:11px 13px;font-family:var(--sans);font-size:14px}
+.inbar textarea{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;color:var(--ink);
+padding:10px 13px;font-family:var(--sans);font-size:14px;resize:none;max-height:150px;line-height:1.45;overflow-y:auto}
 button.send{font-family:var(--disp);letter-spacing:.08em;background:linear-gradient(100deg,var(--acc),var(--cyan));
 color:#04120c;border:none;border-radius:10px;padding:0 18px;font-weight:700;cursor:pointer}
 .edtoolbar{display:flex;gap:8px;align-items:center;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--panel2)}
@@ -278,7 +278,7 @@ color:#04120c;border:none;border-radius:10px;padding:0 18px;font-weight:700;curs
 button.submit{font-family:var(--disp);letter-spacing:.06em;background:#0c1f18;color:var(--acc);border:1px solid #1c3d30;
 border-radius:8px;padding:7px 14px;font-weight:600;cursor:pointer}
 button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font-family:var(--mono);font-size:12px}
-#editor{flex:1;min-height:0}
+#editor{flex:1;min-height:0;min-width:0}
 #dash,#journey{display:none;height:100%}#dash iframe,#journey iframe{width:100%;height:100%;border:0;background:var(--bg)}
 #tree{display:none;height:100%;overflow:auto;padding:24px}
 .treehead{font-family:var(--disp);letter-spacing:.06em;font-size:16px;margin-bottom:14px}
@@ -391,7 +391,7 @@ button.ghost{background:#0c1622;color:var(--dim);border:1px solid var(--line);bo
     <div class="col chat">
       <div class="log" id="log"></div>
       <div class="inbar">
-        <input id="chatin" placeholder="type your answer… (or write code on the right →)" autocomplete="off">
+        <textarea id="chatin" rows="1" placeholder="type your answer…  (Shift+Enter for a new line)" autocomplete="off"></textarea>
         <button class="send" onclick="sendChat()">Send</button>
       </div>
     </div>
@@ -584,7 +584,9 @@ async function consume(res, ui){
     partial += dec.decode(value,{stream:true}); const lines=partial.split('\n'); partial=lines.pop();
     for(const line of lines){ if(!line.trim())continue;
       let o; try{o=JSON.parse(line);}catch(e){continue;}
-      if(o.t){ ui.buf+=o.t; ui.reply.textContent=ui.buf; scroll(); }
+      if(o.t){ ui.buf+=o.t; const now=Date.now();
+        if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=DOMPurify.sanitize(marked.parse(ui.buf)); }
+        scroll(); }
       else if(o.tool){ ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
       else if(o.result){ traceLine(ui.tb,'res','✓ '+prettyTool(o.result.name)); }
@@ -592,22 +594,30 @@ async function consume(res, ui){
     }
   }
 }
+let queued=null;
+function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
 async function stream(text){
-  if(streaming) return; streaming=true;
+  if(streaming) return; streaming=true; setBusy(true);
   const ui=addAiMsg();
   try{
     const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({thread,mode,text})});
     await consume(res, ui);
   }catch(e){ ui.buf+='\n\n_(connection error)_'; }
-  finalizeMsg(ui); streaming=false; refreshHud();
+  finalizeMsg(ui); streaming=false; setBusy(false); refreshHud();
+  if(queued){ const q=queued; queued=null; stream(q); }   // send a message typed mid-stream
 }
 
 function sendChat(){
-  const inp=document.getElementById('chatin'); const t=inp.value.trim(); if(!t||streaming)return;
-  inp.value=''; addMsg('you', renderMd(t)); stream(t);
+  const inp=document.getElementById('chatin'); const t=inp.value.trim(); if(!t)return;
+  inp.value=''; inp.style.height='auto'; addMsg('you', renderMd(t));
+  if(streaming){ queued=t; return; }   // queue it; it fires when the current turn ends
+  stream(t);
 }
-document.getElementById('chatin').addEventListener('keydown',e=>{if(e.key==='Enter')sendChat();});
+(function(){const ta=document.getElementById('chatin');
+  ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
+})();
 
 function submitCode(){
   if(!editor||streaming)return; const code=editor.getValue().trim(); if(!code)return;
