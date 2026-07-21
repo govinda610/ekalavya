@@ -220,19 +220,9 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
             f"{n['goals']} goals, {n['curriculum']} curriculum nodes")
 
 
-# The tools exposed to the onboarding agent.
-ONBOARDING_TOOLS = [
-    read_profile,
-    save_profile,
-    add_pillar,
-    set_baseline_rating,
-    add_goal,
-    mastery_summary,
-    list_goals,
-    add_curriculum,
-    clear_curriculum,
-    get_curriculum,
-]
+# The unified toolset is defined once at the bottom of this module — see AGENT_TOOLS.
+# (add_pillar/set_baseline_rating/add_goal/add_curriculum/clear_curriculum remain as
+# helpers that save_baseline reuses; list_goals/progress_report back the slash commands.)
 
 
 # --- Practice-session tools -------------------------------------------------
@@ -532,26 +522,15 @@ def web_search(query: str) -> str:
     ))
 
 
-# The tools exposed to the practice-session agent.
-SESSION_TOOLS = [
-    read_profile,
-    list_goals,
-    suggest_focus,
-    run_code,
-    grade_code,
-    grade_and_record,
-    diff_code,
-    record_attempt,
-    progress_report,
-    get_questions,
-    add_question,
-    web_search,
-    get_curriculum,
-    add_curriculum,
-]
-
-# The AI-enabled interview agent = the session tools plus the AI-usage review tool
-# it calls to grade how the candidate used the (deliberately imperfect) assistant.
 from .assist import review_ai_usage  # noqa: E402
 
-AIINTERVIEW_TOOLS = SESSION_TOOLS + [review_ai_usage]
+# The unified toolset — one small spine every interface's agent shares. deepagents adds
+# the floor tools (read_file/write_file/edit_file/ls/glob/grep/write_todos/task) on our
+# confined backend; build_agent appends the MCP web-search + docs tools. Everything else
+# (running/verifying code, reading state, searching the web) goes through those.
+AGENT_TOOLS = [record_attempt, save_baseline, suggest_focus, review_ai_usage, run_bash]
+
+# Same tools in every mode; the prompt decides how to use them.
+ONBOARDING_TOOLS = AGENT_TOOLS
+SESSION_TOOLS = AGENT_TOOLS
+AIINTERVIEW_TOOLS = AGENT_TOOLS
