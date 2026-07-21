@@ -288,9 +288,11 @@ def serve(
     """Open the full web app — practice in the browser, no terminal needed."""
     import uvicorn
 
+    from .mcp_client import load_mcp_tools
     from .webapp import create_app
 
     init_db()
+    load_mcp_tools()  # warm MCP tools (sync) so web agents get web search + docs
     url = f"http://{host}:{port}"
     console.print(f"[green]›[/green] Ekalavya at [bold]{url}[/bold]  (Ctrl+C to stop)")
     if open_browser:

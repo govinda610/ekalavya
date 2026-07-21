@@ -28,10 +28,14 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
 
         checkpointer = get_checkpointer()
 
+    from .mcp_client import cached_mcp_tools
+    from .workspace import build_backend
+
     chat = build_chat_model(provider, model=model, max_tokens=_MAX_TOKENS)
     return create_deep_agent(
         model=chat,
-        tools=tools,
+        tools=list(tools) + cached_mcp_tools(),  # + web search / docs, when warmed
         system_prompt=system_prompt,
+        backend=build_backend(),  # read-broad host + write-confined /workspace
         checkpointer=checkpointer,
     )

@@ -44,15 +44,42 @@ async def _fetch() -> list:
     return await MultiServerMCPClient(servers).get_tools()
 
 
+def _sync_wrap(async_tool):
+    """MCP tools are async-only (`StructuredTool does not support sync invocation`).
+    Wrap each so it also runs under our sync-invoked agent: the agent executes in a
+    threadpool/worker with no running event loop, so `asyncio.run` here is safe."""
+    import asyncio
+
+    from langchain_core.tools import StructuredTool
+
+    def _run(**kwargs):
+        return asyncio.run(async_tool.ainvoke(kwargs))
+
+    return StructuredTool.from_function(
+        func=_run,
+        name=async_tool.name,
+        description=async_tool.description,
+        args_schema=async_tool.args_schema,
+    )
+
+
 def load_mcp_tools() -> list:
-    """Fetch the MCP tools once and cache them. Call from a sync startup context
-    (not from inside a running event loop). Never raises — returns [] on failure."""
+    """Fetch the MCP tools once and cache them, wrapped to be sync-callable. Call from
+    a sync startup context (e.g. the `serve` command). Never raises — returns [] on
+    failure. Warms the cache that `cached_mcp_tools()` then serves everywhere."""
     global _cached
     if _cached is None:
         import asyncio
 
         try:
-            _cached = asyncio.run(_fetch())
+            _cached = [_sync_wrap(t) for t in asyncio.run(_fetch())]
         except Exception:
             _cached = []
     return _cached
+
+
+def cached_mcp_tools() -> list:
+    """Return already-loaded MCP tools without fetching — safe in any context (async
+    request handlers, tests). Empty until `load_mcp_tools()` warms it at startup, so
+    tests (which never warm it) stay fully offline."""
+    return _cached or []
