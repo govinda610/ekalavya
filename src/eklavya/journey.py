@@ -125,7 +125,13 @@ def render() -> str:
                  f'<polyline points="{pts}" fill="none" stroke="#5ef2b8" stroke-width="2"/></svg>'
                  f'<div class="muted" style="font-size:11px;margin-top:6px">total XP over time</div>')
     else:
-        spark = '<span class="muted">Your XP curve appears as you practise.</span>'
+        spark = ('<svg viewBox="0 0 300 62" class="spark" preserveAspectRatio="none">'
+                 '<line x1="0" y1="6" x2="300" y2="6" stroke="#1f2c3e" stroke-dasharray="3 4"/>'
+                 '<line x1="0" y1="33" x2="300" y2="33" stroke="#1f2c3e" stroke-dasharray="3 4"/>'
+                 '<line x1="0" y1="60" x2="300" y2="60" stroke="#1f2c3e"/>'
+                 '<circle cx="3" cy="60" r="3" fill="#5ef2b8"/></svg>'
+                 '<div class="muted" style="font-size:11px;margin-top:6px">'
+                 'your XP curve starts here · dashed lines mark the level 2 &amp; 3 targets</div>')
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Journey</title>
@@ -151,10 +157,12 @@ _JCSS = """
 .mdot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--panel);
   border:1px solid var(--line);z-index:1;font-size:17px;box-shadow:0 0 0 4px var(--bg)}
 .mbody b{display:block;font-size:14px}.mbody .muted{font-family:var(--mono);font-size:11px}
-.achgrid{display:flex;flex-wrap:wrap;gap:12px}
+.achgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
 .ach{display:flex;gap:12px;align-items:center;background:#0c1622;border:1px solid #24344a;border-radius:12px;
-  padding:11px 14px;min-width:210px}
-.ach.lock{opacity:.6;border-style:dashed}
+  padding:11px 14px;transition:transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s}
+.ach:hover{transform:translateY(-2px);border-color:#2a3a52}
+.ach.lock{filter:grayscale(.75)}
+.ach.lock .aico{opacity:.65}
 .aico{font-size:25px;filter:drop-shadow(0 0 8px #0008)}
 .ach b{display:block;font-size:13px}.ach .muted{font-size:11px}
 .pbar{height:6px;background:#0b1420;border-radius:999px;margin:5px 0 2px;overflow:hidden;width:130px}

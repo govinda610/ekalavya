@@ -259,8 +259,8 @@ body{margin:0;font-family:var(--sans);color:var(--ink);
   -webkit-background-clip:text;background-clip:text;color:transparent}
 .muted{color:var(--dim)} code{font-family:var(--mono);color:var(--acc);background:#0c1622;
   padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
-h2{font-family:var(--disp);font-size:15px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--acc);margin:0 0 14px;font-weight:700}
+h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--dim);margin:0 0 14px;font-weight:500}
 
 /* hero / character */
 .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
@@ -299,7 +299,10 @@ h2{font-family:var(--disp);font-size:15px;letter-spacing:.16em;text-transform:up
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}.char{width:100%}}
 .card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
-  border-radius:16px;padding:18px 20px;box-shadow:0 18px 50px -34px #000}
+  border-radius:16px;padding:18px 20px;box-shadow:0 1px 0 #ffffff0d inset,0 18px 50px -34px #000;
+  transition:transform .22s cubic-bezier(.22,.61,.36,1),border-color .22s,box-shadow .22s}
+.card:hover{transform:translateY(-2px);border-color:#2a3a52;
+  box-shadow:0 1px 0 #ffffff14 inset,0 22px 54px -30px #000c}
 
 /* skill map */
 table{width:100%;border-collapse:separate;border-spacing:5px}
@@ -353,4 +356,12 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 .chron .xp{color:var(--acc);text-align:right;font-family:var(--mono)}
 
 .foot{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;margin-top:8px}
+
+/* polish: tabular numerals, styled scrollbars, selection, reduced-motion */
+.lvlnum,.xptext,.agstat b,.chron .xp,.chip,.num{font-variant-numeric:tabular-nums}
+::selection{background:#5ef2b855;color:#04120c}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#1f2c3e;border-radius:999px;border:2px solid var(--bg)}
+::-webkit-scrollbar-thumb:hover{background:#2a3a52}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 """
