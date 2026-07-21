@@ -156,7 +156,7 @@ class EklavyaApp(App):
             self.call_from_thread(self._stream_update, "".join(buf))
         full = "".join(buf)
         self.call_from_thread(self._stream_end, full)
-        note = selfcheck(full)  # blocking model call, but we're on the worker thread
+        note = selfcheck(full, context=text)  # blocking model call, but we're on the worker thread
         if note:
             self.call_from_thread(self._write_agent, note)
 

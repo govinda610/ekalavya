@@ -135,6 +135,10 @@ def create_app():
         stream the reply, and pause for run_bash approval."""
         from .verify import selfcheck
 
+        try:  # the learner's message (a fresh turn) → context for the judge; "" on resume
+            user_context = inputs["messages"][0]["content"] if isinstance(inputs, dict) else ""
+        except (KeyError, IndexError, TypeError):
+            user_context = ""
         buf = []
         try:
             for chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
@@ -161,7 +165,7 @@ def create_app():
             yield json.dumps({"done": True, "paused": True}) + "\n"
             return
 
-        note = selfcheck("".join(buf))  # a second model reviews the reply
+        note = selfcheck("".join(buf), context=user_context)  # context-aware second-model review
         if note:
             yield json.dumps({"t": note}) + "\n"
         try:  # auto-name the chat from the learner's first real message

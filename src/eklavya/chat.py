@@ -47,7 +47,7 @@ def run_turn(agent, config: dict, user_text: str, console: Console | None = None
         decision = _approve_bash(console, appr)
         inputs = Command(resume={"decisions": [{"type": decision}]})
     reply = result["messages"][-1].text
-    note = selfcheck(reply)
+    note = selfcheck(reply, context=user_text)  # what the learner asked → context-aware judge
     return reply + note if note else reply
 
 
