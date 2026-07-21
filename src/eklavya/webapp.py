@@ -85,6 +85,26 @@ def create_app():
 
         return render_journey()
 
+    @app.get("/profile", response_class=HTMLResponse)
+    def profile_page() -> str:
+        from .profileview import render as render_profile
+
+        return render_profile()
+
+    @app.get("/api/profile")
+    def profile_get() -> dict:
+        from .profileview import read_profile
+
+        return {"text": read_profile()}
+
+    @app.put("/api/profile")
+    async def profile_put(request: Request):
+        from .profileview import write_profile
+
+        body = await request.json()
+        write_profile(body.get("text", ""))
+        return {"ok": True}
+
     @app.get("/api/overview")
     def overview() -> dict:
         return report.overview()
@@ -310,7 +330,8 @@ button:disabled{opacity:.45;cursor:default}
  white-space:pre-wrap;word-break:break-word;overflow-x:auto}
 .runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line)}
 .runout .roempty{padding:10px 12px;font-family:var(--mono);font-size:12px;color:var(--dim)}
-#dash,#journey{display:none;height:100%}#dash iframe,#journey iframe{width:100%;height:100%;border:0;background:var(--bg)}
+#dash,#journey,#profile{display:none;height:100%}
+#dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--bg)}
 #tree{display:none;height:100%;overflow:auto;padding:24px}
 .treehead{font-family:var(--disp);letter-spacing:.06em;font-size:16px;margin-bottom:14px}
 .treehead .g{background:linear-gradient(100deg,var(--acc),var(--cyan) 60%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
@@ -411,6 +432,7 @@ button:disabled{opacity:.45;cursor:default}
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
     <button class="tab" data-view="journey">Journey</button>
+    <button class="tab" data-view="profile">Profile</button>
     <button class="tab" data-view="tree">Skill Tree</button>
   </div>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
@@ -454,6 +476,7 @@ button:disabled{opacity:.45;cursor:default}
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
   <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
+  <div id="profile"><iframe id="pframe" src="/profile"></iframe></div>
   <div id="tree">
     <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span></div>
     <div id="treediagram"></div>
@@ -493,9 +516,11 @@ document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [dat
   document.getElementById('practice').style.display = v==='practice'?'grid':'none';
   document.getElementById('dash').style.display = v==='dash'?'block':'none';
   document.getElementById('journey').style.display = v==='journey'?'block':'none';
+  document.getElementById('profile').style.display = v==='profile'?'block':'none';
   document.getElementById('tree').style.display = v==='tree'?'block':'none';
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
+  if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') loadTree();
 });
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it

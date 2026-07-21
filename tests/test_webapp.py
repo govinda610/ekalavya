@@ -67,6 +67,22 @@ def test_config_includes_first_run_and_onboard():
     assert client.get("/api/config").json()["first_run"] is True
 
 
+def test_profile_view_and_edit_roundtrip():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    # the page renders with the editor textarea + the mastery map (seeded FastAPI pillar)
+    page = c.get("/profile")
+    assert page.status_code == 200
+    assert 'id="pedit"' in page.text and "Mastery map" in page.text and "FastAPI" in page.text
+    # starts empty, saves, and reads back
+    assert c.get("/api/profile").json()["text"] == ""
+    c.put("/api/profile", json={"text": "# Me\n\n- goal: **PhD at ETH**"})
+    assert "ETH" in c.get("/api/profile").json()["text"]
+    # the rendered page embeds the saved markdown (recoverable from the textarea)
+    assert "PhD at ETH" in c.get("/profile").text
+
+
 def test_death_and_reclaim_endpoints():
     from starlette.testclient import TestClient
 
