@@ -273,6 +273,43 @@ def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `ek
 
 
 @app.command()
+def backups() -> None:
+    """List saved state snapshots (revert to one with `eklavya revert <#>`)."""
+    from . import backups as bk
+
+    snaps = bk.list_snapshots()
+    if not snaps:
+        console.print("[dim]No snapshots yet — they're taken automatically before the agent writes state.[/]")
+        return
+    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
+    table.add_column("#")
+    table.add_column("when")
+    table.add_column("reason")
+    for i, s in enumerate(snaps, 1):
+        table.add_row(str(i), s.get("created_at", ""), s.get("reason", ""))
+    console.print(table)
+    console.print("\n[dim]revert with:  eklavya revert <#>   (1 = most recent)[/]")
+
+
+@app.command()
+def revert(n: int = typer.Argument(1, help="which snapshot (1 = most recent; see `eklavya backups`)")) -> None:
+    """Roll learner state back to a snapshot (the current state is snapshotted first)."""
+    from . import backups as bk
+
+    snaps = bk.list_snapshots()
+    if not snaps:
+        console.print("[dim]No snapshots to revert to.[/]")
+        raise typer.Exit()
+    if n < 1 or n > len(snaps):
+        console.print(f"[red]✗[/red] pick a number between 1 and {len(snaps)} (see `eklavya backups`).")
+        raise typer.Exit(1)
+    target = bk.revert(snaps[n - 1]["id"])
+    console.print(f"[green]✓[/green] reverted to snapshot from [bold]{target.get('created_at')}[/] "
+                  f"([dim]{target.get('reason') or 'manual'}[/]).")
+    console.print("[dim]The state before this revert was saved too — revert again to undo.[/]")
+
+
+@app.command()
 def serve(
     host: str = typer.Option("127.0.0.1", help="bind host"),
     port: int = typer.Option(4646, help="bind port"),

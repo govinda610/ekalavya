@@ -296,6 +296,10 @@ def run_bash(command: str, explanation: str) -> str:
     if deny.search(command):
         return "Refused: this command matches a blocked destructive pattern."
 
+    from .backups import snapshot_if_changed
+
+    snapshot_if_changed(f"before run_bash: {command[:80]}")  # safety net for model SQL
+
     from .workspace import workspace_dir
 
     try:
