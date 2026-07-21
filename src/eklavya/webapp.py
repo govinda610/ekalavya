@@ -272,6 +272,9 @@ background:none;border:1px solid transparent;padding:6px 14px;border-radius:9px;
 main{flex:1;min-height:0}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
+#practice.nocode{grid-template-columns:1fr;grid-template-rows:1fr}       /* editor hidden → chat full width */
+#practice.nocode > .col:not(.chat){display:none}
+#practice.nocode > .col.chat{border-right:none}
 .col{display:flex;flex-direction:column;min-height:0;min-width:0}
 .col.chat{border-right:1px solid var(--line)}
 .log{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
@@ -410,6 +413,7 @@ button:disabled{opacity:.45;cursor:default}
     <button class="tab" data-view="journey">Journey</button>
     <button class="tab" data-view="tree">Skill Tree</button>
   </div>
+  <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <div class="spacer"></div>
   <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
@@ -483,8 +487,8 @@ let lastSentCode = '';   // editor code the agent has already seen this chat —
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
 // tabs
-document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
-  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on')); t.classList.add('on');
+document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [data-view] excludes the editor toggle
+  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.remove('on')); t.classList.add('on');
   const v=t.dataset.view;
   document.getElementById('practice').style.display = v==='practice'?'grid':'none';
   document.getElementById('dash').style.display = v==='dash'?'block':'none';
@@ -494,6 +498,18 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='tree') loadTree();
 });
+// editor show/hide toggle (canvas-style) — persisted; Submit never hides it
+function toggleEditor(){
+  const hidden=document.getElementById('practice').classList.toggle('nocode');
+  document.getElementById('edtoggle').classList.toggle('on', !hidden);
+  localStorage.setItem('ek_nocode', hidden?'1':'0');
+  if(editor && !hidden) setTimeout(()=>editor.layout(),60);  // Monaco needs a relayout when reshown
+}
+if(localStorage.getItem('ek_nocode')==='1'){
+  document.getElementById('practice').classList.add('nocode');
+  document.getElementById('edtoggle').classList.remove('on');
+}
+
 async function loadTree(){
   const d=document.getElementById('treediagram');
   d.innerHTML='<div class="dim">loading…</div>';
