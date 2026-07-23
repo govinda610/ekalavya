@@ -110,8 +110,8 @@ def create_app():
         return report.overview()
 
     @app.get("/api/curriculum")
-    def curriculum() -> dict:
-        return report.curriculum_mermaid()
+    def curriculum(pillar: str = "") -> dict:
+        return report.curriculum_mermaid(pillar or None)
 
     @app.get("/api/config")
     def cfg() -> dict:
@@ -349,8 +349,9 @@ button:disabled{opacity:.45;cursor:default}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--bg)}
 #tree{display:none;height:100%;overflow:auto;padding:24px}
 .treehead{font-family:var(--disp);letter-spacing:.06em;font-size:16px;margin-bottom:14px}
+#treefilter{margin-left:12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:5px 9px;font-family:var(--mono);font-size:12px;letter-spacing:0}
 .treehead .g{background:linear-gradient(100deg,var(--acc),var(--cyan) 60%,var(--violet));-webkit-background-clip:text;background-clip:text;color:transparent}
-#treediagram{display:flex;justify-content:center}
+#treediagram{display:block}   /* not flex — flex crushed the SVG; loadTree() sets natural px size, #tree scrolls */
 .hidden{display:none !important}
 .dim{color:var(--dim)} .typing:after{content:'▍';color:var(--acc);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -498,7 +499,8 @@ button:disabled{opacity:.45;cursor:default}
   <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
   <div id="profile"><iframe id="pframe" src="/profile"></iframe></div>
   <div id="tree">
-    <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span></div>
+    <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span>
+      <select id="treefilter" onchange="loadTree(this.value)"></select></div>
     <div id="treediagram"></div>
   </div>
 </main>
@@ -563,14 +565,24 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-async function loadTree(){
+async function loadTree(pillar){
   const d=document.getElementById('treediagram');
   d.innerHTML='<div class="dim">loading…</div>';
+  const track = pillar && pillar!=='__all__';
   try{
-    const c=await (await fetch('/api/curriculum')).json();
+    const c=await (await fetch('/api/curriculum'+(track?('?pillar='+encodeURIComponent(pillar)):''))).json();
+    const sel=document.getElementById('treefilter');   // populate the filter once
+    if(sel && !sel.dataset.filled && c.pillars){ sel.dataset.filled='1';
+      sel.innerHTML='<option value="__all__">All tracks (overview)</option>'+
+        c.pillars.map(p=>'<option>'+p.replace(/</g,'&lt;')+'</option>').join(''); }
     if(c.empty){ d.innerHTML='<div class="dim" style="padding:50px;text-align:center;max-width:440px">No skill tree yet — finish onboarding and Ekalavya will draft a skill tree you can approve.</div>'; return; }
     d.innerHTML=''; const m=document.createElement('div'); m.className='mermaid'; m.textContent=c.mermaid; d.appendChild(m);
     await mermaid.run({nodes:[m]});
+    const svg=m.querySelector('svg'); const vb=svg&&svg.viewBox&&svg.viewBox.baseVal;
+    if(svg&&vb){
+      if(track){ svg.style.width=vb.width+'px'; svg.style.height=vb.height+'px'; svg.style.maxWidth='none'; }  // one track: natural, legible
+      else { svg.style.width='100%'; svg.style.height='auto'; svg.style.maxWidth='none'; }                     // all: fit-width overview
+    }
   }catch(e){ d.innerHTML='<div class="dim">could not load the skill tree.</div>'; }
 }
 

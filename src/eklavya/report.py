@@ -115,46 +115,80 @@ def ai_gap() -> dict:
     }
 
 
-def curriculum_mermaid() -> dict:
+def curriculum_mermaid(pillar: str | None = None) -> dict:
     """The curriculum graph as a Mermaid diagram, nodes coloured by mastery.
 
     A concept is 'done' if it has a correct attempt, 'avail' if all its prereqs are
-    done (so it's unlocked), else 'lock'.
+    done (so it's unlocked), else 'lock'. `pillar` filters to one track (its concepts
+    plus their direct prereqs for context) so a large tree stays readable; the full
+    list of pillars is returned for a filter control.
     """
     conn = connect()
     try:
-        rows = conn.execute("SELECT concept, prereqs FROM curriculum ORDER BY id").fetchall()
+        rows = conn.execute("SELECT concept, prereqs, pillar FROM curriculum ORDER BY id").fetchall()
         mastered = {r["detail"] for r in
                     conn.execute("SELECT DISTINCT detail FROM attempts WHERE correct = 1")}
     finally:
         conn.close()
+    pillars = sorted({(r["pillar"] or "").strip() for r in rows} - {""})
     if not rows:
-        return {"empty": True, "mermaid": ""}
+        return {"empty": True, "mermaid": "", "pillars": pillars}
 
     concepts = [r["concept"] for r in rows]
+    pillar_of = {r["concept"]: (r["pillar"] or "").strip() for r in rows}
     ids = {c: f"n{i}" for i, c in enumerate(concepts)}
-    prereqs = {r["concept"]: [p.strip() for p in (r["prereqs"] or "").split(",") if p.strip()]
-               for r in rows}
+    # Prereqs are stored as free text that names other concepts. Concept names can
+    # contain commas (e.g. "Core data structures (list, dict, set, tuple)"), so we
+    # can't split on ",". Instead, detect which known concept names occur in the
+    # prereq text (longest first, so a short name can't shadow a longer one).
+    by_len = sorted(concepts, key=len, reverse=True)
+
+    def parse_prereqs(text: str, own: str) -> list[str]:
+        text = (text or "").strip()
+        if "|" in text:  # new format: pipe-delimited EXACT concept names (unambiguous)
+            return [p.strip() for p in text.split("|") if p.strip() and p.strip() != own]
+        found: list[str] = []  # legacy free-text: detect known concept names (longest first)
+        for name in by_len:
+            if name != own and name in text and name not in found:
+                found.append(name)
+        return found
+
+    prereqs = {r["concept"]: parse_prereqs(r["prereqs"], r["concept"]) for r in rows}
 
     def status(c: str) -> str:
         if c in mastered:
             return "done"
         return "avail" if all(p in mastered for p in prereqs[c]) else "lock"
 
-    lines = ["graph TD"]
-    for c in concepts:
-        label = c.replace('"', "'")
-        lines.append(f'  {ids[c]}["{label}"]:::{status(c)}')
-    for c in concepts:
+    def label(c: str) -> str:
+        # Sanitize for Mermaid node labels: quotes and brackets break the parser.
+        return (c.replace('"', "'").replace("[", "(").replace("]", ")")
+                 .replace("{", "(").replace("}", ")"))
+
+    # which concepts to draw: one track (+ its direct prereqs) when filtered, else all
+    if pillar:
+        shown = {c for c in concepts if pillar_of[c] == pillar}
+        for c in list(shown):
+            shown.update(prereqs[c])
+        render = [c for c in concepts if c in shown]
+        direction = "graph LR"  # a single track reads as a left→right path
+    else:
+        render = concepts
+        direction = "graph TD"
+
+    lines = [direction]
+    for c in render:
+        lines.append(f'  {ids[c]}["{label(c)}"]:::{status(c)}')
+    for c in render:
         for p in prereqs[c]:
-            if p in ids:
+            if p in ids and p in render:
                 lines.append(f"  {ids[p]} --> {ids[c]}")
     lines += [
         "  classDef done fill:#0e2a1f,stroke:#5ef2b8,color:#5ef2b8;",
         "  classDef avail fill:#0a1a22,stroke:#57d3ff,color:#57d3ff;",
         "  classDef lock fill:#0e1622,stroke:#2b3a4d,color:#5a6b80;",
     ]
-    return {"empty": False, "mermaid": "\n".join(lines)}
+    return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
 
 
 def overview() -> dict:
