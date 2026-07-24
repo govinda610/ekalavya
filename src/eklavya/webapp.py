@@ -565,6 +565,7 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
+let _treeDefaulted=false;
 async function loadTree(pillar){
   const d=document.getElementById('treediagram');
   d.innerHTML='<div class="dim">loading…</div>';
@@ -575,6 +576,10 @@ async function loadTree(pillar){
     if(sel && !sel.dataset.filled && c.pillars){ sel.dataset.filled='1';
       sel.innerHTML='<option value="__all__">All tracks (overview)</option>'+
         c.pillars.map(p=>'<option>'+p.replace(/</g,'&lt;')+'</option>').join(''); }
+    // First impression = a legible single track, not the 197-node overview hairball.
+    if(!track && !_treeDefaulted && c.pillars && c.pillars.length){
+      _treeDefaulted=true; if(sel) sel.value=c.pillars[0]; return loadTree(c.pillars[0]);
+    }
     if(c.empty){ d.innerHTML='<div class="dim" style="padding:50px;text-align:center;max-width:440px">No skill tree yet — finish onboarding and Ekalavya will draft a skill tree you can approve.</div>'; return; }
     d.innerHTML=''; const m=document.createElement('div'); m.className='mermaid'; m.textContent=c.mermaid; d.appendChild(m);
     await mermaid.run({nodes:[m]});
