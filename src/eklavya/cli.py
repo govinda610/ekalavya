@@ -52,7 +52,11 @@ def _configured_provider(provider):
     from .providers import pick
 
     load_mcp_tools()
-    p = _configured_provider(provider)
+    p = pick(provider)
+    if not p.is_configured():
+        console.print(f"[red]✗[/red] No API key for provider [bold]{p.label}[/]. "
+                      "Set your provider key (e.g. EKLAVYA_GLM_API_KEY) in the environment or .env.")
+        raise typer.Exit(1)
     return p
 
 

@@ -10,6 +10,8 @@ crucially — a prescriptive "what to do next" quest rather than raw numbers.
 
 from __future__ import annotations
 
+import html
+
 from . import report
 
 LEVEL_COLOR = {
@@ -121,7 +123,8 @@ def render(ov: dict) -> str:
             if weakest is None or cell["rating"] < weakest[2]:
                 weakest = (pillar, axis, cell["rating"])
     if weakest:
-        quest = f"Sharpen <b>{weakest[0]} · {weakest[1].replace('_', ' ')}</b> — your weakest skill."
+        quest = (f"Sharpen <b>{html.escape(weakest[0])} · "
+                 f"{html.escape(weakest[1].replace('_', ' '))}</b> — your weakest skill.")
     else:
         quest = "Run <code>eklavya onboard</code> to map your skills, then your quests appear here."
     due_line = (f"<span class='due'>⚡ {ov['due']} review(s) due</span>" if ov.get("due") else
@@ -131,7 +134,7 @@ def render(ov: dict) -> str:
     axis_head = "".join(f'<th class="ax">{a.replace("_", " ")}</th>' for a in axes)
     if g["pillars"]:
         rows = "".join(
-            f"<tr><th class='pillar'>{p}</th>" + "".join(_cell(cells.get(a)) for a in axes) + "</tr>"
+            f"<tr><th class='pillar'>{html.escape(p)}</th>" + "".join(_cell(cells.get(a)) for a in axes) + "</tr>"
             for p, cells in g["pillars"].items()
         )
     else:
@@ -173,15 +176,15 @@ def render(ov: dict) -> str:
 
     goals = "".join(
         f'<div class="quest" onclick="this.classList.toggle(\'open\')" title="click to expand">'
-        f'<span class="hz {x["horizon"]}">{x["horizon"]}</span>'
-        f'<span class="qtext">{x["text"]}</span>'
-        + (f'<span class="muted qd">· {x["deadline"]}</span>' if x.get("deadline") else "") + "</div>"
+        f'<span class="hz {html.escape(x["horizon"])}">{html.escape(x["horizon"])}</span>'
+        f'<span class="qtext">{html.escape(x["text"])}</span>'
+        + (f'<span class="muted qd">· {html.escape(x["deadline"])}</span>' if x.get("deadline") else "") + "</div>"
         for x in ov["goals"]
     ) or '<span class="muted">No quests yet.</span>'
 
     sessions = "".join(
-        f'<tr><td>{(x["started_at"] or "")[:16]}</td><td>{x["mode"] or "practice"}</td>'
-        f'<td>{x["planned_min"] or ""} min</td><td class="xp">+{x["xp"] or 0} XP</td></tr>'
+        f'<tr><td>{html.escape((x["started_at"] or "")[:16])}</td><td>{html.escape(x["mode"] or "practice")}</td>'
+        f'<td>{html.escape(str(x["planned_min"] or ""))} min</td><td class="xp">+{int(x["xp"] or 0)} XP</td></tr>'
         for x in ov["sessions"]
     ) or '<tr><td colspan="4" class="muted">No sessions yet.</td></tr>'
 

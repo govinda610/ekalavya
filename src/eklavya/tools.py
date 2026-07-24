@@ -302,8 +302,13 @@ def run_bash(command: str, explanation: str) -> str:
 
     from .workspace import workspace_dir
 
+    # Scrub secrets from the child env so a command can't read/exfiltrate API keys
+    # (echo $..._API_KEY, env, etc.) into the model or the transcript.
+    import os
+    _secret = re.compile(r"KEY|TOKEN|SECRET|PASSWORD|CREDENTIAL", re.IGNORECASE)
+    safe_env = {k: v for k, v in os.environ.items() if not _secret.search(k)}
     try:
-        r = subprocess.run(command, shell=True, cwd=str(workspace_dir()),
+        r = subprocess.run(command, shell=True, cwd=str(workspace_dir()), env=safe_env,
                            capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
         return "Command timed out (60s)."
