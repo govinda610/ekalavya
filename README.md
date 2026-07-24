@@ -11,12 +11,30 @@ the struggle was where the learning lived. Ekalavya is my attempt to get that
 back: it teaches Socratically, drills me daily, tracks what I actually know, and
 refuses to just hand me the solution.
 
-It's named after the self-taught archer from the Mahābhārata who reached mastery
-alone, through sheer devotion — no teacher handing him anything.
+It's named after the self-taught archer from the Mahābhārata (more on why below).
 
 <p align="center">
   <img src="docs/screenshots/tui.png" width="80%" alt="Ekalavya practice session in the terminal">
 </p>
+
+## Why "Ekalavya"?
+
+In the Mahābhārata, Ekalavya was a forest-dwelling Bhil boy who wanted to learn
+archery from Droṇa, the greatest teacher of the age. Droṇa turned him away — not
+for any lack of skill, but for *where he came from*: a tribal outsider, not a
+highborn prince. So Ekalavya went into the forest, shaped a clay statue of the
+guru who had refused him, and taught himself before it with such devotion that he
+surpassed the royal students who *were* let in. (The story ends in sacrifice —
+asked for his right thumb as the teacher's fee, he gave it without hesitation.)
+
+I keep coming back to that story because I'm an outsider to this field too. My
+degrees are in economics, not computer science — and India's education system is
+compartmentalized enough that the formal doors (a CS master's, a PhD) stay mostly
+closed to someone with my background, however much of the work I've already
+shipped. So I'm doing what Ekalavya did: teaching myself, alone, the thing I was
+told I couldn't be taught. **This tool is for anyone in that position — the
+career-changers, the self-taught, the boundary-crossers learning it in the forest
+because the hall was closed to them.**
 
 ## What it does
 
