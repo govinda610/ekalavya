@@ -15,24 +15,15 @@ _cached: list | None = None
 
 
 def _servers() -> dict:
-    """The MCP servers to connect to, built from env. Context7 works without a key
-    (lower rate limit); Tavily needs TAVILY_API_KEY."""
-    servers: dict = {}
-
-    tavily_key = os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
-    if tavily_key:
-        servers["tavily"] = {
-            "transport": "streamable_http",
-            "url": f"https://mcp.tavily.com/mcp/?tavilyApiKey={tavily_key}",
-        }
-
+    """The MCP servers to connect to. Only Context7 (accurate, current library docs;
+    works without a key). Web search is handled by the local `web_search` tool
+    (Tavily → Serper) which is in AGENT_TOOLS on every interface — so we deliberately
+    do NOT also load the Tavily MCP server, which would just duplicate the web tool."""
     context7 = {"transport": "streamable_http", "url": "https://mcp.context7.com/mcp"}
     context7_key = os.environ.get("CONTEXT7_API_KEY")
     if context7_key:
         context7["headers"] = {"CONTEXT7_API_KEY": context7_key}
-    servers["context7"] = context7
-
-    return servers
+    return {"context7": context7}
 
 
 async def _fetch() -> list:

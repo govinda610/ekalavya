@@ -507,31 +507,49 @@ def add_question(question: str, topic: str = "", company: str = "", role: str = 
 
 
 def web_search(query: str) -> str:
-    """Search the web for real, current interview questions or references. Use this
-    to find company/role-specific questions when the bank is thin, then
-    add_question the good ones. Requires TAVILY_API_KEY in the environment."""
+    """Search the web for real, current interview questions, references, or role
+    requirements. Use this to find company/role-specific questions when the bank is
+    thin (then add_question the good ones), or to research a target role's stack.
+    Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
+    (SERPER_API_KEY). Returns "unavailable" only if neither key is present."""
     import os
 
     import requests
 
-    key = os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
-    if not key:
-        return "Web search unavailable — set TAVILY_API_KEY to enable fresh questions."
+    tavily = os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
+    serper = os.environ.get("SERPER_API_KEY") or os.environ.get("EKLAVYA_SERPER_API_KEY")
+    if not (tavily or serper):
+        return ("Web search unavailable — set TAVILY_API_KEY (or SERPER_API_KEY) to "
+                "enable fresh questions and role research.")
     try:
-        resp = requests.post(
-            "https://api.tavily.com/search",
-            json={"api_key": key, "query": query, "max_results": 6},
-            timeout=25,
-        )
-        results = resp.json().get("results", [])
+        if tavily:
+            resp = requests.post(
+                "https://api.tavily.com/search",
+                json={"api_key": tavily, "query": query, "max_results": 6},
+                timeout=25,
+            )
+            results = resp.json().get("results", [])
+            if results:
+                return _clip("\n".join(
+                    f"- {r.get('title', '')}: {str(r.get('content', ''))[:220]} ({r.get('url', '')})"
+                    for r in results[:6]
+                ))
+        if serper:
+            resp = requests.post(
+                "https://google.serper.dev/search",
+                headers={"X-API-KEY": serper, "Content-Type": "application/json"},
+                json={"q": query, "num": 6},
+                timeout=25,
+            )
+            results = resp.json().get("organic", [])
+            if results:
+                return _clip("\n".join(
+                    f"- {r.get('title', '')}: {str(r.get('snippet', ''))[:220]} ({r.get('link', '')})"
+                    for r in results[:6]
+                ))
     except Exception as exc:
         return f"Web search failed: {exc}"
-    if not results:
-        return "No results."
-    return _clip("\n".join(
-        f"- {r.get('title', '')}: {str(r.get('content', ''))[:220]} ({r.get('url', '')})"
-        for r in results[:6]
-    ))
+    return "No results."
 
 
 from .assist import review_ai_usage  # noqa: E402
@@ -540,7 +558,18 @@ from .assist import review_ai_usage  # noqa: E402
 # the floor tools (read_file/write_file/edit_file/ls/glob/grep/write_todos/task) on our
 # confined backend; build_agent appends the MCP web-search + docs tools. Everything else
 # (running/verifying code, reading state, searching the web) goes through those.
-AGENT_TOOLS = [record_attempt, save_baseline, suggest_focus, review_ai_usage, run_bash]
+# The 4 floor tools (read_file / write_file / edit_file + run_bash) already do most of the
+# work, so we add ONLY what they genuinely can't. The two real value-adds:
+#   • grade_and_record — tamper-proof grading (validates the tutor's tests against its own
+#     reference, runs the learner's code in the sandbox, records the real verdict atomically).
+#   • web_search — reach the live web (Tavily → Serper fallback) for real interview
+#     questions and target-role research; the base tools can't touch the network.
+# Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
+# bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
+AGENT_TOOLS = [
+    grade_and_record, web_search,
+    record_attempt, save_baseline, suggest_focus, review_ai_usage, run_bash,
+]
 
 # Same tools in every mode; the prompt decides how to use them.
 ONBOARDING_TOOLS = AGENT_TOOLS
