@@ -1,0 +1,19 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=JetBrains+Mono&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background-color:#101528;background-image:radial-gradient(1200px 700px at 78% 2%,rgba(46,163,160,.08),transparent 60%),radial-gradient(900px 600px at 12% 6%,rgba(231,182,75,.07),transparent 55%);color:#e8dcc0;font-family:'JetBrains Mono',monospace;padding:24px}
+.treehead{font-family:'Cinzel',serif;font-weight:700;font-size:18px;margin-bottom:14px}
+.treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,#f7d98a 45%,#e7b64b 75%,#b8862f);-webkit-background-clip:text;background-clip:text}
+.dim{color:#cfc0a0}
+.mermaid{background:rgba(6,9,16,.85);border:1px solid rgba(231,182,75,.14);border-radius:8px;padding:10px;text-align:center}
+</style></head><body>
+<div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">gold = mastered · teal = unlocked · muted = locked</span></div>
+<div id="d"></div>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>
+mermaid.initialize({startOnLoad:false,theme:'dark'});
+const m=document.createElement('div');m.className='mermaid';m.textContent="graph LR\n  n0[\"Variables & types\"]:::done\n  n1[\"Functions\"]:::avail\n  n2[\"Recursion\"]:::lock\n  n0 --> n1\n  n1 --> n2\n  classDef done fill:#2a2012,stroke:#e7b64b,color:#f7d98a;\n  classDef avail fill:#0a1a22,stroke:#57d3ce,color:#57d3ce;\n  classDef lock fill:#12100c,stroke:#3a2f26,color:#a89670;";
+document.getElementById('d').appendChild(m);
+mermaid.run({nodes:[m]});
+</script></body></html>

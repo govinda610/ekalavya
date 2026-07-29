@@ -1,0 +1,236 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;800&family=Marcellus&family=Cormorant+Garamond:ital@1&family=Spectral&family=Tiro+Devanagari+Hindi&family=JetBrains+Mono&display=swap" rel="stylesheet"><style>
+/* ===== Option E · cinematic-forest practice arena (product mode) =====
+   The full palette + fonts of the shared design system, inlined here (the SPA is a single
+   served string). Same class/id hooks the JS drives — only the look changes. */
+:root{
+--indigo-night:#101528;--indigo-deep:#0b1122;--void:#0a0d1c;
+--stone:#231d18;--stone-dark:#181310;--stone-warm:#3a2f26;
+--parch:#e8dcc0;--parch-dim:#cfc0a0;--parch-mute:#a89670;
+--gold:#e7b64b;--gold-bright:#f7d98a;--gold-deep:#b8862f;--gold-ember:#8a5e1f;
+--vermilion:#d63b2a;--vermilion-deep:#8f2318;--vermilion-glow:#ff5a3c;
+--peacock:#2ea3a0;--peacock-bright:#57d3ce;--peacock-deep:#124d4c;
+--forest:#2f6b3c;--forest-lit:#52a061;
+--line-gold:rgba(231,182,75,.28);--line-soft:rgba(231,182,75,.14);--ink:#0a0c18;
+--f-display:'Cinzel',serif;--f-title:'Marcellus',serif;--f-body:'Spectral',serif;
+--f-serif:'Cormorant Garamond',serif;--f-deva:'Tiro Devanagari Hindi',serif;
+--f-mono:'JetBrains Mono',ui-monospace,monospace;
+/* aliases so the arena markup's colour intents map onto the semantic ramp */
+--bg:var(--void);--panel:rgba(35,29,24,.5);--panel2:rgba(6,9,20,.5);--line:var(--line-soft);
+--ink2:var(--parch);--dim:var(--parch-dim);--acc:var(--gold);--cyan:var(--peacock-bright);
+--violet:var(--gold-bright);--amber:var(--gold-bright);--mono:var(--f-mono)}
+*{box-sizing:border-box}html,body{height:100%}
+body{margin:0;font-family:var(--f-body);color:var(--parch);-webkit-font-smoothing:antialiased;
+background-color:var(--indigo-night);
+background-image:radial-gradient(1200px 700px at 78% 2%,rgba(46,163,160,.08),transparent 60%),radial-gradient(900px 600px at 12% 6%,rgba(231,182,75,.07),transparent 55%);
+background-attachment:fixed;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line-soft);
+background:linear-gradient(120deg,rgba(35,29,24,.6),rgba(12,10,20,.7))}
+.logo{font-family:var(--f-display);font-weight:800;font-size:19px;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
+.logo .bowmark{filter:drop-shadow(0 2px 8px rgba(231,182,75,.4))}
+.logo .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
+.creed{font-family:var(--f-deva);color:var(--gold-bright);font-size:12px;letter-spacing:.02em;opacity:.9}
+.tabs{display:flex;gap:4px;margin-left:10px}
+.tab{font-family:var(--f-mono);letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:var(--parch-dim);
+background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;cursor:pointer;transition:.16s}
+.tab:hover{color:var(--gold-bright)}
+.tab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
+.spacer{flex:1}.who{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
+main{flex:1;min-height:0}
+#practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
+@media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
+#practice.nocode{grid-template-columns:1fr;grid-template-rows:1fr}       /* editor hidden → chat full width */
+#practice.nocode > .col:not(.chat){display:none}
+#practice.nocode > .col.chat{border-right:none}
+.col{display:flex;flex-direction:column;min-height:0;min-width:0}
+.col.chat{border-right:1px solid var(--line-soft)}
+.log{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+.msg{max-width:92%;padding:14px 17px;line-height:1.55;font-size:15px;overflow-wrap:anywhere;font-family:var(--f-body)}
+/* the guru speaks on aged Pithora paper (light bubble → dark text) */
+.msg.ai{align-self:flex-start;background:linear-gradient(180deg,#ead9b6,#dfcaa0);border:1px solid #c6ac7d;
+ border-radius:4px 12px 12px 12px;color:#2a2010;box-shadow:var(--sh-deep);position:relative}
+.msg.ai::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;border-radius:inherit;
+ background-image:radial-gradient(rgba(87,67,38,.16) 1px,transparent 1.3px);background-size:14px 14px}
+.msg.ai>*{position:relative;z-index:1}
+.msg.you{align-self:flex-end;background:linear-gradient(160deg,rgba(18,77,76,.4),rgba(8,20,20,.6));
+ border:1px solid rgba(46,163,160,.35);border-radius:12px 4px 12px 12px;color:var(--parch)}
+.msg.ai .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--gold-ember);text-transform:uppercase;margin-bottom:5px}
+.msg.you .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--peacock-bright);text-transform:uppercase;margin-bottom:5px}
+.msg pre{background:rgba(20,15,8,.9) !important;border:1px solid rgba(231,182,75,.2);border-radius:8px;padding:12px;overflow-x:auto}
+.msg.you pre{background:rgba(6,9,20,.7) !important;border-color:var(--line-soft)}
+.msg code{font-family:var(--f-mono);font-size:13px}
+.msg.ai pre code{color:var(--peacock-bright)}
+.msg p{margin:6px 0}.msg h1,.msg h2,.msg h3{font-family:var(--f-display);margin:10px 0 4px;color:inherit;font-weight:700}
+.msg.ai a{color:#7a4e10}
+.msg blockquote{border-left:3px solid var(--gold);margin:8px 0;padding:2px 12px;color:#6b4710;font-style:italic}
+.msg.you blockquote{border-left-color:var(--peacock);color:var(--parch-dim)}
+.mermaid{background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:10px;text-align:center}
+.inbar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
+.inbar textarea{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);
+padding:11px 14px;font-family:var(--f-body);font-size:14px;resize:none;max-height:150px;line-height:1.45;overflow-y:auto;outline:none;transition:.2s}
+.inbar textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(231,182,75,.14)}
+.inbar textarea::placeholder{color:var(--parch-mute)}
+button.send{font-family:var(--f-title);letter-spacing:.04em;font-size:15px;
+background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
+color:#2a1c07;border:none;border-radius:4px;padding:0 20px;font-weight:600;cursor:pointer;
+box-shadow:0 6px 20px -6px rgba(231,182,75,.55),inset 0 1px 0 rgba(255,255,255,.4);transition:.2s}
+button.send:hover{transform:translateY(-1px)}
+.edtoolbar{display:flex;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
+.edtoolbar select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 9px;font-family:var(--f-mono);font-size:11px}
+.edtoolbar .grow{flex:1}
+button.submit{font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);border:1px solid var(--gold-deep);
+border-radius:4px;padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
+button.submit:hover{background:rgba(231,182,75,.16)}
+button.ghost{background:rgba(6,9,20,.5);color:var(--parch-dim);border:1px solid var(--line-gold);border-radius:4px;padding:8px 13px;cursor:pointer;font-family:var(--f-title);font-size:13px;transition:.16s}
+button.ghost:hover{color:var(--gold-bright);border-color:var(--gold-deep)}
+button.ghost.run{color:var(--peacock-bright);border-color:rgba(46,163,160,.4)}
+button.ghost.run:hover{color:var(--peacock-bright);border-color:var(--peacock)}
+button:disabled{opacity:.42;cursor:default}
+#editor{flex:1;min-height:0;min-width:0}
+/* run output block (Run button → sandbox stdout/stderr) */
+.runout{align-self:stretch;border:1px solid var(--line-soft);border-radius:10px;background:rgba(6,9,16,.8);overflow:hidden}
+.runout .rohead{font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--parch-dim);
+ padding:8px 13px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:7px}
+.runout .rohead .ok{color:var(--peacock-bright)} .runout .rohead .bad{color:var(--vermilion-glow)}
+.runout pre{margin:0;padding:11px 13px;font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
+ white-space:pre-wrap;word-break:break-word;overflow-x:auto;color:var(--parch)}
+.runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line-soft)}
+.runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
+#dash,#journey,#profile{display:none;height:100%}
+#dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
+#tree{display:none;height:100%;overflow:auto;padding:24px}
+.treehead{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;margin-bottom:14px;color:var(--parch)}
+#treefilter{margin-left:12px;background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 10px;font-family:var(--f-mono);font-size:12px;letter-spacing:0}
+.treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
+#treediagram{display:block}   /* not flex — flex crushed the SVG; loadTree() sets natural px size, #tree scrolls */
+.hidden{display:none !important}
+.dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
+@keyframes blink{50%{opacity:0}}
+/* thinking trace (tool calls/results, collapsed by default) — the guru at work */
+.trace{margin:0 0 8px;border:1px solid var(--line-soft);border-radius:9px;background:rgba(6,9,20,.55);overflow:hidden}
+.trace .tsum{list-style:none;cursor:pointer;padding:8px 13px;font-family:var(--f-mono);font-size:11px;
+ letter-spacing:.02em;color:var(--peacock-bright);user-select:none;display:flex;align-items:center;gap:6px}
+.trace .tsum::-webkit-details-marker{display:none}
+.trace .tsum:before{content:'▸';color:var(--gold);font-size:10px}
+.trace[open] .tsum:before{content:'▾'}
+.trace[open] .tsum{border-bottom:1px solid var(--line-soft);color:var(--gold-bright)}
+.trace .tbody{padding:8px 13px;display:flex;flex-direction:column;gap:4px}
+.tline{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tline.call{color:var(--gold-bright)} .tline.res{color:var(--peacock-bright)}
+/* bash approval card */
+.approve{margin:2px 0 8px;border:1px solid var(--gold);border-radius:11px;background:linear-gradient(160deg,rgba(35,29,24,.9),rgba(20,15,8,.92));padding:14px 16px;box-shadow:0 10px 30px -12px rgba(231,182,75,.4)}
+.approve .ah{font-family:var(--f-title);letter-spacing:.02em;color:var(--gold-bright);font-size:13px;margin-bottom:8px}
+.approve .acmd{font-family:var(--f-mono);font-size:12px;background:rgba(6,9,20,.75);border:1px solid var(--line-soft);border-radius:6px;
+ padding:9px 11px;color:var(--peacock-bright);white-space:pre-wrap;word-break:break-all;margin-bottom:8px}
+.approve .awhy{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin-bottom:12px}
+.approve .abtns{display:flex;gap:9px}
+.approve button{font-family:var(--f-title);letter-spacing:.02em;border-radius:4px;padding:9px 18px;cursor:pointer;font-weight:600;border:1px solid;font-size:13px}
+.approve .ok{background:rgba(231,182,75,.1);color:var(--gold-bright);border-color:var(--gold-deep)}
+.approve .no{background:rgba(143,35,24,.2);color:var(--vermilion-glow);border-color:rgba(214,59,42,.5)}
+/* chats drawer */
+#chatsbtn{font-family:var(--f-mono);letter-spacing:.08em;font-size:11px;text-transform:uppercase;color:var(--parch-dim);background:rgba(6,9,20,.5);
+ border:1px solid var(--line-gold);border-radius:4px;padding:8px 12px;cursor:pointer;margin-left:4px;transition:.16s}
+#chatsbtn:hover{color:var(--gold-bright);border-color:var(--gold-deep)}
+#penaltybtn{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-gold);
+ border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
+#penaltybtn:hover{border-color:var(--gold-deep)}
+#penaltybtn.off{color:var(--vermilion-glow);border-color:rgba(214,59,42,.5)}
+#drawerscrim{position:fixed;inset:0;z-index:110;background:rgba(2,6,12,.6);opacity:0;pointer-events:none;transition:opacity .22s}
+#drawerscrim.open{opacity:1;pointer-events:auto}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:300px;z-index:120;transform:translateX(-105%);
+ transition:transform .22s ease;display:flex;flex-direction:column;
+ background:linear-gradient(180deg,rgba(35,29,24,.6),rgba(12,10,20,.85));border-right:1px solid var(--line-gold);box-shadow:2px 0 30px #0008}
+#drawer.open{transform:translateX(0)}
+.drawerhead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
+.drawerhead .t{font-family:var(--f-mono);letter-spacing:.16em;font-size:12px;color:var(--gold-bright);text-transform:uppercase}
+.drawerhead .x{margin-left:auto;background:none;border:none;color:var(--parch-dim);cursor:pointer;font-size:18px}
+.newchat{margin:12px;font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);
+ border:1px solid var(--gold-deep);border-radius:8px;padding:10px 13px;cursor:pointer;text-align:left}
+.newchat:hover{background:rgba(231,182,75,.16)}
+.chatlist{flex:1;overflow-y:auto;padding:4px 8px}
+.chatitem{display:flex;align-items:center;gap:9px;padding:10px 12px;border-radius:8px;cursor:pointer;border:1px solid transparent;transition:.14s}
+.chatitem:hover{background:rgba(6,9,20,.4);border-color:var(--line-soft)}
+.chatitem.active{background:rgba(6,9,20,.4);border-color:var(--line-gold)}
+.chatitem .ci{flex:1;min-width:0}
+.chatitem .ct{font-family:var(--f-body);font-size:13px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chatitem:hover .ct{color:var(--gold-bright)}
+.chatitem .cm{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);margin-top:2px}
+.chatitem .cedit{opacity:0;color:var(--parch-mute);background:none;border:none;cursor:pointer;font-size:12px;flex:none}
+.chatitem:hover .cedit{opacity:1}
+/* AI-assistant drawer (AI-enabled interview mode) */
+#assistpanel{display:flex;flex-direction:column;height:42%;border-bottom:1px solid var(--line-soft);background:linear-gradient(180deg,rgba(20,28,40,.55),rgba(10,14,26,.7))}
+.asshead{font-family:var(--f-title);font-size:13px;color:var(--peacock-bright);
+ padding:9px 13px;border-bottom:1px solid var(--line-soft);display:flex;gap:8px;align-items:center}
+.asslog{flex:1;min-height:0;overflow-y:auto;padding:11px 13px;display:flex;flex-direction:column;gap:8px;font-size:13.5px;line-height:1.5;font-family:var(--f-body)}
+.asslog .am{padding:8px 11px;border-radius:9px;max-width:92%}
+.asslog .am.you{align-self:flex-end;background:rgba(22,32,46,.8);border:1px solid rgba(140,170,200,.3);color:var(--parch)}
+.asslog .am.bot{align-self:flex-start;background:rgba(18,20,40,.7);border:1px solid rgba(87,101,120,.4);color:var(--parch-dim)}
+.asslog .am pre{background:rgba(6,9,16,.85) !important;border:1px solid var(--line-soft);border-radius:8px;padding:9px;overflow-x:auto}
+.asslog .am code{font-family:var(--f-mono);font-size:12.5px}
+.asshint{color:var(--parch-mute);font-weight:400;font-size:11px;font-family:var(--f-mono)}
+.assbar{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line-soft)}
+.assbar input{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);padding:9px 11px;font-size:13px;font-family:var(--f-body);outline:none}
+.assbar input:focus{border-color:var(--gold)}
+/* game HUD */
+.hud{display:flex;align-items:center;gap:11px;font-family:var(--f-mono);font-size:12px}
+.hud .flame{color:var(--gold-bright)} .hud .lvl{color:var(--gold);font-weight:600}
+.hud .rank{color:var(--peacock-bright);font-family:var(--f-title);font-size:13px}
+.hud .xpbar{width:88px;height:9px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);overflow:hidden}
+.hud .xpfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));box-shadow:0 0 8px rgba(231,182,75,.6)}
+/* death / loss overlay — the archer's fall, re-themed to sindoor vermilion + gold merit */
+#death{position:fixed;inset:0;z-index:100;display:none;place-items:center;
+ background:radial-gradient(circle at 50% 42%,rgba(60,14,10,.72),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
+#death.on{display:grid;animation:fadein .5s ease}
+@keyframes fadein{from{opacity:0}to{opacity:1}}
+.deathcard{text-align:center;max-width:540px;padding:30px}
+.youdied{font-family:var(--f-display);font-size:clamp(48px,8vw,72px);font-weight:800;letter-spacing:.1em;
+ color:transparent;background:linear-gradient(180deg,#ffb9ac,var(--vermilion) 55%,var(--vermilion-deep));
+ -webkit-background-clip:text;background-clip:text;text-shadow:0 0 40px rgba(214,59,42,.45);animation:dpulse 2.4s ease infinite}
+@keyframes dpulse{50%{opacity:.86}}
+.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto;font-size:16px;line-height:1.6;max-width:440px}
+.deathsub b{color:var(--vermilion-glow);font-style:normal}
+#death button{font-family:var(--f-title);letter-spacing:.04em;margin-top:14px;background:rgba(143,35,24,.2);color:var(--vermilion-glow);
+ border:1px solid rgba(214,59,42,.55);border-radius:4px;padding:11px 26px;cursor:pointer;font-weight:600;font-size:14px}
+#death button:hover{background:rgba(143,35,24,.35)}
+/* reclaim toast — merit reclaimed, gold sheen */
+#reclaim{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:90;display:none;
+ background:linear-gradient(120deg,rgba(35,29,24,.95),rgba(20,15,10,.95));border:1px solid var(--gold);color:var(--gold-bright);
+ font-family:var(--f-title);letter-spacing:.04em;
+ padding:13px 26px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(231,182,75,.4);font-weight:600}
+#reclaim.on{display:block;animation:pop .4s ease}
+@keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+*:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
+.sh-deep{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
+:root{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
+/* mobile: header wraps, tabs scroll, creed hides so the HUD + tabs fit */
+@media(max-width:900px){
+ header{flex-wrap:wrap;gap:10px;padding:10px 14px}
+ .creed{display:none}
+ .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+ .hud{font-size:11px;gap:8px}.hud .xpbar{width:60px}
+}
+</style></head>
+<body style="display:block;overflow:auto;height:auto">
+<div class="log" style="height:auto;padding:24px;max-width:820px">
+  <div class="msg ai"><div class="who">Ekalavya</div><div class="body">
+    <p>Draw the string, seeker. Today we sharpen <b>recursion</b>. Write a function <code>factorial(n)</code> — no loops.</p>
+    <blockquote>The forest does not hand you the answer. It waits.</blockquote>
+    <pre><code>def factorial(n):
+    ...  # your turn</code></pre>
+  </div></div>
+  <div class="msg you"><div class="who">you</div><div class="body"><p>Is base case n==0 returning 1?</p></div></div>
+  <details class="trace" open><summary class="tsum">2 steps · tap to view</summary>
+    <div class="tbody"><div class="tline call">→ Recording the attempt</div><div class="tline res">✓ Recording the attempt</div></div>
+  </details>
+  <div class="approve"><div class="ah">⏻ RUN THIS COMMAND?</div>
+    <div class="acmd">python -m pytest tests/</div>
+    <div class="awhy">Runs the hidden test suite to grade your factorial.</div>
+    <div class="abtns"><button class="ok">Approve &amp; run</button><button class="no">Reject</button></div></div>
+  <div class="runout"><div class="rohead"><span class="ok">▶ ran</span> · 0.12s</div><pre>120</pre></div>
+</div>
+<div id="reclaim" class="on">⚔ SOULS RECLAIMED  +20 XP</div>
+<div id="death" class="on"><div class="deathcard">
+  <div class="youdied">YOU DIED</div>
+  <div class="deathsub">A full solution was pasted into the editor.<br>Souls dropped: <b>-45 XP</b>. Streak broken.<br><span class="dim">Your code is untouched. Type your next answer yourself to reclaim your souls.</span></div>
+  <button>CONTINUE</button>
+</div></div>
+</body></html>

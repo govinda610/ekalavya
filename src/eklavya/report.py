@@ -184,9 +184,10 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
             if p in ids and p in render:
                 lines.append(f"  {ids[p]} --> {ids[c]}")
     lines += [
-        "  classDef done fill:#0e2a1f,stroke:#5ef2b8,color:#5ef2b8;",
-        "  classDef avail fill:#0a1a22,stroke:#57d3ff,color:#57d3ff;",
-        "  classDef lock fill:#0e1622,stroke:#2b3a4d,color:#5a6b80;",
+        # Option-E ramp: gold = mastered, peacock-teal = unlocked, muted stone = locked.
+        "  classDef done fill:#2a2012,stroke:#e7b64b,color:#f7d98a;",
+        "  classDef avail fill:#0a1a22,stroke:#57d3ce,color:#57d3ce;",
+        "  classDef lock fill:#12100c,stroke:#3a2f26,color:#a89670;",
     ]
     return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
 
