@@ -1293,6 +1293,8 @@ _CANVAS = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
           <div class="adeva">पुनरावृत्ति · the return upon itself</div>
           <p>A recursive function trusts a <b>smaller copy of itself</b> to solve the smaller problem, then combines. Every recursion needs two things: a <b>base case</b> that stops the descent, and a step that moves <b>toward</b> it.</p>
           <p>In tree traversal, the <i>order</i> you visit the parent decides everything. In post-order you defer the parent until <span class="selraw">both children are done</span> — which is how you free a subtree or compute its size bottom-up.</p>
+          <!-- highlight-to-ask: selecting any phrase raises this popover to ask the guru about it -->
+          <div class="selpop selpop-below" style="left:34px;top:190px">Ask about this ✦</div>
           <div class="callout">"You are not writing a loop that repeats. You are writing a promise that trusts a smaller you." — the stone guru</div>
           <div style="margin:18px 0 6px;font-family:var(--f-mono);font-size:10px;letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--vermilion-glow)">◈ interactive · call-depth vs. work</div>
           <svg viewBox="0 0 460 170" style="width:100%;border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5)" aria-label="An interactive chart of recursion call depth versus total work.">
