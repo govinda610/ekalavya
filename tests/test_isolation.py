@@ -237,3 +237,49 @@ def test_ownership_is_noop_in_single_user():
         assert chatstore.owns_thread("single-thread") is True
         assert chatstore.owns_thread("anything") is True
         assert chatstore.current_user_id() is None
+
+
+# --- read confinement (SECURITY_AUDIT F1 + F5) -----------------------------
+
+def test_multiuser_read_is_confined_to_own_tree(monkeypatch):
+    """In multi-user mode the agent's read backend must not reach another user's
+    home, the shared users.db, or the host — only this user's own workspace."""
+    from eklavya import workspace
+
+    monkeypatch.setattr(config, "MULTIUSER", True)
+    with as_user(HOME_A):
+        # own workspace: allowed
+        assert workspace._is_forbidden(str(HOME_A / "workspace" / "profile.md")) is False
+        # own app internals (backups/checkpoints): forbidden
+        assert workspace._is_forbidden(str(HOME_A / "checkpoints.sqlite")) is True
+        # another user's home + workspace: forbidden (the F1 cross-tenant leak)
+        assert workspace._is_forbidden(str(HOME_B / "workspace" / "profile.md")) is True
+        # a sibling users.db next to the homes: forbidden
+        assert workspace._is_forbidden(str(HOME_B.parent / "users.db")) is True
+        # arbitrary host path: forbidden
+        assert workspace._is_forbidden("/etc/passwd") is True
+
+
+def test_sibling_prefix_cannot_bypass_workspace_check(monkeypatch):
+    """F5: `workspace-evil` must not pass the `workspace` prefix check."""
+    from eklavya import workspace
+
+    monkeypatch.setattr(config, "MULTIUSER", True)
+    with as_user(HOME_A):
+        ws = HOME_A / "workspace"
+        evil = ws.parent / (ws.name + "-evil")  # e.g. .../workspace-evil
+        evil.mkdir(parents=True, exist_ok=True)
+        (evil / "secret.txt").write_text("nope")
+        assert workspace._is_forbidden(str(evil / "secret.txt")) is True
+
+
+def test_single_user_still_reads_host_broadly(monkeypatch):
+    """Regression: the self-host single-user path keeps broad host reads (minus secrets)."""
+    from eklavya import workspace
+
+    assert config.MULTIUSER is False
+    with as_user(HOME_A):
+        # a normal host file is readable in single-user mode
+        assert workspace._is_forbidden(str(Path.home() / "somefile.txt")) is False
+        # but the secret dirs stay forbidden
+        assert workspace._is_forbidden(str(Path.home() / ".ssh" / "id_rsa")) is True

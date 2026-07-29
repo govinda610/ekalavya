@@ -16,10 +16,13 @@ interviewer reads that log via `review_ai_usage()` to grade how the AI was used.
 
 from __future__ import annotations
 
+import logging
 import random
 import re
 
 from .db import connect
+
+_log = logging.getLogger("eklavya")
 
 _BASE = """You are a competent AI coding assistant helping a candidate during a \
 technical interview where using AI is allowed. Be genuinely useful: answer their \
@@ -108,8 +111,9 @@ def respond(thread: str, prompt: str, behavior: str | None = None) -> str:
     try:
         model = build_chat_model(config.DEFAULT_PROVIDER, max_tokens=1200)
         raw = model.invoke(messages).text
-    except Exception as exc:
-        return f"_(the AI assistant is unavailable right now: {exc})_"
+    except Exception:
+        _log.exception("assist model error")
+        return "_(the AI assistant is unavailable right now.)_"
 
     planted_bug = None
     if behavior == "plant":

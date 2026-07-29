@@ -9,9 +9,12 @@ Backend is a thin FastAPI layer; the agent streams tokens over a POST stream.
 """
 
 import json
+import logging
 import uuid
 
 from . import prompts, report
+
+_log = logging.getLogger("eklavya")
 
 _PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK,
             "aiinterview": prompts.AI_INTERVIEW,
@@ -182,8 +185,9 @@ def create_app():
                     if tok:
                         buf.append(tok)
                         yield json.dumps({"t": tok}) + "\n"
-        except Exception as exc:  # surface errors to the UI instead of hanging
-            yield json.dumps({"t": f"\n\n_(error: {exc})_"}) + "\n"
+        except Exception:  # surface a generic error to the UI; log detail server-side
+            _log.exception("stream error")
+            yield json.dumps({"t": "\n\n_(something went wrong — please try again.)_"}) + "\n"
 
         approval = _pending_approval(agent, config)  # paused for run_bash?
         if approval:

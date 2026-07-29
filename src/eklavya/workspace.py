@@ -33,18 +33,26 @@ def workspace_dir() -> Path:
 
 def _is_forbidden(file_path: str) -> bool:
     try:
-        resolved = str(Path(file_path).expanduser().resolve())
+        resolved = Path(file_path).expanduser().resolve()
     except Exception:
         return True
     p = config.paths()
-    if resolved.startswith(str(p.workspace.resolve())):
+    # is_relative_to (not startswith) so a sibling like `workspace-evil` can't slip
+    # past the `workspace` prefix check.
+    if resolved.is_relative_to(p.workspace.resolve()):
         return False  # the agent's own workspace (db + profile) — always allowed
-    if Path(resolved).name == ".env":
+    if resolved.name == ".env":
         return True
-    if resolved.startswith(str(p.home.resolve())):
+    if resolved.is_relative_to(p.home.resolve()):
         return True  # backups, checkpointer, other app internals — off limits
+    if config.MULTIUSER:
+        # Deployed multi-user: reads are confined to THIS user's own tree. Anything
+        # outside it — other users' homes, the shared users.db, the host — is off
+        # limits. (External code comes in via a GitHub link, not host reads.)
+        return True
+    # Single-user self-host: read the host broadly, minus the secret dirs.
     home = Path.home()
-    return any(resolved.startswith(str(home / f)) for f in _FORBIDDEN)
+    return any(resolved.is_relative_to((home / f).resolve()) for f in _FORBIDDEN)
 
 
 def build_backend():
@@ -77,7 +85,11 @@ def build_backend():
                 return _DENY_MSG
             return await super().aread(file_path, *args, **kwargs)
 
+    # Single-user reads the whole host home (so you can point it at your real code);
+    # multi-user roots reads at the user's own home as defence-in-depth behind the
+    # _is_forbidden guard, so one tenant's agent can't wander the host.
+    read_root = config.paths().home if config.MULTIUSER else Path.home()
     return CompositeBackend(
-        default=ReadOnlyHost(root_dir=str(Path.home()), virtual_mode=False),
+        default=ReadOnlyHost(root_dir=str(read_root), virtual_mode=False),
         routes={"/workspace/": FilesystemBackend(root_dir=str(workspace_dir()), virtual_mode=True)},
     )
