@@ -514,11 +514,19 @@ button:disabled{opacity:.42;cursor:default}
 .runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
-#tree{display:none;height:100%;overflow:auto;padding:24px}
-.treehead{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;margin-bottom:14px;color:var(--parch)}
+#tree{display:none;height:100%;padding:24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
+.treehead{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;margin-bottom:14px;color:var(--parch);flex:none}
 #treefilter{margin-left:12px;background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 10px;font-family:var(--f-mono);font-size:12px;letter-spacing:0}
 .treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
-#treediagram{display:block}   /* not flex — flex crushed the SVG; loadTree() sets natural px size, #tree scrolls */
+/* the diagram sits in a gold-hairline frame (template's .mapframe look) that fills the pane
+   and CENTERS its content — so a sparse track floats in the middle, not pinned top-left in a
+   dark void; when a track is bigger than the frame it scrolls inside the frame. */
+.treeframe{flex:1;min-height:0;overflow:auto;border:1px solid var(--line-gold);border-radius:8px;
+ background:radial-gradient(1000px 520px at 50% 18%,rgba(46,163,160,.06),transparent 60%),rgba(10,13,28,.55);
+ box-shadow:var(--sh-deep);display:flex;align-items:safe center;justify-content:safe center;padding:24px}
+/* 'safe center' centers a small track but, when the graph is bigger than the frame, falls back
+   to start-alignment so the whole thing stays scrollable (plain center would clip the top-left). */
+#treediagram{display:block;margin:auto;flex:none}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -688,7 +696,7 @@ button:disabled{opacity:.42;cursor:default}
   <div id="tree">
     <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span>
       <select id="treefilter" onchange="loadTree(this.value)"></select></div>
-    <div id="treediagram"></div>
+    <div class="treeframe"><div id="treediagram"></div></div>
   </div>
 </main>
 
@@ -734,7 +742,7 @@ document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [dat
   document.getElementById('dash').style.display = v==='dash'?'block':'none';
   document.getElementById('journey').style.display = v==='journey'?'block':'none';
   document.getElementById('profile').style.display = v==='profile'?'block':'none';
-  document.getElementById('tree').style.display = v==='tree'?'block':'none';
+  document.getElementById('tree').style.display = v==='tree'?'flex':'none';
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
@@ -772,9 +780,12 @@ async function loadTree(pillar){
     await mermaid.run({nodes:[m]});
     const svg=m.querySelector('svg'); const vb=svg&&svg.viewBox&&svg.viewBox.baseVal;
     if(svg&&vb){
-      if(track){ svg.style.width=vb.width+'px'; svg.style.height=vb.height+'px'; svg.style.maxWidth='none'; }  // one track: natural, legible
-      else { svg.style.width='100%'; svg.style.height='auto'; svg.style.maxWidth='none'; }                     // all: fit-width overview
+      // NATURAL px size so node labels stay legible — for a track (a left→right chain) and for
+      // the pillar-level overview alike (17 groves, not the 197-node hairball). .treeframe
+      // centers a small graph (no top-left void) and scrolls a larger one.
+      svg.style.width=vb.width+'px'; svg.style.height=vb.height+'px'; svg.style.maxWidth='none';
     }
+    document.querySelector('.treeframe').scrollTo(0,0);   // start at the top-left, never mid-void
   }catch(e){ d.innerHTML='<div class="dim">could not load the skill tree.</div>'; }
 }
 

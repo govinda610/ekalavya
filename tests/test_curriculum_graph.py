@@ -35,13 +35,19 @@ def test_pipe_prereqs_build_edges_and_pillar_filter_narrows():
 
     full = report.curriculum_mermaid()
     assert full["empty"] is False
-    # edges must be recovered despite the comma-in-name (2 edges), not shredded to 0
-    assert full["mermaid"].count("-->") == 2
-    assert set(full["pillars"]) == {"Python Fundamentals", "RAG & Vector Retrieval"}
+    # unfiltered = a legible PILLAR-level forest map: one node per grove, not the concept hairball
+    assert full["mermaid"].splitlines()[0] == "graph LR"
+    pnodes = sum(1 for ln in full["mermaid"].splitlines() if '["' in ln)
+    assert pnodes == 2  # two pillars → two grove nodes
+    # the cross-pillar prereq (RAG depends on Python Fundamentals) aggregates to ONE grove edge,
+    # recovered despite the comma-in-name (not shredded to 0). The intra-RAG edge stays inside the track.
+    assert full["mermaid"].count("-->") == 1
 
-    # filter to one track -> only its concepts (+ direct prereqs) render, left-to-right
+    # filter to one track -> its concepts (+ direct prereqs) render, left-to-right, with the
+    # comma-named foundation edge recovered (2 concept edges), not shredded to 0
     rag = report.curriculum_mermaid("RAG & Vector Retrieval")
     assert rag["mermaid"].splitlines()[0] == "graph LR"
+    assert rag["mermaid"].count("-->") == 2
     nodes = sum(1 for ln in rag["mermaid"].splitlines() if '["' in ln)
     assert nodes == 3  # 2 RAG concepts + 1 prereq foundation for context
 
@@ -55,8 +61,9 @@ def test_node_is_done_despite_concept_wording_drift():
     # a correct attempt recorded with drifted casing/whitespace vs the node name
     tools.record_attempt("Python Fundamentals", "syntax_recall",
                          "  async and event LOOPS ", 3, True, 1.0)
-    m = report.curriculum_mermaid()["mermaid"]
+    # the concept node lives in the single-track view (the overview is pillar-level now)
+    m = report.curriculum_mermaid("Python Fundamentals")["mermaid"]
     assert "Async and Event Loops" in m
-    assert ":::done" in m           # the mastered node is marked done…
+    assert ":::done" in m           # the mastered node is marked done despite the wording drift…
     # …and its dependent is now unlocked (avail), not still locked
     assert ":::avail" in m
