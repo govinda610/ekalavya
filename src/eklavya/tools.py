@@ -268,20 +268,6 @@ def suggest_focus(minutes: int = 30) -> str:
     return "\n".join(lines)
 
 
-def run_code(code: str) -> str:
-    """Run the learner's Python in a sandbox and return output + timing."""
-    from .sandbox import run_python
-
-    r = run_python(code)
-    head = "ran OK" if r.ok else f"exited with code {r.exit_code}"
-    out = f"[{head} in {r.seconds:.2f}s]\n"
-    if r.stdout:
-        out += f"stdout:\n{r.stdout}\n"
-    if r.stderr:
-        out += f"stderr:\n{r.stderr}\n"
-    return _clip(out.strip())
-
-
 def run_bash(command: str, explanation: str) -> str:
     """Run a shell command in the learner's workspace. Use it to run/verify code,
     inspect files, or query the learner db with sqlite3 (the db is `eklavya.db` in the
@@ -320,20 +306,6 @@ def run_bash(command: str, explanation: str) -> str:
     if r.stderr.strip():
         out += "\n[stderr]\n" + r.stderr.strip()
     return _clip(out or f"(exit {r.returncode}, no output)")
-
-
-def grade_code(code: str, tests: str) -> str:
-    """Grade learner `code` against hidden `tests` (assert-based). Returns pass/fail + output."""
-    from .sandbox import run_tests
-
-    r = run_tests(code, tests)
-    verdict = "PASS ✓" if r.ok else "FAIL ✗"
-    out = f"{verdict} (ran in {r.seconds:.2f}s)\n"
-    if r.stdout.strip():
-        out += f"stdout:\n{r.stdout.strip()}\n"
-    if not r.ok and r.stderr.strip():
-        out += f"error:\n{r.stderr.strip()}\n"
-    return _clip(out.strip())
 
 
 def record_attempt(
@@ -402,20 +374,6 @@ def record_attempt(
     )
 
 
-def diff_code(learner_code: str, reference_code: str) -> str:
-    """Return a unified diff between the learner's reproduction and the reference,
-    for the re-solve→diff drill. Call this after they reproduce a solution from
-    memory, then walk them through each difference and why it matters.
-    """
-    import difflib
-
-    diff = "\n".join(difflib.unified_diff(
-        reference_code.splitlines(), learner_code.splitlines(),
-        fromfile="reference", tofile="yours", lineterm="",
-    ))
-    return _clip(diff if diff.strip() else "Identical to the reference — perfect reproduction. ✓")
-
-
 def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
                      confidence: int, reference: str, seconds: float = 0.0) -> str:
     """Grade a code drill and record the VERIFIED result in one tamper-proof step.
@@ -463,55 +421,10 @@ def progress_report() -> str:
     )
 
 
-def get_questions(topic: str = "", company: str = "", role: str = "", n: int = 3) -> str:
-    """Pull interview questions from the local bank, optionally filtered by topic,
-    company, or role. Returns a few matching questions (random order)."""
-    conn = connect()
-    try:
-        where, params = [], []
-        for col, val in (("topic", topic), ("company", company), ("role", role)):
-            if val.strip():
-                where.append(f"{col} LIKE ?")
-                params.append(f"%{val.strip()}%")
-        sql = "SELECT question, company, difficulty FROM questions"
-        if where:
-            sql += " WHERE " + " AND ".join(where)
-        sql += " ORDER BY RANDOM() LIMIT ?"
-        params.append(int(n))
-        rows = conn.execute(sql, params).fetchall()
-    finally:
-        conn.close()
-    if not rows:
-        return ("(no matching questions in the bank yet — use web_search to find real "
-                "ones for this company/role, then add_question the good ones)")
-    return "\n".join(
-        f"- [{r['company'] or 'general'} · {r['difficulty'] or '?'}] {r['question']}" for r in rows
-    )
-
-
-def add_question(question: str, topic: str = "", company: str = "", role: str = "",
-                 difficulty: str = "", source: str = "agent") -> str:
-    """Add an interview question to the bank so it grows. Only tag a company if you
-    genuinely found it associated with that company (e.g. via web_search)."""
-    conn = connect()
-    try:
-        conn.execute(
-            "INSERT OR IGNORE INTO questions(company, role, topic, difficulty, question, source) "
-            "VALUES(?, ?, ?, ?, ?, ?)",
-            (company.strip(), role.strip(), topic.strip(), difficulty.strip(),
-             question.strip(), source),
-        )
-        conn.commit()
-    finally:
-        conn.close()
-    return "added to the question bank"
-
-
 def web_search(query: str) -> str:
     """Search the web for real, current interview questions, references, or role
-    requirements. Use this to find company/role-specific questions when the bank is
-    thin (then add_question the good ones), or to research a target role's stack.
-    Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
+    requirements — e.g. company/role-specific questions, or researching a target role's
+    stack. Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
     (SERPER_API_KEY). Returns "unavailable" only if neither key is present."""
     import os
 
