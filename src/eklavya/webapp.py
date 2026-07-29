@@ -450,6 +450,17 @@ main{flex:1;min-height:0}
 .col{display:flex;flex-direction:column;min-height:0;min-width:0}
 .col.chat{border-right:1px solid var(--line-soft)}
 .log{flex:1;overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+/* empty/loading state for the chat column — never a blank void before the first drill */
+.arena-welcome{margin:auto;max-width:340px;text-align:center;padding:32px 20px;animation:fadein .6s ease}
+.arena-welcome .aw-mark{opacity:.9;filter:drop-shadow(0 0 14px rgba(231,182,75,.25))}
+.arena-welcome .aw-deva{font-family:var(--f-deva);font-size:26px;color:var(--gold);letter-spacing:.08em;margin:10px 0 2px}
+.arena-welcome .aw-title{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--parch);letter-spacing:.03em}
+.arena-welcome .aw-sub{font-family:var(--f-body);font-size:13.5px;color:var(--parch-mute);margin-top:8px;line-height:1.5}
+.arena-welcome .aw-dots{display:flex;gap:6px;justify-content:center;margin-top:16px}
+.arena-welcome .aw-dots span{width:6px;height:6px;border-radius:50%;background:var(--gold);opacity:.35;animation:awpulse 1.2s ease-in-out infinite}
+.arena-welcome .aw-dots span:nth-child(2){animation-delay:.2s}
+.arena-welcome .aw-dots span:nth-child(3){animation-delay:.4s}
+@keyframes awpulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
 .msg{max-width:92%;padding:14px 17px;line-height:1.55;font-size:15px;overflow-wrap:anywhere;font-family:var(--f-body)}
 /* the guru speaks on aged Pithora paper (light bubble → dark text) */
 .msg.ai{align-self:flex-start;background:linear-gradient(180deg,#ead9b6,#dfcaa0);border:1px solid #c6ac7d;
@@ -634,7 +645,13 @@ button:disabled{opacity:.42;cursor:default}
 <main>
   <div id="practice">
     <div class="col chat">
-      <div class="log" id="log"></div>
+      <div class="log" id="log"><div class="arena-welcome" id="arenawelcome">
+        <div class="aw-mark"><svg width="46" height="58" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></div>
+        <div class="aw-deva">एकलव्य</div>
+        <div class="aw-title">Nock the first arrow</div>
+        <div class="aw-sub" id="awsub">Your first drill is loading — Ekalavya is drawing the bow…</div>
+        <div class="aw-dots"><span></span><span></span><span></span></div>
+      </div></div>
       <div class="inbar">
         <textarea id="chatin" rows="1" placeholder="type your answer…  (Shift+Enter for a new line)" autocomplete="off"></textarea>
         <button class="send" onclick="sendChat()">Send</button>
@@ -807,7 +824,12 @@ function togglePenalty(){ deathOnCheat=!deathOnCheat; updatePenaltyBtn();
     body:JSON.stringify({death_on_cheat:deathOnCheat})}).catch(()=>{}); }
 
 function el(cls){const d=document.createElement('div');d.className=cls;return d;}
+const WELCOME_HTML=document.getElementById('arenawelcome') ? document.getElementById('arenawelcome').outerHTML : '';
+function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove(); }
+function showWelcome(sub){ const l=document.getElementById('log'); if(!document.getElementById('arenawelcome')) l.insertAdjacentHTML('afterbegin', WELCOME_HTML);
+  if(sub){ const s=document.getElementById('awsub'); if(s) s.textContent=sub; } }
 function addMsg(role, html){
+  clearWelcome();
   const m=el('msg '+role); const who=el('who'); who.textContent = role==='you'?'you':'Ekalavya';
   const body=el('body'); body.innerHTML=html; m.appendChild(who); m.appendChild(body);
   document.getElementById('log').appendChild(m); scroll(); return body;
@@ -840,6 +862,7 @@ function addAiMsg(){
   const tb=el('tbody'); trace.appendChild(sum); trace.appendChild(tb);
   const reply=el('reply'); reply.classList.add('typing');
   m.appendChild(who); m.appendChild(trace); m.appendChild(reply);
+  if(document.getElementById('arenawelcome')) m.style.display='none';  // stay hidden behind the welcome until first content
   document.getElementById('log').appendChild(m); scroll();
   return {m,trace,sum,tb,reply,buf:'',steps:0};
 }
@@ -884,10 +907,10 @@ async function consume(res, ui){
     partial += dec.decode(value,{stream:true}); const lines=partial.split('\n'); partial=lines.pop();
     for(const line of lines){ if(!line.trim())continue;
       let o; try{o=JSON.parse(line);}catch(e){continue;}
-      if(o.t){ ui.buf+=o.t; const now=Date.now();
+      if(o.t){ clearWelcome(); ui.m.style.display=''; ui.buf+=o.t; const now=Date.now();
         if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=DOMPurify.sanitize(marked.parse(ui.buf)); }
         scroll(); }
-      else if(o.tool){ ui.steps++; ui.trace.style.display='block';
+      else if(o.tool){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
       else if(o.result){ traceLine(ui.tb,'res','✓ '+prettyTool(o.result.name)); }
       else if(o.approval){ await askApproval(ui, o.approval); }
@@ -904,7 +927,10 @@ async function stream(text, code){
       body:JSON.stringify({thread,mode,text,code:code||undefined})});
     await consume(res, ui);
   }catch(e){ ui.buf+='\n\n_(connection error)_'; }
-  finalizeMsg(ui); streaming=false; setBusy(false); refreshHud();
+  if(!ui.buf.trim() && ui.steps===0){                       // the turn produced nothing (e.g. no provider key)
+    ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
+  } else { ui.m.style.display=''; finalizeMsg(ui); }
+  streaming=false; setBusy(false); refreshHud();
   if(queued){ const q=queued; queued=null; stream(q); }        // a message typed mid-stream
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
 }
@@ -992,7 +1018,7 @@ document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Ente
 function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   if(editor) editor.setValue(STUB);
-  document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML='';
+  document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
