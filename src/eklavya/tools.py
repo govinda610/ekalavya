@@ -466,7 +466,7 @@ def web_search(query: str) -> str:
     return "No results."
 
 
-from .assist import review_ai_usage  # noqa: E402
+from .assist import record_bug_verdict, review_ai_usage  # noqa: E402
 
 # The unified toolset — one small spine every interface's agent shares. deepagents adds
 # the floor tools (read_file/write_file/edit_file/ls/glob/grep/write_todos/task) on our
@@ -482,7 +482,8 @@ from .assist import review_ai_usage  # noqa: E402
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 AGENT_TOOLS = [
     grade_and_record, web_search,
-    record_attempt, save_baseline, suggest_focus, review_ai_usage, run_bash,
+    record_attempt, save_baseline, suggest_focus,
+    review_ai_usage, record_bug_verdict, run_bash,
 ]
 
 # Same tools in every mode; the prompt decides how to use them.

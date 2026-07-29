@@ -50,15 +50,45 @@ _MARKER = re.compile(r"<<\s*BUG:\s*(.*?)>>", re.DOTALL | re.IGNORECASE)
 _SUBSTANTIVE_WORDS = ("write", "implement", "fix", "code", "function", "solve", "debug", "class")
 
 
+# After this many substantive asks in a thread with NOTHING planted yet, the next
+# substantive reply is FORCED to plant a bug — so every interview that actually used
+# the assistant has at least one planted bug to catch. Kept low so the guarantee fires
+# well within a normal interview, but not on the very first ask (leaving room for the
+# random plant to happen naturally and stay unpredictable).
+_FORCE_PLANT_AFTER = 2
+
+
 def _substantive(prompt: str) -> bool:
     """A code-eliciting ask worth (sometimes) making imperfect — not a quick clarify."""
     p = prompt.lower()
     return len(prompt) >= 40 or "```" in prompt or any(w in p for w in _SUBSTANTIVE_WORDS)
 
 
-def _pick_behavior(prompt: str) -> str:
+def _thread_stats(thread: str) -> tuple[int, int]:
+    """(substantive asks so far, plants so far) for this thread — the state the
+    guaranteed-plant rule needs. Reads the same log respond() writes to."""
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT prompt, behavior FROM ai_assists WHERE thread = ?", (thread,)
+        ).fetchall()
+    finally:
+        conn.close()
+    substantive = sum(1 for r in rows if _substantive(r["prompt"]))
+    plants = sum(1 for r in rows if r["behavior"] == "plant")
+    return substantive, plants
+
+
+def _pick_behavior(prompt: str, thread: str | None = None) -> str:
     if not _substantive(prompt):
         return "help"
+    # Guarantee: if the assistant has already fielded a few substantive asks in this
+    # thread and never once planted, force a plant now so the interview always has a
+    # bug to catch. Otherwise stay stochastic, so plants remain subtle and varied.
+    if thread is not None:
+        prior_substantive, prior_plants = _thread_stats(thread)
+        if prior_plants == 0 and prior_substantive >= _FORCE_PLANT_AFTER:
+            return "plant"
     r = random.random()
     if r < 0.30:
         return "plant"
@@ -105,7 +135,7 @@ def respond(thread: str, prompt: str, behavior: str | None = None) -> str:
     from . import config
     from .providers import build_chat_model
 
-    behavior = behavior or _pick_behavior(prompt)
+    behavior = behavior or _pick_behavior(prompt, thread)
     system = {"plant": _PLANT, "withhold": _WITHHOLD}.get(behavior, _BASE)
     messages = [("system", system), *_history(thread), ("human", prompt)]
     try:
@@ -154,7 +184,7 @@ def review_ai_usage() -> str:
     try:
         thread = _current_interview(conn)
         rows = conn.execute(
-            "SELECT prompt, reply, behavior, planted_bug FROM ai_assists "
+            "SELECT id, prompt, reply, behavior, planted_bug, bug_verdict FROM ai_assists "
             "WHERE thread = ? ORDER BY id",
             (thread,),
         ).fetchall() if thread else []
@@ -167,11 +197,47 @@ def review_ai_usage() -> str:
     withheld = sum(1 for r in rows if r["behavior"] == "withhold")
     lines = [f"{len(rows)} assistant exchange(s) · {planted} planted bug(s) · "
              f"{withheld} withheld/partial reply(ies).\n"]
-    for i, r in enumerate(rows, 1):
-        lines.append(f"[{i}] behavior={r['behavior']}")
+    for r in rows:
+        # assist_id is the STABLE key to pass to record_bug_verdict() — not the display index.
+        lines.append(f"[assist_id={r['id']}] behavior={r['behavior']}")
         if r["behavior"] == "plant" and r["planted_bug"]:
             lines.append(f"    ⚠ PLANTED BUG (candidate never saw this): {r['planted_bug']}")
+            verdict = r["bug_verdict"]
+            lines.append(f"    ↳ recorded verdict: {verdict if verdict else '(not yet scored — record one)'}")
         lines.append(f"    candidate asked: {r['prompt'][:400]}")
         lines.append(f"    assistant replied: {r['reply'][:600]}")
     out = "\n".join(lines)
     return out if len(out) <= 3000 else out[:3000] + "\n…(truncated)"
+
+
+_VERDICTS = ("caught", "missed", "partial")
+
+
+def record_bug_verdict(assist_id: int, verdict: str, note: str = "") -> str:
+    """Record, structurally, whether the candidate CAUGHT / MISSED / PARTIALLY caught a
+    specific planted bug — so the bug-catching outcome is queryable, not just prose.
+
+    `assist_id` is the `assist_id=` shown next to a PLANTED BUG in review_ai_usage().
+    `verdict` is one of: caught | missed | partial. `note` is a one-line justification.
+    Call once per planted bug during the AI-interview SCORING step.
+    """
+    verdict = (verdict or "").strip().lower()
+    if verdict not in _VERDICTS:
+        return f"unknown verdict '{verdict}'; use one of: {', '.join(_VERDICTS)}"
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT behavior, planted_bug FROM ai_assists WHERE id = ?", (assist_id,)
+        ).fetchone()
+        if row is None:
+            return f"no assistant exchange with assist_id={assist_id}"
+        if row["behavior"] != "plant" or not row["planted_bug"]:
+            return f"assist_id={assist_id} has no planted bug to judge (behavior={row['behavior']})"
+        conn.execute(
+            "UPDATE ai_assists SET bug_verdict = ?, verdict_note = ? WHERE id = ?",
+            (verdict, note.strip() or None, assist_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return f"recorded verdict '{verdict}' for planted bug (assist_id={assist_id})."

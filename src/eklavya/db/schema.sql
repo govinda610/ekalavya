@@ -178,14 +178,20 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_questions_q ON questions(question);
 -- logged so the interviewer can grade HOW the candidate used it. `behavior` is
 -- help | plant | withhold; `planted_bug` is the ground-truth flaw when we
 -- deliberately made the assistant subtly wrong (the candidate never saw this).
+-- `bug_verdict` is the interviewer's structured grade of whether the candidate
+-- caught that planted bug: caught | missed | partial (NULL until scored), with
+-- `verdict_note` holding the one-line justification. This makes the bug-catching
+-- outcome queryable, not just prose buried in the transcript.
 CREATE TABLE IF NOT EXISTS ai_assists (
-    id          INTEGER PRIMARY KEY,
-    thread      TEXT NOT NULL,
-    prompt      TEXT NOT NULL,
-    reply       TEXT NOT NULL,
-    behavior    TEXT NOT NULL DEFAULT 'help',
-    planted_bug TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    id           INTEGER PRIMARY KEY,
+    thread       TEXT NOT NULL,
+    prompt       TEXT NOT NULL,
+    reply        TEXT NOT NULL,
+    behavior     TEXT NOT NULL DEFAULT 'help',
+    planted_bug  TEXT,
+    bug_verdict  TEXT,   -- caught | missed | partial (scored after the interview)
+    verdict_note TEXT,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_assists_thread ON ai_assists(thread);
 
