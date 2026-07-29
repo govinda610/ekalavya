@@ -904,6 +904,9 @@ footer .fm{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);lette
   .mock,.app-shell,.pa-body,.pa-chat,.pa-log,.pa-right,.canvas,.canvas-body,.landing,.land-hero,.pdash,.jrn,.prof,.lib,.settings,.onb,.auth,.drawer-demo{max-width:100%;min-width:0}
   .ed-body,.art-code{overflow-x:auto}
   .canvas-tabs,.htabs{overflow-x:auto}
+  /* canvas prose: comfortable side gutters + guarantee long words / inline highlights wrap */
+  .canvas-body{padding:16px 16px}
+  .art-md p,.art-md .callout,.art-md h3,.art-md .adeva{overflow-wrap:anywhere}
   .lib-grid{grid-template-columns:1fr}
   .prof-cols,.pd-bento,.jcols,.jribbon,.land-feats,.state-grid{min-width:0}
   .app-head{flex-wrap:wrap}
