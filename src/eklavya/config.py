@@ -100,11 +100,16 @@ def paths() -> Paths:
     )
 
 
+def data_root() -> Path:
+    """The multi-user data root (``$EKLAVYA_DATA_ROOT``): parent of ``users/`` and of the
+    shared ``users.db``. Not used in single-user mode."""
+    return Path(os.environ.get("EKLAVYA_DATA_ROOT", Path.home() / ".eklavya-data"))
+
+
 def user_home(uid: str) -> Path:
     """The on-disk home for a given user id in multi-user mode:
     ``$EKLAVYA_DATA_ROOT/users/<uid>``. Not used in single-user mode."""
-    root = Path(os.environ.get("EKLAVYA_DATA_ROOT", Path.home() / ".eklavya-data"))
-    return root / "users" / uid
+    return data_root() / "users" / uid
 
 
 def run_user_task(fn, *args, **kwargs):

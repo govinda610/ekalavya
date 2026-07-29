@@ -191,7 +191,12 @@ def test_webapp_returns_404_for_foreign_thread(monkeypatch):
     from eklavya.webapp import create_app
 
     monkeypatch.setattr(config, "MULTIUSER", True)
-    home = Path(tempfile.mkdtemp(prefix="eklavya-web-mu-")) / "users" / "uid-x"
+    # multi-user create_app() now mounts auth: needs a signing secret + a data root so the
+    # session's uid resolves to the home we seed. Sign a cookie for uid-x directly.
+    monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
+    monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")
+    monkeypatch.setenv("EKLAVYA_DATA_ROOT", tempfile.mkdtemp(prefix="eklavya-web-mu-"))
+    home = config.user_home("uid-x")
     from eklavya.config import _current_home
 
     token = _current_home.set(home)
@@ -206,12 +211,22 @@ def test_webapp_returns_404_for_foreign_thread(monkeypatch):
             conn.commit()
         finally:
             conn.close()
-        c = TestClient(create_app())
-        assert c.get("/api/chats/mine").status_code == 200
-        assert c.get("/api/chats/theirs").status_code == 404
-        assert c.patch("/api/chats/theirs", json={"title": "hijack"}).status_code == 404
     finally:
         _current_home.reset(token)
+
+    from starlette.responses import Response
+
+    from eklavya.middleware import issue_session
+
+    r = Response()  # capture a validly-signed session cookie for uid-x
+    issue_session(r, "uid-x")
+    signed = r.headers["set-cookie"].split("eklavya_session=")[1].split(";")[0]
+
+    c = TestClient(create_app())
+    c.cookies.set("eklavya_session", signed)
+    assert c.get("/api/chats/mine").status_code == 200
+    assert c.get("/api/chats/theirs").status_code == 404
+    assert c.patch("/api/chats/theirs", json={"title": "hijack"}).status_code == 404
 
 
 def test_ownership_is_noop_in_single_user():

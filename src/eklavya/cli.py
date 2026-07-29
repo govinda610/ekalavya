@@ -337,6 +337,48 @@ def serve(
     uvicorn.run(create_app(), host=host, port=port, log_level="warning")
 
 
+@app.command()
+def adduser(
+    email: str = typer.Option(None, help="account email (prompted if omitted)"),
+) -> None:
+    """Create a user account (multi-user deployment). Prompts for a hidden password.
+
+    Accounts exist only in the shared users.db; public signup is disabled by design, so
+    this is how the two trusted users get in. Requires EKLAVYA_DATA_ROOT to be set.
+    """
+    from . import auth
+
+    if not email:
+        email = typer.prompt("Email")
+    password = typer.prompt("Password", hide_input=True, confirmation_prompt=True)
+    try:
+        uid = auth.create_user(email, password)
+    except ValueError as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1)
+    home = config.user_home(uid)
+    console.print(f"[green]✓[/green] created user [bold]{email.strip().lower()}[/]")
+    console.print(f"  uid:  {uid}")
+    console.print(f"  home: {home}")
+
+
+@app.command()
+def listusers() -> None:
+    """List the accounts in the shared users.db (multi-user deployment)."""
+    from . import auth
+
+    rows = auth.list_users()
+    if not rows:
+        console.print("[dim]No users yet — create one with `eklavya adduser`.[/]")
+        return
+    table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
+    table.add_column("email")
+    table.add_column("created")
+    for r in rows:
+        table.add_row(r["email"], (r["created_at"] or "")[:16])
+    console.print(table)
+
+
 @app.command("mcp")
 def mcp_server() -> None:
     """Run Ekalavya as an MCP server (stdio) so any agent can drive your practice."""

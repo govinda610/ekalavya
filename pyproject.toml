@@ -26,7 +26,9 @@ agent = [
     "fsrs>=4.0",
 ]
 tui = ["textual>=0.80"]
-web = ["fastapi>=0.115", "uvicorn>=0.30"]
+# The served web app; multi-user auth (argon2 hashing + signed-cookie sessions) rides
+# with it since it's only reachable via the browser deployment.
+web = ["fastapi>=0.115", "uvicorn>=0.30", "argon2-cffi>=23.1", "itsdangerous>=2.0"]
 mcp = ["mcp>=1.0"]
 
 [project.scripts]

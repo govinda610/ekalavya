@@ -59,7 +59,11 @@ def create_app():
 
     from . import config
 
-    init_db()
+    # Single-user: initialise the one implicit user's db up front, as before. Multi-user:
+    # there is no single home at construction time — each user's db is initialised on their
+    # first login (see _mount_auth), so we must NOT touch the default home here.
+    if not config.MULTIUSER:
+        init_db()
     provider = pick(None)
     # Agents cached per (user_id, mode). In single-user mode user_id is a constant, so
     # this is one agent per mode exactly as before; in multi-user each user gets their own
@@ -303,7 +307,67 @@ def create_app():
         rename_chat(thread_id, body.get("title", ""))
         return {"ok": True}
 
+    # --- auth (multi-user only) --------------------------------------------
+    # Everything below is mounted ONLY when EKLAVYA_MULTIUSER is on. In single-user mode
+    # nothing here runs, no middleware is added, and the app is byte-for-byte as before.
+    if config.MULTIUSER:
+        _mount_auth(app)
+
     return app
+
+
+def _mount_auth(app) -> None:
+    """Add the login/logout routes + the auth middleware. Multi-user mode only."""
+    from starlette.responses import HTMLResponse, RedirectResponse
+
+    from . import auth, config
+    from .db import init_db
+    from .middleware import AuthMiddleware, clear_session, issue_session
+
+    from fastapi import Request
+
+    # Fail loudly now (at app construction) if the signing secret is missing — better than
+    # a first-request 500.
+    from .middleware import _secret
+
+    _secret()
+
+    @app.get("/login", response_class=HTMLResponse)
+    def login_form(error: str = "") -> str:
+        return _LOGIN.replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
+
+    @app.post("/login")
+    async def login_submit(request: Request):
+        form = await request.form()
+        email = (form.get("email") or "").strip()
+        password = form.get("password") or ""
+        ip = request.client.host if request.client else ""
+        if auth.is_locked(email, ip):
+            return RedirectResponse("/login?error=Too+many+attempts.+Try+again+later.",
+                                    status_code=303)
+        uid = auth.verify_login(email, password)
+        if uid is None:
+            auth.record_failure(email, ip)
+            return RedirectResponse("/login?error=Invalid+email+or+password.",
+                                    status_code=303)
+        auth.reset_failures(email, ip)
+        # ensure the user's home + per-user db exist within their own context on first login
+        config.set_current_home(config.user_home(uid))
+        config.ensure_home()
+        init_db()
+        resp = RedirectResponse("/", status_code=303)
+        issue_session(resp, uid)
+        return resp
+
+    @app.post("/logout")
+    def logout():
+        resp = RedirectResponse("/login", status_code=303)
+        clear_session(resp)
+        return resp
+
+    # Middleware runs on EVERY request: resolve the session → set the per-user contextvar
+    # → gate unauthenticated access.
+    app.add_middleware(AuthMiddleware)
 
 
 # --- the single-page front-end ---------------------------------------------
@@ -906,3 +970,22 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   stream(c.kickoff[mode]);
 });
 </script></body></html>"""
+
+
+# --- login page (multi-user) -----------------------------------------------
+# Deliberately bare and UNstyled — a functional placeholder. The design phase restyles it.
+_LOGIN = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Sign in</title>
+<style>body{font-family:system-ui,sans-serif;max-width:340px;margin:80px auto;padding:0 16px}
+label{display:block;margin:12px 0 4px}input{width:100%;padding:8px;box-sizing:border-box}
+button{margin-top:16px;padding:9px 16px}.err{color:#b00;margin:10px 0}</style></head><body>
+<h1>Ekalavya</h1>
+{{error}}
+<form method="post" action="/login">
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+  <label for="password">Password</label>
+  <input id="password" name="password" type="password" autocomplete="current-password" required>
+  <button type="submit">Sign in</button>
+</form>
+</body></html>"""
