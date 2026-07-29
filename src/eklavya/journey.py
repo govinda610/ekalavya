@@ -90,12 +90,14 @@ def render() -> str:
     st = progress.stats()
     strong = _all("SELECT COUNT(*) AS n FROM ratings WHERE rating >= 1300")[0]["n"]
     sessions = _all("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
+    cal = st.get("calibration") or {}
+    clarity = "—" if cal.get("brier") is None else str(max(0, min(100, round((1 - cal["brier"]) * 100))))
     ribbon_cells = [
         ("layers", "Level", str(st["level"])),
         ("crown", "Rank", _rank(st["level"])),
         ("flame", "Streak", f"{st['streak']}d"),
         ("trend", "Total XP", str(st["xp"])),
-        ("scroll", "Sessions", str(sessions)),
+        ("scale", "Clarity", clarity),          # the illusion-of-knowing signal, at a glance
         ("gem", "Skills strong", str(strong)),
     ]
     ribbon = "".join(
