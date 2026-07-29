@@ -37,22 +37,28 @@ def build_server():
         return tools.list_goals()
 
     @server.tool()
-    def run_code(code: str) -> str:
-        """Run the learner's Python in a sandbox; return output + timing."""
-        return tools.run_code(code)
-
-    @server.tool()
-    def grade_code(code: str, tests: str) -> str:
-        """Grade learner code against assert-based hidden tests. Returns pass/fail + output."""
-        return tools.grade_code(code, tests)
+    def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
+                         confidence: int, reference: str, seconds: float = 0.0) -> str:
+        """Tamper-proof grading of a code drill: validates YOUR `tests` against YOUR
+        `reference` solution first, then runs the learner's `code` in the sandbox and
+        records the real verdict (rating + spaced-repetition + XP) in one step — the
+        outcome can't be faked. Use for every code drill. axis: syntax_recall |
+        debugging | code_reading | api_memory | decomposition."""
+        return tools.grade_and_record(pillar, axis, concept, code, tests, confidence, reference, seconds)
 
     @server.tool()
     def record_attempt(pillar: str, axis: str, concept: str, confidence: int,
                        correct: bool, seconds: float = 0.0, ai_off: bool = True) -> str:
-        """Record one graded attempt: updates the rating, schedules the spaced-repetition
-        review, logs it, and awards XP. axis is one of syntax_recall, debugging,
-        code_reading, api_memory, decomposition."""
+        """Record one NON-code graded attempt (conceptual / self-assessed): updates the
+        rating, schedules the spaced-repetition review, logs it, and awards XP. axis is one
+        of syntax_recall, debugging, code_reading, api_memory, decomposition."""
         return tools.record_attempt(pillar, axis, concept, confidence, correct, seconds, ai_off)
+
+    @server.tool()
+    def web_search(query: str) -> str:
+        """Search the live web (Tavily → Serper) for real, current interview questions,
+        references, or to research a target role's requirements."""
+        return tools.web_search(query)
 
     return server
 

@@ -12,6 +12,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "langgraph-checkpoint-sqlite>=3.1.0",
     "langchain-mcp-adapters>=0.3.0",
+    "requests>=2.31",
 ]
 
 # The AI + practice stack lands as we wire each phase, so `doctor` degrades
