@@ -107,6 +107,43 @@ def _achievements(stats: dict, strong: int, sessions: int) -> str:
     )
 
 
+def _calibration(cal: dict) -> str:
+    """The 'illusion of knowing' card — the product's headline metric.
+    cal = {n, brier, bias, confidently_wrong}; brier/bias are None until there's data."""
+    n = cal.get("n") or 0
+    if not n or cal.get("brier") is None:
+        return ('<div class="cal-empty muted">Answer a few drills with a confidence level and '
+                'your calibration appears here — how well what you <i>think</i> you know matches '
+                'what you can <i>actually</i> do.</div>')
+    brier = cal["brier"]          # 0 = perfect, 1 = worst
+    bias = cal["bias"]            # >0 overconfident, <0 underconfident
+    cw = cal.get("confidently_wrong", 0)
+    # a friendly 0-100 "clarity" score: lower brier -> higher clarity
+    clarity = max(0, min(100, round((1 - brier) * 100)))
+    if abs(bias) < 0.08:
+        lean, leancls = "well-calibrated", "ok"
+    elif bias > 0:
+        lean, leancls = "overconfident", "warn"
+    else:
+        lean, leancls = "underconfident", "cool"
+    ring = f"conic-gradient(var(--gold) {clarity*3.6:.0f}deg, rgba(231,182,75,.12) 0)"
+    return (
+        f'<div class="cal-row">'
+        f'  <div class="cal-ring" style="background:{ring}"><div class="cal-ring-in">'
+        f'    <div class="cal-score">{clarity}</div><div class="cal-score-k">clarity</div></div></div>'
+        f'  <div class="cal-facts">'
+        f'    <div class="cal-fact"><b class="{leancls}">{lean}</b>'
+        f'      <span class="muted">bias {bias:+.2f} · Brier {brier:.2f}</span></div>'
+        f'    <div class="cal-fact"><b class="{"warn" if cw else "ok"}">{cw}</b>'
+        f'      <span class="muted">confidently wrong — sure, yet wrong</span></div>'
+        f'    <div class="cal-fact"><b>{n}</b><span class="muted">recent graded drills</span></div>'
+        f'  </div>'
+        f'</div>'
+        f'<div class="cal-caption muted">The gap between what you <i>think</i> you know and what '
+        f'you can <i>actually</i> do — the illusion of knowing, made visible.</div>'
+    )
+
+
 def render(ov: dict) -> str:
     s = ov["stats"]
     g = ov["grid"]
@@ -191,6 +228,7 @@ def render(ov: dict) -> str:
     ) or '<tr><td colspan="4" class="muted">No sessions yet.</td></tr>'
 
     badges = _achievements(s, strong, len(ov["sessions"]))
+    calibration = _calibration(s.get("calibration") or {})
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
@@ -223,6 +261,10 @@ def render(ov: dict) -> str:
   </section>
 
   <div class="bento">
+    <section class="card b-cal">
+      <h2>{_icon("scale")} The illusion of knowing</h2>
+      {calibration}
+    </section>
     <section class="card b-map">
       <h2>{_icon("grid")} Skill map</h2>
       <table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table>
@@ -377,15 +419,33 @@ h2 .ic{width:15px;height:15px}
 /* bento — asymmetric, skill map is the hero */
 .bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
   grid-template-areas:
+    "cal cal cal cal cal cal"
     "map map map map axes axes"
     "quests quests gap gap gap gap"
     "ach ach ach ach chron chron";}
+.b-cal{grid-area:cal}
 .b-map{grid-area:map}.b-axes{grid-area:axes}.b-quests{grid-area:quests}
 .b-gap{grid-area:gap}.b-ach{grid-area:ach}.b-chron{grid-area:chron}
 .bento .card{margin:0}
 @media(max-width:820px){
-  .bento{grid-template-columns:1fr;grid-template-areas:"map" "axes" "quests" "gap" "ach" "chron"}
+  .bento{grid-template-columns:1fr;grid-template-areas:"cal" "map" "axes" "quests" "gap" "ach" "chron"}
 }
+/* the illusion-of-knowing card — the product's headline signal */
+.b-cal{background:linear-gradient(150deg,rgba(35,29,24,.72),rgba(12,10,20,.85));border-color:var(--line-gold)}
+.cal-row{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.cal-ring{width:104px;height:104px;border-radius:50%;flex:none;display:grid;place-items:center;
+  box-shadow:0 0 24px -6px rgba(231,182,75,.4)}
+.cal-ring-in{width:82px;height:82px;border-radius:50%;background:var(--indigo-night);display:grid;place-items:center;text-align:center}
+.cal-score{font-family:var(--f-display);font-weight:800;font-size:30px;color:var(--gold-bright);line-height:1}
+.cal-score-k{font-family:var(--f-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--parch-mute);margin-top:2px}
+.cal-facts{display:flex;gap:30px;flex-wrap:wrap}
+.cal-fact{display:flex;flex-direction:column;gap:2px}
+.cal-fact b{font-family:var(--f-display);font-size:22px;font-weight:700;color:var(--parch)}
+.cal-fact b.ok{color:var(--forest-lit)}.cal-fact b.cool{color:var(--peacock-bright)}
+.cal-fact b.warn{color:var(--vermilion-glow)}
+.cal-fact .muted{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.03em;max-width:20ch}
+.cal-caption{margin-top:14px;font-family:var(--f-body);font-size:13px;line-height:1.5}
+.cal-empty{font-family:var(--f-body);font-size:14px;line-height:1.55;padding:6px 0}
 .card{background:linear-gradient(160deg,rgba(35,29,24,.6),rgba(12,10,20,.75));border:1px solid var(--line-gold);
   border-radius:6px;padding:20px 22px;box-shadow:var(--sh-carve),0 18px 50px -34px #000;
   transition:transform .22s cubic-bezier(.22,.7,.25,1),border-color .22s,box-shadow .22s}
