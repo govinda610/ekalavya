@@ -97,6 +97,80 @@ def test_review_empty_when_unused():
     assert "did not use the AI assistant" in assist.review_ai_usage()
 
 
+def test_forced_plant_after_substantive_asks_without_a_plant(monkeypatch):
+    """The guarantee: after enough substantive asks in a thread with NOTHING planted,
+    the next substantive reply is forced to plant — so every interview has a bug."""
+    # Auto-pick would normally leave this to chance; pin randomness to NEVER plant so we
+    # prove the FORCE path (not luck) is what plants the bug.
+    monkeypatch.setattr(assist.random, "random", lambda: 0.99)  # >0.50 → always "help"
+    _mock_model(monkeypatch, "reply<<BUG: forced subtle off-by-one>>")
+
+    for _ in range(assist._FORCE_PLANT_AFTER):
+        assert assist._pick_behavior("write a function to do the thing", "t1") == "help"
+        assist.respond("t1", "write a function to do the thing")  # auto behavior
+
+    from eklavya.db import connect
+    assert connect().execute(
+        "SELECT COUNT(*) c FROM ai_assists WHERE thread='t1' AND behavior='plant'"
+    ).fetchone()["c"] == 0                                       # nothing planted yet
+
+    # The next substantive ask must be forced to plant despite randomness saying "help".
+    assert assist._pick_behavior("implement the pagination helper", "t1") == "plant"
+    assist.respond("t1", "implement the pagination helper")      # auto behavior
+    bug = connect().execute(
+        "SELECT planted_bug FROM ai_assists WHERE thread='t1' AND behavior='plant'"
+    ).fetchone()
+    assert bug and "off-by-one" in bug["planted_bug"]            # a real bug got planted
+
+
+def test_forced_plant_surfaces_in_review(monkeypatch):
+    """review_ai_usage() must surface the guaranteed bug for the current interview."""
+    monkeypatch.setattr(assist.random, "random", lambda: 0.99)   # random never plants
+    assist.mark_interview("cur")
+    _mock_model(monkeypatch, "here you go<<BUG: wrong default value>>")
+    for _ in range(assist._FORCE_PLANT_AFTER + 1):
+        assist.respond("cur", "write the function that solves this")
+
+    out = assist.review_ai_usage()
+    assert "1 planted bug" in out
+    assert "wrong default value" in out
+    assert "assist_id=" in out                                   # stable key for verdicts
+
+
+def test_record_bug_verdict_is_queryable(monkeypatch):
+    monkeypatch.setattr(assist.random, "random", lambda: 0.99)
+    assist.mark_interview("cur")
+    _mock_model(monkeypatch, "solution<<BUG: inverted boundary check>>")
+    for _ in range(assist._FORCE_PLANT_AFTER + 1):
+        assist.respond("cur", "write code to solve the interview problem")
+
+    from eklavya.db import connect
+    assist_id = connect().execute(
+        "SELECT id FROM ai_assists WHERE behavior='plant' AND planted_bug IS NOT NULL"
+    ).fetchone()["id"]
+
+    msg = assist.record_bug_verdict(assist_id, "caught", "candidate spotted the flipped <=")
+    assert "recorded" in msg and "caught" in msg
+
+    row = connect().execute(
+        "SELECT bug_verdict, verdict_note FROM ai_assists WHERE id=?", (assist_id,)
+    ).fetchone()
+    assert row["bug_verdict"] == "caught"                        # persisted, queryable
+    assert "flipped" in row["verdict_note"]
+    assert "recorded verdict: caught" in assist.review_ai_usage()  # shows in the review
+
+
+def test_record_bug_verdict_rejects_bad_input(monkeypatch):
+    _mock_model(monkeypatch, "clean reply")
+    assist.respond("t1", "hi", behavior="help")                  # a non-plant row
+    from eklavya.db import connect
+    help_id = connect().execute("SELECT id FROM ai_assists").fetchone()["id"]
+
+    assert "unknown verdict" in assist.record_bug_verdict(help_id, "nope")
+    assert "no planted bug" in assist.record_bug_verdict(help_id, "caught")
+    assert "no assistant exchange" in assist.record_bug_verdict(99999, "caught")
+
+
 def test_assist_route(monkeypatch):
     from starlette.testclient import TestClient
 
