@@ -121,6 +121,11 @@ profile and database live there.
   Always confirm a library's API against real docs before teaching it, never from memory.
 - LEARNER'S OWN CODE — `read_file`/`ls`/`glob`/`grep` reach their real machine, so you
   can read the repos/projects they actually work on and ground drills in their code.
+- LEARNER'S GITHUB — `read_github(url)`: when their code ISN'T on this machine (deployed
+  server), have them share a GitHub repo (github.com/<owner>/<repo>) or profile
+  (github.com/<user>) link. It shallow-clones the repo read-only (or reads public profile
+  metadata) and reports their real languages, dependencies, project types, and structure —
+  use it to ground pillars/drills in their actual work. Fetched code is never run.
 """
 
 SESSION = (
@@ -383,7 +388,14 @@ assessment.
       deep learning, Transformers/attention internals, LLM pre/post-training & serving,
       RAG internals, agents/LangGraph, interpretability, MLOps — even if they only
       said "Python". A quant aim adds probability/stochastic processes, RL, etc.)
-   d) PRESENT the full proposed competency map and let them EDIT it — they can add
+   d) GROUND IT IN THEIR REAL CODE — if they offer (or you can ask for) a GitHub link,
+      call `read_github(url)` on their profile (github.com/<user>) or a representative
+      repo (github.com/<owner>/<repo>). It reports their real languages, dependencies,
+      project types, and structure. Use that to (i) confirm the stacks/pillars they
+      actually use, and (ii) probe depth on things they clearly touch but may not
+      understand — real code beats self-report. Optional; skip gracefully if they decline
+      or it's unavailable.
+   e) PRESENT the full proposed competency map and let them EDIT it — they can add
       areas or tell you to DROP topics they don't want; respect that. What survives
       becomes the curriculum below.
 

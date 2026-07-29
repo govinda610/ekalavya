@@ -420,11 +420,27 @@ def mcp_server() -> None:
 
 
 @app.command()
-def scan(path: str = typer.Argument(..., help="path to a repo you allow Ekalavya to read")) -> None:
-    """Tailor your pillars to a repo you work on (asks permission first)."""
+def scan(path: str = typer.Argument(..., help="a local repo path OR a GitHub repo/profile URL")) -> None:
+    """Tailor your pillars to a repo you work on — local path or GitHub link (asks first)."""
     from pathlib import Path
 
-    from . import repos
+    from . import github, repos
+
+    # GitHub URL → deployed-server path: no local code, so ingest via the link.
+    _p = str(path).strip().lower()
+    if "github.com/" in _p and (_p.startswith("http") or _p.startswith("github.com/")
+                                or _p.startswith("www.github.com/")):
+        console.print(f"Ekalavya will read the public GitHub URL:\n  [bold]{path}[/bold]")
+        if not typer.confirm("Allow reading this GitHub link?"):
+            console.print("[dim]skipped.[/]")
+            raise typer.Exit()
+        init_db()
+        console.print("[dim]fetching…[/]")
+        summary = github.read_github(path)
+        console.print("\n" + summary)
+        console.print("[green]✓[/green] github link processed.")
+        return
+
     from .tools import add_pillar
 
     target = Path(path).expanduser().resolve()

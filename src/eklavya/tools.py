@@ -467,6 +467,7 @@ def web_search(query: str) -> str:
 
 
 from .assist import review_ai_usage  # noqa: E402
+from .github import read_github  # noqa: E402
 
 # The unified toolset — one small spine every interface's agent shares. deepagents adds
 # the floor tools (read_file/write_file/edit_file/ls/glob/grep/write_todos/task) on our
@@ -478,10 +479,13 @@ from .assist import review_ai_usage  # noqa: E402
 #     reference, runs the learner's code in the sandbox, records the real verdict atomically).
 #   • web_search — reach the live web (Tavily → Serper fallback) for real interview
 #     questions and target-role research; the base tools can't touch the network.
+#   • read_github — ground practice in the learner's REAL code on a deployed server, where
+#     their repo isn't on the box: they hand over a GitHub repo/profile link and we
+#     shallow-clone (read-only, capped) or read public API metadata to infer their stack.
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 AGENT_TOOLS = [
-    grade_and_record, web_search,
+    grade_and_record, web_search, read_github,
     record_attempt, save_baseline, suggest_focus, review_ai_usage, run_bash,
 ]
 
