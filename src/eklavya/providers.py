@@ -53,6 +53,22 @@ PROVIDERS: dict[str, Provider] = {
         default_model="MiniMax-M3",
         models=("MiniMax-M3", "MiniMax-M2.7"),
     ),
+    "qwen": Provider(
+        key="qwen",
+        label="Qwen (Alibaba)",
+        base_url="https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic",
+        token_env=("EKLAVYA_QWEN_API_KEY", "QWEN_API_KEY", "DASHSCOPE_API_KEY"),
+        default_model="qwen3.8-max-preview",
+        models=("qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash"),
+    ),
+    "kimi": Provider(
+        key="kimi",
+        label="Kimi (Moonshot)",
+        base_url="https://api.kimi.com/coding",
+        token_env=("EKLAVYA_KIMI_API_KEY", "KIMI_API_KEY", "MOONSHOT_API_KEY"),
+        default_model="k3",
+        models=("k3", "k3-256k", "kimi-for-coding", "kimi-for-coding-highspeed"),
+    ),
 }
 
 
