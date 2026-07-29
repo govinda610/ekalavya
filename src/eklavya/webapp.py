@@ -57,19 +57,41 @@ def create_app():
     from .tools import AIINTERVIEW_TOOLS, ONBOARDING_TOOLS, SESSION_TOOLS
     from .tui import _chunk_text
 
+    from . import config
+
     init_db()
     provider = pick(None)
-    agents: dict = {}  # mode -> agent (one per mode, threads keyed per browser session)
+    # Agents cached per (user_id, mode). In single-user mode user_id is a constant, so
+    # this is one agent per mode exactly as before; in multi-user each user gets their own
+    # (built against their own checkpointer/workspace via the contextvar at build time).
+    agents: dict = {}
     _TOOLS = {"onboard": ONBOARDING_TOOLS, "aiinterview": AIINTERVIEW_TOOLS}
 
-    def agent_for(mode: str):
+    _SINGLE_USER = "_single"  # the implicit single-user id in single-user mode
+
+    def _current_user_id() -> str:
+        return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
+
+    def agent_for(mode: str, user_id: str | None = None):
         mode = mode if mode in _PROMPTS else "practice"
-        if mode not in agents:
+        uid = user_id or _current_user_id()
+        key = (uid, mode)
+        if key not in agents:
             tools = _TOOLS.get(mode, SESSION_TOOLS)
-            agents[mode] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
-        return agents[mode]
+            agents[key] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
+        return agents[key]
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
+
+    def _require_owner(thread_id: str) -> None:
+        """404 if the current user doesn't own this thread (no-op in single-user mode).
+        404, not 403, so we never confirm another user's thread exists."""
+        from fastapi import HTTPException
+
+        from .chatstore import owns_thread
+
+        if thread_id and not owns_thread(thread_id):
+            raise HTTPException(status_code=404)
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> str:
@@ -184,6 +206,7 @@ def create_app():
         body = await request.json()
         mode = body.get("mode", "practice")
         thread = body.get("thread") or str(uuid.uuid4())
+        _require_owner(thread)  # a thread you don't own → 404 (no-op single-user)
         text = body.get("text", "")
         code = (body.get("code") or "").strip()  # editor contents, when changed
         if code:  # let the agent see what's in the editor, as labeled context
@@ -221,6 +244,7 @@ def create_app():
         body = await request.json()
         mode = body.get("mode", "practice")
         thread = body.get("thread") or ""
+        _require_owner(thread)
         decision = "approve" if body.get("decision") == "approve" else "reject"
         config = {"configurable": {"thread_id": thread}}
         cmd = Command(resume={"decisions": [{"type": decision}]})
@@ -235,6 +259,7 @@ def create_app():
 
         body = await request.json()
         thread = body.get("thread") or ""
+        _require_owner(thread)
         prompt = body.get("text", "")
         reply = await run_in_threadpool(respond, thread, prompt)
         return {"reply": reply}
@@ -263,6 +288,7 @@ def create_app():
     def chat_get(thread_id: str) -> dict:
         from .chatstore import get_chat, transcript
 
+        _require_owner(thread_id)
         meta = get_chat(thread_id) or {}
         return {"thread_id": thread_id, "mode": meta.get("mode"),
                 "title": meta.get("title") or _MODE_LABEL.get(meta.get("mode"), "Chat"),
@@ -272,6 +298,7 @@ def create_app():
     async def chat_rename(thread_id: str, request: Request):
         from .chatstore import rename_chat
 
+        _require_owner(thread_id)
         body = await request.json()
         rename_chat(thread_id, body.get("title", ""))
         return {"ok": True}

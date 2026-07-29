@@ -197,6 +197,7 @@ CREATE TABLE IF NOT EXISTS chats (
     thread_id   TEXT PRIMARY KEY,
     title       TEXT,
     mode        TEXT,
+    user_id     TEXT,   -- owner (multi-user); NULL for single-user/legacy rows
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

@@ -10,20 +10,25 @@ import json
 
 from . import config
 
-_PATH = config.EKLAVYA_HOME / "settings.json"
 _DEFAULTS = {"death_on_cheat": True}
+
+
+def _path():
+    """The current user's settings file (contextvar-aware, so per-user in multi-user)."""
+    return config.paths().home / "settings.json"
 
 
 def _load() -> dict:
     try:
-        return {**_DEFAULTS, **json.loads(_PATH.read_text())}
+        return {**_DEFAULTS, **json.loads(_path().read_text())}
     except (FileNotFoundError, ValueError):
         return dict(_DEFAULTS)
 
 
 def _save(data: dict) -> None:
-    config.EKLAVYA_HOME.mkdir(parents=True, exist_ok=True)
-    _PATH.write_text(json.dumps(data, indent=2))
+    home = config.paths().home
+    home.mkdir(parents=True, exist_ok=True)
+    (home / "settings.json").write_text(json.dumps(data, indent=2))
 
 
 def get_death_on_cheat() -> bool:

@@ -26,8 +26,9 @@ _DENY_MSG = "(access to this path is not allowed)"
 
 
 def workspace_dir() -> Path:
-    config.WORKSPACE.mkdir(parents=True, exist_ok=True)
-    return config.WORKSPACE
+    workspace = config.paths().workspace
+    workspace.mkdir(parents=True, exist_ok=True)
+    return workspace
 
 
 def _is_forbidden(file_path: str) -> bool:
@@ -35,11 +36,12 @@ def _is_forbidden(file_path: str) -> bool:
         resolved = str(Path(file_path).expanduser().resolve())
     except Exception:
         return True
-    if resolved.startswith(str(config.WORKSPACE.resolve())):
+    p = config.paths()
+    if resolved.startswith(str(p.workspace.resolve())):
         return False  # the agent's own workspace (db + profile) — always allowed
     if Path(resolved).name == ".env":
         return True
-    if resolved.startswith(str(config.EKLAVYA_HOME.resolve())):
+    if resolved.startswith(str(p.home.resolve())):
         return True  # backups, checkpointer, other app internals — off limits
     home = Path.home()
     return any(resolved.startswith(str(home / f)) for f in _FORBIDDEN)

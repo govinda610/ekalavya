@@ -12,7 +12,8 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from .config import PROFILE_PATH, ensure_home
+from . import config
+from .config import ensure_home
 from .db import connect
 
 # Atrophy's five cross-cutting skill axes, measured within every pillar.
@@ -28,8 +29,9 @@ def _now() -> str:
 
 def read_profile() -> str:
     """Return the learner's current profile (markdown), or a note if none exists yet."""
-    if PROFILE_PATH.exists():
-        return PROFILE_PATH.read_text(encoding="utf-8")
+    profile = config.paths().profile
+    if profile.exists():
+        return profile.read_text(encoding="utf-8")
     return "(no profile yet — treat this as a first-time learner)"
 
 
@@ -39,9 +41,10 @@ def save_profile(markdown: str) -> str:
     Use this at the end of onboarding, and whenever the learner model changes.
     """
     ensure_home()
-    PROFILE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PROFILE_PATH.write_text(markdown, encoding="utf-8")
-    return f"saved profile ({len(markdown)} chars) to {PROFILE_PATH}"
+    profile = config.paths().profile
+    profile.parent.mkdir(parents=True, exist_ok=True)
+    profile.write_text(markdown, encoding="utf-8")
+    return f"saved profile ({len(markdown)} chars) to {profile}"
 
 
 def add_pillar(name: str, is_custom: bool = True) -> str:

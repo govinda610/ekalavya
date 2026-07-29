@@ -18,39 +18,82 @@ import sqlite3
 from . import config
 from .db import connect
 
-_saver = None
+# Per-user savers, keyed by the resolved checkpoints path (one SqliteSaver per user file).
+# In single-user mode there's exactly one key, so behaviour is unchanged.
+_savers: dict[str, object] = {}
 
 
 def get_checkpointer():
-    """A process-wide SqliteSaver so conversations persist across restarts."""
-    global _saver
-    if _saver is None:
+    """The SqliteSaver for the CURRENT user, cached per checkpoints file.
+
+    Reads the checkpoints path from ``config.paths()`` (contextvar-aware) so each user
+    gets their own durable conversation store; single-user resolves to the one file.
+    """
+    path = config.paths().checkpoints
+    key = str(path)
+    saver = _savers.get(key)
+    if saver is None:
         from langgraph.checkpoint.sqlite import SqliteSaver
 
         config.ensure_home()
-        conn = sqlite3.connect(str(config.EKLAVYA_HOME / "checkpoints.sqlite"),
-                               check_same_thread=False)
-        _saver = SqliteSaver(conn)
-        _saver.setup()
-    return _saver
+        conn = sqlite3.connect(key, check_same_thread=False)
+        saver = SqliteSaver(conn)
+        saver.setup()
+        _savers[key] = saver
+    return saver
 
 
 # --- chats index (sidebar metadata) ----------------------------------------
 
+def current_user_id() -> str | None:
+    """The id owning the current context, or None in single-user mode.
+
+    Single-user leaves ``chats.user_id`` NULL (one user, no ownership enforcement).
+    Multi-user (Phase 3) resolves the id from the home dir bound by auth middleware.
+    """
+    if not config.MULTIUSER:
+        return None
+    return config.paths().home.name  # user home is …/users/<uid>
+
+
 def touch_chat(thread_id: str, mode: str | None = None, title: str | None = None) -> None:
-    """Create the chat row if new, and bump its updated_at. Optionally set mode/title."""
+    """Create the chat row if new, and bump its updated_at. Optionally set mode/title.
+
+    Stamps the current user's id on first touch so thread ownership can be enforced
+    (no-op in single-user mode, where user_id stays NULL)."""
     conn = connect()
     try:
         conn.execute(
-            "INSERT INTO chats(thread_id, mode, title) VALUES(?, ?, ?) "
+            "INSERT INTO chats(thread_id, mode, title, user_id) VALUES(?, ?, ?, ?) "
             "ON CONFLICT(thread_id) DO UPDATE SET updated_at = datetime('now'), "
             "mode = COALESCE(excluded.mode, chats.mode), "
             "title = COALESCE(chats.title, excluded.title)",
-            (thread_id, mode, title),
+            (thread_id, mode, title, current_user_id()),
         )
         conn.commit()
     finally:
         conn.close()
+
+
+def owns_thread(thread_id: str) -> bool:
+    """True if the current user may serve/resume/rename this thread.
+
+    Single-user (user_id NULL, contextvar unset): always True. Multi-user: True only
+    when the row's owner matches the current user, or the thread has no row yet (a
+    brand-new thread the caller is about to create). A thread owned by someone else
+    returns False → callers should 404 (don't confirm existence)."""
+    if not config.MULTIUSER:
+        return True
+    conn = connect()
+    try:
+        row = conn.execute(
+            "SELECT user_id FROM chats WHERE thread_id = ?", (thread_id,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return True  # not created yet — the caller will own it on first touch
+    return row["user_id"] == current_user_id()
 
 
 def list_chats() -> list[dict]:
@@ -113,19 +156,22 @@ def _text(message) -> str:
     return str(content or "")
 
 
-_reader = None
+# Per-user reader agents, keyed by the checkpoints file (each embeds that user's saver).
+_readers: dict[str, object] = {}
 
 
 def _reader_agent():
-    """A minimal deep agent sharing the persistent checkpointer, used only to read
-    conversation state back out (deepagents reconstructs messages via get_state, not
-    from the raw checkpoint tuple). Cached so we don't rebuild it per call."""
-    global _reader
-    if _reader is None:
+    """A minimal deep agent sharing the CURRENT user's persistent checkpointer, used only
+    to read conversation state back out (deepagents reconstructs messages via get_state,
+    not from the raw checkpoint tuple). Cached per user so we don't rebuild it per call."""
+    key = str(config.paths().checkpoints)
+    reader = _readers.get(key)
+    if reader is None:
         from .agent import build_agent
 
-        _reader = build_agent("reader", [], checkpointer=get_checkpointer())
-    return _reader
+        reader = build_agent("reader", [], checkpointer=get_checkpointer())
+        _readers[key] = reader
+    return reader
 
 
 def _messages(thread_id: str) -> list:

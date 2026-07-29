@@ -24,10 +24,11 @@ KEEP = 20  # how many snapshots to retain
 
 def _state_files() -> dict[str, Path]:
     """base filename -> its live path (the things we snapshot & restore)."""
+    p = config.paths()
     return {
-        "eklavya.db": config.DB_PATH,
-        "profile.md": config.PROFILE_PATH,
-        "checkpoints.sqlite": config.CHECKPOINTS_PATH,
+        "eklavya.db": p.db,
+        "profile.md": p.profile,
+        "checkpoints.sqlite": p.checkpoints,
     }
 
 
