@@ -137,6 +137,45 @@ def touch_streak(today: str | None = None) -> int:
     return streak
 
 
+# A stated confidence (1 guessing / 2 pretty sure / 3 certain) → the learner's implied
+# probability of being right. Used to score calibration ("the illusion of knowing").
+_CONF_P = {1: 0.35, 2: 0.65, 3: 0.90}
+
+
+def calibration(window: int = 50) -> dict:
+    """The calibration signal over the last `window` graded attempts — the product's
+    headline "do you know what you know?" metric, which the rating math already reacts
+    to but which was never surfaced on its own.
+
+    Returns {n, brier, bias, confidently_wrong}:
+      - brier: mean squared gap between stated confidence and being right (0 = perfect,
+        lower is better);
+      - bias: >0 overconfident, <0 underconfident, ~0 well-calibrated;
+      - confidently_wrong: attempts marked 'certain' (3) yet wrong — the costliest,
+        the pure illusion of knowing.
+    n=0 (with null metrics) when there's no data yet.
+    """
+    from .db import connect
+
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT confidence AS c, correct AS k FROM attempts "
+            "WHERE confidence IS NOT NULL ORDER BY id DESC LIMIT ?", (int(window),)
+        ).fetchall()
+    finally:
+        conn.close()
+    pairs = [(r["c"], int(bool(r["k"]))) for r in rows if r["c"] in _CONF_P]
+    if not pairs:
+        return {"n": 0, "brier": None, "bias": None, "confidently_wrong": 0}
+    n = len(pairs)
+    brier = sum((_CONF_P[c] - k) ** 2 for c, k in pairs) / n
+    bias = sum(_CONF_P[c] - k for c, k in pairs) / n
+    confidently_wrong = sum(1 for c, k in pairs if c == 3 and k == 0)
+    return {"n": n, "brier": round(brier, 3), "bias": round(bias, 3),
+            "confidently_wrong": confidently_wrong}
+
+
 def stats() -> dict:
     from .db import connect
 
@@ -146,7 +185,8 @@ def stats() -> dict:
         streak = int(_get(conn, "streak", "0"))
     finally:
         conn.close()
-    return {"xp": xp, "streak": streak, "level": level_for(xp)}
+    return {"xp": xp, "streak": streak, "level": level_for(xp),
+            "calibration": calibration()}
 
 
 # --- sessions --------------------------------------------------------------
