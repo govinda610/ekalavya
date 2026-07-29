@@ -1,41 +1,36 @@
-"""Guarded single-user → multi-user migration: copy, verify parity, stamp, don't destroy."""
+"""Guarded single-user → multi-user migration: copy, verify parity, stamp, don't destroy.
 
-import os
-import tempfile
-from pathlib import Path
+Uses per-test monkeypatch env isolation (NOT module-level os.environ) so it can't leak
+EKLAVYA_HOME/PROFILE into other test modules.
+"""
 
-_TMP = tempfile.mkdtemp(prefix="eklavya-mig-src-")
-os.environ["EKLAVYA_HOME"] = _TMP
-os.environ["EKLAVYA_PROFILE"] = str(Path(_TMP) / "workspace" / "profile.md")
+import pytest
 
-import pytest  # noqa: E402
-
-from eklavya import config, migrate, tools  # noqa: E402
-from eklavya.db import init_db  # noqa: E402
+from eklavya import migrate, tools
+from eklavya.db import init_db
 
 
-@pytest.fixture(autouse=True)
-def seeded_single_user():
-    if config.DB_PATH.exists():
-        config.DB_PATH.unlink()
+@pytest.fixture
+def seeded(monkeypatch, tmp_path):
+    home = tmp_path / "eklavya"
+    (home / "workspace").mkdir(parents=True)
+    monkeypatch.setenv("EKLAVYA_HOME", str(home))
+    monkeypatch.setenv("EKLAVYA_PROFILE", str(home / "workspace" / "profile.md"))
+    monkeypatch.setenv("EKLAVYA_DATA_ROOT", str(tmp_path / "data"))
     init_db()
     tools.add_pillar("Python")
     tools.set_baseline_rating("Python", "debugging", "strong")
     tools.add_goal("short", "ace the interview")
     tools.add_curriculum("Recursion", "", "Python")
     tools.save_profile("# me\nhello")
-    yield
+    return home
 
 
-def test_migration_copies_verifies_and_stamps(monkeypatch, tmp_path):
-    monkeypatch.setenv("EKLAVYA_DATA_ROOT", str(tmp_path / "data"))
+def test_migration_copies_verifies_and_stamps(seeded, tmp_path):
     uid = "user123abc"
-    source = config._default_home()
     report = migrate.migrate_single_user(uid)
     dest = tmp_path / "data" / "users" / uid
-    # original untouched
-    assert (source / "workspace" / "eklavya.db").exists()
-    # dest carries identical data
+    assert (seeded / "workspace" / "eklavya.db").exists()  # original untouched
     assert dest.exists()
     assert report["tables"]["pillars"] == 1
     assert report["tables"]["ratings"] == 1
@@ -44,8 +39,7 @@ def test_migration_copies_verifies_and_stamps(monkeypatch, tmp_path):
     assert (dest / "workspace" / "profile.md").read_text() == "# me\nhello"
 
 
-def test_refuses_to_overwrite_nonempty_dest(monkeypatch, tmp_path):
-    monkeypatch.setenv("EKLAVYA_DATA_ROOT", str(tmp_path / "data"))
+def test_refuses_to_overwrite_nonempty_dest(seeded, tmp_path):
     uid = "u2"
     dest = tmp_path / "data" / "users" / uid
     dest.mkdir(parents=True)
@@ -54,8 +48,7 @@ def test_refuses_to_overwrite_nonempty_dest(monkeypatch, tmp_path):
         migrate.migrate_single_user(uid)
 
 
-def test_dry_run_leaves_no_dest(monkeypatch, tmp_path):
-    monkeypatch.setenv("EKLAVYA_DATA_ROOT", str(tmp_path / "data"))
+def test_dry_run_leaves_no_dest(seeded, tmp_path):
     uid = "u3"
     report = migrate.migrate_single_user(uid, dry_run=True)
     assert report["dry_run"] is True
