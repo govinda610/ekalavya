@@ -1,0 +1,21 @@
+# Ekalavya — Caddy reverse proxy with automatic HTTPS + security headers.
+# Caddy provisions a Let's Encrypt cert automatically and sets X-Forwarded-For.
+#
+# Replace `eklavya.example.com` with your domain (point a DNS A record at the
+# Lightsail static IP first). Then: `sudo caddy reload --config /etc/caddy/Caddyfile`.
+
+eklavya.example.com {
+	encode zstd gzip
+
+	# The app binds locally; Caddy terminates TLS and forwards to it.
+	reverse_proxy 127.0.0.1:4646
+
+	# Security headers (the #52 "Caddy security headers" item).
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+}

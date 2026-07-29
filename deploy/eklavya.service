@@ -1,0 +1,30 @@
+# systemd unit for the Ekalavya multi-user web app.
+# Install: sudo cp deploy/eklavya.service /etc/systemd/system/ && sudo systemctl daemon-reload
+#          sudo systemctl enable --now eklavya
+#
+# ONE process = ONE worker on purpose: the login throttle is in-memory/per-process,
+# so we never run multiple uvicorn workers (the #52 "single worker" item).
+
+[Unit]
+Description=Ekalavya AI coding tutor (multi-user web app)
+After=network.target
+
+[Service]
+Type=simple
+User=eklavya
+WorkingDirectory=/opt/eklavya/eklavya-ai-coding-tutor
+Environment=EKLAVYA_MULTIUSER=1
+Environment=EKLAVYA_DATA_ROOT=/var/lib/eklavya/data
+# secrets (EKLAVYA_SECRET_KEY, provider keys, TAVILY/SERPER) live here, chmod 600, NOT in git
+EnvironmentFile=/etc/eklavya/eklavya.env
+ExecStart=/usr/local/bin/uv run eklavya serve --host 127.0.0.1 --port 4646 --no-open
+Restart=on-failure
+RestartSec=3
+# harden the service account a little
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/eklavya
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
