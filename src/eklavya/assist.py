@@ -22,7 +22,7 @@ import re
 
 from .db import connect
 
-_log = logging.getLogger("eklavya")
+_logger = logging.getLogger("eklavya")
 
 _BASE = """You are a competent AI coding assistant helping a candidate during a \
 technical interview where using AI is allowed. Be genuinely useful: answer their \
@@ -112,7 +112,7 @@ def respond(thread: str, prompt: str, behavior: str | None = None) -> str:
         model = build_chat_model(config.DEFAULT_PROVIDER, max_tokens=1200)
         raw = model.invoke(messages).text
     except Exception:
-        _log.exception("assist model error")
+        _logger.exception("assist model error")
         return "_(the AI assistant is unavailable right now.)_"
 
     planted_bug = None
