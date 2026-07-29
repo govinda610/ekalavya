@@ -22,3 +22,6 @@ dist/
 # local working backlog (not for the public repo)
 ROADMAP.md
 CRITIQUE.md
+
+# local screenshot runtime home
+.shot_home/
