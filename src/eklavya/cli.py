@@ -379,6 +379,38 @@ def listusers() -> None:
     console.print(table)
 
 
+@app.command()
+def migrate(
+    email: str = typer.Option(..., help="email of the account to migrate your data into"),
+    dry_run: bool = typer.Option(False, "--dry-run", help="rehearse: copy + verify, then remove the copy"),
+) -> None:
+    """Migrate this machine's single-user data (~/.eklavya) into the multi-user layout
+    for an existing account. COPIES (never moves), verifies row-for-row parity, and stamps
+    chat ownership — your original ~/.eklavya is left untouched (so it's fully reversible).
+    Stop the app first. Requires EKLAVYA_DATA_ROOT to be set (same as the deployment).
+    """
+    from . import auth
+    from . import migrate as _migrate
+
+    match = [u for u in auth.list_users() if u["email"] == email.strip().lower()]
+    if not match:
+        console.print(f"[red]✗[/red] no account [bold]{email}[/] — create it first with `eklavya adduser`.")
+        raise typer.Exit(1)
+    uid = match[0]["id"]
+    try:
+        report = _migrate.migrate_single_user(uid, dry_run=dry_run)
+    except Exception as exc:
+        console.print(f"[red]✗[/red] migration aborted (original untouched): {exc}")
+        raise typer.Exit(1)
+    tag = "[yellow]DRY RUN[/] — " if dry_run else ""
+    console.print(f"[green]✓[/green] {tag}migrated → {report['dest']}")
+    for t, c in sorted(report["tables"].items()):
+        if c:
+            console.print(f"    {t:16} {c}")
+    if dry_run:
+        console.print("[dim]Rehearsal only — the copy was removed. Re-run without --dry-run to keep it.[/]")
+
+
 @app.command("mcp")
 def mcp_server() -> None:
     """Run Ekalavya as an MCP server (stdio) so any agent can drive your practice."""
