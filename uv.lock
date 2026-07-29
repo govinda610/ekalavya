@@ -299,6 +299,7 @@ dependencies = [
     { name = "langchain-mcp-adapters" },
     { name = "langgraph-checkpoint-sqlite" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "rich" },
     { name = "typer" },
 ]
@@ -348,6 +349,7 @@ requires-dist = [
     { name = "langgraph-checkpoint-sqlite", specifier = ">=3.1.0" },
     { name = "mcp", marker = "extra == 'mcp'", specifier = ">=1.0" },
     { name = "python-dotenv", specifier = ">=1.0" },
+    { name = "requests", specifier = ">=2.31" },
     { name = "rich", specifier = ">=13.7" },
     { name = "textual", marker = "extra == 'tui'", specifier = ">=0.80" },
     { name = "typer", specifier = ">=0.12" },

@@ -36,7 +36,7 @@ def test_report_grid_and_overview():
     assert "FastAPI" in ov["grid"]["pillars"]
     assert ov["grid"]["pillars"]["FastAPI"]["debugging"]["level"] == "gap"
     assert any("AI engineer" in g["text"] for g in ov["goals"])
-    assert set(ov["stats"]) == {"xp", "streak", "level"}
+    assert set(ov["stats"]) == {"xp", "streak", "level", "calibration"}
 
 
 def test_ai_gap_computes_unaided_vs_assisted():

@@ -150,7 +150,8 @@ def list_goals() -> str:
 
 def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
     """Add a concept to the learner's curriculum graph (a skill tree). `prereqs` is a
-    comma-separated list of concept names to master first (empty for a starting concept).
+    PIPE-delimited (|) list of EXACT concept names to master first — concept names can
+    contain commas, so never comma-join. Empty for a starting concept.
     """
     conn = connect()
     try:
@@ -200,7 +201,7 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
     - ratings:    list of {"pillar","axis","level"} — axis in syntax_recall/debugging/
                   code_reading/api_memory/decomposition; level in unknown/gap/familiar/strong
     - goals:      list of {"horizon","text","deadline"?} — horizon in long/medium/short/adhoc
-    - curriculum: list of {"concept","prereqs"?,"pillar"?} — prereqs a comma-separated list
+    - curriculum: list of {"concept","prereqs"?,"pillar"?} — prereqs a PIPE-delimited (|) list of exact concept names
     - replace_curriculum: True to clear the existing curriculum tree before adding
     """
     n = {"pillars": 0, "ratings": 0, "goals": 0, "curriculum": 0}

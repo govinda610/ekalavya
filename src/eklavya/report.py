@@ -115,6 +115,13 @@ def ai_gap() -> dict:
     }
 
 
+def _norm_concept(s: str) -> str:
+    """Normalise a concept name for matching curriculum nodes to recorded attempts
+    (lower-cased, whitespace-collapsed) so trivial wording drift doesn't leave a
+    mastered node stuck 'locked'."""
+    return " ".join((s or "").lower().split())
+
+
 def curriculum_mermaid(pillar: str | None = None) -> dict:
     """The curriculum graph as a Mermaid diagram, nodes coloured by mastery.
 
@@ -126,7 +133,10 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
     conn = connect()
     try:
         rows = conn.execute("SELECT concept, prereqs, pillar FROM curriculum ORDER BY id").fetchall()
-        mastered = {r["detail"] for r in
+        # Match on a normalised key so a correct attempt recorded as e.g. "Async and
+        # Event Loops" still marks the node "async and event loops" done. Exact-string
+        # matching left every node locked whenever the model's wording drifted at all.
+        mastered = {_norm_concept(r["detail"]) for r in
                     conn.execute("SELECT DISTINCT detail FROM attempts WHERE correct = 1")}
     finally:
         conn.close()
@@ -156,9 +166,9 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
     prereqs = {r["concept"]: parse_prereqs(r["prereqs"], r["concept"]) for r in rows}
 
     def status(c: str) -> str:
-        if c in mastered:
+        if _norm_concept(c) in mastered:
             return "done"
-        return "avail" if all(p in mastered for p in prereqs[c]) else "lock"
+        return "avail" if all(_norm_concept(p) in mastered for p in prereqs[c]) else "lock"
 
     def label(c: str) -> str:
         # Sanitize for Mermaid node labels: quotes and brackets break the parser.
