@@ -615,6 +615,16 @@ button:disabled{opacity:.42;cursor:default}
  white-space:pre-wrap;word-break:break-word;overflow-x:auto;color:var(--parch)}
 .runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line-soft)}
 .runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
+/* themed error card (template §5): "The arrow found no wind" + Retry */
+.errcard{align-self:stretch;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+ border:1px solid rgba(214,59,42,.4);border-radius:12px;background:rgba(20,8,6,.55);padding:20px 18px}
+.errcard svg{opacity:.9}
+.errcard .ek{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--vermilion-glow)}
+.errcard .et{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--parch)}
+.errcard .ed{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);max-width:320px;line-height:1.5}
+.errcard button{margin-top:4px;font-family:var(--f-title);font-size:13px;letter-spacing:.02em;color:var(--gold-bright);
+ background:rgba(231,182,75,.08);border:1px solid var(--gold-deep);border-radius:4px;padding:8px 18px;cursor:pointer}
+.errcard button:hover{background:rgba(231,182,75,.16)}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
@@ -1355,18 +1365,36 @@ async function consume(res, ui){
 }
 let queued=null, queuedSubmit=false;
 function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
+// themed error card (template §5) — "The arrow found no wind" + Retry
+function addErrorCard(desc, onRetry){
+  clearWelcome();
+  const d=el('errcard');
+  d.innerHTML='<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M12 3 L21 20 H3 Z" stroke="#ff5a3c" stroke-width="1.6"/>'+
+    '<line x1="12" y1="10" x2="12" y2="14" stroke="#ff5a3c" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="#ff5a3c"/></svg>'+
+    '<div class="ek">◆ something went awry</div><div class="et">The arrow found no wind</div>'+
+    '<div class="ed">'+desc+'</div><button>↻ Retry</button>';
+  d.querySelector('button').onclick=()=>{ d.remove(); onRetry(); };
+  document.getElementById('log').appendChild(d); scroll(); return d;
+}
 async function stream(text, code){
   if(streaming) return; streaming=true; setBusy(true);
   const ui=addAiMsg();
+  let failed=false;
   try{
     const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({thread,mode,text,code:code||undefined})});
     await consume(res, ui);
-  }catch(e){ ui.buf+='\n\n_(connection error)_'; }
+  }catch(e){ failed=true; }
+  streaming=false; setBusy(false);
+  if(failed && !ui.buf.trim() && ui.steps===0){             // couldn't reach the guru at all
+    ui.m.remove();
+    addErrorCard("Couldn't reach the guru. Check the connection and loose again.", ()=>stream(text, code));
+    return;
+  }
   if(!ui.buf.trim() && ui.steps===0){                       // the turn produced nothing (e.g. no provider key)
     ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
   } else { ui.m.style.display=''; finalizeMsg(ui); }
-  streaming=false; setBusy(false); refreshHud();
+  refreshHud();
   if(queued){ const q=queued; queued=null; stream(q); }        // a message typed mid-stream
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
 }
@@ -1401,7 +1429,7 @@ async function runCode(){
     const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({code})})).json();
     renderRunOut(box, r);
-  }catch(e){ box.innerHTML='<div class="rohead bad">▶ could not run</div>'; }
+  }catch(e){ box.remove(); addErrorCard("Couldn't run your code — the sandbox didn't answer. Try again.", runCode); }
 }
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
