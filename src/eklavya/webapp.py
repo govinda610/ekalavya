@@ -602,6 +602,20 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 .arena-welcome .aw-dots span:nth-child(2){animation-delay:.2s}
 .arena-welcome .aw-dots span:nth-child(3){animation-delay:.4s}
 @keyframes awpulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+/* onboarding threshold (template C) — a framed "Cross the threshold / प्रवेश" intro */
+.onb-threshold{position:relative;text-align:center;margin:6px 0 4px;padding:30px 26px 26px;border:1px solid var(--line-gold);border-radius:8px;
+ background:linear-gradient(160deg,rgba(35,29,24,.55),rgba(10,14,26,.65));box-shadow:var(--sh-deep);overflow:hidden;animation:fadein .6s ease}
+.onb-threshold::before,.onb-threshold::after{content:"";position:absolute;width:16px;height:16px;border:1.5px solid var(--gold);opacity:.6}
+.onb-threshold::before{top:9px;left:9px;border-right:0;border-bottom:0}
+.onb-threshold::after{bottom:9px;right:9px;border-left:0;border-top:0}
+.onb-threshold .onb-eye{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:12px}
+.onb-threshold .onb-h{font-family:var(--f-display);font-weight:800;font-size:clamp(24px,4vw,34px);color:var(--parch);line-height:1.08}
+.onb-threshold .onb-h .em{color:var(--gold-bright)}
+.onb-threshold .onb-deva{font-family:var(--f-deva);font-size:20px;color:var(--gold-bright);margin-top:8px}
+.onb-threshold .onb-sub{font-family:var(--f-body);font-size:14.5px;color:var(--parch-dim);max-width:52ch;margin:14px auto 0;line-height:1.55}
+.onb-steps{display:flex;gap:8px;justify-content:center;margin:16px auto 0}
+.onb-steps i{width:34px;height:4px;border-radius:2px;background:var(--line-soft)}
+.onb-steps i.on{background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright))}
 .msg{max-width:92%;padding:14px 17px;line-height:1.55;font-size:15px;overflow-wrap:anywhere;font-family:var(--f-body)}
 /* the guru speaks on aged Pithora paper (light bubble → dark text) */
 .msg.ai{align-self:flex-start;background:linear-gradient(180deg,#ead9b6,#dfcaa0);border:1px solid #c6ac7d;
@@ -1623,7 +1637,8 @@ function togglePenalty(){ deathOnCheat=!deathOnCheat; updatePenaltyBtn();
 
 function el(cls){const d=document.createElement('div');d.className=cls;return d;}
 const WELCOME_HTML=document.getElementById('arenawelcome') ? document.getElementById('arenawelcome').outerHTML : '';
-function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove(); }
+function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove();
+  const th=document.getElementById('onbthreshold'); if(th) th.remove(); }  // threshold recedes once teaching begins
 function showWelcome(sub){ const l=document.getElementById('log'); if(!document.getElementById('arenawelcome')) l.insertAdjacentHTML('afterbegin', WELCOME_HTML);
   if(sub){ const s=document.getElementById('awsub'); if(s) s.textContent=sub; } }
 function addMsg(role, html){
@@ -1847,6 +1862,22 @@ let assbusy=false;
 function applyMode(){  // show the AI-assistant drawer only in aiinterview mode
   document.getElementById('assistpanel').classList.toggle('hidden', mode!=='aiinterview');
   document.getElementById('resumebar').classList.toggle('hidden', mode!=='onboard');  // résumé upload only during onboarding
+  showThreshold();  // the framed "Cross the threshold" intro shows only at the start of onboarding
+}
+// Onboarding threshold (template C) — a framed "Cross the threshold / प्रवेश" intro at the
+// head of the chat when a first-time setup begins. It stays above the log until the guru's
+// first message arrives, then recedes (clearWelcome removes it with the welcome block).
+function showThreshold(){
+  const existing=document.getElementById('onbthreshold'); if(existing) existing.remove();
+  const log=document.getElementById('log');
+  if(mode!=='onboard' || log.querySelector('.msg')) return;  // only before the first real message
+  log.insertAdjacentHTML('afterbegin',
+    "<div class='onb-threshold' id='onbthreshold'>"+
+    "<div class='onb-eye'>◆ Cross the threshold</div>"+
+    "<div class='onb-h'>You stand at the forest's edge, <span class='em'>unnamed</span>.</div>"+
+    "<div class='onb-deva'>प्रवेश · the entering</div>"+
+    "<div class='onb-sub'>Before the guru of stone can teach you, it must learn who you are — your goal, your ground, your honest edge. Answer a few questions. Nothing here is a test.</div>"+
+    "<div class='onb-steps'><i class='on'></i><i></i><i></i><i></i><i></i></div></div>");
 }
 function uploadResume(){
   const inp=document.getElementById('resumefile'); const hint=document.getElementById('resumehint');
