@@ -198,6 +198,35 @@ def test_truncate_rewinds_thread_state():
     assert r.json()["removed"] == 2 and _human_texts() == []
 
 
+def test_client_ip_honours_xff_only_when_proxy_trusted():
+    """#52 — behind a trusted proxy we key throttling on the left-most X-Forwarded-For
+    entry (the real client); otherwise we ignore the header and use request.client.host
+    so a direct client can't spoof it."""
+    from eklavya import config, webapp
+
+    class _FakeReq:
+        def __init__(self, host, xff=None):
+            self.client = type("C", (), {"host": host})()
+            self.headers = {"x-forwarded-for": xff} if xff is not None else {}
+
+    proxy_ip, real_ip = "10.0.0.1", "203.0.113.7"
+    req = _FakeReq(proxy_ip, xff=f"{real_ip}, 10.0.0.1")
+
+    orig = config.TRUST_PROXY
+    try:
+        # not trusted → the header is ignored, we use the connecting (proxy) address
+        config.TRUST_PROXY = False
+        assert webapp.client_ip(req) == proxy_ip
+        # trusted → the left-most (original client) entry wins
+        config.TRUST_PROXY = True
+        assert webapp.client_ip(req) == real_ip
+        # trusted but no header → fall back to request.client.host
+        assert webapp.client_ip(_FakeReq(proxy_ip)) == proxy_ip
+        assert webapp.client_ip(_FakeReq(proxy_ip, xff="")) == proxy_ip
+    finally:
+        config.TRUST_PROXY = orig
+
+
 def test_settings_get_and_put():
     from starlette.testclient import TestClient
 

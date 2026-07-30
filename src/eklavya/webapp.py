@@ -48,6 +48,27 @@ def _pending_approval(agent, config) -> dict | None:
             "explanation": args.get("explanation", "")}
 
 
+def client_ip(request) -> str:
+    """The client IP to key login throttling on.
+
+    Behind a trusted reverse proxy (EKLAVYA_TRUST_PROXY set), ``request.client.host`` is
+    the proxy's own address, so every user would share one throttle bucket. In that case we
+    read the real client from the left-most entry of ``X-Forwarded-For`` (the original
+    client; each hop appends its own). We only trust the header when the flag is set —
+    otherwise a direct client could spoof it — and fall back to ``request.client.host``
+    whenever the header is absent or empty.
+    """
+    from . import config
+
+    direct = request.client.host if request.client else ""
+    if config.TRUST_PROXY:
+        xff = request.headers.get("x-forwarded-for", "")
+        first = xff.split(",")[0].strip()
+        if first:
+            return first
+    return direct
+
+
 def create_app():
     from pathlib import Path
 
@@ -540,7 +561,7 @@ def _mount_auth(app) -> None:
         form = await request.form()
         email = (form.get("email") or "").strip()
         password = form.get("password") or ""
-        ip = request.client.host if request.client else ""
+        ip = client_ip(request)  # real client behind a trusted proxy; else request.client.host
         if auth.is_locked(email, ip):
             return RedirectResponse("/login?error=Too+many+attempts.+Try+again+later.",
                                     status_code=303)

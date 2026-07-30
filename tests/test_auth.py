@@ -221,6 +221,47 @@ def test_throttle_resets_on_success(mu):
     assert not auth.is_locked("heidi@example.com", "testclient")
 
 
+# --- X-Forwarded-For throttle IP (#52) --------------------------------------
+
+def test_throttle_uses_xff_client_when_proxy_trusted(mu, monkeypatch):
+    """Behind a trusted proxy, the throttle keys on the real client (X-Forwarded-For),
+    so two different clients hitting through the same proxy get independent buckets."""
+    from eklavya import auth, config
+
+    monkeypatch.setattr(config, "TRUST_PROXY", True)
+    auth.create_user("ivan@example.com", "passwordlong1")
+    c = TestClient(_app(), follow_redirects=False)
+    # client A exhausts its attempts…
+    for _ in range(auth.MAX_FAILS):
+        c.post("/login", data={"email": "ivan@example.com", "password": "wrong-wrong-1"},
+               headers={"X-Forwarded-For": "1.1.1.1"})
+    a = c.post("/login", data={"email": "ivan@example.com", "password": "passwordlong1"},
+               headers={"X-Forwarded-For": "1.1.1.1"})
+    assert "Too+many+attempts" in a.headers["location"]   # A is locked
+    # …but a different client IP through the same proxy is unaffected
+    b = c.post("/login", data={"email": "ivan@example.com", "password": "passwordlong1"},
+               headers={"X-Forwarded-For": "2.2.2.2"})
+    assert b.status_code == 303 and b.headers["location"] == "/"
+
+
+def test_throttle_ignores_xff_when_proxy_not_trusted(mu, monkeypatch):
+    """Default (not behind a trusted proxy): the X-Forwarded-For header is ignored, so a
+    client cannot spoof it to dodge the throttle — all attempts share the connection IP."""
+    from eklavya import auth, config
+
+    monkeypatch.setattr(config, "TRUST_PROXY", False)
+    auth.create_user("judy@example.com", "passwordlong1")
+    c = TestClient(_app(), follow_redirects=False)
+    # rotate a spoofed header on every failed attempt…
+    for i in range(auth.MAX_FAILS):
+        c.post("/login", data={"email": "judy@example.com", "password": "wrong-wrong-1"},
+               headers={"X-Forwarded-For": f"9.9.9.{i}"})
+    # …still locked, because the header was never trusted (bucket = the real connection IP)
+    r = c.post("/login", data={"email": "judy@example.com", "password": "passwordlong1"},
+               headers={"X-Forwarded-For": "9.9.9.250"})
+    assert "Too+many+attempts" in r.headers["location"]
+
+
 # --- single-user mode stays auth-free --------------------------------------
 
 def test_single_user_mode_has_no_auth(monkeypatch):
