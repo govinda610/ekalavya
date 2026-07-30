@@ -19,6 +19,7 @@ the value we add is the CROSS-provider hop, so we keep this layer thin.
 from __future__ import annotations
 
 import itertools
+import os
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -314,7 +315,12 @@ def build_fallback_chat_model(
     order = fallback_order(provider_key)
     if provider_key is None:
         if balance is None:
-            balance = config.BALANCE_PROVIDERS
+            # Read live so the toggle takes effect without a re-import; falls back
+            # to the config default when the env var is unset.
+            balance = os.environ.get(
+                "EKLAVYA_BALANCE",
+                "1" if config.BALANCE_PROVIDERS else "0",
+            ) not in ("0", "", "false", "False")
         if balance:
             order = _rotated_order(order)
     return FallbackChatModel(chain=order, model=model, build_kwargs=kwargs)
