@@ -79,6 +79,7 @@ def init() -> None:
 @app.command()
 def onboard(
     provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+    resume: str = typer.Option(None, "--resume", help="path to a résumé / LinkedIn PDF to ground onboarding in"),
 ) -> None:
     """First-time onboarding — a Socratic interview that builds your baseline."""
     from . import prompts
@@ -89,6 +90,22 @@ def onboard(
 
     init_db()  # make sure state exists
     p = _configured_provider(provider)
+
+    if resume:
+        from pathlib import Path
+
+        from .resume import extract_pdf_text, save_resume
+
+        path = Path(resume).expanduser()
+        if not path.is_file():
+            console.print(f"[red]✗[/red] résumé not found: {path}")
+            raise typer.Exit(1)
+        text = extract_pdf_text(path.read_bytes())
+        if text.startswith("error:"):
+            console.print(f"[red]✗[/red] {text[len('error:'):].strip()}")
+            raise typer.Exit(1)
+        save_resume(text)
+        console.print(f"[green]✓[/green] résumé read ({len(text)} chars) — Ekalavya will use it.")
 
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model}[/]\n")

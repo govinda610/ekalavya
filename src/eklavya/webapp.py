@@ -51,8 +51,8 @@ def _pending_approval(agent, config) -> dict | None:
 def create_app():
     from pathlib import Path
 
-    from fastapi import FastAPI, Request
-    from fastapi.responses import HTMLResponse, StreamingResponse
+    from fastapi import FastAPI, File, Request, UploadFile
+    from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
     from fastapi.staticfiles import StaticFiles
 
     from . import progress
@@ -312,6 +312,36 @@ def create_app():
     def reclaim() -> dict:
         return {"reclaimed": progress.reclaim(), "stats": progress.stats()}
 
+    @app.post("/api/upload-resume")
+    async def upload_resume(file: UploadFile = File(...)):
+        """Accept a résumé / LinkedIn PDF, extract its text, and store it in the current
+        user's workspace so onboarding can ground itself in real experience.
+
+        Untrusted input: we enforce a content-type + size cap, extract TEXT ONLY (never
+        execute anything), cap the stored length, and write into the per-user workspace
+        (auth middleware binds the contextvar in multi-user mode)."""
+        from starlette.concurrency import run_in_threadpool
+
+        from . import resume
+
+        _MAX_BYTES = 8 * 1024 * 1024  # 8 MB cap
+        ctype = (file.content_type or "").lower()
+        name = (file.filename or "").lower()
+        if ctype != "application/pdf" and not name.endswith(".pdf"):
+            return JSONResponse({"ok": False, "error": "Please upload a PDF file."},
+                                status_code=415)
+        data = await file.read(_MAX_BYTES + 1)
+        if len(data) > _MAX_BYTES:
+            return JSONResponse({"ok": False, "error": "File too large (max 8 MB)."},
+                                status_code=413)
+
+        text = await run_in_threadpool(resume.extract_pdf_text, data)
+        if text.startswith("error:"):
+            return JSONResponse({"ok": False, "error": text[len("error:"):].strip()},
+                                status_code=422)
+        await run_in_threadpool(resume.save_resume, text)
+        return {"ok": True, "chars": len(text)}
+
     @app.get("/api/chats")
     def chats_list() -> list:
         from .chatstore import list_chats
@@ -488,6 +518,11 @@ main{flex:1;min-height:0}
 .mermaid{background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:10px;text-align:center}
 .mermaid svg{max-width:100% !important;height:auto}
 #tree .mermaid{background:transparent;border:0}#tree .mermaid svg{max-width:100% !important;height:auto}
+.resumebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px 0}
+.resumebar.hidden{display:none}
+.resumehint{font-family:var(--f-body);font-size:11.5px;color:var(--parch-mute);opacity:.85}
+.resumehint.ok{color:var(--peacock-bright);opacity:1}
+.resumehint.bad{color:#e08a7a;opacity:1}
 .inbar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
 .inbar textarea{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);
 padding:11px 14px;font-family:var(--f-body);font-size:14px;resize:none;max-height:150px;line-height:1.45;overflow-y:auto;outline:none;transition:.2s}
@@ -667,6 +702,11 @@ button:disabled{opacity:.42;cursor:default}
         <div class="aw-sub" id="awsub">Your first drill is loading — Ekalavya is drawing the bow…</div>
         <div class="aw-dots"><span></span><span></span><span></span></div>
       </div></div>
+      <div class="resumebar hidden" id="resumebar">
+        <input type="file" id="resumefile" accept="application/pdf,.pdf" hidden onchange="uploadResume()">
+        <button class="ghost" onclick="document.getElementById('resumefile').click()">📄 Upload résumé / LinkedIn PDF (optional)</button>
+        <span class="resumehint" id="resumehint">grounds your setup in your real experience · export LinkedIn via “Save to PDF”</span>
+      </div>
       <div class="inbar">
         <textarea id="chatin" rows="1" placeholder="type your answer…  (Shift+Enter for a new line)" autocomplete="off"></textarea>
         <button class="send" onclick="sendChat()">Send</button>
@@ -1016,6 +1056,21 @@ function submitCode(){
 let assbusy=false;
 function applyMode(){  // show the AI-assistant drawer only in aiinterview mode
   document.getElementById('assistpanel').classList.toggle('hidden', mode!=='aiinterview');
+  document.getElementById('resumebar').classList.toggle('hidden', mode!=='onboard');  // résumé upload only during onboarding
+}
+function uploadResume(){
+  const inp=document.getElementById('resumefile'); const hint=document.getElementById('resumehint');
+  const f=inp.files&&inp.files[0]; if(!f) return;
+  hint.className='resumehint'; hint.textContent='reading '+f.name+'…';
+  const fd=new FormData(); fd.append('file', f);
+  fetch('/api/upload-resume',{method:'POST',body:fd})
+    .then(r=>r.json().then(d=>({ok:r.ok,d})))
+    .then(({ok,d})=>{
+      if(ok&&d.ok){ hint.className='resumehint ok'; hint.textContent='✓ résumé read ('+d.chars+' chars) — Ekalavya will use it'; }
+      else { hint.className='resumehint bad'; hint.textContent=(d&&d.error)||'could not read that PDF'; }
+    })
+    .catch(()=>{ hint.className='resumehint bad'; hint.textContent='upload failed — please try again'; })
+    .finally(()=>{ inp.value=''; });
 }
 function addAssist(role, html){
   const d=document.createElement('div'); d.className='am '+role; d.innerHTML=html;
