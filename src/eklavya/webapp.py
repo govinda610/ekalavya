@@ -82,13 +82,29 @@ def create_app():
     def _current_user_id() -> str:
         return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
 
+    def _active_provider():
+        """The provider to use for this user: their saved Settings choice if it's
+        configured, else the constructed default (auto-picked)."""
+        from . import settings
+
+        chosen = settings.get_provider()
+        if chosen:
+            try:
+                p = pick(chosen)
+                if p.is_configured():
+                    return p
+            except KeyError:
+                pass
+        return provider
+
     def agent_for(mode: str, user_id: str | None = None):
         mode = mode if mode in _PROMPTS else "practice"
         uid = user_id or _current_user_id()
-        key = (uid, mode)
+        prov = _active_provider()
+        key = (uid, mode, prov.key)   # provider in the key → switching rebuilds the agent
         if key not in agents:
             tools = _TOOLS.get(mode, SESSION_TOOLS)
-            agents[key] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
+            agents[key] = build_agent(_PROMPTS[mode], tools, provider=prov.key)
         return agents[key]
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
@@ -173,18 +189,36 @@ def create_app():
     def cfg() -> dict:
         from . import settings
 
-        return {"provider": provider.label, "model": provider.default_model,
-                "kickoff": _KICKOFF, "configured": provider.is_configured(),
+        prov = _active_provider()
+        return {"provider": prov.label, "model": prov.default_model,
+                "kickoff": _KICKOFF, "configured": prov.is_configured(),
                 "first_run": report.is_first_run(),
                 "death_on_cheat": settings.get_death_on_cheat()}
+
+    @app.get("/api/settings")
+    def settings_get() -> dict:
+        from . import providers, settings
+
+        s = settings.get_all()
+        # the full provider catalogue (key + label + whether a key is set), so the
+        # selector can list glm/minimax/qwen/kimi and mark the configured ones.
+        provs = [{"key": p.key, "label": p.label, "configured": p.is_configured()}
+                 for p in providers.PROVIDERS.values()]
+        return {**s, "providers": provs, "active_provider": _active_provider().key}
 
     @app.put("/api/settings")
     async def settings_put(request: Request):
         from . import settings
 
         body = await request.json()
-        settings.set_death_on_cheat(bool(body.get("death_on_cheat", True)))
-        return {"death_on_cheat": settings.get_death_on_cheat()}
+        # legacy shape ({"death_on_cheat": bool}) still works; new keys are optional.
+        updated = settings.update(
+            death_on_cheat=body.get("death_on_cheat"),
+            reduced_motion=body.get("reduced_motion"),
+            guru_voice=body.get("guru_voice"),
+            provider=body.get("provider"),
+        )
+        return {**updated, "active_provider": _active_provider().key}
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
@@ -656,6 +690,25 @@ button:disabled{opacity:.42;cursor:default}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
 #library,#settings{display:none;height:100%;overflow-y:auto}
+/* settings screen (template K) — setrows + toggles */
+.settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
+.settings .stitle{font-family:var(--f-display);font-weight:700;font-size:24px;color:var(--parch);margin-bottom:4px}
+.settings .ssub{font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim);margin-bottom:16px}
+.setrow{display:flex;align-items:center;gap:18px;padding:18px 4px;border-bottom:1px solid var(--line-soft)}
+.setrow:last-child{border-bottom:0}
+.setrow .si{flex:1}
+.setrow .st{font-family:var(--f-title);font-size:16px;color:var(--parch)}
+.setrow .sd{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin-top:2px}
+.toggle{width:52px;height:28px;border-radius:20px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);position:relative;flex:none;cursor:pointer}
+.toggle.on{background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-color:var(--gold)}
+.toggle i{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--parch);transition:.2s}
+.toggle.on i{left:26px;background:#2a1c07}
+.toggle.danger.on{background:linear-gradient(90deg,var(--vermilion-deep),var(--vermilion));border-color:var(--vermilion)}
+.setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
+.setrow select:disabled{opacity:.5}
+/* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
+body.reduce-motion *{animation:none !important}
+@media(prefers-reduced-motion:reduce){.cerbox .rays,.cerbox .flick,#achtoast::after{animation:none !important}}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
 #tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
@@ -1007,7 +1060,46 @@ function showView(v){
 }
 document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
 function railGo(v){ showView(v); }
-// loadLibrary() and loadSettings() are defined further down (Library + Settings screens).
+
+/* ===== Settings screen (template K) — setrows + toggles + provider selector ===== */
+function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on); }
+function saveSetting(patch){
+  return fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(patch)}).then(r=>r.json());
+}
+function loadSettings(){
+  fetch('/api/settings').then(r=>r.json()).then(s=>{
+    applyReducedMotion(s.reduced_motion);
+    const provOpts=(s.providers||[]).map(p=>
+      "<option value='"+p.key+"'"+(p.key===s.active_provider?" selected":"")+(p.configured?"":" disabled")+">"+
+      p.label+(p.configured?"":" · no key")+"</option>").join('');
+    const tog=(on,danger)=>"<div class='toggle"+(danger?" danger":"")+(on?" on":"")+"' role='switch' tabindex='0' aria-checked='"+(!!on)+"'><i></i></div>";
+    document.getElementById('settings').innerHTML=
+     "<div class='settings'>"+
+     "<div class='stitle'>Settings</div><div class='ssub'>How the guru of stone teaches, and how it grades.</div>"+
+     "<div class='setrow' id='sr-cheat'><div class='si'><div class='st'>Cheat penalty</div><div class='sd'>Paste a full solution and the round is lost — merit drops, the streak breaks. Type it yourself to reclaim.</div></div>"+tog(s.death_on_cheat,true)+"</div>"+
+     "<div class='setrow' id='sr-motion'><div class='si'><div class='st'>Reduced motion</div><div class='sd'>Stills the ceremony, bloom, and flame animations. Respects your OS setting by default.</div></div>"+tog(s.reduced_motion,false)+"</div>"+
+     "<div class='setrow' id='sr-voice'><div class='si'><div class='st'>Guru voice</div><div class='sd'>Stone guru (stern, epic) vs. plain mentor. Same grading either way.</div></div>"+tog(s.guru_voice,false)+"</div>"+
+     "<div class='setrow' id='sr-prov'><div class='si'><div class='st'>Provider</div><div class='sd'>Which model powers the tutor. Only providers with a key set are selectable.</div></div>"+
+     "<select id='provselect'>"+provOpts+"</select></div>"+
+     "</div>";
+    // wire the toggles
+    const wire=(sel,key,after)=>{ const t=document.querySelector(sel+' .toggle');
+      const flip=()=>{ const on=!t.classList.contains('on'); t.classList.toggle('on',on); t.setAttribute('aria-checked',on);
+        saveSetting({[key]:on}).then(()=>after&&after(on)); };
+      t.onclick=flip; t.onkeydown=e=>{ if(e.key===' '||e.key==='Enter'){e.preventDefault();flip();} }; };
+    wire('#sr-cheat','death_on_cheat',on=>{ deathOnCheat=on; updatePenaltyBtn(); });
+    wire('#sr-motion','reduced_motion',on=>applyReducedMotion(on));
+    wire('#sr-voice','guru_voice');
+    document.getElementById('provselect').onchange=e=>{
+      saveSetting({provider:e.target.value}).then(()=>{
+        fetch('/api/config').then(r=>r.json()).then(c=>{
+          document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set'; });
+      });
+    };
+  }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
+}
+// loadLibrary() is defined further down (Library screen).
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
   const hidden=document.getElementById('practice').classList.toggle('nocode');

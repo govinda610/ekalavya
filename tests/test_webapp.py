@@ -138,3 +138,20 @@ def test_artifacts_crud_endpoints():
     assert c.delete(f"/api/artifacts/{aid}").json() == {"ok": True}
     assert c.get(f"/api/artifacts/{aid}").status_code == 404
     assert c.delete(f"/api/artifacts/{aid}").status_code == 404
+
+
+def test_settings_get_and_put():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    s = c.get("/api/settings").json()
+    assert "death_on_cheat" in s and "reduced_motion" in s and "guru_voice" in s
+    assert isinstance(s["providers"], list) and s["providers"]
+    keys = {p["key"] for p in s["providers"]}
+    assert {"glm", "minimax", "qwen", "kimi"} <= keys
+    # update several prefs at once
+    r = c.put("/api/settings", json={"reduced_motion": True, "guru_voice": False}).json()
+    assert r["reduced_motion"] is True and r["guru_voice"] is False
+    assert c.get("/api/settings").json()["reduced_motion"] is True   # persisted
+    # legacy shape still works
+    c.put("/api/settings", json={"death_on_cheat": True, "reduced_motion": False, "guru_voice": True})
