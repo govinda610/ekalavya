@@ -31,8 +31,9 @@ from . import config
 COOKIE_NAME = "eklavya_session"
 COOKIE_MAX_AGE = 14 * 24 * 3600  # 14 days
 
-# routes reachable without a session (the login form + its POST, and the logout POST)
-_OPEN_PATHS = {"/login", "/logout"}
+# routes reachable without a session (the login form + its POST, the logout POST, and the
+# public marketing landing page)
+_OPEN_PATHS = {"/login", "/logout", "/welcome"}
 
 
 def _secret() -> str:
@@ -101,7 +102,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         # unauthenticated
-        if path in _OPEN_PATHS:
+        if path in _OPEN_PATHS or path.startswith("/static/"):
             return await call_next(request)
         if path.startswith("/api/"):
             return JSONResponse({"detail": "authentication required"}, status_code=401)

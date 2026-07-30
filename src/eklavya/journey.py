@@ -11,7 +11,7 @@ from datetime import date, timedelta
 
 from . import progress
 from .db import connect
-from .dashboard import _CSS, _icon, _rank
+from .dashboard import _BOW, _CSS, _icon, _rank
 
 
 def _all(sql: str, params=()):
@@ -90,12 +90,14 @@ def render() -> str:
     st = progress.stats()
     strong = _all("SELECT COUNT(*) AS n FROM ratings WHERE rating >= 1300")[0]["n"]
     sessions = _all("SELECT COUNT(*) AS n FROM sessions")[0]["n"]
+    cal = st.get("calibration") or {}
+    clarity = "—" if cal.get("brier") is None else str(max(0, min(100, round((1 - cal["brier"]) * 100))))
     ribbon_cells = [
         ("layers", "Level", str(st["level"])),
         ("crown", "Rank", _rank(st["level"])),
         ("flame", "Streak", f"{st['streak']}d"),
         ("trend", "Total XP", str(st["xp"])),
-        ("scroll", "Sessions", str(sessions)),
+        ("scale", "Clarity", clarity),          # the illusion-of-knowing signal, at a glance
         ("gem", "Skills strong", str(strong)),
     ]
     ribbon = "".join(
@@ -133,7 +135,7 @@ def render() -> str:
     while d <= today:
         n = acts.get(d.isoformat(), 0)
         op = 0.10 if n == 0 else 0.35 + 0.65 * min(1.0, n / maxn)
-        heat += f'<div class="hc" style="background:rgba(94,242,184,{op:.2f})" title="{d.isoformat()}: {n}"></div>'
+        heat += f'<div class="hc" style="background:rgba(231,182,75,{op:.2f})" title="{d.isoformat()}: {n}"></div>'
         d += timedelta(days=1)
 
     if len(curve) >= 2:
@@ -141,25 +143,26 @@ def render() -> str:
         pts = " ".join(f"{i / (len(curve) - 1) * 300:.1f},{60 - (p[1] / mx * 54):.1f}"
                        for i, p in enumerate(curve))
         spark = (f'<svg viewBox="0 0 300 62" class="spark" preserveAspectRatio="none">'
-                 f'<polyline points="{pts}" fill="none" stroke="#5ef2b8" stroke-width="2"/></svg>'
+                 f'<polyline points="{pts}" fill="none" stroke="#e7b64b" stroke-width="2"/></svg>'
                  f'<div class="muted" style="font-size:11px;margin-top:6px">total XP over time</div>')
     else:
         spark = ('<svg viewBox="0 0 300 62" class="spark" preserveAspectRatio="none">'
-                 '<line x1="0" y1="6" x2="300" y2="6" stroke="#1f2c3e" stroke-dasharray="3 4"/>'
-                 '<line x1="0" y1="33" x2="300" y2="33" stroke="#1f2c3e" stroke-dasharray="3 4"/>'
-                 '<line x1="0" y1="60" x2="300" y2="60" stroke="#1f2c3e"/>'
-                 '<circle cx="3" cy="60" r="3" fill="#5ef2b8"/></svg>'
+                 '<line x1="0" y1="6" x2="300" y2="6" stroke="#3a2f26" stroke-dasharray="3 4"/>'
+                 '<line x1="0" y1="33" x2="300" y2="33" stroke="#3a2f26" stroke-dasharray="3 4"/>'
+                 '<line x1="0" y1="60" x2="300" y2="60" stroke="#3a2f26"/>'
+                 '<circle cx="3" cy="60" r="3" fill="#e7b64b"/></svg>'
                  '<div class="muted" style="font-size:11px;margin-top:6px">'
                  'your XP curve starts here · dashed lines mark the level 2 &amp; 3 targets</div>')
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Journey</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>{_CSS}{_JCSS}</style></head><body><div class="wrap">
   <header class="jhero">
-    <div class="brand"><div class="logo">🏹 <span class="g">YOUR JOURNEY</span></div>
-      <div class="creed">how far you've come</div></div>
+    <div class="brand"><div class="logo"><span class="bowmark">{_BOW}</span> <span class="g">YOUR JOURNEY</span></div>
+      <div class="creed" style="font-family:var(--f-serif);font-style:italic">how far you've come</div></div>
     <div class="ribbon">{ribbon}</div>
   </header>
   <section class="card"><h2>{_icon("hourglass")} Milestones</h2><div class="timeline">{timeline}</div></section>
@@ -174,43 +177,45 @@ def render() -> str:
 
 _JCSS = """
 /* journey hero + stat ribbon (game HUD) */
-.jhero{background:linear-gradient(120deg,var(--panel),var(--panel2));border:1px solid var(--line);
-  border-radius:18px;padding:20px 24px;box-shadow:0 1px 0 #ffffff0d inset,0 20px 60px -30px #000;
-  display:flex;flex-direction:column;gap:18px}
+.jhero{background:linear-gradient(120deg,rgba(35,29,24,.82),rgba(12,10,20,.9));border:1px solid var(--line-gold);
+  border-radius:6px;padding:22px 26px;box-shadow:var(--sh-carve),var(--sh-deep);
+  display:flex;flex-direction:column;gap:18px;position:relative}
+.jhero::before,.jhero::after{content:"";position:absolute;width:15px;height:15px;border:1.5px solid var(--gold);opacity:.6}
+.jhero::before{top:8px;left:8px;border-right:0;border-bottom:0}
+.jhero::after{bottom:8px;right:8px;border-left:0;border-top:0}
 .jhero .brand{display:flex;flex-direction:column;gap:2px}
 .ribbon{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
-.rcell{background:#0c1622;border:1px solid var(--line);border-radius:12px;padding:12px 14px;
-  display:flex;flex-direction:column;gap:2px;box-shadow:0 1px 0 #ffffff08 inset;
-  transition:transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s}
-.rcell:hover{transform:translateY(-2px);border-color:#2a3a52}
-.rico{color:var(--dim);margin-bottom:2px}.rico .ic{opacity:.9}
-.rval{font-family:var(--disp);font-size:24px;font-weight:700;line-height:1;color:#eafff6;
+.rcell{background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:12px;padding:13px 15px;
+  display:flex;flex-direction:column;gap:2px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s}
+.rcell:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.rico{color:var(--gold-bright);margin-bottom:3px}.rico .ic{color:var(--gold-bright)}
+.rval{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1;color:var(--parch);
   font-variant-numeric:tabular-nums}
-.rlabel{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim)}
+.rlabel{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-mute)}
 @media(max-width:820px){.ribbon{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:520px){.ribbon{grid-template-columns:repeat(2,1fr)}}
 
-.timeline{display:flex;flex-direction:column}
-.mile{display:flex;gap:14px;align-items:flex-start;padding:7px 0;position:relative}
-.mile::before{content:"";position:absolute;left:19px;top:0;bottom:0;width:2px;background:var(--line)}
-.mdot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--panel);
-  border:1px solid var(--line);z-index:1;color:var(--acc);box-shadow:0 0 0 4px var(--bg)}
-.mdot .ic{opacity:1}
-.mbody b{display:block;font-size:14px}.mbody .muted{font-family:var(--mono);font-size:11px}
+.timeline{display:flex;flex-direction:column;position:relative}
+.mile{display:flex;gap:14px;align-items:flex-start;padding:9px 0;position:relative}
+.mile::before{content:"";position:absolute;left:19px;top:0;bottom:0;width:2px;background:var(--line-soft)}
+.mdot{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--stone-dark);
+  border:1px solid var(--line-gold);z-index:1;color:var(--gold-bright);box-shadow:0 0 0 4px var(--void)}
+.mdot .ic{color:var(--gold-bright)}
+.mbody b{display:block;font-size:14px;font-family:var(--f-title);color:var(--parch)}.mbody .muted{font-family:var(--f-mono);font-size:11px}
 .achgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-.ach{display:flex;gap:12px;align-items:center;background:#0c1622;border:1px solid #24344a;border-radius:12px;
-  padding:11px 14px;transition:transform .2s cubic-bezier(.22,.61,.36,1),border-color .2s}
-.ach:hover{transform:translateY(-2px);border-color:#2a3a52}
-.ach.lock{filter:grayscale(.75)}
-.ach.lock .aico{color:var(--dim)}
+.ach{display:flex;gap:12px;align-items:center;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:11px;
+  padding:11px 14px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s}
+.ach:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.ach.lock{filter:grayscale(.7);opacity:.75}
+.ach.lock .aico{color:var(--parch-mute)}
 .aico{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;
-  color:var(--acc);background:#0a1a14;border:1px solid #1c3d30}
-.aico .ic{opacity:1}
-.ach.lock .aico{background:#0c1622;border-color:#24344a}
-.ach b{display:block;font-size:13px}.ach .muted{font-size:11px}
-.pbar{height:6px;background:#0b1420;border-radius:999px;margin:5px 0 2px;overflow:hidden;width:130px}
-.pfill{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyan))}
+  color:var(--gold-bright);background:rgba(231,182,75,.08);border:1px solid var(--gold-deep)}
+.aico .ic{color:var(--gold-bright)}
+.ach.lock .aico{background:rgba(6,9,20,.5);border-color:var(--line-soft)}
+.ach b{display:block;font-size:13px;font-family:var(--f-title);color:var(--parch)}.ach .muted{font-size:11px;font-family:var(--f-mono)}
+.pbar{height:6px;background:rgba(6,9,20,.7);border-radius:999px;margin:5px 0 2px;overflow:hidden;width:130px}
+.pfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright))}
 .heat{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;grid-auto-columns:13px;gap:3px}
-.hc{width:13px;height:13px;border-radius:3px;border:1px solid #10203044}
+.hc{width:13px;height:13px;border-radius:2px;border:1px solid rgba(231,182,75,.08)}
 .spark{width:100%;height:70px}
 """

@@ -175,29 +175,58 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
         return (c.replace('"', "'").replace("[", "(").replace("]", ")")
                  .replace("{", "(").replace("}", ")"))
 
-    # which concepts to draw: one track (+ its direct prereqs) when filtered, else all
-    if pillar:
-        shown = {c for c in concepts if pillar_of[c] == pillar}
-        for c in list(shown):
-            shown.update(prereqs[c])
-        render = [c for c in concepts if c in shown]
-        direction = "graph LR"  # a single track reads as a left→right path
-    else:
-        render = concepts
-        direction = "graph TD"
+    ramp = [
+        # Option-E ramp: gold = mastered, peacock-teal = unlocked, muted stone = locked.
+        "  classDef done fill:#2a2012,stroke:#e7b64b,color:#f7d98a;",
+        "  classDef avail fill:#0a1a22,stroke:#57d3ce,color:#57d3ce;",
+        "  classDef lock fill:#12100c,stroke:#3a2f26,color:#a89670;",
+    ]
 
-    lines = [direction]
+    # No filter → a legible PILLAR-LEVEL forest map: one node per grove (17, not the 197-node
+    # hairball), edges aggregated from cross-pillar concept prereqs. A grove is 'done' when all
+    # its concepts are mastered, 'avail' when every unmastered concept is already unlocked, else
+    # 'lock'. Reading concept labels is the single-track view's job (chosen from the filter).
+    if not pillar:
+        pids = {p: f"p{i}" for i, p in enumerate(pillars)}
+        edges = set()
+        for c in concepts:
+            for p in prereqs[c]:
+                a, b = pillar_of.get(p, ""), pillar_of[c]
+                if a and b and a != b:
+                    edges.add((a, b))
+
+        def pillar_status(p: str) -> str:
+            cs = [c for c in concepts if pillar_of[c] == p]
+            if cs and all(status(c) == "done" for c in cs):
+                return "done"
+            if all(status(c) != "lock" for c in cs):
+                return "avail"
+            return "lock"
+
+        lines = ["graph LR"]
+        for p in pillars:
+            done = sum(1 for c in concepts if pillar_of[c] == p and status(c) == "done")
+            total = sum(1 for c in concepts if pillar_of[c] == p)
+            lines.append(f'  {pids[p]}["{label(p)}<br/>{done}/{total}"]:::{pillar_status(p)}')
+        for a, b in sorted(edges):
+            lines.append(f"  {pids[a]} --> {pids[b]}")
+        lines += ramp
+        return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
+
+    # A single track (+ its direct prereqs) reads as a left→right path with legible labels.
+    shown = {c for c in concepts if pillar_of[c] == pillar}
+    for c in list(shown):
+        shown.update(prereqs[c])
+    render = [c for c in concepts if c in shown]
+
+    lines = ["graph LR"]
     for c in render:
         lines.append(f'  {ids[c]}["{label(c)}"]:::{status(c)}')
     for c in render:
         for p in prereqs[c]:
             if p in ids and p in render:
                 lines.append(f"  {ids[p]} --> {ids[c]}")
-    lines += [
-        "  classDef done fill:#0e2a1f,stroke:#5ef2b8,color:#5ef2b8;",
-        "  classDef avail fill:#0a1a22,stroke:#57d3ff,color:#57d3ff;",
-        "  classDef lock fill:#0e1622,stroke:#2b3a4d,color:#5a6b80;",
-    ]
+    lines += ramp
     return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
 
 

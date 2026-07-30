@@ -14,18 +14,20 @@ import html
 
 from . import report
 
+# Option-E semantic mastery ramp: gold = mastered, teal = unlocked/familiar,
+# vermilion = gap, muted-parch = unknown (the same four hues used everywhere).
 LEVEL_COLOR = {
-    "unknown": "#3a4658",
-    "gap": "#ff6b6b",
-    "familiar": "#ffcf6b",
-    "strong": "#5ef2b8",
+    "unknown": "#a89670",
+    "gap": "#ff5a3c",
+    "familiar": "#57d3ce",
+    "strong": "#e7b64b",
 }
 AXIS_COLOR = {
-    "syntax_recall": "#57d3ff",
-    "debugging": "#ffcf6b",
-    "code_reading": "#5ef2b8",
-    "api_memory": "#b48cff",
-    "decomposition": "#ff7ab6",
+    "syntax_recall": "#57d3ce",
+    "debugging": "#e7b64b",
+    "code_reading": "#52a061",
+    "api_memory": "#f7d98a",
+    "decomposition": "#d63b2a",
 }
 _RANKS = [(17, "Grandmaster"), (12, "Master"), (8, "Expert"), (5, "Adept"),
           (3, "Apprentice"), (1, "Novice")]
@@ -102,6 +104,43 @@ def _achievements(stats: dict, strong: int, sessions: int) -> str:
     return "".join(
         f'<div class="badge"><div class="bico">{_icon(i, 20)}</div><div><b>{t}</b>'
         f'<span class="muted">{d}</span></div></div>' for i, t, d in earned
+    )
+
+
+def _calibration(cal: dict) -> str:
+    """The 'illusion of knowing' card — the product's headline metric.
+    cal = {n, brier, bias, confidently_wrong}; brier/bias are None until there's data."""
+    n = cal.get("n") or 0
+    if not n or cal.get("brier") is None:
+        return ('<div class="cal-empty muted">Answer a few drills with a confidence level and '
+                'your calibration appears here — how well what you <i>think</i> you know matches '
+                'what you can <i>actually</i> do.</div>')
+    brier = cal["brier"]          # 0 = perfect, 1 = worst
+    bias = cal["bias"]            # >0 overconfident, <0 underconfident
+    cw = cal.get("confidently_wrong", 0)
+    # a friendly 0-100 "clarity" score: lower brier -> higher clarity
+    clarity = max(0, min(100, round((1 - brier) * 100)))
+    if abs(bias) < 0.08:
+        lean, leancls = "well-calibrated", "ok"
+    elif bias > 0:
+        lean, leancls = "overconfident", "warn"
+    else:
+        lean, leancls = "underconfident", "cool"
+    ring = f"conic-gradient(var(--gold) {clarity*3.6:.0f}deg, rgba(231,182,75,.12) 0)"
+    return (
+        f'<div class="cal-row">'
+        f'  <div class="cal-ring" style="background:{ring}"><div class="cal-ring-in">'
+        f'    <div class="cal-score">{clarity}</div><div class="cal-score-k">clarity</div></div></div>'
+        f'  <div class="cal-facts">'
+        f'    <div class="cal-fact"><b class="{leancls}">{lean}</b>'
+        f'      <span class="muted">bias {bias:+.2f} · Brier {brier:.2f}</span></div>'
+        f'    <div class="cal-fact"><b class="{"warn" if cw else "ok"}">{cw}</b>'
+        f'      <span class="muted">confidently wrong — sure, yet wrong</span></div>'
+        f'    <div class="cal-fact"><b>{n}</b><span class="muted">recent graded drills</span></div>'
+        f'  </div>'
+        f'</div>'
+        f'<div class="cal-caption muted">The gap between what you <i>think</i> you know and what '
+        f'you can <i>actually</i> do — the illusion of knowing, made visible.</div>'
     )
 
 
@@ -189,16 +228,18 @@ def render(ov: dict) -> str:
     ) or '<tr><td colspan="4" class="muted">No sessions yet.</td></tr>'
 
     badges = _achievements(s, strong, len(ov["sessions"]))
+    calibration = _calibration(s.get("calibration") or {})
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>{_CSS}</style></head><body><div class="wrap">
 
   <header class="hero">
     <div class="brand">
-      <div class="logo">🏹 <span class="g">EKALAVYA</span></div>
+      <div class="logo"><span class="bowmark">{_BOW}</span> <span class="g">EKALAVYA</span></div>
       <div class="creed">स्वाध्याय · साधना · सिद्धि</div>
     </div>
     <div class="char">
@@ -220,14 +261,18 @@ def render(ov: dict) -> str:
   </section>
 
   <div class="bento">
+    <section class="card b-cal">
+      <h2>{_icon("scale")} The illusion of knowing</h2>
+      {calibration}
+    </section>
     <section class="card b-map">
       <h2>{_icon("grid")} Skill map</h2>
       <table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table>
       <div class="legend">
-        <span><i style="background:#3a4658"></i>unknown</span>
-        <span><i style="background:#ff6b6b"></i>gap</span>
-        <span><i style="background:#ffcf6b"></i>familiar</span>
-        <span><i style="background:#5ef2b8"></i>strong</span>
+        <span><i style="background:#a89670"></i>unknown</span>
+        <span><i style="background:#ff5a3c"></i>gap</span>
+        <span><i style="background:#57d3ce"></i>familiar</span>
+        <span><i style="background:#e7b64b"></i>strong</span>
       </div>
     </section>
     <section class="card b-axes">
@@ -273,65 +318,99 @@ def create_app():
     return app
 
 
+# The gold bow brand-mark (Option-E), used in place of the emoji everywhere the logo appears.
+_BOW = ('<svg width="20" height="26" viewBox="0 0 58 76" aria-hidden="true" '
+        'style="vertical-align:-4px"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" '
+        'stroke-width="4" stroke-linecap="round" fill="none"/>'
+        '<line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/>'
+        '<line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/>'
+        '<path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" '
+        'stroke-linecap="round"/></svg>')
+
+
+# Option-E "cinematic forest" design system, mapped onto the dashboard/journey/profile
+# markup. Same class hooks the Python render already emits — only the look changes (gold
+# on uniform indigo-night, Cinzel/Marcellus/Spectral/Tiro-Devanagari/JetBrains-Mono, the
+# Raji-style gold hairline frames, semantic mastery ramp gold/teal/vermilion).
 _CSS = """
 :root{
-  --bg:#080b11; --bg2:#0d1420; --panel:#111a28; --panel2:#0e1622; --line:#1d2a3c;
-  --ink:#d6e2f0; --dim:#7d8da5; --faint:#4a5768;
-  --acc:#5ef2b8; --cyan:#57d3ff; --violet:#b48cff; --amber:#ffcf6b; --pink:#ff7ab6; --red:#ff5c7a;
-  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
-  --disp:'Rajdhani',var(--mono); --sans:'Inter',system-ui,sans-serif;
+  --indigo-night:#101528; --indigo-deep:#0b1122; --void:#0a0d1c;
+  --stone:#231d18; --stone-dark:#181310; --stone-warm:#3a2f26;
+  --parch:#e8dcc0; --parch-dim:#cfc0a0; --parch-mute:#a89670;
+  --gold:#e7b64b; --gold-bright:#f7d98a; --gold-deep:#b8862f; --gold-ember:#8a5e1f;
+  --vermilion:#d63b2a; --vermilion-deep:#8f2318; --vermilion-glow:#ff5a3c;
+  --peacock:#2ea3a0; --peacock-bright:#57d3ce; --peacock-deep:#124d4c;
+  --forest:#2f6b3c; --forest-lit:#52a061;
+  --line-gold:rgba(231,182,75,.28); --line-soft:rgba(231,182,75,.14); --ink:#0a0c18;
+  --f-display:'Cinzel',serif; --f-title:'Marcellus',serif; --f-body:'Spectral',serif;
+  --f-serif:'Cormorant Garamond',serif; --f-deva:'Tiro Devanagari Hindi',serif;
+  --f-mono:'JetBrains Mono',ui-monospace,monospace;
+  --sh-deep:0 24px 60px -20px rgba(0,0,0,.8);
+  --sh-carve:inset 0 1px 0 rgba(231,182,75,.10), inset 0 -18px 40px -20px rgba(0,0,0,.7);
+  /* aliases so the existing markup's color intents map to the semantic ramp */
+  --acc:var(--gold); --cyan:var(--peacock-bright); --violet:var(--gold-bright);
+  --amber:var(--gold-bright); --dim:var(--parch-dim); --ink2:var(--parch);
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:var(--sans);color:var(--ink);
-  background:
-    radial-gradient(1100px 620px at 82% -12%,#152740 0%,transparent 60%),
-    radial-gradient(900px 520px at 0% 108%,#171033 0%,transparent 55%),
-    var(--bg);
+body{margin:0;font-family:var(--f-body);color:var(--parch);line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  background-color:var(--indigo-night);
+  background-image:
+    radial-gradient(1200px 700px at 78% 2%, rgba(46,163,160,.08), transparent 60%),
+    radial-gradient(900px 600px at 12% 6%, rgba(231,182,75,.07), transparent 55%);
+  background-attachment:fixed;
   padding:26px 20px 60px;min-height:100vh}
-.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-.g{background:linear-gradient(100deg,var(--acc),var(--cyan) 60%,var(--violet));
-  -webkit-background-clip:text;background-clip:text;color:transparent}
-.muted{color:var(--dim)} code{font-family:var(--mono);color:var(--acc);background:#0c1622;
-  padding:1px 6px;border-radius:5px;border:1px solid var(--line)}
-h2{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--dim);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:8px}
-.ic{flex:none;opacity:.85}
+/* film grain */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.wrap{max-width:1080px;margin:0 auto;display:flex;flex-direction:column;gap:18px;position:relative;z-index:1}
+.g{color:transparent;background:linear-gradient(180deg,#fff6df 0%,var(--gold-bright) 40%,var(--gold) 70%,var(--gold-deep) 100%);
+  -webkit-background-clip:text;background-clip:text}
+.bowmark{filter:drop-shadow(0 2px 10px rgba(231,182,75,.35))}
+.muted{color:var(--parch-dim)}
+code{font-family:var(--f-mono);color:var(--gold-bright);background:rgba(6,9,20,.6);
+  padding:1px 6px;border-radius:4px;border:1px solid var(--line-soft)}
+h2{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--parch-mute);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:8px}
+.ic{flex:none;color:var(--gold-bright)}
 h2 .ic{width:15px;height:15px}
 
 /* hero / character */
 .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
-  background:linear-gradient(120deg,var(--panel),var(--panel2));border:1px solid var(--line);
-  border-radius:18px;padding:20px 24px;box-shadow:0 20px 60px -30px #000}
-.logo{font-family:var(--disp);font-size:30px;font-weight:700;letter-spacing:.14em}
-.creed{font-family:var(--mono);color:var(--cyan);font-size:13px;letter-spacing:.1em;margin-top:2px}
+  background:linear-gradient(120deg,rgba(35,29,24,.82),rgba(12,10,20,.9));border:1px solid var(--line-gold);
+  border-radius:6px;padding:22px 26px;box-shadow:var(--sh-carve),var(--sh-deep);position:relative}
+.hero::before,.hero::after{content:"";position:absolute;width:15px;height:15px;border:1.5px solid var(--gold);opacity:.6}
+.hero::before{top:8px;left:8px;border-right:0;border-bottom:0}
+.hero::after{bottom:8px;right:8px;border-left:0;border-top:0}
+.logo{font-family:var(--f-display);font-size:28px;font-weight:800;letter-spacing:.14em;display:flex;align-items:center;gap:10px}
+.creed{font-family:var(--f-deva);color:var(--gold-bright);font-size:15px;letter-spacing:.04em;margin-top:4px;opacity:.92}
 .char{display:flex;align-items:center;gap:18px}
-.lvl{width:78px;height:78px;border-radius:50%;display:grid;place-items:center;text-align:center;
-  background:radial-gradient(circle at 50% 30%,#12324a,#0b1420);
-  border:2px solid var(--acc);box-shadow:0 0 26px -4px var(--acc),0 0 0 4px #0b142055}
-.lvlnum{font-family:var(--disp);font-size:30px;font-weight:700;line-height:1;color:#eafff6}
-.lvllabel{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--dim)}
+.lvl{width:82px;height:82px;border-radius:50%;display:grid;place-items:center;text-align:center;
+  background:radial-gradient(circle at 50% 30%,#2a2012,var(--void));
+  border:2px solid var(--gold);box-shadow:0 0 26px -4px rgba(231,182,75,.6),0 0 0 4px rgba(11,17,34,.4)}
+.lvlnum{font-family:var(--f-display);font-size:32px;font-weight:800;line-height:1;color:var(--gold-bright);text-shadow:0 2px 8px rgba(231,182,75,.4)}
+.lvllabel{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--parch-mute)}
 .charmid{min-width:260px}
-.rank{font-family:var(--disp);font-size:20px;font-weight:600;letter-spacing:.1em;color:var(--amber)}
-.xpbar{position:relative;height:20px;border-radius:999px;background:#0b1420;border:1px solid var(--line);
-  margin:7px 0;overflow:hidden}
-.xpfill{height:100%;background:linear-gradient(90deg,var(--acc),var(--cyan));
-  box-shadow:0 0 16px var(--acc)}
-.xptext{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--mono);
-  font-size:11px;color:#dff}
+.rank{font-family:var(--f-title);font-size:22px;font-weight:600;letter-spacing:.06em;color:var(--gold-bright)}
+.xpbar{position:relative;height:20px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);
+  margin:8px 0;overflow:hidden}
+.xpfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));
+  box-shadow:0 0 16px rgba(231,182,75,.6)}
+.xptext{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-mono);
+  font-size:11px;color:#2a1c07;font-weight:500}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{font-family:var(--mono);font-size:12px;color:var(--dim);background:#0c1622;
-  border:1px solid var(--line);border-radius:999px;padding:4px 11px}
-.chip.flame{color:var(--amber);border-color:#3d3116}
+.chip{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);background:rgba(6,9,20,.5);
+  border:1px solid var(--line-soft);border-radius:999px;padding:4px 12px}
+.chip.flame{color:var(--gold-bright);border-color:var(--gold-deep)}
 
-/* today's quest */
-.quest-banner{background:linear-gradient(100deg,#13233a,#0e1622);border:1px solid #244;
-  border-left:3px solid var(--acc);border-radius:14px;padding:16px 22px;
-  box-shadow:0 0 40px -20px var(--acc)}
-.qtitle{font-family:var(--disp);letter-spacing:.2em;color:var(--acc);font-size:13px;font-weight:700;
-  display:flex;align-items:center;gap:8px}
-.qtitle .ic{width:16px;height:16px;opacity:1}
-.qbody{font-size:17px;margin:4px 0 6px}
-.qmeta .due{color:var(--amber);font-family:var(--mono);font-size:13px}
+/* today's quest — the boss objective */
+.quest-banner{background:linear-gradient(100deg,rgba(35,29,24,.7),rgba(12,10,20,.85));border:1px solid var(--line-gold);
+  border-left:3px solid var(--gold);border-radius:6px;padding:18px 24px;box-shadow:var(--sh-carve)}
+.qtitle{font-family:var(--f-mono);letter-spacing:.16em;color:var(--vermilion-glow);font-size:12px;font-weight:500;
+  text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.qtitle .ic{width:16px;height:16px;color:var(--vermilion-glow)}
+.qbody{font-family:var(--f-title);font-size:20px;margin:6px 0 6px;color:var(--parch)}
+.qmeta .due{color:var(--gold-bright);font-family:var(--f-mono);font-size:13px}
 
 /* cards */
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
@@ -340,91 +419,116 @@ h2 .ic{width:15px;height:15px}
 /* bento — asymmetric, skill map is the hero */
 .bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
   grid-template-areas:
+    "cal cal cal cal cal cal"
     "map map map map axes axes"
     "quests quests gap gap gap gap"
     "ach ach ach ach chron chron";}
-.b-map{grid-area:map}
-.b-axes{grid-area:axes}
-.b-quests{grid-area:quests}
-.b-gap{grid-area:gap}
-.b-ach{grid-area:ach}
-.b-chron{grid-area:chron}
+.b-cal{grid-area:cal}
+.b-map{grid-area:map}.b-axes{grid-area:axes}.b-quests{grid-area:quests}
+.b-gap{grid-area:gap}.b-ach{grid-area:ach}.b-chron{grid-area:chron}
 .bento .card{margin:0}
 @media(max-width:820px){
-  .bento{grid-template-columns:1fr;
-    grid-template-areas:"map" "axes" "quests" "gap" "ach" "chron";}
+  .bento{grid-template-columns:1fr;grid-template-areas:"cal" "map" "axes" "quests" "gap" "ach" "chron"}
 }
-.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
-  border-radius:16px;padding:18px 20px;box-shadow:0 1px 0 #ffffff0d inset,0 18px 50px -34px #000;
-  transition:transform .22s cubic-bezier(.22,.61,.36,1),border-color .22s,box-shadow .22s}
-.card:hover{transform:translateY(-2px);border-color:#2a3a52;
-  box-shadow:0 1px 0 #ffffff14 inset,0 22px 54px -30px #000c}
+/* the illusion-of-knowing card — the product's headline signal */
+.b-cal{background:linear-gradient(150deg,rgba(35,29,24,.72),rgba(12,10,20,.85));border-color:var(--line-gold)}
+.cal-row{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
+.cal-ring{width:104px;height:104px;border-radius:50%;flex:none;display:grid;place-items:center;
+  box-shadow:0 0 24px -6px rgba(231,182,75,.4)}
+.cal-ring-in{width:82px;height:82px;border-radius:50%;background:var(--indigo-night);display:grid;place-items:center;text-align:center}
+.cal-score{font-family:var(--f-display);font-weight:800;font-size:30px;color:var(--gold-bright);line-height:1}
+.cal-score-k{font-family:var(--f-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--parch-mute);margin-top:2px}
+.cal-facts{display:flex;gap:30px;flex-wrap:wrap}
+.cal-fact{display:flex;flex-direction:column;gap:2px}
+.cal-fact b{font-family:var(--f-display);font-size:22px;font-weight:700;color:var(--parch)}
+.cal-fact b.ok{color:var(--forest-lit)}.cal-fact b.cool{color:var(--peacock-bright)}
+.cal-fact b.warn{color:var(--vermilion-glow)}
+.cal-fact .muted{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.03em;max-width:20ch}
+.cal-caption{margin-top:14px;font-family:var(--f-body);font-size:13px;line-height:1.5}
+.cal-empty{font-family:var(--f-body);font-size:14px;line-height:1.55;padding:6px 0}
+.card{background:linear-gradient(160deg,rgba(35,29,24,.6),rgba(12,10,20,.75));border:1px solid var(--line-gold);
+  border-radius:6px;padding:20px 22px;box-shadow:var(--sh-carve),0 18px 50px -34px #000;
+  transition:transform .22s cubic-bezier(.22,.7,.25,1),border-color .22s,box-shadow .22s}
+.card:hover{transform:translateY(-2px);border-color:var(--gold-deep);
+  box-shadow:var(--sh-carve),0 22px 54px -30px #000c}
 
 /* skill map */
 table{width:100%;border-collapse:separate;border-spacing:5px}
-.heat th.ax{color:var(--dim);font-family:var(--mono);font-weight:400;text-align:center;
-  font-size:10px;text-transform:uppercase;letter-spacing:.06em;padding-bottom:4px}
-.heat th.pillar{text-align:left;color:#eaf2fb;white-space:nowrap;font-size:13px;font-weight:600;padding-right:8px}
-.cell{text-align:center;border:1px solid var(--line);border-radius:8px;padding:9px 6px;font-size:10.5px;
-  font-family:var(--mono);text-transform:uppercase;letter-spacing:.04em;transition:transform .1s}
+.heat th.ax{color:var(--parch-mute);font-family:var(--f-mono);font-weight:400;text-align:center;
+  font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding-bottom:4px}
+.heat th.pillar{text-align:left;color:var(--parch);white-space:nowrap;font-size:13px;font-weight:400;
+  font-family:var(--f-title);padding-right:8px}
+.cell{text-align:center;border:1px solid var(--line-soft);border-radius:7px;padding:9px 6px;font-size:10px;
+  font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.03em;transition:transform .1s}
 .cell:hover{transform:translateY(-1px)}
-.cell.empty{border-style:dashed;border-color:#1a2534}.cell.empty::after{content:"·";color:#2b3a4d}
-.legend{display:flex;gap:16px;margin-top:12px;font-family:var(--mono);font-size:11px;color:var(--dim)}
+.cell.empty{border-style:dashed;border-color:var(--line-soft)}.cell.empty::after{content:"·";color:var(--parch-mute)}
+.legend{display:flex;gap:16px;margin-top:12px;font-family:var(--f-mono);font-size:10px;color:var(--parch-dim);
+  letter-spacing:.06em;text-transform:uppercase;flex-wrap:wrap}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:middle}
 
 /* axis bars */
 .bars{display:flex;flex-direction:column;gap:13px;margin-top:4px}
-.barlabel{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;
-  letter-spacing:.06em;margin-bottom:4px}
-.bartrack{height:12px;border-radius:999px;background:#0b1420;border:1px solid var(--line);overflow:hidden}
+.barlabel{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);text-transform:uppercase;
+  letter-spacing:.05em;margin-bottom:4px}
+.bartrack{height:12px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-soft);overflow:hidden}
 .bar{height:100%;border-radius:999px;transition:width .5s}
 
-/* quests / goals — long text is clamped to 2 lines and expands on click */
+/* quests / goals */
 .quests{display:flex;flex-direction:column;gap:9px}
-.quest{display:flex;align-items:flex-start;gap:10px;background:#0c1622;border:1px solid var(--line);
-  border-radius:10px;padding:10px 13px;font-size:14px;cursor:pointer}
-.quest:hover{border-color:#2a3a52}
+.quest{display:flex;align-items:flex-start;gap:10px;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);
+  border-radius:8px;padding:10px 13px;font-size:14px;cursor:pointer;transition:border-color .18s}
+.quest:hover{border-color:var(--gold-deep)}
 .quest .hz,.quest .qd{flex:none;margin-top:1px}
-.quest .qtext{flex:1;min-width:0;line-height:1.45;
+.quest .qtext{flex:1;min-width:0;line-height:1.45;color:var(--parch-dim);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .quest.open .qtext{-webkit-line-clamp:unset;overflow:visible}
-.hz{font-family:var(--mono);font-size:10px;text-transform:uppercase;letter-spacing:.08em;
-  padding:2px 8px;border-radius:5px;border:1px solid}
-.hz.long{color:var(--violet);border-color:#3a2c55;background:#160f22}
-.hz.medium{color:var(--cyan);border-color:#1c3a48;background:#0a1a22}
-.hz.short{color:var(--acc);border-color:#1c3d30;background:#0a1a14}
-.hz.adhoc{color:var(--amber);border-color:#3d3116;background:#1a1408}
+.hz{font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;
+  padding:3px 8px;border-radius:5px;border:1px solid}
+.hz.long{color:var(--vermilion-glow);border-color:rgba(214,59,42,.4);background:rgba(143,35,24,.12)}
+.hz.medium{color:var(--peacock-bright);border-color:rgba(46,163,160,.4);background:rgba(18,77,76,.18)}
+.hz.short{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.08)}
+.hz.adhoc{color:var(--parch-mute);border-color:var(--line-gold);background:rgba(6,9,20,.4)}
 
 /* achievements */
 .badges{display:flex;flex-wrap:wrap;gap:10px}
-.badge{display:flex;align-items:center;gap:10px;background:#0c1622;border:1px solid #24344a;
-  border-radius:12px;padding:9px 13px;min-width:150px}
+.badge{display:flex;align-items:center;gap:10px;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);
+  border-radius:11px;padding:9px 13px;min-width:150px}
 .badge .bico{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;
-  color:var(--acc);background:#0a1a14;border:1px solid #1c3d30}
-.badge .bico .ic{opacity:1}
-.badge b{display:block;font-size:13px}.badge .muted{font-size:11px}
+  color:var(--gold-bright);background:rgba(231,182,75,.08);border:1px solid var(--gold-deep)}
+.badge .bico .ic{color:var(--gold-bright)}
+.badge b{display:block;font-size:13px;font-family:var(--f-title);color:var(--parch)}.badge .muted{font-size:11px;font-family:var(--f-mono)}
 
 /* ai gap */
 .agrow{display:flex;gap:22px;align-items:flex-end;margin-bottom:12px}
-.agstat b{display:block;font-family:var(--disp);font-size:30px;color:var(--acc);line-height:1}
-.agstat span{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-.agstat.gap b{color:var(--amber)}
-.trend{display:flex;align-items:flex-end;gap:5px;height:56px;padding:4px 0;border-bottom:1px solid var(--line)}
-.tbar{flex:1;min-width:6px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--acc),#2f7d5e);
-  box-shadow:0 0 8px var(--acc)44}
+.agstat b{display:block;font-family:var(--f-display);font-weight:700;font-size:28px;color:var(--gold-bright);line-height:1}
+.agstat span{color:var(--parch-mute);font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-family:var(--f-mono)}
+.agstat.gap b{color:var(--peacock-bright)}
+.trend{display:flex;align-items:flex-end;gap:5px;height:56px;padding:4px 0;border-bottom:1px solid var(--line-soft)}
+.tbar{flex:1;min-width:6px;border-radius:4px 4px 0 0;background:linear-gradient(180deg,var(--gold-bright),var(--gold-deep))}
 .agnote{align-self:center;font-size:13px}
 
 /* chronicle */
-.chron td{padding:7px 8px;border-bottom:1px solid var(--line);font-size:13px}
-.chron .xp{color:var(--acc);text-align:right;font-family:var(--mono)}
+.chron td{padding:8px;border-bottom:1px solid var(--line-soft);font-size:12px;font-family:var(--f-mono);color:var(--parch-dim)}
+.chron .xp{color:var(--gold-bright);text-align:right;font-family:var(--f-mono)}
 
-.foot{text-align:center;color:var(--faint);font-family:var(--mono);font-size:12px;margin-top:8px}
+.foot{text-align:center;color:var(--parch-mute);font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;margin-top:8px}
 
-/* polish: tabular numerals, styled scrollbars, selection, reduced-motion */
+/* mobile: keep the wide skill-map table inside its card (scroll there, never the page),
+   and let the XP-bar readout shrink so it never overflows the hero */
+@media(max-width:560px){
+  .b-map,.card:has(.heat){overflow-x:auto}
+  .heat{min-width:340px}
+  .xptext{font-size:10px}
+  .charmid{min-width:0;width:100%}
+  .hero{padding:18px}
+}
+
+/* polish */
 .lvlnum,.xptext,.agstat b,.chron .xp,.chip,.num{font-variant-numeric:tabular-nums}
-::selection{background:#5ef2b855;color:#04120c}
+::selection{background:var(--gold);color:var(--ink)}
 ::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#1f2c3e;border-radius:999px;border:2px solid var(--bg)}
-::-webkit-scrollbar-thumb:hover{background:#2a3a52}
+::-webkit-scrollbar-thumb{background:var(--stone-warm);border-radius:999px;border:2px solid var(--void)}
+::-webkit-scrollbar-thumb:hover{background:var(--gold-deep)}
+*:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 """
