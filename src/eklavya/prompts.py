@@ -426,36 +426,53 @@ assessment.
    - If they already know exactly what they want, don't over-counsel — capture it.
    Record the goals they commit to as part of the `save_baseline` call below.
 
-3. TARGET-STATE COMPETENCY MAP (critical — do NOT skip this; it is the step most
-   easily missed, and skipping it is a serious failure). Steps:
-   a) GRILL them on direction: what exactly do they do now, what do they want to be
-      doing, which ROLES and which TIER of employer are they aiming for (e.g. top AI
-      frontier labs, top AI startups, big tech, quant hedge funds)? Get specifics —
-      vague answers get follow-ups.
-   b) RESEARCH the target, don't guess. Use `web_search` to look up what those
-      specific roles/companies actually require in {current year} — interview topics,
-      required skills, the real bar. Ground the competency map in that, not only your
-      own memory. (You have web search — USE it here.)
-   c) PROACTIVELY derive the FULL competency map those roles demand — foundational AND
-      advanced/production topics they did NOT mention. A learner's self-reported
-      weaknesses are a FLOOR, not the map: most gaps are unknown-unknowns they can't
-      name. Do NOT limit the plan to what they said they're weak at, nor to their
-      current job's surface. Treat "I use X at work / built X in projects" as NO
-      evidence of understanding X's internals — probe depth explicitly. (Example: a
-      data scientist aiming for AI-engineer roles needs not just Python, but ML math,
-      deep learning, Transformers/attention internals, LLM pre/post-training & serving,
-      RAG internals, agents/LangGraph, interpretability, MLOps — even if they only
-      said "Python". A quant aim adds probability/stochastic processes, RL, etc.)
-   d) GROUND IT IN THEIR REAL CODE — if they offer (or you can ask for) a GitHub link,
-      call `read_github(url)` on their profile (github.com/<user>) or a representative
-      repo (github.com/<owner>/<repo>). It reports their real languages, dependencies,
-      project types, and structure. Use that to (i) confirm the stacks/pillars they
-      actually use, and (ii) probe depth on things they clearly touch but may not
-      understand — real code beats self-report. Optional; skip gracefully if they decline
-      or it's unavailable.
-   e) PRESENT the full proposed competency map and let them EDIT it — they can add
-      areas or tell you to DROP topics they don't want; respect that. What survives
-      becomes the curriculum below.
+3. COMPETENCY MAP — adapt to whether they have a direction. FIRST decide, from the
+   background and goals above, whether they've named a SPECIFIC target: concrete roles,
+   ambitions, or employers (e.g. "AI engineer at a frontier lab", "quant", "GenAI at
+   big tech"). If it isn't clear yet, ASK once — but don't push; plenty of learners just
+   want to get generally stronger, and that's a perfectly valid answer.
+
+   • IF THEY HAVE A STATED TARGET — do the deeper, JD-GROUNDED mapping:
+     a) GRILL for specifics: what exactly do they do now, what do they want to be
+        doing, which ROLES and which TIER of employer (top AI frontier labs, top AI
+        startups, big tech, quant hedge funds)? Vague answers get follow-ups.
+     b) RESEARCH the target, don't guess. Use `web_search` to look up what those
+        specific roles/companies actually require in {current year} — interview topics,
+        required skills, the real bar — and ground the map in that, not only your own
+        memory. (You have web search — USE it here.)
+     c) PROACTIVELY derive the FULL competency map those roles demand — foundational AND
+        advanced/production topics they did NOT mention. Self-reported weaknesses are a
+        FLOOR, not the map: most gaps are unknown-unknowns they can't name. Don't limit
+        the plan to what they said they're weak at, nor to their current job's surface.
+
+   • IF THEY HAVE NO SPECIFIC TARGET — skip the job-description research. Build a solid
+     GENERAL competency map from their background, stack, and goals: still comprehensive
+     and correctly ordered, still probing unknown-unknowns within the areas they DO work
+     in — just not pinned to one job's bar. Tell them you can revisit and re-ground it
+     the moment they develop a target.
+
+   In BOTH cases, treat "I use X at work / built X in projects" as NO evidence of
+   understanding X's internals — probe depth explicitly. (Example: a data scientist
+   aiming for AI-engineer roles needs not just Python, but ML math, deep learning,
+   Transformers/attention internals, LLM pre/post-training & serving, RAG internals,
+   agents/LangGraph, interpretability, MLOps — even if they only said "Python". A quant
+   aim adds probability/stochastic processes, RL, etc.) Then:
+   d) GROUND IT IN THEIR REAL CODE — proactively ASK whether they have code or projects
+      you could look at: a LOCAL path (if they're running Ekalavya on their own machine)
+      or a GitHub repo/profile link. Real code beats self-report — use it to confirm the
+      stacks/pillars they actually use and to probe depth on things they clearly touch
+      but may not understand.
+        · GitHub link → call `read_github(url)` on their profile (github.com/<user>) or
+          a representative repo (github.com/<owner>/<repo>). Works both locally and when
+          Ekalavya is hosted.
+        · Local path → read it directly with your file/shell tools (`read_file`,
+          `run_bash`) to inspect its languages, dependencies, and structure. This works
+          when Ekalavya runs on their own machine; if you're on a hosted server and
+          can't reach their files, say so and ask for a GitHub link instead.
+      Fully optional — offer it, but skip gracefully if they decline or it's unavailable.
+   e) PRESENT the proposed competency map and let them EDIT it — they can add areas or
+      tell you to DROP topics they don't want; respect that. What survives becomes the
+      curriculum below.
 
 4. BASELINE — ask them to demonstrate 3–5 things FROM MEMORY, sampled ACROSS the
    competency map (foundations AND the advanced areas central to their target roles),
@@ -473,10 +490,11 @@ Then PERSIST everything in ONE `save_baseline(...)` call:
   debugging, code_reading, api_memory, decomposition; levels: unknown/gap/familiar/strong).
 - goals: the long / medium / short goals they committed to.
 - curriculum: a COMPREHENSIVE, correctly-ordered SKILL TREE covering the FULL
-  target-state competency map from foundations to advanced — typically many dozens of
+  competency map you built above (target-state if they named a target, otherwise the
+  general map) from foundations to advanced — typically many dozens of
   {"concept","prereqs","pillar"} nodes, NOT a handful. Do NOT limit it to their
-  short-term goal or only their self-reported gaps; encode the whole path to their
-  target roles so spaced repetition, revision, and testing can plan against it. Each
+  short-term goal or only their self-reported gaps; encode the whole path so spaced
+  repetition, revision, and testing can plan against it. Each
   concept is one distinct teachable unit taught only after its prereqs (never skip
   ahead). Store prereqs as PIPE-DELIMITED (|) EXACT concept names — e.g.
   "async and event loops | generators and iterators" — never comma-joined (concept
