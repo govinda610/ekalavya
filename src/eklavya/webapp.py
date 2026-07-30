@@ -707,33 +707,48 @@ button:disabled{opacity:.42;cursor:default}
 .assbar{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line-soft)}
 .assbar input{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);padding:9px 11px;font-size:13px;font-family:var(--f-body);outline:none}
 .assbar input:focus{border-color:var(--gold)}
-/* game HUD */
+/* game HUD — the template's radial rank-ring (XP as a continuous ring, not an emoji+bar) */
 .hud{display:flex;align-items:center;gap:11px;font-family:var(--f-mono);font-size:12px}
-.hud .flame{color:var(--gold-bright)} .hud .lvl{color:var(--gold);font-weight:600}
+.hud .rank-ring{transform:rotate(-90deg)}
+.hud .rank-ring .arc{transition:stroke-dashoffset 1s cubic-bezier(.22,.7,.25,1)}
+.hud .flame{color:var(--gold-bright)}
 .hud .rank{color:var(--peacock-bright);font-family:var(--f-title);font-size:13px}
-.hud .xpbar{width:88px;height:9px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);overflow:hidden}
-.hud .xpfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));box-shadow:0 0 8px rgba(231,182,75,.6)}
-/* death / loss overlay — the archer's fall, re-themed to sindoor vermilion + gold merit */
+.hud .prog{color:var(--parch-dim)} .hud .prog b{color:var(--gold-bright)}
+/* death / loss overlay — re-themed from Dark-Souls to epic-not-punitive (template §5):
+   "YOUR AIM FALTERED / पुण्य क्षीण", vermilion stone-cracks, a gold Merit badge. */
 #death{position:fixed;inset:0;z-index:100;display:none;place-items:center;
  background:radial-gradient(circle at 50% 42%,rgba(60,14,10,.72),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
 #death.on{display:grid;animation:fadein .5s ease}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
-.deathcard{text-align:center;max-width:540px;padding:30px}
-.youdied{font-family:var(--f-display);font-size:clamp(48px,8vw,72px);font-weight:800;letter-spacing:.1em;
+.deathcard{position:relative;text-align:center;max-width:540px;padding:30px;overflow:hidden}
+.deathcard .cracks{position:absolute;inset:0;pointer-events:none;opacity:.5}
+.deathcard .dcontent{position:relative;z-index:2}
+.deathcard .de{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--vermilion-glow);margin-bottom:12px}
+.dbig{font-family:var(--f-display);font-weight:800;font-size:clamp(34px,6vw,64px);letter-spacing:.1em;line-height:1.05;
  color:transparent;background:linear-gradient(180deg,#ffb9ac,var(--vermilion) 55%,var(--vermilion-deep));
  -webkit-background-clip:text;background-clip:text;text-shadow:0 0 40px rgba(214,59,42,.45);animation:dpulse 2.4s ease infinite}
 @keyframes dpulse{50%{opacity:.86}}
-.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto;font-size:16px;line-height:1.6;max-width:440px}
+.ddeva{font-family:var(--f-deva);font-size:22px;color:var(--vermilion-glow);margin-top:6px}
+.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto 0;font-size:16px;line-height:1.6;max-width:440px}
 .deathsub b{color:var(--vermilion-glow);font-style:normal}
-#death button{font-family:var(--f-title);letter-spacing:.04em;margin-top:14px;background:rgba(143,35,24,.2);color:var(--vermilion-glow);
+.dnote{font-family:var(--f-body);font-size:13.5px;color:var(--parch-mute);margin-top:10px}
+.lmerit{margin:22px auto 0;display:inline-flex;align-items:center;gap:12px;padding:12px 22px;border:1px solid var(--gold);border-radius:4px;background:rgba(231,182,75,.08)}
+.lmerit .deva{font-family:var(--f-deva);font-size:18px;color:var(--gold)}
+.lmerit .mn{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--gold-bright)}
+.lmerit .ml{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--parch-dim);text-align:left}
+#death button{font-family:var(--f-title);letter-spacing:.04em;margin-top:18px;background:rgba(143,35,24,.2);color:var(--vermilion-glow);
  border:1px solid rgba(214,59,42,.55);border-radius:4px;padding:11px 26px;cursor:pointer;font-weight:600;font-size:14px}
 #death button:hover{background:rgba(143,35,24,.35)}
-/* reclaim toast — merit reclaimed, gold sheen */
+/* reclaim toast — merit reclaimed, teal-bordered sheen (template's .toast) */
 #reclaim{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:90;display:none;
- background:linear-gradient(120deg,rgba(35,29,24,.95),rgba(20,15,10,.95));border:1px solid var(--gold);color:var(--gold-bright);
- font-family:var(--f-title);letter-spacing:.04em;
- padding:13px 26px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(231,182,75,.4);font-weight:600}
-#reclaim.on{display:block;animation:pop .4s ease}
+ gap:14px;align-items:center;
+ background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));border:1px solid var(--peacock);color:var(--parch);
+ padding:13px 22px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(46,163,160,.4)}
+#reclaim.on{display:flex;animation:pop .4s ease}
+#reclaim .rc-badge{flex:none;color:var(--peacock-bright)}
+#reclaim .rc-info .rc-e{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:2px}
+#reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--gold-bright)}
+#reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch-dim)}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 *:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
 .sh-deep{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
@@ -831,12 +846,21 @@ button:disabled{opacity:.42;cursor:default}
   <div class="chatlist" id="chatlist"></div>
 </div>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8862f"/><stop offset="1" stop-color="#f7d98a"/></linearGradient></defs></svg>
+
 <div id="death"><div class="deathcard">
-  <div class="youdied">YOU DIED</div>
-  <div class="deathsub" id="deathsub"></div>
-  <button onclick="dismissDeath()">CONTINUE</button>
+  <svg class="cracks" viewBox="0 0 400 360" preserveAspectRatio="none"><g stroke="#d63b2a" stroke-width="1" fill="none" opacity=".7"><path d="M200 0 L190 90 L230 150 L200 220 L240 300 L210 360"/><path d="M190 90 L120 130 L60 110"/><path d="M230 150 L310 140 L360 180"/><path d="M200 220 L130 250 L70 240"/></g></svg>
+  <div class="dcontent">
+    <div class="de">◆ The round is lost</div>
+    <div class="dbig">YOUR AIM<br>FALTERED</div>
+    <div class="ddeva">पुण्य क्षीण</div>
+    <div class="deathsub" id="deathsub"></div>
+    <div class="lmerit"><span class="deva">पुण्य</span><span class="mn" id="deathmerit">−0 XP</span><span class="ml">merit lost ·<br>every miss teaches</span></div>
+    <div class="dnote">Type your next answer yourself to reclaim your merit.</div>
+    <button onclick="dismissDeath()">Continue</button>
+  </div>
 </div></div>
-<div id="reclaim"></div>
+<div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
@@ -1096,15 +1120,29 @@ require(['vs/editor/editor.main'], function(){
 
 function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
   for(const [t,n] of R) if(l>=t) return n; return 'Novice';}
-function setHud(s){const into=s.xp%100;
+// XP is a continuous rank-ring fill (template's headline: a ring, not an emoji/bar).
+// C = 2πr for r=47 ≈ 295.3; the arc's dash-offset shrinks from C (empty) to (1-p)·C (p full).
+const RING_C=295.3;
+function rankRingSVG(level,pct){
+  const off=(RING_C*(1-pct)).toFixed(1);
+  return "<svg class='rank-ring' width='34' height='34' viewBox='0 0 104 104' aria-label='XP "+
+    Math.round(pct*100)+"% to next rank'>"+
+    "<circle cx='52' cy='52' r='47' fill='none' stroke='rgba(231,182,75,.16)' stroke-width='7'/>"+
+    "<circle class='arc' cx='52' cy='52' r='47' fill='none' stroke='url(#ringGrad)' stroke-width='7' "+
+    "stroke-linecap='round' stroke-dasharray='"+RING_C+"' stroke-dashoffset='"+off+"'/>"+
+    "<circle cx='52' cy='52' r='32' fill='#101528' stroke='#f7d98a' stroke-width='2' transform='rotate(90 52 52)'/>"+
+    "<text x='52' y='60' text-anchor='middle' font-family='Cinzel' font-weight='800' font-size='30' fill='#f7d98a' transform='rotate(90 52 52)'>"+level+"</text></svg>";
+}
+function setHud(s){const pct=(s.xp%100)/100, next=s.level+1;
   document.getElementById('hud').innerHTML =
-   "<span class='flame'>🔥 "+s.streak+"</span><span class='lvl'>⭐ Lv "+s.level+"</span>"+
+   rankRingSVG(s.level, pct)+
+   "<span class='flame'><svg width='11' height='14' viewBox='0 0 46 58' style='vertical-align:-2px'><path d='M23 4 C31 18 40 22 38 36 C37 49 30 54 23 54 C16 54 8 48 8 36 C8 27 16 24 18 14 C22 20 20 26 24 30 C28 24 24 16 23 4Z' fill='#e7b64b'/></svg> <b>"+s.streak+"</b>d</span>"+
    "<span class='rank'>"+rank(s.level)+"</span>"+
-   "<span class='xpbar'><span class='xpfill' style='width:"+into+"%'></span></span>";}
+   "<span class='prog'>Lv <b>"+s.level+"</b> · <b>"+Math.round(pct*100)+"%</b> → R"+next+"</span>";}
 function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(setHud).catch(()=>{}); }
 function showReclaim(amt){ const r=document.getElementById('reclaim');
-  r.textContent="⚔ SOULS RECLAIMED  +"+amt+" XP"; r.classList.add('on');
-  setTimeout(()=>r.classList.remove('on'),2600); }
+  document.getElementById('reclaimn').textContent="+"+amt+" XP restored"; r.classList.add('on');
+  setTimeout(()=>r.classList.remove('on'),2800); }
 function flagCheat(reason){
   // NEVER wipe the editor — the learner's work always stays.
   if(!deathOnCheat){                 // penalty disabled → a quiet note, no punishment
@@ -1113,8 +1151,8 @@ function flagCheat(reason){
   }
   fetch('/api/penalise',{method:'POST'}).then(r=>r.json()).then(d=>{
     document.getElementById('deathsub').innerHTML =
-      reason+".<br>Souls dropped: <b>-"+d.lost+" XP</b>. Streak broken.<br>"+
-      "<span class='dim'>Your code is untouched. Type your next answer yourself to reclaim your souls.</span>";
+      reason+". Streak broken. <span class='dim'>Your code is untouched.</span>";
+    document.getElementById('deathmerit').textContent = "−"+d.lost+" XP";
     setHud(d.stats); document.getElementById('death').classList.add('on');
   });
 }
