@@ -330,6 +330,49 @@ def create_app():
         return StreamingResponse(_events(agent_for(mode), config, thread, cmd),
                                  media_type="application/x-ndjson")
 
+    @app.post("/api/truncate")
+    async def truncate(request: Request):
+        """Rewind a thread's conversation to keep only the first N user turns.
+
+        Backs the arena's rewind + edit controls: to drop the last exchange the client
+        asks to keep (user_turns-1); to edit turn k it asks to keep k-1, then re-streams
+        the edited message. We remove every message from the (keep+1)-th human message
+        onward via the add_messages reducer's RemoveMessage, so the durable checkpointer
+        state matches what the learner now sees. Idempotent; a no-op if nothing to drop.
+        """
+        from starlette.concurrency import run_in_threadpool
+
+        from langchain_core.messages import RemoveMessage
+
+        body = await request.json()
+        mode = body.get("mode", "practice")
+        thread = body.get("thread") or ""
+        _require_owner(thread)
+        keep = max(0, int(body.get("keep_user_turns", 0)))
+        agent = agent_for(mode)
+        config = {"configurable": {"thread_id": thread}}
+
+        def _do():
+            state = agent.get_state(config)
+            messages = (state.values or {}).get("messages", []) or []
+            seen = 0
+            cut = None  # index of the first message to drop
+            for i, m in enumerate(messages):
+                if getattr(m, "type", None) == "human":
+                    seen += 1
+                    if seen == keep + 1:
+                        cut = i
+                        break
+            if cut is None:
+                return 0  # fewer turns than asked to keep → nothing to remove
+            drop = [RemoveMessage(id=m.id) for m in messages[cut:] if getattr(m, "id", None)]
+            if drop:
+                agent.update_state(config, {"messages": drop})
+            return len(drop)
+
+        removed = await run_in_threadpool(_do)
+        return {"ok": True, "removed": removed}
+
     @app.post("/api/assist")
     async def assist(request: Request):
         from starlette.concurrency import run_in_threadpool
@@ -651,6 +694,26 @@ background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-
 color:#2a1c07;border:none;border-radius:4px;padding:0 20px;font-weight:600;cursor:pointer;
 box-shadow:0 6px 20px -6px rgba(231,182,75,.55),inset 0 1px 0 rgba(255,255,255,.4);transition:.2s}
 button.send:hover{transform:translateY(-1px)}
+/* conversation controls (#36): rewind button + per-message edit + Esc-cancel note */
+button.rewind{font-family:var(--f-mono);letter-spacing:.08em;text-transform:uppercase;font-size:11px;
+ background:rgba(6,9,20,.5);color:var(--parch-dim);border:1px solid var(--line-gold);border-radius:4px;
+ padding:0 12px;cursor:pointer;transition:.16s;white-space:nowrap}
+button.rewind:hover{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.08)}
+button.rewind:disabled{opacity:.4;cursor:default}
+.msg.you{position:relative}
+.msg.you .editbtn{position:absolute;top:-9px;right:8px;font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;
+ text-transform:uppercase;color:var(--peacock-bright);background:rgba(6,9,20,.9);border:1px solid rgba(46,163,160,.4);
+ border-radius:4px;padding:2px 8px;cursor:pointer;opacity:0;transition:.16s}
+.msg.you:hover .editbtn{opacity:1}
+.msg.you .editbtn:hover{color:var(--peacock-bright);border-color:var(--peacock)}
+.msg.you.editing{outline:1px dashed var(--gold-deep);outline-offset:3px}
+.msg.you .editarea{width:100%;min-height:60px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);border-radius:6px;
+ color:var(--parch);padding:9px 11px;font-family:var(--f-body);font-size:14px;resize:vertical;outline:none}
+.msg.you .editbtns{display:flex;gap:8px;margin-top:8px}
+.msg.you .editbtns button{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+ border-radius:4px;padding:5px 12px;cursor:pointer;border:1px solid var(--line-gold);background:rgba(6,9,20,.5);color:var(--parch-dim)}
+.msg.you .editbtns button.save{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
+.cancelnote{font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--parch-mute);margin-top:8px;opacity:.75}
 .edtoolbar{display:flex;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
 .edtoolbar select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 9px;font-family:var(--f-mono);font-size:11px}
 .edtoolbar .grow{flex:1}
@@ -1019,6 +1082,7 @@ body.reduce-motion *{animation:none !important}
         <span class="resumehint" id="resumehint">grounds your setup in your real experience · export LinkedIn via “Save to PDF”</span>
       </div>
       <div class="inbar">
+        <button class="rewind" id="rewindbtn" title="Rewind — drop the last exchange and try again (its message returns to the box)" onclick="rewind()" hidden>↶ Rewind</button>
         <textarea id="chatin" rows="1" placeholder="type your answer…  (Shift+Enter for a new line)" autocomplete="off"></textarea>
         <button class="send" onclick="sendChat()">Send</button>
       </div>
@@ -1137,6 +1201,8 @@ body.reduce-motion *{animation:none !important}
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
   flowchart:{useMaxWidth:true, htmlLabels:true}});
 let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
+let streamAbort = null;   // AbortController for the in-flight /api/stream (Esc cancels)
+let turns = [];           // one entry per user turn: {text, you, ai} DOM handles, for rewind/edit
 let biggestPaste = 0, deathOnCheat = true;   // anti-cheat: size of the largest paste; whether a trigger penalises
 const STUB = "# write your solution here\n";
 // mirror of progress.looks_pasted — only a big paste dominating a code-like solution counts
@@ -1729,7 +1795,7 @@ async function consume(res, ui){
   }
 }
 let queued=null, queuedSubmit=false;
-function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
+function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} renderTurnCtl(); }
 // themed error card (template §5) — "The arrow found no wind" + Retry
 function addErrorCard(desc, onRetry){
   clearWelcome();
@@ -1744,13 +1810,22 @@ function addErrorCard(desc, onRetry){
 async function stream(text, code){
   if(streaming) return; streaming=true; setBusy(true);
   const ui=addAiMsg();
-  let failed=false;
+  if(turns.length && !turns[turns.length-1].ai) turns[turns.length-1].ai=ui.m;  // pair with its user turn
+  let failed=false, aborted=false;
+  streamAbort=new AbortController();          // Esc → abort this fetch (server stops on disconnect)
   try{
     const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({thread,mode,text,code:code||undefined})});
+      body:JSON.stringify({thread,mode,text,code:code||undefined}),signal:streamAbort.signal});
     await consume(res, ui);
-  }catch(e){ failed=true; }
-  streaming=false; setBusy(false);
+  }catch(e){ if(e&&e.name==='AbortError'){ aborted=true; } else { failed=true; } }
+  streamAbort=null; streaming=false; setBusy(false);
+  if(aborted){                                               // learner pressed Esc — stop cleanly
+    if(ui.buf.trim() || ui.steps>0){ ui.m.style.display=''; finalizeMsg(ui);
+      const n=el('cancelnote'); n.textContent='◦ stopped'; ui.reply.appendChild(n); }
+    else { ui.m.remove(); }
+    if(queued && queued.you){ queued.you.remove(); }         // drop the message typed mid-stream, unsent
+    queued=null; queuedSubmit=false; renderTurnCtl(); refreshHud(); return;
+  }
   if(failed && !ui.buf.trim() && ui.steps===0){             // couldn't reach the guru at all
     ui.m.remove();
     addErrorCard("Couldn't reach the guru. Check the connection and loose again.", ()=>stream(text, code));
@@ -1760,14 +1835,74 @@ async function stream(text, code){
     ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
   } else { ui.m.style.display=''; finalizeMsg(ui); }
   refreshHud();
-  if(queued){ const q=queued; queued=null; stream(q); }        // a message typed mid-stream
+  if(queued){ const q=queued; queued=null;                     // a message typed mid-stream
+    turns.push(q); attachEdit(q); renderTurnCtl(); stream(q.text); }
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
+}
+function cancelStream(){ if(streaming && streamAbort){ streamAbort.abort(); } }
+
+// --- rewind + edit (conversation controls, #36) ---------------------------
+// The visible transcript and the server's checkpointed thread are kept in lock-step:
+// dropping/editing a turn removes it (and everything after) from both. `turns` records
+// one entry per learner turn with handles to its "you" + "ai" bubbles.
+function renderTurnCtl(){
+  const b=document.getElementById('rewindbtn'); if(!b) return;
+  b.hidden = turns.length===0;                       // nothing to rewind yet
+  b.disabled = streaming;                            // never rewind mid-reply
+}
+function attachEdit(turn){
+  if(!turn.you || turn.code || turn.you.querySelector('.editbtn')) return;   // code submits: no inline edit
+  const btn=el('editbtn'); btn.textContent='edit';
+  btn.onclick=()=>{ const i=turns.indexOf(turn); if(i>=0) startEdit(i); };   // index resolved live (shifts on rewind)
+  turn.you.appendChild(btn);
+}
+async function truncateServer(keepUserTurns){
+  try{ await fetch('/api/truncate',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({thread,mode,keep_user_turns:keepUserTurns})}); }catch(e){}
+}
+async function rewind(){
+  if(streaming || !turns.length) return;
+  const last=turns.pop();                            // drop the last exchange from the UI…
+  if(last.you) last.you.remove(); if(last.ai) last.ai.remove();
+  await truncateServer(turns.length);                // …and from the server thread
+  renderTurnCtl();
+  if(!last.code){                                    // restore the prior input for a quick redo
+    const inp=document.getElementById('chatin');
+    inp.value=last.text; inp.style.height='auto'; inp.style.height=Math.min(inp.scrollHeight,150)+'px'; inp.focus();
+  }
+  if(!turns.length) showWelcome();
+}
+function startEdit(idx){
+  if(streaming) return; const turn=turns[idx]; if(!turn || turn.code) return;   // code submits aren't inline-editable
+  const you=turn.you; if(!you || you.classList.contains('editing')) return;
+  you.classList.add('editing');
+  const body=you.querySelector('.body'); const orig=body.innerHTML;
+  body.innerHTML='';
+  const ta=el('editarea'); ta.value=turn.text;
+  const bar=el('editbtns');
+  const save=document.createElement('button'); save.className='save'; save.textContent='Re-run';
+  const cancel=document.createElement('button'); cancel.textContent='Cancel';
+  bar.appendChild(save); bar.appendChild(cancel);
+  body.appendChild(ta); body.appendChild(bar); ta.focus();
+  cancel.onclick=()=>{ you.classList.remove('editing'); body.innerHTML=orig; };
+  save.onclick=async()=>{
+    const t=ta.value.trim(); if(!t){ cancel.onclick(); return; }
+    // drop this turn and everything after it, on both sides, then re-run from the edit
+    for(let i=turns.length-1;i>=idx;i--){ const tt=turns[i]; if(tt.you) tt.you.remove(); if(tt.ai) tt.ai.remove(); }
+    turns.length=idx;
+    await truncateServer(idx);
+    const you=addMsg('you', renderMd(t)).closest('.msg');
+    const turn={text:t, you, ai:null}; turns.push(turn); attachEdit(turn); renderTurnCtl();
+    stream(t);
+  };
 }
 
 function sendChat(){
   const inp=document.getElementById('chatin'); const t=inp.value.trim(); if(!t)return;
-  inp.value=''; inp.style.height='auto'; addMsg('you', renderMd(t));
-  if(streaming){ queued=t; return; }   // queue it; it fires when the current turn ends
+  inp.value=''; inp.style.height='auto'; const you=addMsg('you', renderMd(t)).closest('.msg');
+  const turn={text:t, you, ai:null};
+  if(streaming){ queued=turn; return; }   // queue it; it fires (and is tracked) when the current turn ends
+  turns.push(turn); attachEdit(turn); renderTurnCtl();
   const code=editorCode();                                  // let the agent see the editor,
   const attach=(code && code!==lastSentCode)?code:null;     // but only when it changed
   if(attach) lastSentCode=code;
@@ -1832,6 +1967,10 @@ async function runCode(){
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
+  // Esc anywhere in the arena cancels an in-flight reply (never while editing a past turn).
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && streaming && !document.querySelector('.msg.editing')){ e.preventDefault(); cancelStream(); }
+  });
 })();
 
 function flashSubmit(t){ const b=document.querySelector('button.submit'); if(b) b.textContent=t; }
@@ -1851,6 +1990,7 @@ function submitCode(){
   const msg="Here is my code:\n```python\n"+code+"\n```";
   const body=addMsg('you','<pre><code class="language-python">'+code.replace(/</g,'&lt;')+'</code></pre>');
   body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});  // only the new bubble
+  turns.push({text:msg, you:body.closest('.msg'), ai:null, code:true}); renderTurnCtl();  // code submit: no inline edit
   lastSentCode = editor.getValue();   // the agent just saw this code — don't re-attach it next chat
   stream(msg);
 }
@@ -1910,6 +2050,7 @@ document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Ente
 
 function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
+  turns=[]; renderTurnCtl();
   if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   showPane('editor');  // a fresh session starts on the editor, not a stale canvas
@@ -1945,11 +2086,15 @@ async function openChat(id){
   try{
     const c=await (await fetch('/api/chats/'+id)).json();
     thread=id; mode=c.mode||mode; lastSentCode=''; document.getElementById('mode').value=mode; applyMode();
-    const log=document.getElementById('log'); log.innerHTML='';
+    const log=document.getElementById('log'); log.innerHTML=''; turns=[];
     for(const m of (c.transcript||[])){
       const b=addMsg(m.role==='you'?'you':'ai',''); b.innerHTML=renderMd(m.text);  // renderMd already highlights
+      // rebuild turn pairs so rewind/edit work on a loaded chat too
+      if(m.role==='you'){ const turn={text:m.text, you:b.closest('.msg'), ai:null}; turns.push(turn); attachEdit(turn); }
+      else if(turns.length && !turns[turns.length-1].ai){ turns[turns.length-1].ai=b.closest('.msg'); }
       try{ await mermaid.run({nodes:b.querySelectorAll('.mermaid')}); }catch(e){}
     }
+    renderTurnCtl();
     document.getElementById('asslog').innerHTML=''; closeDrawer(); scroll(); refreshHud();
   }catch(e){}
 }

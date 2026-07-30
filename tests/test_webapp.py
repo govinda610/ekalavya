@@ -140,6 +140,64 @@ def test_artifacts_crud_endpoints():
     assert c.delete(f"/api/artifacts/{aid}").status_code == 404
 
 
+def test_fonts_are_vendored_and_served_locally():
+    """#35 — pages link the local /static/fonts.css (no Google Fonts CDN), and the CSS +
+    its woff2 files are actually served."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    for path in ("/", "/dashboard", "/journey", "/profile"):
+        html = c.get(path).text
+        assert "/static/fonts.css" in html, f"{path} should link the vendored stylesheet"
+        assert "fonts.googleapis.com" not in html and "fonts.gstatic.com" not in html, \
+            f"{path} still references the Google Fonts CDN"
+    css = c.get("/static/fonts.css")
+    assert css.status_code == 200 and "@font-face" in css.text
+    # every woff2 the CSS points at is actually reachable
+    import re
+    for rel in sorted(set(re.findall(r"/static/fonts/[\w.-]+\.woff2", css.text))):
+        assert c.get(rel).status_code == 200, f"missing font file {rel}"
+
+
+def test_truncate_rewinds_thread_state():
+    """#36 — /api/truncate drops trailing turns from the checkpointed thread so rewind/edit
+    keep the UI and server in lock-step. keep_user_turns=N leaves the first N human turns."""
+    from starlette.testclient import TestClient
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from eklavya.agent import build_agent
+    from eklavya.prompts import SESSION
+    from eklavya.tools import SESSION_TOOLS
+
+    c = TestClient(create_app())
+    # Seed a thread's checkpointer with two full exchanges (the same persistent saver the
+    # route resolves, since agent_for uses the default checkpointer).
+    agent = build_agent(SESSION, SESSION_TOOLS)
+    thread = "rewind-test-thread"
+    cfg = {"configurable": {"thread_id": thread}}
+    agent.update_state(cfg, {"messages": [
+        HumanMessage("q1", id="h1"), AIMessage("a1", id="a1"),
+        HumanMessage("q2", id="h2"), AIMessage("a2", id="a2"),
+    ]})
+
+    def _human_texts():
+        msgs = (agent.get_state(cfg).values or {}).get("messages", [])
+        return [m.content for m in msgs if getattr(m, "type", None) == "human"]
+
+    assert _human_texts() == ["q1", "q2"]
+    # keep only the first turn (rewind of the last exchange)
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 1})
+    assert r.status_code == 200 and r.json()["removed"] == 2  # q2 + a2 dropped
+    assert _human_texts() == ["q1"]
+    # keeping more than exist is a harmless no-op
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 5})
+    assert r.json()["removed"] == 0 and _human_texts() == ["q1"]
+    # keep none clears the whole conversation
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 0})
+    assert r.json()["removed"] == 2 and _human_texts() == []
+
+
 def test_settings_get_and_put():
     from starlette.testclient import TestClient
 
