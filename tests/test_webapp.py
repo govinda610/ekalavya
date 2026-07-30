@@ -140,6 +140,143 @@ def test_artifacts_crud_endpoints():
     assert c.delete(f"/api/artifacts/{aid}").status_code == 404
 
 
+def test_fonts_are_vendored_and_served_locally():
+    """#35 — pages link the local /static/fonts.css (no Google Fonts CDN), and the CSS +
+    its woff2 files are actually served."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    for path in ("/", "/dashboard", "/journey", "/profile"):
+        html = c.get(path).text
+        assert "/static/fonts.css" in html, f"{path} should link the vendored stylesheet"
+        assert "fonts.googleapis.com" not in html and "fonts.gstatic.com" not in html, \
+            f"{path} still references the Google Fonts CDN"
+    css = c.get("/static/fonts.css")
+    assert css.status_code == 200 and "@font-face" in css.text
+    # every woff2 the CSS points at is actually reachable
+    import re
+    for rel in sorted(set(re.findall(r"/static/fonts/[\w.-]+\.woff2", css.text))):
+        assert c.get(rel).status_code == 200, f"missing font file {rel}"
+
+
+def test_truncate_rewinds_thread_state():
+    """#36 — /api/truncate drops trailing turns from the checkpointed thread so rewind/edit
+    keep the UI and server in lock-step. keep_user_turns=N leaves the first N human turns."""
+    from starlette.testclient import TestClient
+
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    from eklavya.agent import build_agent
+    from eklavya.prompts import SESSION
+    from eklavya.tools import SESSION_TOOLS
+
+    c = TestClient(create_app())
+    # Seed a thread's checkpointer with two full exchanges (the same persistent saver the
+    # route resolves, since agent_for uses the default checkpointer).
+    agent = build_agent(SESSION, SESSION_TOOLS)
+    thread = "rewind-test-thread"
+    cfg = {"configurable": {"thread_id": thread}}
+    agent.update_state(cfg, {"messages": [
+        HumanMessage("q1", id="h1"), AIMessage("a1", id="a1"),
+        HumanMessage("q2", id="h2"), AIMessage("a2", id="a2"),
+    ]})
+
+    def _human_texts():
+        msgs = (agent.get_state(cfg).values or {}).get("messages", [])
+        return [m.content for m in msgs if getattr(m, "type", None) == "human"]
+
+    assert _human_texts() == ["q1", "q2"]
+    # keep only the first turn (rewind of the last exchange)
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 1})
+    assert r.status_code == 200 and r.json()["removed"] == 2  # q2 + a2 dropped
+    assert _human_texts() == ["q1"]
+    # keeping more than exist is a harmless no-op
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 5})
+    assert r.json()["removed"] == 0 and _human_texts() == ["q1"]
+    # keep none clears the whole conversation
+    r = c.post("/api/truncate", json={"thread": thread, "keep_user_turns": 0})
+    assert r.json()["removed"] == 2 and _human_texts() == []
+
+
+def test_selfcheck_receives_sandbox_run_output(monkeypatch):
+    """#54 — the hallucination judge's context is enriched with the turn's actual sandbox
+    output (grade_and_record / run_bash results), so it can catch a reply that contradicts
+    what the code really printed."""
+    from starlette.testclient import TestClient
+
+    from eklavya import agent as agent_mod, verify
+
+    # A fake agent whose stream yields one grade_and_record tool result then the tutor's
+    # (wrong) claim. get_state → no interrupt, so the run completes and selfcheck fires.
+    class _Chunk:
+        def __init__(self, type=None, name="", content="", tool_call_chunks=None):
+            self.type = type; self.name = name; self.content = content
+            self.tool_call_chunks = tool_call_chunks
+
+    class _State:
+        interrupts = ()
+
+    class _FakeAgent:
+        def stream(self, inputs, config=None, stream_mode=None):
+            yield _Chunk(type="tool", name="grade_and_record",
+                         content="FAIL: expected 6 but the learner's code printed 5"), {}
+            yield _Chunk(content="Your code correctly prints 6 — great job."), {}
+        def get_state(self, config):
+            return _State()
+
+    monkeypatch.setattr(agent_mod, "build_agent", lambda *a, **k: _FakeAgent())
+
+    captured = {}
+
+    def _fake_selfcheck(reply, context=""):
+        captured["reply"] = reply
+        captured["context"] = context
+        return None  # don't append a note; we only assert the context it received
+
+    monkeypatch.setattr(verify, "selfcheck", _fake_selfcheck)
+
+    c = TestClient(create_app())
+    # drain the stream so _events runs to completion (and calls selfcheck)
+    with c.stream("POST", "/api/stream",
+                  json={"mode": "practice", "thread": "sc-test", "text": "does this print 6?"}) as r:
+        for _ in r.iter_lines():
+            pass
+
+    assert "ACTUAL CODE EXECUTION OUTPUT" in captured["context"]
+    assert "printed 5" in captured["context"]              # the real sandbox result reached the judge
+    assert "does this print 6?" in captured["context"]     # the learner's message is still there
+    assert "prints 6" in captured["reply"]                 # and the tutor's claim is what's judged
+
+
+def test_client_ip_honours_xff_only_when_proxy_trusted():
+    """#52 — behind a trusted proxy we key throttling on the left-most X-Forwarded-For
+    entry (the real client); otherwise we ignore the header and use request.client.host
+    so a direct client can't spoof it."""
+    from eklavya import config, webapp
+
+    class _FakeReq:
+        def __init__(self, host, xff=None):
+            self.client = type("C", (), {"host": host})()
+            self.headers = {"x-forwarded-for": xff} if xff is not None else {}
+
+    proxy_ip, real_ip = "10.0.0.1", "203.0.113.7"
+    req = _FakeReq(proxy_ip, xff=f"{real_ip}, 10.0.0.1")
+
+    orig = config.TRUST_PROXY
+    try:
+        # not trusted → the header is ignored, we use the connecting (proxy) address
+        config.TRUST_PROXY = False
+        assert webapp.client_ip(req) == proxy_ip
+        # trusted → the left-most (original client) entry wins
+        config.TRUST_PROXY = True
+        assert webapp.client_ip(req) == real_ip
+        # trusted but no header → fall back to request.client.host
+        assert webapp.client_ip(_FakeReq(proxy_ip)) == proxy_ip
+        assert webapp.client_ip(_FakeReq(proxy_ip, xff="")) == proxy_ip
+    finally:
+        config.TRUST_PROXY = orig
+
+
 def test_settings_get_and_put():
     from starlette.testclient import TestClient
 

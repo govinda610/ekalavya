@@ -15,6 +15,10 @@ User=eklavya
 WorkingDirectory=/opt/eklavya/eklavya-ai-coding-tutor
 Environment=EKLAVYA_MULTIUSER=1
 Environment=EKLAVYA_DATA_ROOT=/var/lib/eklavya/data
+# Behind Caddy (which sets X-Forwarded-For): key the login throttle on the real client
+# IP, not Caddy's. Only safe because Caddy is the sole ingress — never expose the app port
+# directly with this on, or a client could spoof the header.
+Environment=EKLAVYA_TRUST_PROXY=1
 # secrets (EKLAVYA_SECRET_KEY, provider keys, TAVILY/SERPER) live here, chmod 600, NOT in git
 EnvironmentFile=/etc/eklavya/eklavya.env
 ExecStart=/usr/local/bin/uv run eklavya serve --host 127.0.0.1 --port 4646 --no-open

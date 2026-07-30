@@ -30,6 +30,13 @@ load_dotenv()
 # identical to before. Phase 1 only adds the plumbing — no auth/middleware is mounted.
 MULTIUSER = os.environ.get("EKLAVYA_MULTIUSER", "0") not in ("0", "", "false", "False")
 
+# Trust the reverse proxy's forwarded client IP for login throttling. OFF by default:
+# when the app is exposed directly, request.client.host is the real client and a header
+# could be spoofed. Turn this ON *only* behind a trusted proxy (e.g. Caddy), which sets
+# X-Forwarded-For — then the throttle keys on the left-most (original client) IP instead
+# of the proxy's own address.
+TRUST_PROXY = os.environ.get("EKLAVYA_TRUST_PROXY", "0") not in ("0", "", "false", "False")
+
 # Which provider/model to teach with by default (overridable via env).
 DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "glm")
 
