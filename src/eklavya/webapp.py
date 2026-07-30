@@ -750,6 +750,40 @@ button:disabled{opacity:.42;cursor:default}
 #reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--gold-bright)}
 #reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch-dim)}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* achievement toast (template §5) — transient, top-centre, gold-leaf sheen */
+#achtoast{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:95;display:none;gap:16px;align-items:center;
+ padding:16px 20px;border:1px solid var(--gold);border-radius:5px;overflow:hidden;max-width:min(440px,92vw);
+ background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));box-shadow:0 12px 40px -10px rgba(231,182,75,.5)}
+#achtoast.on{display:flex;animation:pop .45s ease}
+#achtoast::after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;
+ background:linear-gradient(100deg,transparent,rgba(255,246,223,.25),transparent);animation:sheen 3.2s ease-in-out 2}
+@keyframes sheen{0%{left:-40%}60%,100%{left:120%}}
+#achtoast .badge{flex:0 0 auto}
+#achtoast .tinfo .te{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+#achtoast .tinfo .tn{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--parch)}
+#achtoast .tinfo .td{font-family:var(--f-body);font-size:14px;color:var(--parch-dim)}
+/* level-up ceremony (template §5) — gold bloom + spinning chakra rays + twin diyas */
+#ceremony{position:fixed;inset:0;z-index:101;display:none;place-items:center;
+ background:radial-gradient(circle at 50% 45%,rgba(30,24,14,.92),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
+#ceremony.on{display:grid;animation:fadein .5s ease}
+.cerbox{position:relative;min-height:340px;min-width:min(520px,92vw);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ background:radial-gradient(circle at center,rgba(30,24,14,.9),var(--void) 70%);border:1px solid var(--gold)}
+.cerbox .rays{position:absolute;top:50%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.6;animation:slowspin 40s linear infinite}
+@keyframes slowspin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.cerbox .ccontent{position:relative;text-align:center;z-index:2;padding:24px}
+.cerbox .bloom{animation:bloom 1.5s cubic-bezier(.2,.7,.3,1) both}
+@keyframes bloom{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+.cerbox .ce{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:8px}
+.cerbox .clvl{font-family:var(--f-display);font-weight:900;font-size:64px;line-height:1;color:transparent;
+ background:linear-gradient(180deg,#fff6df,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;text-shadow:0 4px 30px rgba(231,182,75,.5)}
+.cerbox .cdeva{font-family:var(--f-deva);font-size:20px;color:var(--parch);opacity:.92;margin-top:6px}
+.cerbox .ctitle{font-family:var(--f-serif);font-style:italic;font-size:18px;color:var(--parch);margin-top:8px}
+.cerbox .ctitle b{color:var(--gold-bright);font-style:normal}
+.cerbox .diya{position:absolute;bottom:26px}.cerbox .diya.d1{left:60px}.cerbox .diya.d2{right:60px}
+.cerbox .flick{animation:flick 1.6s ease-in-out infinite;transform-origin:center bottom}
+@keyframes flick{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.08) rotate(2deg)}}
+#ceremony button{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--f-title);letter-spacing:.04em;
+ background:rgba(231,182,75,.1);color:var(--gold-bright);border:1px solid var(--gold-deep);border-radius:4px;padding:9px 22px;cursor:pointer;font-weight:600}
 *:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
 .sh-deep{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
 :root{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
@@ -860,6 +894,21 @@ button:disabled{opacity:.42;cursor:default}
     <button onclick="dismissDeath()">Continue</button>
   </div>
 </div></div>
+<div id="achtoast"><span class="badge"><svg width="46" height="46" viewBox="0 0 52 52" fill="none"><path d="M26 3 L48 15 V37 L26 49 L4 37 V15 Z" fill="#231d18" stroke="#e7b64b" stroke-width="1.5"/><path d="M26 9 L43 18 V34 L26 43 L9 34 V18 Z" fill="none" stroke="#f7d98a" stroke-width="1" opacity=".6"/><path d="M26 16 v14 M22 30 h8 M26 16 c-3 2 -3 6 0 8 c3 -2 3 -6 0 -8" stroke="#f7d98a" stroke-width="1.6" fill="none"/><circle cx="26" cy="24" r="2" fill="#d63b2a"/></svg></span><div class="tinfo"><div class="te">◆ Achievement unlocked</div><div class="tn" id="achname">—</div><div class="td" id="achdesc">—</div></div></div>
+
+<div id="ceremony"><div class="cerbox">
+  <svg class="rays" viewBox="0 0 200 200" fill="none"><g id="ceremonyrays" stroke="#f7d98a" stroke-width=".7"></g></svg>
+  <div class="ccontent bloom">
+    <div class="ce">◆ Ascension · siddhi</div>
+    <div class="clvl" id="cerlvl">RANK</div>
+    <div class="cdeva">दीप प्रज्वलित — एक और दीया जला</div>
+    <div class="ctitle" id="certitle">You are now <b>—</b></div>
+  </div>
+  <svg class="diya d1" width="46" height="34" viewBox="0 0 46 34"><path d="M4 20 Q23 34 42 20 L38 24 Q23 30 8 24 Z" fill="#b8862f"/><ellipse cx="23" cy="20" rx="20" ry="6" fill="#3a2f26"/><g class="flick"><path d="M23 4 C27 12 25 17 23 18 C21 17 19 12 23 4Z" fill="#f7d98a"/></g></svg>
+  <svg class="diya d2" width="46" height="34" viewBox="0 0 46 34"><path d="M4 20 Q23 34 42 20 L38 24 Q23 30 8 24 Z" fill="#b8862f"/><ellipse cx="23" cy="20" rx="20" ry="6" fill="#3a2f26"/><g class="flick"><path d="M23 4 C27 12 25 17 23 18 C21 17 19 12 23 4Z" fill="#f7d98a"/></g></svg>
+  <button onclick="dismissCeremony()">Continue</button>
+</div></div>
+
 <div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -1139,7 +1188,54 @@ function setHud(s){const pct=(s.xp%100)/100, next=s.level+1;
    "<span class='flame'><svg width='11' height='14' viewBox='0 0 46 58' style='vertical-align:-2px'><path d='M23 4 C31 18 40 22 38 36 C37 49 30 54 23 54 C16 54 8 48 8 36 C8 27 16 24 18 14 C22 20 20 26 24 30 C28 24 24 16 23 4Z' fill='#e7b64b'/></svg> <b>"+s.streak+"</b>d</span>"+
    "<span class='rank'>"+rank(s.level)+"</span>"+
    "<span class='prog'>Lv <b>"+s.level+"</b> · <b>"+Math.round(pct*100)+"%</b> → R"+next+"</span>";}
-function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(setHud).catch(()=>{}); }
+function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(s=>{ setHud(s); celebrate(s); }).catch(()=>{}); }
+
+/* ===== celebration moments (template §5): level-up ceremony + achievement toast =====
+   The app exposes level + streak; we mirror the dashboard's achievement rules client-side
+   and fire a moment the first time the level rises or a new achievement is earned. Prior
+   state is remembered in localStorage so a moment fires once, not on every refresh. */
+function rankTitle(l){const T=[[17,'Grandmaster of the Forest'],[12,'Master Archer'],[8,'Archer of the Deep Forest'],[5,'Adept of the String'],[3,'Apprentice Archer'],[1,'Novice of the Grove']];
+  for(const [t,n] of T) if(l>=t) return n; return 'Novice of the Grove';}
+function earnedAchievements(s){
+  const a=[];
+  if(s.streak>=3) a.push(['On Fire','A 3-day streak — the string stays warm.']);
+  if(s.streak>=7) a.push(['Week Warrior','Seven days unbroken.']);
+  if(s.streak>=30) a.push(['Unbroken','A 30-day streak. The forest remembers.']);
+  if(s.level>=5) a.push(['Adept','Reached level 5.']);
+  if(s.level>=10) a.push(['Master','Reached level 10.']);
+  return a;
+}
+function showAchievement(name, desc){
+  document.getElementById('achname').textContent=name;
+  document.getElementById('achdesc').textContent=desc;
+  const t=document.getElementById('achtoast'); t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),4200);
+}
+function _ceremonyRays(){ const g=document.getElementById('ceremonyrays'); if(g.childElementCount) return;
+  for(let i=0;i<40;i++){ const a=i*9*Math.PI/180, x2=100+96*Math.cos(a), y2=100+96*Math.sin(a);
+    const l=document.createElementNS(SVGNS,'line'); l.setAttribute('x1',100);l.setAttribute('y1',100);
+    l.setAttribute('x2',x2.toFixed(1));l.setAttribute('y2',y2.toFixed(1)); g.appendChild(l);} }
+function showCeremony(level){
+  _ceremonyRays();
+  document.getElementById('cerlvl').textContent='RANK '+level;
+  document.getElementById('certitle').innerHTML='You are now <b>'+rankTitle(level)+'</b>';
+  const box=document.querySelector('#ceremony .ccontent'); box.classList.remove('bloom'); void box.offsetWidth; box.classList.add('bloom');
+  document.getElementById('ceremony').classList.add('on');
+}
+function dismissCeremony(){ document.getElementById('ceremony').classList.remove('on'); }
+let _celebReady=false;   // don't fire on the very first load (that's the returning state, not a change)
+function celebrate(s){
+  const prevLvl=parseInt(localStorage.getItem('ek_lvl')||'0',10);
+  const prevAch=JSON.parse(localStorage.getItem('ek_ach')||'[]');
+  const nowAch=earnedAchievements(s).map(a=>a[0]);
+  if(_celebReady){
+    if(s.level>prevLvl) showCeremony(s.level);
+    const fresh=earnedAchievements(s).find(a=>!prevAch.includes(a[0]));
+    if(fresh && !(s.level>prevLvl)) showAchievement(fresh[0], fresh[1]);   // one moment at a time
+  }
+  localStorage.setItem('ek_lvl', s.level); localStorage.setItem('ek_ach', JSON.stringify(nowAch));
+  _celebReady=true;
+}
 function showReclaim(amt){ const r=document.getElementById('reclaim');
   document.getElementById('reclaimn').textContent="+"+amt+" XP restored"; r.classList.add('on');
   setTimeout(()=>r.classList.remove('on'),2800); }
