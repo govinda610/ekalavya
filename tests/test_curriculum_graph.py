@@ -43,10 +43,11 @@ def test_pipe_prereqs_build_edges_and_pillar_filter_narrows():
     # recovered despite the comma-in-name (not shredded to 0). The intra-RAG edge stays inside the track.
     assert full["mermaid"].count("-->") == 1
 
-    # filter to one track -> its concepts (+ direct prereqs) render, left-to-right, with the
-    # comma-named foundation edge recovered (2 concept edges), not shredded to 0
+    # filter to one track -> its concepts (+ direct prereqs) render TOP-DOWN (so a long
+    # chain stacks vertically, not overflowing wide), with the comma-named foundation edge
+    # recovered (2 concept edges), not shredded to 0
     rag = report.curriculum_mermaid("RAG & Vector Retrieval")
-    assert rag["mermaid"].splitlines()[0] == "graph LR"
+    assert rag["mermaid"].splitlines()[0] == "graph TD"
     assert rag["mermaid"].count("-->") == 2
     nodes = sum(1 for ln in rag["mermaid"].splitlines() if '["' in ln)
     assert nodes == 3  # 2 RAG concepts + 1 prereq foundation for context

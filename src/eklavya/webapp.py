@@ -112,6 +112,11 @@ def create_app():
     def index() -> str:
         return _INDEX
 
+    @app.get("/favicon.ico")
+    def favicon():
+        from starlette.responses import Response
+        return Response(status_code=204)  # no icon yet; silence the browser's auto-404
+
     @app.get("/welcome", response_class=HTMLResponse)
     def welcome() -> str:
         # Public marketing landing (brand mode). The primary CTA points at the app root;
@@ -481,6 +486,8 @@ main{flex:1;min-height:0}
 .msg blockquote{border-left:3px solid var(--gold);margin:8px 0;padding:2px 12px;color:#6b4710;font-style:italic}
 .msg.you blockquote{border-left-color:var(--peacock);color:var(--parch-dim)}
 .mermaid{background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:10px;text-align:center}
+.mermaid svg{max-width:100% !important;height:auto}
+#tree .mermaid{background:transparent;border:0}#tree .mermaid svg{max-width:100% !important;height:auto}
 .inbar{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
 .inbar textarea{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);
 padding:11px 14px;font-family:var(--f-body);font-size:14px;resize:none;max-height:150px;line-height:1.45;overflow-y:auto;outline:none;transition:.2s}
@@ -720,7 +727,8 @@ button:disabled{opacity:.42;cursor:default}
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
-mermaid.initialize({startOnLoad:false, theme:'dark'});
+mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
+  flowchart:{useMaxWidth:true, htmlLabels:true}});
 let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
 let biggestPaste = 0, deathOnCheat = true;   // anti-cheat: size of the largest paste; whether a trigger penalises
 const STUB = "# write your solution here\n";

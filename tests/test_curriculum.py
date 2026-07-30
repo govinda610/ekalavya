@@ -42,7 +42,7 @@ def test_mermaid_status_colours_by_mastery():
     tools.add_curriculum("async", "generators", "Python Fundamentals")
     # the single-track view shows concept nodes coloured by mastery
     m = report.curriculum_mermaid("Python Fundamentals")["mermaid"]
-    assert "graph LR" in m and ":::avail" in m and ":::lock" in m  # gen avail, async locked
+    assert "graph TD" in m and ":::avail" in m and ":::lock" in m  # gen avail, async locked
     # master generators (a correct attempt named 'generators')
     tools.record_attempt("Python idioms", "syntax_recall", "generators", 2, True)
     m2 = report.curriculum_mermaid("Python Fundamentals")["mermaid"]

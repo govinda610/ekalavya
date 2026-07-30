@@ -172,8 +172,14 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
 
     def label(c: str) -> str:
         # Sanitize for Mermaid node labels: quotes and brackets break the parser.
-        return (c.replace('"', "'").replace("[", "(").replace("]", ")")
-                 .replace("{", "(").replace("}", ")"))
+        s = (c.replace('"', "'").replace("[", "(").replace("]", ")")
+              .replace("{", "(").replace("}", ")"))
+        # Wrap a long label onto two lines so nodes stay narrow (no wide tracks).
+        if len(s) > 26:
+            cut = s.rfind(" ", 0, 30)
+            if cut > 12:
+                s = s[:cut] + "<br/>" + s[cut + 1:]
+        return s
 
     ramp = [
         # Option-E ramp: gold = mastered, peacock-teal = unlocked, muted stone = locked.
@@ -213,13 +219,14 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
         lines += ramp
         return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
 
-    # A single track (+ its direct prereqs) reads as a left→right path with legible labels.
+    # A single track (+ its direct prereqs) renders TOP-DOWN so a long chain stacks
+    # vertically (natural web scroll) instead of overflowing wide to the right.
     shown = {c for c in concepts if pillar_of[c] == pillar}
     for c in list(shown):
         shown.update(prereqs[c])
     render = [c for c in concepts if c in shown]
 
-    lines = ["graph LR"]
+    lines = ["graph TD"]
     for c in render:
         lines.append(f'  {ids[c]}["{label(c)}"]:::{status(c)}')
     for c in render:
