@@ -421,11 +421,12 @@ def progress_report() -> str:
     )
 
 
-def web_search(query: str) -> str:
-    """Search the web for real, current interview questions, references, or role
-    requirements — e.g. company/role-specific questions, or researching a target role's
-    stack. Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
-    (SERPER_API_KEY). Returns "unavailable" only if neither key is present."""
+def _web_search_raw(query: str, max_results: int = 6) -> list[dict]:
+    """Run one web search and return normalised {title, content, url} dicts.
+
+    Offline-safe: returns [] when no provider key is set or the request fails, so callers
+    (web_search, refresh-questions) never crash without a key. Tavily → Serper fallback.
+    """
     import os
 
     import requests
@@ -433,37 +434,127 @@ def web_search(query: str) -> str:
     tavily = os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
     serper = os.environ.get("SERPER_API_KEY") or os.environ.get("EKLAVYA_SERPER_API_KEY")
     if not (tavily or serper):
-        return ("Web search unavailable — set TAVILY_API_KEY (or SERPER_API_KEY) to "
-                "enable fresh questions and role research.")
+        return []
     try:
         if tavily:
             resp = requests.post(
                 "https://api.tavily.com/search",
-                json={"api_key": tavily, "query": query, "max_results": 6},
+                json={"api_key": tavily, "query": query, "max_results": max_results},
                 timeout=25,
             )
             results = resp.json().get("results", [])
             if results:
-                return _clip("\n".join(
-                    f"- {r.get('title', '')}: {str(r.get('content', ''))[:220]} ({r.get('url', '')})"
-                    for r in results[:6]
-                ))
+                return [{"title": r.get("title", ""), "content": str(r.get("content", "")),
+                         "url": r.get("url", "")} for r in results[:max_results]]
         if serper:
             resp = requests.post(
                 "https://google.serper.dev/search",
                 headers={"X-API-KEY": serper, "Content-Type": "application/json"},
-                json={"q": query, "num": 6},
+                json={"q": query, "num": max_results},
                 timeout=25,
             )
             results = resp.json().get("organic", [])
             if results:
-                return _clip("\n".join(
-                    f"- {r.get('title', '')}: {str(r.get('snippet', ''))[:220]} ({r.get('link', '')})"
-                    for r in results[:6]
-                ))
-    except Exception as exc:
-        return f"Web search failed: {exc}"
-    return "No results."
+                return [{"title": r.get("title", ""), "content": str(r.get("snippet", "")),
+                         "url": r.get("link", "")} for r in results[:max_results]]
+    except Exception:
+        return []
+    return []
+
+
+def web_search(query: str) -> str:
+    """Search the web for real, current interview questions, references, or role
+    requirements — e.g. company/role-specific questions, or researching a target role's
+    stack. Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
+    (SERPER_API_KEY). Returns "unavailable" only if neither key is present."""
+    import os
+
+    if not (os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
+            or os.environ.get("SERPER_API_KEY") or os.environ.get("EKLAVYA_SERPER_API_KEY")):
+        return ("Web search unavailable — set TAVILY_API_KEY (or SERPER_API_KEY) to "
+                "enable fresh questions and role research.")
+    results = _web_search_raw(query)
+    if not results:
+        return "No results."
+    return _clip("\n".join(
+        f"- {r['title']}: {r['content'][:220]} ({r['url']})" for r in results
+    ))
+
+
+def add_question(question: str, topic: str = "", difficulty: str = "", role: str = "",
+                 company: str = "", source: str = "") -> str:
+    """Add ONE real interview question to the growing bank so it's reusable later.
+
+    Use this when `web_search` surfaces a genuine, current interview question worth
+    keeping. HONESTY RULE: set `company` ONLY when the question is genuinely attributed
+    to that company by the source — never guess or fabricate a company tag. Leave it ""
+    if unknown. `topic` is a free-form tag (e.g. 'arrays', 'system-design', 'RAG',
+    'behavioral'); `difficulty` is easy/medium/hard when known; `source` is where it
+    came from (a URL or list name) for attribution. Deduped on the question text.
+    """
+    q = (question or "").strip()
+    if not q:
+        return "add_question: empty question ignored"
+    diff = (difficulty or "").strip().lower()
+    if diff and diff not in ("easy", "medium", "hard"):
+        diff = ""  # keep the tag clean; unknown difficulties are just blank
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "INSERT OR IGNORE INTO questions(company, role, topic, difficulty, question, source) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            ((company or "").strip() or None, (role or "").strip() or None,
+             (topic or "").strip() or None, diff or None, q, (source or "").strip() or None),
+        )
+        conn.commit()
+        added = cur.rowcount
+    finally:
+        conn.close()
+    return f"added question ({q[:60]}…)" if added else "already in the bank (skipped)"
+
+
+def get_questions(topic: str = "", company: str = "", role: str = "",
+                  difficulty: str = "", n: int = 3) -> str:
+    """Pull a few REAL interview questions from the bank, filtered to a target.
+
+    Use this instead of inventing questions: filter to the learner's target role/company
+    and their weak topics. All filters are optional and matched loosely (case-insensitive
+    substring) so 'design' finds 'system-design'. Returns up to `n` questions (randomised
+    so you don't repeat the same ones), each with its tags and source. If the bank is thin
+    for a target, use `web_search` for fresh ones and `add_question` the good finds.
+    """
+    n = max(1, min(int(n or 3), 20))
+    where, params = [], []
+    for col, val in (("topic", topic), ("company", company), ("role", role), ("difficulty", difficulty)):
+        val = (val or "").strip()
+        if val:
+            where.append(f"LOWER({col}) LIKE ?")
+            params.append(f"%{val.lower()}%")
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
+    conn = connect()
+    try:
+        rows = conn.execute(
+            f"SELECT company, role, topic, difficulty, question, source FROM questions"
+            f"{clause} ORDER BY RANDOM() LIMIT ?",
+            (*params, n),
+        ).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        tgt = ", ".join(f"{k}={v}" for k, v in
+                        (("topic", topic), ("company", company), ("role", role), ("difficulty", difficulty)) if v)
+        return (f"(no questions in the bank for {tgt or 'that filter'} — "
+                "use web_search for real current ones, then add_question the good ones)")
+    lines = []
+    for r in rows:
+        tags = " · ".join(t for t in (r["topic"], r["difficulty"], r["role"], r["company"]) if t)
+        line = f"- {r['question']}"
+        if tags:
+            line += f"  [{tags}]"
+        if r["source"]:
+            line += f"  (src: {r['source']})"
+        lines.append(line)
+    return _clip("\n".join(lines))
 
 
 from .assist import record_bug_verdict, review_ai_usage  # noqa: E402
@@ -482,10 +573,13 @@ from .github import read_github  # noqa: E402
 #   • read_github — ground practice in the learner's REAL code on a deployed server, where
 #     their repo isn't on the box: they hand over a GitHub repo/profile link and we
 #     shallow-clone (read-only, capped) or read public API metadata to infer their stack.
+#   • get_questions / add_question — draw REAL interview questions from the curated bank
+#     (filtered to the learner's target role/company/weak topic) instead of inventing them,
+#     and grow the bank from good web_search finds (honest company tagging only).
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 AGENT_TOOLS = [
-    grade_and_record, web_search, read_github,
+    grade_and_record, web_search, read_github, get_questions, add_question,
     record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, run_bash,
 ]

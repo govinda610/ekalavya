@@ -419,6 +419,36 @@ def mcp_server() -> None:
     run()  # blocks; stdout is the MCP wire, so we print nothing
 
 
+@app.command("refresh-questions")
+def refresh_questions(
+    company: str = typer.Option("", help="target company (only tagged if the source attributes it)"),
+    role: str = typer.Option("", help="target role, e.g. 'AI engineer' or 'backend SWE'"),
+    topic: str = typer.Option("", help="topic to refresh, e.g. 'system design' or 'RAG'"),
+) -> None:
+    """Pull FRESH, real interview questions from the web for a target and add them to the
+    bank (deduped, attributed). Best-effort and offline-safe: with no web-search key set,
+    it prints a hint and exits cleanly instead of crashing.
+    """
+    from .questions_refresh import refresh
+
+    init_db()
+    target = ", ".join(t for t in (company, role, topic) if t) or "general interview questions"
+    console.print(f"[green]›[/green] Refreshing questions for [bold]{target}[/]…")
+    result = refresh(company=company, role=role, topic=topic)
+    if not result["searched"]:
+        console.print(
+            "[yellow]•[/yellow] Web search unavailable — set [bold]TAVILY_API_KEY[/] "
+            "(or SERPER_API_KEY) to pull fresh questions. Nothing changed."
+        )
+        return
+    console.print(
+        f"[green]✓[/green] added [bold]{result['added']}[/] new "
+        f"({result['found']} candidates found, {result['skipped']} already in the bank)."
+    )
+    for q in result["samples"]:
+        console.print(f"  [dim]+ {q[:90]}[/]")
+
+
 @app.command()
 def scan(path: str = typer.Argument(..., help="a local repo path OR a GitHub repo/profile URL")) -> None:
     """Tailor your pillars to a repo you work on — local path or GitHub link (asks first)."""

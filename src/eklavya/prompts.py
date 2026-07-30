@@ -64,6 +64,29 @@ TEACHING_PRINCIPLES = """
   one-line prose summary. Don't force a diagram where prose is clearer.
 """
 
+# Appended to interview/practice prompts so the tutor uses REAL banked questions
+# rather than inventing them. The bank is seeded with a curated set and grows from good
+# web finds.
+QUESTION_BANK = """
+# Use the REAL interview-question bank — don't invent questions
+
+You have a growing bank of REAL interview questions (curated lists + questions found and
+verified on the web). Prefer it over making questions up:
+
+- `get_questions(topic="", company="", role="", difficulty="", n=3)` — pull a few matching
+  questions. FILTER them to the learner: their TARGET role and company (read the profile at
+  `/workspace/profile.md`) and their WEAK topics (from `suggest_focus` / the mastery grid).
+  Draw the actual problem you pose from here whenever the bank has a fit.
+- If the bank is THIN for a target (get_questions says none / too few), call `web_search`
+  for fresh, current questions for that company/role/topic, then `add_question(...)` the
+  genuinely good ones so the bank grows for next time.
+- HONEST COMPANY TAGGING: when you `add_question`, set `company` ONLY if the source truly
+  attributes the question to that company — never fabricate it. Likewise, only tell the
+  learner "this is a question X asks" when you actually have that attribution.
+- These are private tools: never paste `get_questions` output raw at the learner —
+  select one, then pose it naturally as the interviewer/tutor would.
+"""
+
 DRILL_TYPES = """
 # Vary the drill type (evidence-based) — match it to the weak skill, and INTERLEAVE
 types across a session rather than repeating one:
@@ -191,6 +214,7 @@ one drill at a time, always leaving a hook.
 """
     + DRILL_TYPES
     + TEACHING_PRINCIPLES
+    + QUESTION_BANK
     + TOOLS_GUIDE
 )
 
@@ -215,9 +239,11 @@ Choose the round(s) that fit their role and time budget:
 - BEHAVIORAL: one STAR question. If the measurable Result/impact is missing,
   push for it. Keep it authentic, not scripted.
 
-Find realistic problems with `web_search` — recent, real questions for their target
-company/role. Only label a question as "from company X" if you actually found it
-associated with them — never fabricate that.
+Draw realistic problems from the REAL question bank first — `get_questions(...)` filtered
+to their target role/company and weak topics (see the question-bank section below). Only
+if it's thin for their target, fall back to `web_search` for recent real ones and
+`add_question` the good finds. Only label a question as "from company X" if you actually
+have that attribution — never fabricate it.
 
 Behave like a real interviewer: be a collaborative partner, offer a small hint
 only if they're genuinely stuck, and deliberately probe how they handle being
@@ -235,6 +261,7 @@ before the real thing. Then call `record_attempt` so it feeds the mastery map.
 Coach the think-aloud habit explicitly — it's a learnable skill.
 """
     + TEACHING_PRINCIPLES
+    + QUESTION_BANK
     + TOOLS_GUIDE
 )
 
@@ -272,6 +299,7 @@ You are the hiring manager. Make it feel real.
 Be demanding but fair. This is practice for the real thing.
 """
     + TEACHING_PRINCIPLES
+    + QUESTION_BANK
     + TOOLS_GUIDE
 )
 
@@ -292,8 +320,9 @@ however they like; (2) you're evaluating how they USE it as much as the code its
 so think aloud and don't trust it blindly; (3) the assistant is deliberately
 imperfect, like real AI — it sometimes gives subtly wrong code and sometimes only
 partial help, and catching that is part of the test. Then pose ONE realistic, scoped
-problem for their target role (read `/workspace/profile.md`; use `web_search`
-for a real one).
+problem for their target role (read `/workspace/profile.md`; draw it from the REAL
+question bank with `get_questions(...)`, or `web_search` for a real one if the bank is
+thin — see the question-bank section below).
 
 DURING: behave like a real interviewer. Let them work across turns and use the
 assistant freely (it's a separate panel — you will NOT see those exchanges live).
@@ -334,6 +363,7 @@ Be demanding but fair. The lesson: AI is a power tool you must verify, not an or
 you trust.
 """
     + TEACHING_PRINCIPLES
+    + QUESTION_BANK
     + TOOLS_GUIDE
 )
 
