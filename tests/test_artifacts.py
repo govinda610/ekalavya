@@ -94,3 +94,13 @@ def test_delete():
     assert artifacts.delete(a["id"]) is True
     assert artifacts.get(a["id"]) is None
     assert artifacts.delete(a["id"]) is False  # already gone
+
+
+def test_save_artifact_tool_creates_and_is_registered():
+    from eklavya import tools
+
+    out = tools.save_artifact("Recursion", "markdown", "# the return upon itself")
+    assert "saved artifact" in out
+    rows = artifacts.list_artifacts()
+    assert any(r["title"] == "Recursion" and r["kind"] == "markdown" for r in rows)
+    assert tools.save_artifact in tools.AGENT_TOOLS
