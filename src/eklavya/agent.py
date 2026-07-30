@@ -7,7 +7,7 @@ a checkpointer so a conversation persists across turns on one thread_id.
 
 from __future__ import annotations
 
-from .providers import build_chat_model
+from .fallback import build_fallback_chat_model
 
 # A teaching turn can be long (explanations, code); give it room.
 _MAX_TOKENS = 4096
@@ -47,7 +47,11 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
     from .mcp_client import cached_mcp_tools
     from .workspace import build_backend
 
-    chat = build_chat_model(provider, model=model, max_tokens=_MAX_TOKENS)
+    # A resilient model: leads with the requested/default provider, then transparently
+    # hops to the next configured provider on a transient/provider error, so one
+    # provider being down or rate-limited doesn't kill the session. Single-provider
+    # setups get a chain of length 1 — identical to before.
+    chat = build_fallback_chat_model(provider, model=model, max_tokens=_MAX_TOKENS)
     return create_deep_agent(
         model=chat,
         tools=list(tools) + cached_mcp_tools(),  # + web search / docs, when warmed

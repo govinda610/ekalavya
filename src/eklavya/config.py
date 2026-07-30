@@ -33,6 +33,12 @@ MULTIUSER = os.environ.get("EKLAVYA_MULTIUSER", "0") not in ("0", "", "false", "
 # Which provider/model to teach with by default (overridable via env).
 DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "glm")
 
+# Opt-in round-robin load-balancing of the ENTRY provider across configured keys
+# (only when no explicit provider is requested). Off by default, so single-key and
+# explicit-provider setups are unchanged. The cross-provider fallback chain is
+# always active regardless of this flag.
+BALANCE_PROVIDERS = os.environ.get("EKLAVYA_BALANCE", "0") not in ("0", "", "false", "False")
+
 
 # --- the current user's home (contextvar) ----------------------------------
 
