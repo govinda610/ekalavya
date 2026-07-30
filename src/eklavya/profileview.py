@@ -139,7 +139,10 @@ h2 .grow{flex:1}
   margin:16px 0 6px;font-size:18px;font-weight:700}
 .prose ul,.prose ol{margin:8px 0;padding-left:20px;color:var(--parch-dim)}.prose li{margin:4px 0}
 .prose p{margin:8px 0;color:var(--parch-dim)}.prose strong{color:var(--parch)}
-.prose code{font-family:var(--f-mono);font-size:13px}
+.prose code{font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere;word-break:break-word}
+.prose pre{max-width:100%;overflow-x:auto;white-space:pre-wrap;word-break:break-word}
+.prose table{display:block;max-width:100%;overflow-x:auto}
+.prose{overflow-wrap:anywhere}
 #pedit{width:100%;min-height:340px;background:rgba(6,9,16,.85);color:var(--peacock-bright);border:1px solid var(--line-gold);
   border-radius:10px;padding:14px 16px;font-family:var(--f-mono);font-size:13px;line-height:1.7;resize:vertical}
 .hidden{display:none!important}

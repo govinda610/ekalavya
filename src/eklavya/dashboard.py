@@ -521,6 +521,11 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
   .xptext{font-size:10px}
   .charmid{min-width:0;width:100%}
   .hero{padding:18px}
+  /* never let a card or its rows push past the viewport (verification #55: +42px overflow) */
+  .card{max-width:100%;min-width:0}
+  .cal-facts{gap:16px}
+  .cal-fact,.badge,.pill,.quest,.quest .qtext{min-width:0}
+  .cal-fact{flex:1 1 auto}
 }
 
 /* polish */
