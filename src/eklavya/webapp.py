@@ -378,6 +378,57 @@ def create_app():
         rename_chat(thread_id, body.get("title", ""))
         return {"ok": True}
 
+    # --- canvas artifacts (per-user) ---------------------------------------
+    # The tutor's durable lessons/code/HTML/visuals. Per-user via the contextvar the auth
+    # middleware binds (single-user resolves to the one implicit user). All CRUD.
+    @app.get("/api/artifacts")
+    def artifacts_list(kind: str = "", q: str = "") -> list:
+        from . import artifacts
+
+        return artifacts.list_artifacts(kind=kind or None, query=q or None)
+
+    @app.post("/api/artifacts")
+    async def artifacts_create(request: Request):
+        from . import artifacts
+
+        body = await request.json()
+        return artifacts.create(body.get("title", "Untitled"),
+                                body.get("kind", "markdown"), body.get("content", ""))
+
+    @app.get("/api/artifacts/{artifact_id}")
+    def artifacts_get(artifact_id: int):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        a = artifacts.get(artifact_id)
+        if a is None:
+            raise HTTPException(status_code=404)
+        return a
+
+    @app.patch("/api/artifacts/{artifact_id}")
+    async def artifacts_update(artifact_id: int, request: Request):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        body = await request.json()
+        a = artifacts.update(artifact_id, title=body.get("title"), kind=body.get("kind"),
+                             content=body.get("content"), pinned=body.get("pinned"))
+        if a is None:
+            raise HTTPException(status_code=404)
+        return a
+
+    @app.delete("/api/artifacts/{artifact_id}")
+    def artifacts_delete(artifact_id: int):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        if not artifacts.delete(artifact_id):
+            raise HTTPException(status_code=404)
+        return {"ok": True}
+
     # --- auth (multi-user only) --------------------------------------------
     # Everything below is mounted ONLY when EKLAVYA_MULTIUSER is on. In single-user mode
     # nothing here runs, no middleware is added, and the app is byte-for-byte as before.

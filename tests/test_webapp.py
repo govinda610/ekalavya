@@ -106,3 +106,35 @@ def test_death_and_reclaim_endpoints():
     assert pen["lost"] > 0 and pen["stats"]["streak"] == 0  # souls dropped, streak broken
     rec = c.post("/api/reclaim").json()
     assert rec["reclaimed"] == pen["lost"]  # typed-it-yourself reclaims the drop
+
+
+def test_artifacts_crud_endpoints():
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    # empty to start
+    assert c.get("/api/artifacts").json() == []
+    # create
+    a = c.post("/api/artifacts", json={"title": "Recursion", "kind": "markdown",
+                                       "content": "# base case"}).json()
+    aid = a["id"]
+    assert a["title"] == "Recursion" and a["kind"] == "markdown"
+    # get
+    got = c.get(f"/api/artifacts/{aid}").json()
+    assert got["content"] == "# base case"
+    assert c.get("/api/artifacts/99999").status_code == 404
+    # list + filter + search
+    c.post("/api/artifacts", json={"title": "tree.py", "kind": "code", "content": "def f(): pass"})
+    assert len(c.get("/api/artifacts").json()) == 2
+    assert [x["kind"] for x in c.get("/api/artifacts?kind=code").json()] == ["code"]
+    assert len(c.get("/api/artifacts?q=Recursion").json()) == 1
+    # patch (pin)
+    patched = c.patch(f"/api/artifacts/{aid}", json={"pinned": True, "content": "# updated"}).json()
+    assert patched["pinned"] is True and patched["content"] == "# updated"
+    assert c.patch("/api/artifacts/99999", json={"title": "x"}).status_code == 404
+    # pinned floats first
+    assert c.get("/api/artifacts").json()[0]["id"] == aid
+    # delete
+    assert c.delete(f"/api/artifacts/{aid}").json() == {"ok": True}
+    assert c.get(f"/api/artifacts/{aid}").status_code == 404
+    assert c.delete(f"/api/artifacts/{aid}").status_code == 404
