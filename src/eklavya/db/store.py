@@ -58,6 +58,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE ai_assists ADD COLUMN bug_verdict TEXT")
     if assist_cols and "verdict_note" not in assist_cols:
         conn.execute("ALTER TABLE ai_assists ADD COLUMN verdict_note TEXT")
+    # Canvas artifacts (per-user). Additive: create the table on databases made by a
+    # version that predates the Scriptorium. `init_db` also runs the CREATE from schema.sql,
+    # so this is a belt-and-braces guard that keeps _migrate self-contained.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS artifacts ("
+        "id INTEGER PRIMARY KEY, title TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'markdown', "
+        "content TEXT NOT NULL DEFAULT '', pinned INTEGER NOT NULL DEFAULT 0, "
+        "created_at TEXT NOT NULL DEFAULT (datetime('now')), "
+        "updated_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_updated ON artifacts(updated_at DESC)")
 
 
 def init_db(path: Path | None = None) -> Path:
