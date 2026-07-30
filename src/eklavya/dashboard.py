@@ -76,6 +76,21 @@ def _rank(level: int) -> str:
     return "Novice"
 
 
+def _rank_ring(level: int, into: int) -> str:
+    """The template's radial rank-ring (G's ringArcPdash, r=46 → C≈289): XP as a
+    continuous ring fill, not a horizontal bar. `into` is 0–100 percent to next rank."""
+    C = 289.0
+    off = f"{C * (1 - into / 100):.1f}"
+    return (
+        '<svg class="rank-ring" viewBox="0 0 104 104" aria-label="XP '
+        f'{into}% to next rank"><g transform="rotate(-90 52 52)">'
+        '<circle cx="52" cy="52" r="46" fill="none" stroke="rgba(231,182,75,.16)" stroke-width="5"/>'
+        '<circle class="arc" cx="52" cy="52" r="46" fill="none" stroke="url(#ringGrad)" '
+        f'stroke-width="5" stroke-linecap="round" stroke-dasharray="{C}" stroke-dashoffset="{off}"/>'
+        '</g><circle cx="52" cy="52" r="34" fill="#101528" stroke="#f7d98a" stroke-width="2"/></svg>'
+    )
+
+
 def _pct(rating: float) -> int:
     return max(4, min(100, round((rating - 800) / (1500 - 800) * 100)))
 
@@ -235,7 +250,9 @@ def render(ov: dict) -> str:
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<style>{_CSS}</style></head><body><div class="wrap">
+<style>{_CSS}</style></head><body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8862f"/><stop offset="1" stop-color="#f7d98a"/></linearGradient></defs></svg>
+<div class="wrap">
 
   <header class="hero">
     <div class="brand">
@@ -243,13 +260,15 @@ def render(ov: dict) -> str:
       <div class="creed">स्वाध्याय · साधना · सिद्धि</div>
     </div>
     <div class="char">
-      <div class="lvl"><div class="lvlnum">{level}</div><div class="lvllabel">LEVEL</div></div>
+      <div class="rank-medallion">{_rank_ring(level, into)}
+        <div class="rmlabel"><div class="rmnum">{level}</div><div class="rmtag">RANK</div></div>
+      </div>
       <div class="charmid">
         <div class="rank">{rank}</div>
-        <div class="xpbar"><div class="xpfill" style="width:{into}%"></div>
-          <span class="xptext">{into} / 100 XP to next level</span></div>
-        <div class="chips"><span class="chip flame">🔥 {streak} day streak</span>
-          <span class="chip">✦ {xp} total XP</span></div>
+        <div class="prog-line">Lv <b>{level}</b> · <b>{into}%</b> → R{level + 1}
+          <span class="prog-xp">{xp:,} total XP</span></div>
+        <div class="chips"><span class="chip flame">{_icon("flame")} {streak} day streak</span>
+          <span class="chip">✦ {into} / 100 XP to next</span></div>
       </div>
     </div>
   </header>
@@ -385,19 +404,18 @@ h2 .ic{width:15px;height:15px}
 .logo{font-family:var(--f-display);font-size:28px;font-weight:800;letter-spacing:.14em;display:flex;align-items:center;gap:10px}
 .creed{font-family:var(--f-deva);color:var(--gold-bright);font-size:15px;letter-spacing:.04em;margin-top:4px;opacity:.92}
 .char{display:flex;align-items:center;gap:18px}
-.lvl{width:82px;height:82px;border-radius:50%;display:grid;place-items:center;text-align:center;
-  background:radial-gradient(circle at 50% 30%,#2a2012,var(--void));
-  border:2px solid var(--gold);box-shadow:0 0 26px -4px rgba(231,182,75,.6),0 0 0 4px rgba(11,17,34,.4)}
-.lvlnum{font-family:var(--f-display);font-size:32px;font-weight:800;line-height:1;color:var(--gold-bright);text-shadow:0 2px 8px rgba(231,182,75,.4)}
-.lvllabel{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--parch-mute)}
+/* rank-ring medallion (template G): XP is a continuous ring fill, not a bar */
+.rank-medallion{position:relative;width:84px;height:84px;flex:none}
+.rank-medallion .rank-ring{width:84px;height:84px;display:block;filter:drop-shadow(0 0 18px rgba(231,182,75,.4))}
+.rank-medallion .rank-ring .arc{transition:stroke-dashoffset 1.2s cubic-bezier(.22,.7,.25,1)}
+.rank-medallion .rmlabel{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.rank-medallion .rmnum{font-family:var(--f-display);font-size:30px;font-weight:800;line-height:1;color:var(--gold-bright);text-shadow:0 2px 8px rgba(231,182,75,.4)}
+.rank-medallion .rmtag{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--parch-mute);margin-top:1px}
 .charmid{min-width:260px}
 .rank{font-family:var(--f-title);font-size:22px;font-weight:600;letter-spacing:.06em;color:var(--gold-bright)}
-.xpbar{position:relative;height:20px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);
-  margin:8px 0;overflow:hidden}
-.xpfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));
-  box-shadow:0 0 16px rgba(231,182,75,.6)}
-.xptext{position:absolute;inset:0;display:grid;place-items:center;font-family:var(--f-mono);
-  font-size:11px;color:#2a1c07;font-weight:500}
+.prog-line{font-family:var(--f-mono);font-size:13px;color:var(--parch-dim);margin:8px 0 10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.prog-line b{color:var(--gold-bright)}
+.prog-xp{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 .chip{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);background:rgba(6,9,20,.5);
   border:1px solid var(--line-soft);border-radius:999px;padding:4px 12px}
