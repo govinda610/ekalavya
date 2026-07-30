@@ -142,7 +142,7 @@ profile and database live there.
   Elo rating + spaced-repetition schedule + XP.
 - `suggest_focus(minutes)` — weakest cells + reviews due now.
 - RUN / VERIFY CODE — `run_bash`: write code to a workspace file and run it (e.g.
-  `python sol.py`) or `python -c "..."`. NEVER call `execute`. Every `run_bash` needs an
+  `python sol.py`) or `python -c "..."`. Every `run_bash` needs an
   `explanation` (one honest sentence of what it does + why it's safe); the learner
   approves it before it runs, so keep commands scoped to the workspace.
 - WEB & DOCS — `web_search` for fresh, real info and interview questions (Tavily → Serper).

@@ -12,6 +12,35 @@ from .fallback import build_fallback_chat_model
 # A teaching turn can be long (explanations, code); give it room.
 _MAX_TOKENS = 4096
 
+# deepagents adds a builtin `execute` shell tool to every agent. We deliberately
+# do NOT want the model to have it: all shell work goes through our own approval-
+# gated `run_bash` tool. Excluding it at the source (rather than only asking the
+# model not to call it in the prompt) is registered via a harness profile keyed on
+# the model's resolved provider. Our FallbackChatModel always reports
+# `ls_provider="fallbackchatmodel"`, so that key matches every session regardless
+# of the underlying provider/model. Registration is additive and idempotent, so
+# importing this module more than once is safe.
+_EXECUTE_EXCLUDED = False
+
+
+def _exclude_execute_tool() -> None:
+    """Register a harness profile that drops the builtin `execute` tool.
+
+    deepagents' documented way to remove a builtin tool is a HarnessProfile with
+    `excluded_tools`; a `_ToolExclusionMiddleware` then filters it from the tool
+    set the model sees (`wrap_model_call`), so the model can never call it.
+    """
+    global _EXECUTE_EXCLUDED
+    if _EXECUTE_EXCLUDED:
+        return
+    from deepagents import HarnessProfile, register_harness_profile
+
+    register_harness_profile(
+        "fallbackchatmodel",
+        HarnessProfile(excluded_tools=frozenset({"execute"})),
+    )
+    _EXECUTE_EXCLUDED = True
+
 
 def pending_bash_approval(agent, config) -> dict | None:
     """If the agent paused for run_bash approval, return {tool, command, explanation}; else None."""
@@ -38,6 +67,8 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
     (e.g. an in-memory one for a throwaway agent).
     """
     from deepagents import create_deep_agent
+
+    _exclude_execute_tool()
 
     if checkpointer is None:
         from .chatstore import get_checkpointer
