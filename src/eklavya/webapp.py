@@ -251,13 +251,19 @@ def create_app():
         except (KeyError, IndexError, TypeError):
             user_context = ""
         buf = []
+        run_outputs = []  # actual sandbox/run tool results this turn → context for the judge
+        _RUN_TOOLS = {"run_bash", "grade_and_record"}  # tools whose output is real execution
         try:
             for chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
                 # deepagents' documented routing: tool result / tool call → trace;
                 # the assistant's own text (an AI chunk with no tool call) → the bubble.
                 if getattr(chunk, "type", None) == "tool":
-                    yield json.dumps({"result": {"name": getattr(chunk, "name", "") or "",
-                                                 "content": str(chunk.content)[:400]}}) + "\n"
+                    name = getattr(chunk, "name", "") or ""
+                    content = str(chunk.content)
+                    if name in _RUN_TOOLS:  # capture what the code actually printed/returned
+                        run_outputs.append(f"[{name}] {content[:1000]}")
+                    yield json.dumps({"result": {"name": name,
+                                                 "content": content[:400]}}) + "\n"
                 elif getattr(chunk, "tool_call_chunks", None):
                     for tc in chunk.tool_call_chunks:
                         if tc.get("name"):
@@ -277,7 +283,17 @@ def create_app():
             yield json.dumps({"done": True, "paused": True}) + "\n"
             return
 
-        note = selfcheck("".join(buf), context=user_context)  # context-aware second-model review
+        # Enrich the judge's context with what the code ACTUALLY did this turn, so it can
+        # catch a reply that contradicts the real run output (e.g. "this prints 5" when the
+        # sandbox printed 6). The run output leads, so it survives selfcheck's own context
+        # truncation; each tool result is already capped above.
+        judge_context = user_context
+        if run_outputs:
+            judge_context = ("ACTUAL CODE EXECUTION OUTPUT THIS TURN (from the sandbox — "
+                             "trust this over the tutor's claims):\n"
+                             + "\n".join(run_outputs)
+                             + f"\n\nLEARNER MESSAGE / SITUATION:\n{user_context}")
+        note = selfcheck("".join(buf), context=judge_context)  # context-aware second-model review
         if note:
             yield json.dumps({"t": note}) + "\n"
         try:  # auto-name the chat from the learner's first real message

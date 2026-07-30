@@ -198,6 +198,56 @@ def test_truncate_rewinds_thread_state():
     assert r.json()["removed"] == 2 and _human_texts() == []
 
 
+def test_selfcheck_receives_sandbox_run_output(monkeypatch):
+    """#54 — the hallucination judge's context is enriched with the turn's actual sandbox
+    output (grade_and_record / run_bash results), so it can catch a reply that contradicts
+    what the code really printed."""
+    from starlette.testclient import TestClient
+
+    from eklavya import agent as agent_mod, verify
+
+    # A fake agent whose stream yields one grade_and_record tool result then the tutor's
+    # (wrong) claim. get_state → no interrupt, so the run completes and selfcheck fires.
+    class _Chunk:
+        def __init__(self, type=None, name="", content="", tool_call_chunks=None):
+            self.type = type; self.name = name; self.content = content
+            self.tool_call_chunks = tool_call_chunks
+
+    class _State:
+        interrupts = ()
+
+    class _FakeAgent:
+        def stream(self, inputs, config=None, stream_mode=None):
+            yield _Chunk(type="tool", name="grade_and_record",
+                         content="FAIL: expected 6 but the learner's code printed 5"), {}
+            yield _Chunk(content="Your code correctly prints 6 — great job."), {}
+        def get_state(self, config):
+            return _State()
+
+    monkeypatch.setattr(agent_mod, "build_agent", lambda *a, **k: _FakeAgent())
+
+    captured = {}
+
+    def _fake_selfcheck(reply, context=""):
+        captured["reply"] = reply
+        captured["context"] = context
+        return None  # don't append a note; we only assert the context it received
+
+    monkeypatch.setattr(verify, "selfcheck", _fake_selfcheck)
+
+    c = TestClient(create_app())
+    # drain the stream so _events runs to completion (and calls selfcheck)
+    with c.stream("POST", "/api/stream",
+                  json={"mode": "practice", "thread": "sc-test", "text": "does this print 6?"}) as r:
+        for _ in r.iter_lines():
+            pass
+
+    assert "ACTUAL CODE EXECUTION OUTPUT" in captured["context"]
+    assert "printed 5" in captured["context"]              # the real sandbox result reached the judge
+    assert "does this print 6?" in captured["context"]     # the learner's message is still there
+    assert "prints 6" in captured["reply"]                 # and the tutor's claim is what's judged
+
+
 def test_client_ip_honours_xff_only_when_proxy_trusted():
     """#52 — behind a trusted proxy we key throttling on the left-most X-Forwarded-For
     entry (the real client); otherwise we ignore the header and use request.client.host
