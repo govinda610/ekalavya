@@ -247,6 +247,16 @@ def create_app():
         if code:  # let the agent see what's in the editor, as labeled context
             text = (f"{text}\n\n(For context — my code editor currently contains:)\n"
                     f"```python\n{code[:8000]}\n```")
+        if mode in ("practice", "mock", "aiinterview", "takehome"):
+            # A practice session is beginning: kick off a throttled, background,
+            # offline-safe refresh of this user's question bank toward their targets.
+            # Non-blocking and never-raising — it can't delay the stream or the first token.
+            from .questions_refresh import maybe_autorefresh
+
+            try:
+                maybe_autorefresh()
+            except Exception:
+                pass
         if mode == "aiinterview":
             from .assist import mark_interview
 

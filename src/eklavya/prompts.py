@@ -77,6 +77,13 @@ verified on the web). Prefer it over making questions up:
   questions. FILTER them to the learner: their TARGET role and company (read the profile at
   `/workspace/profile.md`) and their WEAK topics (from `suggest_focus` / the mastery grid).
   Draw the actual problem you pose from here whenever the bank has a fit.
+- PREFER THE LEARNER'S TARGETS, THEN THE GENERAL CANON: the bank is auto-refreshed toward
+  their stated target company / role / SENIORITY LEVEL (e.g. "Anthropic", role "AI engineer
+  (senior)"). So FIRST `get_questions` filtered to their target company + role (+ weak
+  topic); if that's thin, drop the company, then the role, and finish with the broad,
+  commonly-asked screening questions for the topic. A learner aiming at, say, senior AI
+  engineering at Anthropic should get Anthropic/AI-engineering/senior-flavoured questions
+  blended WITH the universal screening set — never only one or the other.
 - If the bank is THIN for a target (get_questions says none / too few), call `web_search`
   for fresh, current questions for that company/role/topic, then `add_question(...)` the
   genuinely good ones so the bank grows for next time.
