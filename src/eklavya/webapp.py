@@ -709,6 +709,37 @@ button:disabled{opacity:.42;cursor:default}
 /* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
 body.reduce-motion *{animation:none !important}
 @media(prefers-reduced-motion:reduce){.cerbox .rays,.cerbox .flick,#achtoast::after{animation:none !important}}
+/* Artifacts Library — the Scriptorium (template F) */
+.lib{padding:26px 26px 60px;max-width:1080px;margin:0 auto}
+.lib-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.lib-top .lt-title{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--parch);line-height:1.1}
+.lib-top .lt-sub{font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--parch-dim)}
+.lib-search{flex:1;min-width:220px;position:relative}
+.lib-search input{width:100%;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);
+ padding:11px 38px 11px 14px;font-family:var(--f-body);font-size:14px;outline:none}
+.lib-search input:focus{border-color:var(--gold)}
+.lib-search .ls-ic{position:absolute;right:12px;top:11px;color:var(--gold)}
+.lib-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.lib-pill{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;color:var(--parch-dim);background:rgba(6,9,20,.5);
+ border:1px solid var(--line-soft);border-radius:999px;padding:5px 14px;cursor:pointer;transition:.14s}
+.lib-pill:hover{color:var(--gold-bright)} .lib-pill.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
+.lib-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;grid-auto-rows:min-content}
+@media(max-width:900px){.lib-grid{grid-template-columns:1fr}}
+.artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
+ border:1px solid var(--line-gold);border-radius:8px;background:linear-gradient(165deg,rgba(35,29,24,.7),rgba(12,10,20,.85));transition:.16s}
+.artcard:hover{border-color:var(--gold-deep);box-shadow:0 12px 30px -14px rgba(231,182,75,.4)}
+.artcard.feat{grid-row:span 2;background:linear-gradient(165deg,rgba(35,29,24,.92),rgba(12,10,20,.94))}
+.artcard .atype{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;gap:6px;align-items:center}
+.artcard .atype.markdown{color:var(--peacock-bright)}.artcard .atype.code{color:var(--gold-bright)}.artcard .atype.html{color:var(--forest-lit)}.artcard .atype.viz{color:var(--vermilion-glow)}
+.artcard h4{font-family:var(--f-title);font-size:17px;color:var(--parch);margin:2px 0}
+.artcard p{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin:0;line-height:1.5;
+ display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.artcard .ameta{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);margin-top:auto;padding-top:8px;letter-spacing:.04em;display:flex;gap:12px;flex-wrap:wrap}
+.artcard .apin{position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--parch-mute);opacity:.6}
+.artcard .apin.on{color:var(--gold-bright);opacity:1}
+.lib-empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--parch-dim);font-family:var(--f-body)}
+.lib-newbtn{font-family:var(--f-title);font-size:13px;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
+ color:#2a1c07;border:none;border-radius:4px;padding:10px 18px;font-weight:600;cursor:pointer}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
 #tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
@@ -1099,7 +1130,47 @@ function loadSettings(){
     };
   }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
 }
-// loadLibrary() is defined further down (Library screen).
+/* ===== Artifacts Library — the Scriptorium (template F) ===== */
+let _libFilter='', _libQuery='';
+const KIND_GLYPH={markdown:'◆',code:'▶',viz:'◈',html:'□'};
+const KIND_LABEL={markdown:'lesson',code:'code',viz:'visual',html:'html'};
+function libCard(a, feat){
+  const glyph=KIND_GLYPH[a.kind]||'◆', klabel=KIND_LABEL[a.kind]||a.kind;
+  const preview=(a.content||'').replace(/[#*`>_]/g,'').replace(/<[^>]+>/g,' ').trim().slice(0,160);
+  const when=(a.updated_at||'').replace('T',' ').slice(0,16);
+  return "<div class='artcard"+(feat?' feat':'')+"' onclick='openArtifact("+a.id+")'>"+
+    "<button class='apin"+(a.pinned?' on':'')+"' title='"+(a.pinned?'Unpin':'Pin')+"' onclick='event.stopPropagation();togglePin("+a.id+","+(a.pinned?0:1)+")'>"+(a.pinned?'★':'☆')+"</button>"+
+    "<div class='atype "+a.kind+"'>"+glyph+" "+klabel+(a.pinned?' · pinned':'')+"</div>"+
+    "<h4>"+esc(a.title)+"</h4><p>"+esc(preview||'—')+"</p>"+
+    "<div class='ameta'><span>"+klabel+"</span><span>updated "+esc(when)+"</span></div></div>";
+}
+function loadLibrary(){
+  const url='/api/artifacts?'+(_libFilter?'kind='+encodeURIComponent(_libFilter)+'&':'')+(_libQuery?'q='+encodeURIComponent(_libQuery):'');
+  fetch(url).then(r=>r.json()).then(list=>{
+    const filters=['','markdown','code','viz','html'];
+    const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
+    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
+    let cards;
+    if(!list.length){ cards="<div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div>"; }
+    else { cards=list.map((a,i)=>libCard(a, a.pinned && i===0)).join(''); }
+    document.getElementById('library').innerHTML=
+     "<div class='lib'><div class='lib-top'>"+
+     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — kept for revision.</div></div>"+
+     "<span style='flex:1'></span>"+
+     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
+     "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
+     "<div class='lib-filters'>"+pills+"</div>"+
+     "<div class='lib-grid'>"+cards+"</div></div>";
+    const si=document.getElementById('libsearch');
+    si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
+    si.focus(); si.setSelectionRange(si.value.length, si.value.length);
+  }).catch(()=>{ document.getElementById('library').innerHTML="<div class='lib'><div class='lib-empty'>could not load the library.</div></div>"; });
+}
+function setLibFilter(f){ _libFilter=f; loadLibrary(); }
+function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({pinned:!!on})}).then(()=>loadLibrary()).catch(()=>{}); }
+// openArtifact(id) — opens the artifact in the arena's Canvas tab (defined with the Canvas).
+function openArtifact(id){ showView('practice'); if(window.openCanvas) openCanvas(id); }
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
   const hidden=document.getElementById('practice').classList.toggle('nocode');
