@@ -559,6 +559,7 @@ def get_questions(topic: str = "", company: str = "", role: str = "",
 
 from .assist import record_bug_verdict, review_ai_usage  # noqa: E402
 from .github import read_github  # noqa: E402
+from .resume import read_resume  # noqa: E402
 
 # The unified toolset — one small spine every interface's agent shares. deepagents adds
 # the floor tools (read_file/write_file/edit_file/ls/glob/grep/write_todos/task) on our
@@ -573,13 +574,15 @@ from .github import read_github  # noqa: E402
 #   • read_github — ground practice in the learner's REAL code on a deployed server, where
 #     their repo isn't on the box: they hand over a GitHub repo/profile link and we
 #     shallow-clone (read-only, capped) or read public API metadata to infer their stack.
+#   • read_resume — pull the learner's uploaded résumé / LinkedIn PDF text (extracted, capped,
+#     untrusted) so onboarding grounds the background + competency map in real experience.
 #   • get_questions / add_question — draw REAL interview questions from the curated bank
 #     (filtered to the learner's target role/company/weak topic) instead of inventing them,
 #     and grow the bank from good web_search finds (honest company tagging only).
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 AGENT_TOOLS = [
-    grade_and_record, web_search, read_github, get_questions, add_question,
+    grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
     record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, run_bash,
 ]
