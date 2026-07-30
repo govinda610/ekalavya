@@ -2022,19 +2022,44 @@ body{min-height:100vh;display:flex;align-items:center;justify-content:center;pad
     <div class="aq">"You were refused a teacher. So become one to yourself — and shoot truer than the princes." <b>— The stone guru</b></div>
   </div>
   <div class="auth-form">
-    <div class="ah">Welcome back, devotee</div>
-    <div class="asub">The forest remembers where you left the string.</div>
+    <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+      <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
+      <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
+    </div>
+    <div class="ah" id="auth-h">Welcome back, devotee</div>
+    <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
     {{error}}
+    <div class="signup-note" id="signup-note" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13.5px;color:var(--parch-dim);border:1px solid var(--line-soft);background:rgba(6,9,20,.4);border-radius:6px;padding:11px 13px;margin:0 0 14px">
+      New statues are raised from the terminal for now — ask your guru to run <code style="font-family:var(--f-mono);color:var(--peacock-bright);font-style:normal">eklavya adduser</code>, then log in here.
+    </div>
     <form method="post" action="/login">
       <div class="field"><label class="field-lbl" for="email">Email</label>
         <input id="email" class="inp" name="email" type="email" autocomplete="username" required autofocus></div>
       <div class="field"><label class="field-lbl" for="password">Password</label>
         <input id="password" class="inp" name="password" type="password" autocomplete="current-password" required></div>
-      <button type="submit" class="btn btn-gold" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
+      <button type="submit" class="btn btn-gold" id="auth-submit" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
     </form>
   </div>
 </div>
 </div>
+<script>
+// Visual Log-in ↔ Sign-up toggle. Auth is email/password only (no OAuth); sign-ups are
+// created from the CLI (eklavya adduser), so the Sign-up tab explains that and keeps the
+// same working login form — it never posts a signup.
+function authMode(m){
+  const login=m==='login';
+  document.getElementById('tab-login').classList.toggle('on',login);
+  document.getElementById('tab-login').setAttribute('aria-selected',login);
+  document.getElementById('tab-signup').classList.toggle('on',!login);
+  document.getElementById('tab-signup').setAttribute('aria-selected',!login);
+  document.getElementById('auth-h').textContent = login ? 'Welcome back, devotee' : 'Raise your own statue';
+  document.getElementById('auth-sub').textContent = login
+    ? 'The forest remembers where you left the string.'
+    : 'The one refused a teacher taught himself. Begin the same way.';
+  document.getElementById('signup-note').style.display = login ? 'none' : 'block';
+  document.getElementById('auth-submit').textContent = login ? 'Sign in — draw the string' : 'Log in to your statue';
+}
+</script>
 </body></html>"""
 
 
