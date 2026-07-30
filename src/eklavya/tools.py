@@ -566,6 +566,24 @@ def get_questions(topic: str = "", company: str = "", role: str = "",
     return _clip("\n".join(lines))
 
 
+def save_artifact(title: str, kind: str, content: str) -> str:
+    """Save a durable artifact to the learner's Canvas / Scriptorium library.
+
+    Use this to keep something the learner will want to revisit: a written lesson, a
+    reference code file, a framed HTML page, or an interactive visual. Offer it naturally
+    ("want me to save this to your Canvas?") rather than saving silently.
+
+    kind is one of: 'markdown' (a written lesson), 'code' (a code file/snippet),
+    'html' (a self-contained HTML page/widget), or 'viz' (an SVG/interactive visual).
+    content is the raw artifact body (markdown text, source code, or HTML/SVG markup).
+    Returns a short confirmation with the artifact's id.
+    """
+    from . import artifacts
+
+    a = artifacts.create(title, kind, content)
+    return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
+
+
 from .assist import record_bug_verdict, review_ai_usage  # noqa: E402
 from .github import read_github  # noqa: E402
 from .resume import read_resume  # noqa: E402
@@ -590,10 +608,12 @@ from .resume import read_resume  # noqa: E402
 #     and grow the bank from good web_search finds (honest company tagging only).
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
+#   • save_artifact — keep a durable lesson/code/HTML/visual in the learner's Canvas
+#     library (the Scriptorium) so a good explanation the guru writes isn't lost.
 AGENT_TOOLS = [
     grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
     record_attempt, save_baseline, suggest_focus,
-    review_ai_usage, record_bug_verdict, run_bash,
+    review_ai_usage, record_bug_verdict, save_artifact, run_bash,
 ]
 
 # Same tools in every mode; the prompt decides how to use them.

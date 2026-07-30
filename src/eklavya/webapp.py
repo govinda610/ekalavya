@@ -82,13 +82,29 @@ def create_app():
     def _current_user_id() -> str:
         return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
 
+    def _active_provider():
+        """The provider to use for this user: their saved Settings choice if it's
+        configured, else the constructed default (auto-picked)."""
+        from . import settings
+
+        chosen = settings.get_provider()
+        if chosen:
+            try:
+                p = pick(chosen)
+                if p.is_configured():
+                    return p
+            except KeyError:
+                pass
+        return provider
+
     def agent_for(mode: str, user_id: str | None = None):
         mode = mode if mode in _PROMPTS else "practice"
         uid = user_id or _current_user_id()
-        key = (uid, mode)
+        prov = _active_provider()
+        key = (uid, mode, prov.key)   # provider in the key → switching rebuilds the agent
         if key not in agents:
             tools = _TOOLS.get(mode, SESSION_TOOLS)
-            agents[key] = build_agent(_PROMPTS[mode], tools, provider=provider.key)
+            agents[key] = build_agent(_PROMPTS[mode], tools, provider=prov.key)
         return agents[key]
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
@@ -173,18 +189,36 @@ def create_app():
     def cfg() -> dict:
         from . import settings
 
-        return {"provider": provider.label, "model": provider.default_model,
-                "kickoff": _KICKOFF, "configured": provider.is_configured(),
+        prov = _active_provider()
+        return {"provider": prov.label, "model": prov.default_model,
+                "kickoff": _KICKOFF, "configured": prov.is_configured(),
                 "first_run": report.is_first_run(),
                 "death_on_cheat": settings.get_death_on_cheat()}
+
+    @app.get("/api/settings")
+    def settings_get() -> dict:
+        from . import providers, settings
+
+        s = settings.get_all()
+        # the full provider catalogue (key + label + whether a key is set), so the
+        # selector can list glm/minimax/qwen/kimi and mark the configured ones.
+        provs = [{"key": p.key, "label": p.label, "configured": p.is_configured()}
+                 for p in providers.PROVIDERS.values()]
+        return {**s, "providers": provs, "active_provider": _active_provider().key}
 
     @app.put("/api/settings")
     async def settings_put(request: Request):
         from . import settings
 
         body = await request.json()
-        settings.set_death_on_cheat(bool(body.get("death_on_cheat", True)))
-        return {"death_on_cheat": settings.get_death_on_cheat()}
+        # legacy shape ({"death_on_cheat": bool}) still works; new keys are optional.
+        updated = settings.update(
+            death_on_cheat=body.get("death_on_cheat"),
+            reduced_motion=body.get("reduced_motion"),
+            guru_voice=body.get("guru_voice"),
+            provider=body.get("provider"),
+        )
+        return {**updated, "active_provider": _active_provider().key}
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
@@ -378,6 +412,57 @@ def create_app():
         rename_chat(thread_id, body.get("title", ""))
         return {"ok": True}
 
+    # --- canvas artifacts (per-user) ---------------------------------------
+    # The tutor's durable lessons/code/HTML/visuals. Per-user via the contextvar the auth
+    # middleware binds (single-user resolves to the one implicit user). All CRUD.
+    @app.get("/api/artifacts")
+    def artifacts_list(kind: str = "", q: str = "") -> list:
+        from . import artifacts
+
+        return artifacts.list_artifacts(kind=kind or None, query=q or None)
+
+    @app.post("/api/artifacts")
+    async def artifacts_create(request: Request):
+        from . import artifacts
+
+        body = await request.json()
+        return artifacts.create(body.get("title", "Untitled"),
+                                body.get("kind", "markdown"), body.get("content", ""))
+
+    @app.get("/api/artifacts/{artifact_id}")
+    def artifacts_get(artifact_id: int):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        a = artifacts.get(artifact_id)
+        if a is None:
+            raise HTTPException(status_code=404)
+        return a
+
+    @app.patch("/api/artifacts/{artifact_id}")
+    async def artifacts_update(artifact_id: int, request: Request):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        body = await request.json()
+        a = artifacts.update(artifact_id, title=body.get("title"), kind=body.get("kind"),
+                             content=body.get("content"), pinned=body.get("pinned"))
+        if a is None:
+            raise HTTPException(status_code=404)
+        return a
+
+    @app.delete("/api/artifacts/{artifact_id}")
+    def artifacts_delete(artifact_id: int):
+        from fastapi import HTTPException
+
+        from . import artifacts
+
+        if not artifacts.delete(artifact_id):
+            raise HTTPException(status_code=404)
+        return {"ok": True}
+
     # --- auth (multi-user only) --------------------------------------------
     # Everything below is mounted ONLY when EKLAVYA_MULTIUSER is on. In single-user mode
     # nothing here runs, no middleware is added, and the app is byte-for-byte as before.
@@ -486,7 +571,18 @@ background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;
 .tab:hover{color:var(--gold-bright)}
 .tab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .spacer{flex:1}.who{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
-main{flex:1;min-height:0}
+main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
+/* ashram left rail (template D): Practice/Progress/Forest Map/Library/Settings + mini-HUD title */
+#prail{width:168px;border-right:1px solid var(--line-soft);padding:16px 12px;display:flex;flex-direction:column;gap:4px;background:rgba(6,9,20,.4)}
+#prail .rail-item{display:flex;align-items:center;gap:10px;font-family:var(--f-title);font-size:14px;color:var(--parch-dim);
+ padding:9px 11px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:.14s}
+#prail .rail-item:hover{color:var(--gold-bright);background:rgba(6,9,20,.4)}
+#prail .rail-item.on{color:var(--gold-bright);background:rgba(231,182,75,.08);border-color:var(--line-gold)}
+#prail .rail-item svg{flex:none}
+#prail .rail-mini-hud{margin-top:auto;padding:12px 11px 4px;border-top:1px solid var(--line-soft)}
+#prail .rmh-name{font-family:var(--f-title);font-size:13px;color:var(--parch)}
+#prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+#content{min-height:0;min-width:0;position:relative}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
 #practice.nocode{grid-template-columns:1fr;grid-template-rows:1fr}       /* editor hidden → chat full width */
@@ -506,6 +602,20 @@ main{flex:1;min-height:0}
 .arena-welcome .aw-dots span:nth-child(2){animation-delay:.2s}
 .arena-welcome .aw-dots span:nth-child(3){animation-delay:.4s}
 @keyframes awpulse{0%,100%{opacity:.25;transform:scale(.85)}50%{opacity:1;transform:scale(1)}}
+/* onboarding threshold (template C) — a framed "Cross the threshold / प्रवेश" intro */
+.onb-threshold{position:relative;text-align:center;margin:6px 0 4px;padding:30px 26px 26px;border:1px solid var(--line-gold);border-radius:8px;
+ background:linear-gradient(160deg,rgba(35,29,24,.55),rgba(10,14,26,.65));box-shadow:var(--sh-deep);overflow:hidden;animation:fadein .6s ease}
+.onb-threshold::before,.onb-threshold::after{content:"";position:absolute;width:16px;height:16px;border:1.5px solid var(--gold);opacity:.6}
+.onb-threshold::before{top:9px;left:9px;border-right:0;border-bottom:0}
+.onb-threshold::after{bottom:9px;right:9px;border-left:0;border-top:0}
+.onb-threshold .onb-eye{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:12px}
+.onb-threshold .onb-h{font-family:var(--f-display);font-weight:800;font-size:clamp(24px,4vw,34px);color:var(--parch);line-height:1.08}
+.onb-threshold .onb-h .em{color:var(--gold-bright)}
+.onb-threshold .onb-deva{font-family:var(--f-deva);font-size:20px;color:var(--gold-bright);margin-top:8px}
+.onb-threshold .onb-sub{font-family:var(--f-body);font-size:14.5px;color:var(--parch-dim);max-width:52ch;margin:14px auto 0;line-height:1.55}
+.onb-steps{display:flex;gap:8px;justify-content:center;margin:16px auto 0}
+.onb-steps i{width:34px;height:4px;border-radius:2px;background:var(--line-soft)}
+.onb-steps i.on{background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright))}
 .msg{max-width:92%;padding:14px 17px;line-height:1.55;font-size:15px;overflow-wrap:anywhere;font-family:var(--f-body)}
 /* the guru speaks on aged Pithora paper (light bubble → dark text) */
 .msg.ai{align-self:flex-start;background:linear-gradient(180deg,#ead9b6,#dfcaa0);border:1px solid #c6ac7d;
@@ -564,8 +674,120 @@ button:disabled{opacity:.42;cursor:default}
  white-space:pre-wrap;word-break:break-word;overflow-x:auto;color:var(--parch)}
 .runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line-soft)}
 .runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
+/* themed error card (template §5): "The arrow found no wind" + Retry */
+.errcard{align-self:stretch;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
+ border:1px solid rgba(214,59,42,.4);border-radius:12px;background:rgba(20,8,6,.55);padding:20px 18px}
+.errcard svg{opacity:.9}
+.errcard .ek{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--vermilion-glow)}
+.errcard .et{font-family:var(--f-display);font-weight:700;font-size:17px;color:var(--parch)}
+.errcard .ed{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);max-width:320px;line-height:1.5}
+.errcard button{margin-top:4px;font-family:var(--f-title);font-size:13px;letter-spacing:.02em;color:var(--gold-bright);
+ background:rgba(231,182,75,.08);border:1px solid var(--gold-deep);border-radius:4px;padding:8px 18px;cursor:pointer}
+.errcard button:hover{background:rgba(231,182,75,.16)}
+/* live test-arrow panel (template D's .ed-tests) — per-check pass/fail below the editor */
+.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:38%;overflow-y:auto}
+.ed-tests-h{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
+ font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-dim)}
+.ed-tests-h .et-count{color:var(--peacock-bright);letter-spacing:.06em}
+.ed-tests-h .et-count b{color:var(--gold-bright);font-size:12px}
+.ed-test{display:flex;align-items:center;gap:11px;padding:9px 16px;border-top:1px solid var(--line-soft)}
+.ed-test .et-i{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center}
+.ed-test.pass .et-i{color:#2a1c07;background:radial-gradient(circle,var(--gold-bright),var(--gold-deep));box-shadow:0 0 10px rgba(231,182,75,.35)}
+.ed-test.fail .et-i{color:var(--vermilion-glow);border:1px solid rgba(214,59,42,.55);background:rgba(143,35,24,.22)}
+.ed-test .et-n{flex:1;font-family:var(--f-body);font-size:14px;color:var(--parch)}
+.ed-test.fail .et-n{color:var(--parch-dim)}
+.ed-test .et-t{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-mute)}
+.ed-test.fail .et-t{color:var(--vermilion-glow)}
+.ed-tests-f{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.ed-tests-f .et-hint{flex:1;min-width:180px;font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim)}
+.ed-tests-f .et-hint code{font-family:var(--f-mono);font-size:12px;color:var(--peacock-bright);font-style:normal}
+/* Editor↔Canvas segmented control (template D) */
+.seg{display:flex;gap:3px;border:1px solid var(--line-soft);border-radius:6px;padding:3px;background:rgba(6,9,20,.5)}
+.seg span{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;padding:6px 13px;border-radius:4px;color:var(--parch-dim);display:flex;align-items:center;gap:6px;cursor:pointer}
+.seg span.on{background:linear-gradient(180deg,rgba(231,182,75,.16),rgba(20,15,10,.7));color:var(--gold-bright)}
+/* Canvas panel — the guru's rendered artifact (template E), inside the right pane */
+#canvaspane{flex:1;display:none;flex-direction:column;min-height:0}
+.col.canvasmode #editor,.col.canvasmode #edtests{display:none}
+.col.canvasmode #canvaspane{display:flex}
+.canvas-tabs{display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--line-soft);align-items:center;overflow-x:auto}
+.artpill{font-family:var(--f-mono);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--line-soft);color:var(--parch-dim);white-space:nowrap;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.artpill:hover{color:var(--gold-bright)} .artpill.on{border-color:var(--gold-deep);color:var(--gold-bright);background:rgba(231,182,75,.08)}
+.artpill .k{opacity:.6}
+.canvas-body{flex:1;padding:20px 24px;overflow:auto;position:relative}
+.art-md h3{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 4px}
+.art-md .adeva{font-family:var(--f-deva);font-size:15px;color:var(--gold-bright);margin-bottom:16px}
+.art-md p{font-family:var(--f-body);font-size:15px;color:var(--parch-dim);line-height:1.65;margin:0 0 14px}
+.art-md p b{color:var(--parch)} .art-md h1,.art-md h2{font-family:var(--f-display);color:var(--parch);margin:14px 0 6px}
+.art-md .callout,.art-md blockquote{border-left:2px solid var(--gold);padding:10px 16px;background:rgba(231,182,75,.05);border-radius:0 6px 6px 0;font-family:var(--f-serif);font-style:italic;color:var(--parch);margin:14px 0}
+.art-md pre{background:rgba(6,9,16,.85) !important;border:1px solid var(--line-soft);border-radius:8px;padding:12px;overflow-x:auto}
+.art-md code{font-family:var(--f-mono);font-size:13px;color:var(--peacock-bright)}
+.selpop{position:absolute;z-index:5;background:linear-gradient(180deg,var(--stone-warm),var(--stone-dark));border:1px solid var(--gold);border-radius:20px;padding:7px 14px;font-family:var(--f-title);font-size:13px;color:var(--gold-bright);box-shadow:0 10px 26px -8px rgba(0,0,0,.7);display:none;gap:8px;align-items:center;white-space:nowrap;cursor:pointer}
+.selpop.on{display:inline-flex;animation:pop .18s ease}
+.selpop::after{content:"";position:absolute;bottom:-6px;left:26px;width:10px;height:10px;background:var(--stone-dark);border-right:1px solid var(--gold);border-bottom:1px solid var(--gold);transform:rotate(45deg)}
+.art-code{font-family:var(--f-mono);font-size:13px;line-height:1.7;background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:16px;white-space:pre-wrap;overflow:auto;color:var(--parch)}
+.art-html{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;background:#fff}
+.art-htmlbar{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);padding:6px 12px;background:rgba(6,9,20,.7);border-bottom:1px solid var(--line-soft)}
+.art-htmlprev{padding:20px;background:linear-gradient(160deg,#fbf6ea,#efe4c9);color:#2a2010;font-family:var(--f-serif)}
+.art-viz{border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5);padding:14px}
+.art-viz svg{width:100%;height:auto}
+.canvas-empty{color:var(--parch-dim);font-family:var(--f-body);text-align:center;padding:50px 20px}
+/* highlight-to-ask echo in chat (template D's .art-echo) */
+.art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
+.art-echo .lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+.art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
+#library,#settings{display:none;height:100%;overflow-y:auto}
+/* settings screen (template K) — setrows + toggles */
+.settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
+.settings .stitle{font-family:var(--f-display);font-weight:700;font-size:24px;color:var(--parch);margin-bottom:4px}
+.settings .ssub{font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim);margin-bottom:16px}
+.setrow{display:flex;align-items:center;gap:18px;padding:18px 4px;border-bottom:1px solid var(--line-soft)}
+.setrow:last-child{border-bottom:0}
+.setrow .si{flex:1}
+.setrow .st{font-family:var(--f-title);font-size:16px;color:var(--parch)}
+.setrow .sd{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin-top:2px}
+.toggle{width:52px;height:28px;border-radius:20px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);position:relative;flex:none;cursor:pointer}
+.toggle.on{background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-color:var(--gold)}
+.toggle i{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--parch);transition:.2s}
+.toggle.on i{left:26px;background:#2a1c07}
+.toggle.danger.on{background:linear-gradient(90deg,var(--vermilion-deep),var(--vermilion));border-color:var(--vermilion)}
+.setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
+.setrow select:disabled{opacity:.5}
+/* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
+body.reduce-motion *{animation:none !important}
+@media(prefers-reduced-motion:reduce){.cerbox .rays,.cerbox .flick,#achtoast::after{animation:none !important}}
+/* Artifacts Library — the Scriptorium (template F) */
+.lib{padding:26px 26px 60px;max-width:1080px;margin:0 auto}
+.lib-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+.lib-top .lt-title{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--parch);line-height:1.1}
+.lib-top .lt-sub{font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--parch-dim)}
+.lib-search{flex:1;min-width:220px;position:relative}
+.lib-search input{width:100%;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);
+ padding:11px 38px 11px 14px;font-family:var(--f-body);font-size:14px;outline:none}
+.lib-search input:focus{border-color:var(--gold)}
+.lib-search .ls-ic{position:absolute;right:12px;top:11px;color:var(--gold)}
+.lib-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.lib-pill{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;color:var(--parch-dim);background:rgba(6,9,20,.5);
+ border:1px solid var(--line-soft);border-radius:999px;padding:5px 14px;cursor:pointer;transition:.14s}
+.lib-pill:hover{color:var(--gold-bright)} .lib-pill.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
+.lib-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;grid-auto-rows:min-content}
+@media(max-width:900px){.lib-grid{grid-template-columns:1fr}}
+.artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
+ border:1px solid var(--line-gold);border-radius:8px;background:linear-gradient(165deg,rgba(35,29,24,.7),rgba(12,10,20,.85));transition:.16s}
+.artcard:hover{border-color:var(--gold-deep);box-shadow:0 12px 30px -14px rgba(231,182,75,.4)}
+.artcard.feat{grid-row:span 2;background:linear-gradient(165deg,rgba(35,29,24,.92),rgba(12,10,20,.94))}
+.artcard .atype{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;gap:6px;align-items:center}
+.artcard .atype.markdown{color:var(--peacock-bright)}.artcard .atype.code{color:var(--gold-bright)}.artcard .atype.html{color:var(--forest-lit)}.artcard .atype.viz{color:var(--vermilion-glow)}
+.artcard h4{font-family:var(--f-title);font-size:17px;color:var(--parch);margin:2px 0}
+.artcard p{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin:0;line-height:1.5;
+ display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.artcard .ameta{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);margin-top:auto;padding-top:8px;letter-spacing:.04em;display:flex;gap:12px;flex-wrap:wrap}
+.artcard .apin{position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--parch-mute);opacity:.6}
+.artcard .apin.on{color:var(--gold-bright);opacity:1}
+.lib-empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--parch-dim);font-family:var(--f-body)}
+.lib-newbtn{font-family:var(--f-title);font-size:13px;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
+ color:#2a1c07;border:none;border-radius:4px;padding:10px 18px;font-weight:600;cursor:pointer}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
 #tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
@@ -656,43 +878,106 @@ button:disabled{opacity:.42;cursor:default}
 .assbar{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--line-soft)}
 .assbar input{flex:1;background:rgba(6,9,20,.6);border:1px solid var(--line-gold);border-radius:6px;color:var(--parch);padding:9px 11px;font-size:13px;font-family:var(--f-body);outline:none}
 .assbar input:focus{border-color:var(--gold)}
-/* game HUD */
+/* game HUD — the template's radial rank-ring (XP as a continuous ring, not an emoji+bar) */
 .hud{display:flex;align-items:center;gap:11px;font-family:var(--f-mono);font-size:12px}
-.hud .flame{color:var(--gold-bright)} .hud .lvl{color:var(--gold);font-weight:600}
+.hud .rank-ring{transform:rotate(-90deg)}
+.hud .rank-ring .arc{transition:stroke-dashoffset 1s cubic-bezier(.22,.7,.25,1)}
+.hud .flame{color:var(--gold-bright)}
 .hud .rank{color:var(--peacock-bright);font-family:var(--f-title);font-size:13px}
-.hud .xpbar{width:88px;height:9px;border-radius:999px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);overflow:hidden}
-.hud .xpfill{height:100%;background:linear-gradient(90deg,var(--gold-deep),var(--gold-bright));box-shadow:0 0 8px rgba(231,182,75,.6)}
-/* death / loss overlay — the archer's fall, re-themed to sindoor vermilion + gold merit */
+.hud .prog{color:var(--parch-dim)} .hud .prog b{color:var(--gold-bright)}
+/* death / loss overlay — re-themed from Dark-Souls to epic-not-punitive (template §5):
+   "YOUR AIM FALTERED / पुण्य क्षीण", vermilion stone-cracks, a gold Merit badge. */
 #death{position:fixed;inset:0;z-index:100;display:none;place-items:center;
  background:radial-gradient(circle at 50% 42%,rgba(60,14,10,.72),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
 #death.on{display:grid;animation:fadein .5s ease}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
-.deathcard{text-align:center;max-width:540px;padding:30px}
-.youdied{font-family:var(--f-display);font-size:clamp(48px,8vw,72px);font-weight:800;letter-spacing:.1em;
+.deathcard{position:relative;text-align:center;max-width:540px;padding:30px;overflow:hidden}
+.deathcard .cracks{position:absolute;inset:0;pointer-events:none;opacity:.5}
+.deathcard .dcontent{position:relative;z-index:2}
+.deathcard .de{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--vermilion-glow);margin-bottom:12px}
+.dbig{font-family:var(--f-display);font-weight:800;font-size:clamp(34px,6vw,64px);letter-spacing:.1em;line-height:1.05;
  color:transparent;background:linear-gradient(180deg,#ffb9ac,var(--vermilion) 55%,var(--vermilion-deep));
  -webkit-background-clip:text;background-clip:text;text-shadow:0 0 40px rgba(214,59,42,.45);animation:dpulse 2.4s ease infinite}
 @keyframes dpulse{50%{opacity:.86}}
-.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto;font-size:16px;line-height:1.6;max-width:440px}
+.ddeva{font-family:var(--f-deva);font-size:22px;color:var(--vermilion-glow);margin-top:6px}
+.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto 0;font-size:16px;line-height:1.6;max-width:440px}
 .deathsub b{color:var(--vermilion-glow);font-style:normal}
-#death button{font-family:var(--f-title);letter-spacing:.04em;margin-top:14px;background:rgba(143,35,24,.2);color:var(--vermilion-glow);
+.dnote{font-family:var(--f-body);font-size:13.5px;color:var(--parch-mute);margin-top:10px}
+.lmerit{margin:22px auto 0;display:inline-flex;align-items:center;gap:12px;padding:12px 22px;border:1px solid var(--gold);border-radius:4px;background:rgba(231,182,75,.08)}
+.lmerit .deva{font-family:var(--f-deva);font-size:18px;color:var(--gold)}
+.lmerit .mn{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--gold-bright)}
+.lmerit .ml{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--parch-dim);text-align:left}
+#death button{font-family:var(--f-title);letter-spacing:.04em;margin-top:18px;background:rgba(143,35,24,.2);color:var(--vermilion-glow);
  border:1px solid rgba(214,59,42,.55);border-radius:4px;padding:11px 26px;cursor:pointer;font-weight:600;font-size:14px}
 #death button:hover{background:rgba(143,35,24,.35)}
-/* reclaim toast — merit reclaimed, gold sheen */
+/* reclaim toast — merit reclaimed, teal-bordered sheen (template's .toast) */
 #reclaim{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:90;display:none;
- background:linear-gradient(120deg,rgba(35,29,24,.95),rgba(20,15,10,.95));border:1px solid var(--gold);color:var(--gold-bright);
- font-family:var(--f-title);letter-spacing:.04em;
- padding:13px 26px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(231,182,75,.4);font-weight:600}
-#reclaim.on{display:block;animation:pop .4s ease}
+ gap:14px;align-items:center;
+ background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));border:1px solid var(--peacock);color:var(--parch);
+ padding:13px 22px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(46,163,160,.4)}
+#reclaim.on{display:flex;animation:pop .4s ease}
+#reclaim .rc-badge{flex:none;color:var(--peacock-bright)}
+#reclaim .rc-info .rc-e{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:2px}
+#reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--gold-bright)}
+#reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch-dim)}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+/* achievement toast (template §5) — transient, top-centre, gold-leaf sheen */
+#achtoast{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:95;display:none;gap:16px;align-items:center;
+ padding:16px 20px;border:1px solid var(--gold);border-radius:5px;overflow:hidden;max-width:min(440px,92vw);
+ background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));box-shadow:0 12px 40px -10px rgba(231,182,75,.5)}
+#achtoast.on{display:flex;animation:pop .45s ease}
+#achtoast::after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;
+ background:linear-gradient(100deg,transparent,rgba(255,246,223,.25),transparent);animation:sheen 3.2s ease-in-out 2}
+@keyframes sheen{0%{left:-40%}60%,100%{left:120%}}
+#achtoast .badge{flex:0 0 auto}
+#achtoast .tinfo .te{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+#achtoast .tinfo .tn{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--parch)}
+#achtoast .tinfo .td{font-family:var(--f-body);font-size:14px;color:var(--parch-dim)}
+/* level-up ceremony (template §5) — gold bloom + spinning chakra rays + twin diyas */
+#ceremony{position:fixed;inset:0;z-index:101;display:none;place-items:center;
+ background:radial-gradient(circle at 50% 45%,rgba(30,24,14,.92),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
+#ceremony.on{display:grid;animation:fadein .5s ease}
+.cerbox{position:relative;min-height:340px;min-width:min(520px,92vw);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;
+ background:radial-gradient(circle at center,rgba(30,24,14,.9),var(--void) 70%);border:1px solid var(--gold)}
+.cerbox .rays{position:absolute;top:50%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.6;animation:slowspin 40s linear infinite}
+@keyframes slowspin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.cerbox .ccontent{position:relative;text-align:center;z-index:2;padding:24px}
+.cerbox .bloom{animation:bloom 1.5s cubic-bezier(.2,.7,.3,1) both}
+@keyframes bloom{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+.cerbox .ce{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:8px}
+.cerbox .clvl{font-family:var(--f-display);font-weight:900;font-size:64px;line-height:1;color:transparent;
+ background:linear-gradient(180deg,#fff6df,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;text-shadow:0 4px 30px rgba(231,182,75,.5)}
+.cerbox .cdeva{font-family:var(--f-deva);font-size:20px;color:var(--parch);opacity:.92;margin-top:6px}
+.cerbox .ctitle{font-family:var(--f-serif);font-style:italic;font-size:18px;color:var(--parch);margin-top:8px}
+.cerbox .ctitle b{color:var(--gold-bright);font-style:normal}
+.cerbox .diya{position:absolute;bottom:26px}.cerbox .diya.d1{left:60px}.cerbox .diya.d2{right:60px}
+.cerbox .flick{animation:flick 1.6s ease-in-out infinite;transform-origin:center bottom}
+@keyframes flick{0%,100%{transform:scale(1) rotate(-2deg)}50%{transform:scale(1.08) rotate(2deg)}}
+#ceremony button{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);font-family:var(--f-title);letter-spacing:.04em;
+ background:rgba(231,182,75,.1);color:var(--gold-bright);border:1px solid var(--gold-deep);border-radius:4px;padding:9px 22px;cursor:pointer;font-weight:600}
 *:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
 .sh-deep{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
 :root{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
+/* mobile radial bottom-nav (template §7): a centre 'practice' orb + four sections */
+#mnav{display:none;justify-content:space-around;align-items:flex-end;padding:8px 10px 12px;
+ border-top:1px solid var(--line-gold);background:linear-gradient(180deg,rgba(35,29,24,.6),rgba(8,11,32,.95));
+ position:sticky;bottom:0;z-index:80}
+#mnav .ni{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:var(--f-mono);font-size:10px;
+ letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;padding:0}
+#mnav .ni.on{color:var(--gold-bright)}
+#mnav .ni.center{margin-top:-24px}
+#mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
+ display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -6px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,255,255,.5);border:2px solid rgba(255,246,223,.3)}
 /* mobile: header wraps, tabs scroll, creed hides so the HUD + tabs fit */
 @media(max-width:900px){
  header{flex-wrap:wrap;gap:10px;padding:10px 14px}
  .creed{display:none}
  .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
- .hud{font-size:11px;gap:8px}.hud .xpbar{width:60px}
+ .hud{font-size:11px;gap:8px}
+ #prail{display:none}                 /* the rail is desktop-only; mobile uses the radial nav */
+ main{grid-template-columns:1fr}
+ body{overflow:auto}
+ #mnav{display:flex}
 }
 </style></head><body>
 <header>
@@ -712,6 +997,15 @@ button:disabled{opacity:.42;cursor:default}
   <div class="who" id="who"></div>
 </header>
 <main>
+  <nav id="prail" aria-label="Sections">
+    <div class="rail-item on" data-rail="practice" onclick="railGo('practice')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.6"/></svg> Practice</div>
+    <div class="rail-item" data-rail="dash" onclick="railGo('dash')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Progress</div>
+    <div class="rail-item" data-rail="tree" onclick="railGo('tree')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg> Forest Map</div>
+    <div class="rail-item" data-rail="library" onclick="railGo('library')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg> Library</div>
+    <div class="rail-item" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
+    <div class="rail-mini-hud"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title">Vana-Dhanurdhara</div></div>
+  </nav>
+  <div id="content">
   <div id="practice">
     <div class="col chat">
       <div class="log" id="log"><div class="arena-welcome" id="arenawelcome">
@@ -740,6 +1034,10 @@ button:disabled{opacity:.42;cursor:default}
           <option value="takehome">Take-home</option>
           <option value="onboard">First-time setup</option>
         </select>
+        <div class="seg" id="rightseg" role="tablist" aria-label="Right pane">
+          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab">▤ Editor</span>
+          <span data-pane="canvas" onclick="showPane('canvas')" role="tab">✦ Canvas</span>
+        </div>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
         <button class="ghost run" onclick="runCode()">▶ Run</button>
@@ -754,6 +1052,17 @@ button:disabled{opacity:.42;cursor:default}
         </div>
       </div>
       <div id="editor"></div>
+      <div class="ed-tests hidden" id="edtests">
+        <div class="ed-tests-h"><span>Test arrows</span><span class="et-count" id="etcount"><b>0</b> / 0 strike</span></div>
+        <div class="et-list" id="etlist"></div>
+        <div class="ed-tests-f"><span class="et-hint" id="ethint">Run your code — each check becomes an arrow that strikes or misses.</span>
+          <button class="submit" style="flex:none" onclick="submitCode()">✓ Submit</button></div>
+      </div>
+      <div id="canvaspane">
+        <div class="canvas-tabs" id="canvastabs"></div>
+        <div class="canvas-body" id="canvasbody"><div class="canvas-empty">No artifact selected. When the guru writes a lesson and you save it to your Canvas, it renders here.</div></div>
+        <div class="selpop" id="selpop" onclick="askSelection()">Ask about this ✦</div>
+      </div>
     </div>
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
@@ -771,7 +1080,17 @@ button:disabled{opacity:.42;cursor:default}
     </div>
     <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg></div>
   </div>
+  <div id="library"></div>
+  <div id="settings"></div>
+  </div>
 </main>
+<nav id="mnav" aria-label="Sections">
+  <button class="ni" data-rail="dash" onclick="railGo('dash')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Ashram</button>
+  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
+  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
+  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
+  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
+</nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
 <div id="drawer">
@@ -780,12 +1099,36 @@ button:disabled{opacity:.42;cursor:default}
   <div class="chatlist" id="chatlist"></div>
 </div>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="ringGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b8862f"/><stop offset="1" stop-color="#f7d98a"/></linearGradient></defs></svg>
+
 <div id="death"><div class="deathcard">
-  <div class="youdied">YOU DIED</div>
-  <div class="deathsub" id="deathsub"></div>
-  <button onclick="dismissDeath()">CONTINUE</button>
+  <svg class="cracks" viewBox="0 0 400 360" preserveAspectRatio="none"><g stroke="#d63b2a" stroke-width="1" fill="none" opacity=".7"><path d="M200 0 L190 90 L230 150 L200 220 L240 300 L210 360"/><path d="M190 90 L120 130 L60 110"/><path d="M230 150 L310 140 L360 180"/><path d="M200 220 L130 250 L70 240"/></g></svg>
+  <div class="dcontent">
+    <div class="de">◆ The round is lost</div>
+    <div class="dbig">YOUR AIM<br>FALTERED</div>
+    <div class="ddeva">पुण्य क्षीण</div>
+    <div class="deathsub" id="deathsub"></div>
+    <div class="lmerit"><span class="deva">पुण्य</span><span class="mn" id="deathmerit">−0 XP</span><span class="ml">merit lost ·<br>every miss teaches</span></div>
+    <div class="dnote">Type your next answer yourself to reclaim your merit.</div>
+    <button onclick="dismissDeath()">Continue</button>
+  </div>
 </div></div>
-<div id="reclaim"></div>
+<div id="achtoast"><span class="badge"><svg width="46" height="46" viewBox="0 0 52 52" fill="none"><path d="M26 3 L48 15 V37 L26 49 L4 37 V15 Z" fill="#231d18" stroke="#e7b64b" stroke-width="1.5"/><path d="M26 9 L43 18 V34 L26 43 L9 34 V18 Z" fill="none" stroke="#f7d98a" stroke-width="1" opacity=".6"/><path d="M26 16 v14 M22 30 h8 M26 16 c-3 2 -3 6 0 8 c3 -2 3 -6 0 -8" stroke="#f7d98a" stroke-width="1.6" fill="none"/><circle cx="26" cy="24" r="2" fill="#d63b2a"/></svg></span><div class="tinfo"><div class="te">◆ Achievement unlocked</div><div class="tn" id="achname">—</div><div class="td" id="achdesc">—</div></div></div>
+
+<div id="ceremony"><div class="cerbox">
+  <svg class="rays" viewBox="0 0 200 200" fill="none"><g id="ceremonyrays" stroke="#f7d98a" stroke-width=".7"></g></svg>
+  <div class="ccontent bloom">
+    <div class="ce">◆ Ascension · siddhi</div>
+    <div class="clvl" id="cerlvl">RANK</div>
+    <div class="cdeva">दीप प्रज्वलित — एक और दीया जला</div>
+    <div class="ctitle" id="certitle">You are now <b>—</b></div>
+  </div>
+  <svg class="diya d1" width="46" height="34" viewBox="0 0 46 34"><path d="M4 20 Q23 34 42 20 L38 24 Q23 30 8 24 Z" fill="#b8862f"/><ellipse cx="23" cy="20" rx="20" ry="6" fill="#3a2f26"/><g class="flick"><path d="M23 4 C27 12 25 17 23 18 C21 17 19 12 23 4Z" fill="#f7d98a"/></g></svg>
+  <svg class="diya d2" width="46" height="34" viewBox="0 0 46 34"><path d="M4 20 Q23 34 42 20 L38 24 Q23 30 8 24 Z" fill="#b8862f"/><ellipse cx="23" cy="20" rx="20" ry="6" fill="#3a2f26"/><g class="flick"><path d="M23 4 C27 12 25 17 23 18 C21 17 19 12 23 4Z" fill="#f7d98a"/></g></svg>
+  <button onclick="dismissCeremony()">Continue</button>
+</div></div>
+
+<div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
@@ -808,20 +1151,177 @@ function looksPasted(code, biggest){
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
-// tabs
-document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [data-view] excludes the editor toggle
-  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.remove('on')); t.classList.add('on');
-  const v=t.dataset.view;
-  document.getElementById('practice').style.display = v==='practice'?'grid':'none';
-  document.getElementById('dash').style.display = v==='dash'?'block':'none';
-  document.getElementById('journey').style.display = v==='journey'?'block':'none';
-  document.getElementById('profile').style.display = v==='profile'?'block':'none';
-  document.getElementById('tree').style.display = v==='tree'?'flex':'none';
+// view switching — driven by BOTH the header tabs and the ashram left rail.
+// The rail carries Practice/Progress/Forest Map(tree)/Library/Settings; the header
+// tabs carry Practice/Progress/Journey/Profile/Skill Tree — they share these targets.
+function showView(v){
+  const DISP={practice:'grid',dash:'block',journey:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
+  for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
+  // keep both nav surfaces in sync with the active view
+  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
+  document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
-});
+  if(v==='library') loadLibrary();
+  if(v==='settings') loadSettings();
+}
+document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
+function railGo(v){ showView(v); }
+
+/* ===== Settings screen (template K) — setrows + toggles + provider selector ===== */
+function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on); }
+function saveSetting(patch){
+  return fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(patch)}).then(r=>r.json());
+}
+function loadSettings(){
+  fetch('/api/settings').then(r=>r.json()).then(s=>{
+    applyReducedMotion(s.reduced_motion);
+    const provOpts=(s.providers||[]).map(p=>
+      "<option value='"+p.key+"'"+(p.key===s.active_provider?" selected":"")+(p.configured?"":" disabled")+">"+
+      p.label+(p.configured?"":" · no key")+"</option>").join('');
+    const tog=(on,danger)=>"<div class='toggle"+(danger?" danger":"")+(on?" on":"")+"' role='switch' tabindex='0' aria-checked='"+(!!on)+"'><i></i></div>";
+    document.getElementById('settings').innerHTML=
+     "<div class='settings'>"+
+     "<div class='stitle'>Settings</div><div class='ssub'>How the guru of stone teaches, and how it grades.</div>"+
+     "<div class='setrow' id='sr-cheat'><div class='si'><div class='st'>Cheat penalty</div><div class='sd'>Paste a full solution and the round is lost — merit drops, the streak breaks. Type it yourself to reclaim.</div></div>"+tog(s.death_on_cheat,true)+"</div>"+
+     "<div class='setrow' id='sr-motion'><div class='si'><div class='st'>Reduced motion</div><div class='sd'>Stills the ceremony, bloom, and flame animations. Respects your OS setting by default.</div></div>"+tog(s.reduced_motion,false)+"</div>"+
+     "<div class='setrow' id='sr-voice'><div class='si'><div class='st'>Guru voice</div><div class='sd'>Stone guru (stern, epic) vs. plain mentor. Same grading either way.</div></div>"+tog(s.guru_voice,false)+"</div>"+
+     "<div class='setrow' id='sr-prov'><div class='si'><div class='st'>Provider</div><div class='sd'>Which model powers the tutor. Only providers with a key set are selectable.</div></div>"+
+     "<select id='provselect'>"+provOpts+"</select></div>"+
+     "</div>";
+    // wire the toggles
+    const wire=(sel,key,after)=>{ const t=document.querySelector(sel+' .toggle');
+      const flip=()=>{ const on=!t.classList.contains('on'); t.classList.toggle('on',on); t.setAttribute('aria-checked',on);
+        saveSetting({[key]:on}).then(()=>after&&after(on)); };
+      t.onclick=flip; t.onkeydown=e=>{ if(e.key===' '||e.key==='Enter'){e.preventDefault();flip();} }; };
+    wire('#sr-cheat','death_on_cheat',on=>{ deathOnCheat=on; updatePenaltyBtn(); });
+    wire('#sr-motion','reduced_motion',on=>applyReducedMotion(on));
+    wire('#sr-voice','guru_voice');
+    document.getElementById('provselect').onchange=e=>{
+      saveSetting({provider:e.target.value}).then(()=>{
+        fetch('/api/config').then(r=>r.json()).then(c=>{
+          document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set'; });
+      });
+    };
+  }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
+}
+/* ===== Artifacts Library — the Scriptorium (template F) ===== */
+let _libFilter='', _libQuery='';
+const KIND_GLYPH={markdown:'◆',code:'▶',viz:'◈',html:'□'};
+const KIND_LABEL={markdown:'lesson',code:'code',viz:'visual',html:'html'};
+function libCard(a, feat){
+  const glyph=KIND_GLYPH[a.kind]||'◆', klabel=KIND_LABEL[a.kind]||a.kind;
+  const preview=(a.content||'').replace(/[#*`>_]/g,'').replace(/<[^>]+>/g,' ').trim().slice(0,160);
+  const when=(a.updated_at||'').replace('T',' ').slice(0,16);
+  return "<div class='artcard"+(feat?' feat':'')+"' onclick='openArtifact("+a.id+")'>"+
+    "<button class='apin"+(a.pinned?' on':'')+"' title='"+(a.pinned?'Unpin':'Pin')+"' onclick='event.stopPropagation();togglePin("+a.id+","+(a.pinned?0:1)+")'>"+(a.pinned?'★':'☆')+"</button>"+
+    "<div class='atype "+a.kind+"'>"+glyph+" "+klabel+(a.pinned?' · pinned':'')+"</div>"+
+    "<h4>"+esc(a.title)+"</h4><p>"+esc(preview||'—')+"</p>"+
+    "<div class='ameta'><span>"+klabel+"</span><span>updated "+esc(when)+"</span></div></div>";
+}
+function loadLibrary(){
+  const url='/api/artifacts?'+(_libFilter?'kind='+encodeURIComponent(_libFilter)+'&':'')+(_libQuery?'q='+encodeURIComponent(_libQuery):'');
+  fetch(url).then(r=>r.json()).then(list=>{
+    const filters=['','markdown','code','viz','html'];
+    const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
+    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
+    let cards;
+    if(!list.length){ cards="<div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div>"; }
+    else { cards=list.map((a,i)=>libCard(a, a.pinned && i===0)).join(''); }
+    document.getElementById('library').innerHTML=
+     "<div class='lib'><div class='lib-top'>"+
+     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — kept for revision.</div></div>"+
+     "<span style='flex:1'></span>"+
+     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
+     "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
+     "<div class='lib-filters'>"+pills+"</div>"+
+     "<div class='lib-grid'>"+cards+"</div></div>";
+    const si=document.getElementById('libsearch');
+    si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
+    si.focus(); si.setSelectionRange(si.value.length, si.value.length);
+  }).catch(()=>{ document.getElementById('library').innerHTML="<div class='lib'><div class='lib-empty'>could not load the library.</div></div>"; });
+}
+function setLibFilter(f){ _libFilter=f; loadLibrary(); }
+function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},
+  body:JSON.stringify({pinned:!!on})}).then(()=>loadLibrary()).catch(()=>{}); }
+// openArtifact(id) — opens the artifact in the arena's Canvas tab.
+function openArtifact(id){ showView('practice'); openCanvas(id); }
+
+/* ===== Canvas — the Editor↔Canvas tab (template E) ===== */
+let _artifacts=[], _curArt=null, _selText='';
+function showPane(p){
+  const col=document.querySelector('#practice .col:not(.chat)');
+  const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
+  document.querySelectorAll('#rightseg span').forEach(s=>s.classList.toggle('on', s.dataset.pane===p));
+  if(isCanvas){ loadCanvas(); }
+  else if(editor){ setTimeout(()=>editor.layout(),60); }
+}
+function artGlyph(k){ return KIND_GLYPH[k]||'◆'; }
+function loadCanvas(select){
+  return fetch('/api/artifacts').then(r=>r.json()).then(list=>{
+    _artifacts=list;
+    const tabs=document.getElementById('canvastabs');
+    if(!list.length){ tabs.innerHTML=''; document.getElementById('canvasbody').innerHTML=
+      "<div class='canvas-empty'>No artifacts yet. Ask the guru for a lesson and save it to your Canvas — it renders here.</div>"; _curArt=null; return; }
+    if(select!=null) _curArt=select;
+    if(_curArt==null || !list.find(a=>a.id===_curArt)) _curArt=list[0].id;
+    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
+      artGlyph(a.kind)+"</span> "+esc(a.title)+"</span>").join('');
+    renderArtifact(list.find(a=>a.id===_curArt));
+  }).catch(()=>{});
+}
+function selectArtifact(id){ _curArt=id;
+  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
+  const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
+}
+function renderArtifact(a){
+  const body=document.getElementById('canvasbody');
+  if(!a){ body.innerHTML="<div class='canvas-empty'>—</div>"; return; }
+  if(a.kind==='code'){
+    body.innerHTML="<div class='art-code' data-selectable='1'>"+esc(a.content)+"</div>";
+  } else if(a.kind==='html'){
+    body.innerHTML="<div class='art-html'><div class='art-htmlbar'>"+esc(a.title)+" · rendered</div>"+
+      "<div class='art-htmlprev'>"+DOMPurify.sanitize(a.content)+"</div></div>";
+  } else if(a.kind==='viz'){
+    body.innerHTML="<div class='art-viz'>"+DOMPurify.sanitize(a.content,{USE_PROFILES:{svg:true,svgFilters:true,html:true}})+"</div>";
+  } else {  // markdown lesson
+    body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
+    body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  }
+  body.appendChild(document.getElementById('selpop'));  // keep the popover inside the scroll box
+}
+function openCanvas(id){ showPane('canvas'); loadCanvas(id); }
+// highlight-to-ask: selecting text in a renderable artifact raises the "Ask about this ✦"
+// popover; clicking it sends the selection to the guru as labelled context.
+function onCanvasSelect(){
+  const pop=document.getElementById('selpop'); const sel=window.getSelection();
+  const body=document.getElementById('canvasbody');
+  const txt=(sel&&sel.toString()||'').trim();
+  const inCanvas=sel && sel.anchorNode && body.contains(sel.anchorNode);
+  if(!txt || !inCanvas || txt.length<2){ pop.classList.remove('on'); _selText=''; return; }
+  _selText=txt;
+  const rect=sel.getRangeAt(0).getBoundingClientRect(), br=body.getBoundingClientRect();
+  pop.style.left=Math.max(6,(rect.left-br.left+body.scrollLeft))+'px';
+  pop.style.top=Math.max(6,(rect.top-br.top+body.scrollTop-40))+'px';
+  pop.classList.add('on');
+}
+document.addEventListener('selectionchange',()=>{ if(document.querySelector('#practice .col.canvasmode')) onCanvasSelect(); });
+function askSelection(){
+  if(!_selText) return;
+  const art=_artifacts.find(a=>a.id===_curArt);
+  document.getElementById('selpop').classList.remove('on');
+  // echo the asked-about selection in chat (template's .art-echo), then ask the guru
+  clearWelcome();
+  const echo=el('art-echo');
+  echo.innerHTML="<div><div class='lbl'>◆ asking about a selection in the canvas</div><div class='q'>"+esc(_selText.slice(0,180))+"</div></div>";
+  document.getElementById('log').appendChild(echo); scroll();
+  const q="About the canvas"+(art?" artifact \""+art.title+"\"":"")+", I'm asking about this part:\n\n> "+_selText.slice(0,600)+"\n\nCan you explain it?";
+  const sel=window.getSelection(); if(sel) sel.removeAllRanges(); _selText='';
+  stream(q);
+}
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
   const hidden=document.getElementById('practice').classList.toggle('nocode');
@@ -1045,15 +1545,76 @@ require(['vs/editor/editor.main'], function(){
 
 function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
   for(const [t,n] of R) if(l>=t) return n; return 'Novice';}
-function setHud(s){const into=s.xp%100;
+// XP is a continuous rank-ring fill (template's headline: a ring, not an emoji/bar).
+// C = 2πr for r=47 ≈ 295.3; the arc's dash-offset shrinks from C (empty) to (1-p)·C (p full).
+const RING_C=295.3;
+function rankRingSVG(level,pct){
+  const off=(RING_C*(1-pct)).toFixed(1);
+  return "<svg class='rank-ring' width='34' height='34' viewBox='0 0 104 104' aria-label='XP "+
+    Math.round(pct*100)+"% to next rank'>"+
+    "<circle cx='52' cy='52' r='47' fill='none' stroke='rgba(231,182,75,.16)' stroke-width='7'/>"+
+    "<circle class='arc' cx='52' cy='52' r='47' fill='none' stroke='url(#ringGrad)' stroke-width='7' "+
+    "stroke-linecap='round' stroke-dasharray='"+RING_C+"' stroke-dashoffset='"+off+"'/>"+
+    "<circle cx='52' cy='52' r='32' fill='#101528' stroke='#f7d98a' stroke-width='2' transform='rotate(90 52 52)'/>"+
+    "<text x='52' y='60' text-anchor='middle' font-family='Cinzel' font-weight='800' font-size='30' fill='#f7d98a' transform='rotate(90 52 52)'>"+level+"</text></svg>";
+}
+function setHud(s){const pct=(s.xp%100)/100, next=s.level+1;
   document.getElementById('hud').innerHTML =
-   "<span class='flame'>🔥 "+s.streak+"</span><span class='lvl'>⭐ Lv "+s.level+"</span>"+
+   rankRingSVG(s.level, pct)+
+   "<span class='flame'><svg width='11' height='14' viewBox='0 0 46 58' style='vertical-align:-2px'><path d='M23 4 C31 18 40 22 38 36 C37 49 30 54 23 54 C16 54 8 48 8 36 C8 27 16 24 18 14 C22 20 20 26 24 30 C28 24 24 16 23 4Z' fill='#e7b64b'/></svg> <b>"+s.streak+"</b>d</span>"+
    "<span class='rank'>"+rank(s.level)+"</span>"+
-   "<span class='xpbar'><span class='xpfill' style='width:"+into+"%'></span></span>";}
-function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(setHud).catch(()=>{}); }
+   "<span class='prog'>Lv <b>"+s.level+"</b> · <b>"+Math.round(pct*100)+"%</b> → R"+next+"</span>";}
+function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(s=>{ setHud(s); celebrate(s); }).catch(()=>{}); }
+
+/* ===== celebration moments (template §5): level-up ceremony + achievement toast =====
+   The app exposes level + streak; we mirror the dashboard's achievement rules client-side
+   and fire a moment the first time the level rises or a new achievement is earned. Prior
+   state is remembered in localStorage so a moment fires once, not on every refresh. */
+function rankTitle(l){const T=[[17,'Grandmaster of the Forest'],[12,'Master Archer'],[8,'Archer of the Deep Forest'],[5,'Adept of the String'],[3,'Apprentice Archer'],[1,'Novice of the Grove']];
+  for(const [t,n] of T) if(l>=t) return n; return 'Novice of the Grove';}
+function earnedAchievements(s){
+  const a=[];
+  if(s.streak>=3) a.push(['On Fire','A 3-day streak — the string stays warm.']);
+  if(s.streak>=7) a.push(['Week Warrior','Seven days unbroken.']);
+  if(s.streak>=30) a.push(['Unbroken','A 30-day streak. The forest remembers.']);
+  if(s.level>=5) a.push(['Adept','Reached level 5.']);
+  if(s.level>=10) a.push(['Master','Reached level 10.']);
+  return a;
+}
+function showAchievement(name, desc){
+  document.getElementById('achname').textContent=name;
+  document.getElementById('achdesc').textContent=desc;
+  const t=document.getElementById('achtoast'); t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),4200);
+}
+function _ceremonyRays(){ const g=document.getElementById('ceremonyrays'); if(g.childElementCount) return;
+  for(let i=0;i<40;i++){ const a=i*9*Math.PI/180, x2=100+96*Math.cos(a), y2=100+96*Math.sin(a);
+    const l=document.createElementNS(SVGNS,'line'); l.setAttribute('x1',100);l.setAttribute('y1',100);
+    l.setAttribute('x2',x2.toFixed(1));l.setAttribute('y2',y2.toFixed(1)); g.appendChild(l);} }
+function showCeremony(level){
+  _ceremonyRays();
+  document.getElementById('cerlvl').textContent='RANK '+level;
+  document.getElementById('certitle').innerHTML='You are now <b>'+rankTitle(level)+'</b>';
+  const box=document.querySelector('#ceremony .ccontent'); box.classList.remove('bloom'); void box.offsetWidth; box.classList.add('bloom');
+  document.getElementById('ceremony').classList.add('on');
+}
+function dismissCeremony(){ document.getElementById('ceremony').classList.remove('on'); }
+let _celebReady=false;   // don't fire on the very first load (that's the returning state, not a change)
+function celebrate(s){
+  const prevLvl=parseInt(localStorage.getItem('ek_lvl')||'0',10);
+  const prevAch=JSON.parse(localStorage.getItem('ek_ach')||'[]');
+  const nowAch=earnedAchievements(s).map(a=>a[0]);
+  if(_celebReady){
+    if(s.level>prevLvl) showCeremony(s.level);
+    const fresh=earnedAchievements(s).find(a=>!prevAch.includes(a[0]));
+    if(fresh && !(s.level>prevLvl)) showAchievement(fresh[0], fresh[1]);   // one moment at a time
+  }
+  localStorage.setItem('ek_lvl', s.level); localStorage.setItem('ek_ach', JSON.stringify(nowAch));
+  _celebReady=true;
+}
 function showReclaim(amt){ const r=document.getElementById('reclaim');
-  r.textContent="⚔ SOULS RECLAIMED  +"+amt+" XP"; r.classList.add('on');
-  setTimeout(()=>r.classList.remove('on'),2600); }
+  document.getElementById('reclaimn').textContent="+"+amt+" XP restored"; r.classList.add('on');
+  setTimeout(()=>r.classList.remove('on'),2800); }
 function flagCheat(reason){
   // NEVER wipe the editor — the learner's work always stays.
   if(!deathOnCheat){                 // penalty disabled → a quiet note, no punishment
@@ -1062,8 +1623,8 @@ function flagCheat(reason){
   }
   fetch('/api/penalise',{method:'POST'}).then(r=>r.json()).then(d=>{
     document.getElementById('deathsub').innerHTML =
-      reason+".<br>Souls dropped: <b>-"+d.lost+" XP</b>. Streak broken.<br>"+
-      "<span class='dim'>Your code is untouched. Type your next answer yourself to reclaim your souls.</span>";
+      reason+". Streak broken. <span class='dim'>Your code is untouched.</span>";
+    document.getElementById('deathmerit').textContent = "−"+d.lost+" XP";
     setHud(d.stats); document.getElementById('death').classList.add('on');
   });
 }
@@ -1076,7 +1637,8 @@ function togglePenalty(){ deathOnCheat=!deathOnCheat; updatePenaltyBtn();
 
 function el(cls){const d=document.createElement('div');d.className=cls;return d;}
 const WELCOME_HTML=document.getElementById('arenawelcome') ? document.getElementById('arenawelcome').outerHTML : '';
-function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove(); }
+function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove();
+  const th=document.getElementById('onbthreshold'); if(th) th.remove(); }  // threshold recedes once teaching begins
 function showWelcome(sub){ const l=document.getElementById('log'); if(!document.getElementById('arenawelcome')) l.insertAdjacentHTML('afterbegin', WELCOME_HTML);
   if(sub){ const s=document.getElementById('awsub'); if(s) s.textContent=sub; } }
 function addMsg(role, html){
@@ -1170,18 +1732,36 @@ async function consume(res, ui){
 }
 let queued=null, queuedSubmit=false;
 function setBusy(on){ const b=document.querySelector('.inbar .send'); if(b){b.disabled=on;b.style.opacity=on?'.45':'';b.textContent=on?'…':'Send';} }
+// themed error card (template §5) — "The arrow found no wind" + Retry
+function addErrorCard(desc, onRetry){
+  clearWelcome();
+  const d=el('errcard');
+  d.innerHTML='<svg width="40" height="40" viewBox="0 0 24 24" fill="none"><path d="M12 3 L21 20 H3 Z" stroke="#ff5a3c" stroke-width="1.6"/>'+
+    '<line x1="12" y1="10" x2="12" y2="14" stroke="#ff5a3c" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="17" r="1" fill="#ff5a3c"/></svg>'+
+    '<div class="ek">◆ something went awry</div><div class="et">The arrow found no wind</div>'+
+    '<div class="ed">'+desc+'</div><button>↻ Retry</button>';
+  d.querySelector('button').onclick=()=>{ d.remove(); onRetry(); };
+  document.getElementById('log').appendChild(d); scroll(); return d;
+}
 async function stream(text, code){
   if(streaming) return; streaming=true; setBusy(true);
   const ui=addAiMsg();
+  let failed=false;
   try{
     const res=await fetch('/api/stream',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({thread,mode,text,code:code||undefined})});
     await consume(res, ui);
-  }catch(e){ ui.buf+='\n\n_(connection error)_'; }
+  }catch(e){ failed=true; }
+  streaming=false; setBusy(false);
+  if(failed && !ui.buf.trim() && ui.steps===0){             // couldn't reach the guru at all
+    ui.m.remove();
+    addErrorCard("Couldn't reach the guru. Check the connection and loose again.", ()=>stream(text, code));
+    return;
+  }
   if(!ui.buf.trim() && ui.steps===0){                       // the turn produced nothing (e.g. no provider key)
     ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
   } else { ui.m.style.display=''; finalizeMsg(ui); }
-  streaming=false; setBusy(false); refreshHud();
+  refreshHud();
   if(queued){ const q=queued; queued=null; stream(q); }        // a message typed mid-stream
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
 }
@@ -1209,14 +1789,47 @@ function renderRunOut(box, r){
   if(!r.stdout && !r.stderr) html += '<div class="roempty">(no output)</div>';
   box.innerHTML = html; scroll();
 }
+// Parse a run's output into "test arrows" for the .ed-tests panel. Recognises the common
+// self-check shapes learners print: "✓/✗ name", "PASS/FAIL: name", "name ... ok",
+// assertion lines. Falls back to a single pass/fail from the exit code so the panel is
+// always meaningful after a Run.
+const ET_PASS='<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13 l4 4 L19 7" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg>';
+const ET_FAIL='<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6 l12 12 M18 6 l-12 12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+function parseTests(r){
+  const out=[]; const lines=((r.stdout||'')+'\n'+(r.stderr||'')).split('\n');
+  for(let ln of lines){ const s=ln.trim(); if(!s) continue;
+    let m;
+    if((m=s.match(/^(?:✓|PASS(?:ED)?[:\s])\s*(.+)$/i))) out.push({pass:true, name:m[1].trim()});
+    else if((m=s.match(/^(?:✗|✕|x|FAIL(?:ED)?[:\s])\s*(.+)$/i))) out.push({pass:false, name:m[1].trim()});
+    else if((m=s.match(/^(.+?)\s*(?:\.\.\.|:)\s*(ok|pass(?:ed)?)$/i))) out.push({pass:true, name:m[1].trim()});
+    else if((m=s.match(/^(.+?)\s*(?:\.\.\.|:)\s*(fail(?:ed)?|error)$/i))) out.push({pass:false, name:m[1].trim()});
+    else if(/AssertionError|Traceback|Error:/.test(s) && out.length) out[out.length-1].pass=false;
+  }
+  if(!out.length) out.push({pass:r.ok, name:r.ok?'code ran without error':'run failed'});
+  return out;
+}
+function renderTests(r){
+  const tests=parseTests(r);
+  const panel=document.getElementById('edtests'), list=document.getElementById('etlist');
+  const passed=tests.filter(t=>t.pass).length;
+  list.innerHTML=tests.map(t=>
+    '<div class="ed-test '+(t.pass?'pass':'fail')+'"><span class="et-i">'+(t.pass?ET_PASS:ET_FAIL)+
+    '</span><span class="et-n">'+esc(t.name)+'</span><span class="et-t">'+(t.pass?'strike':'miss')+'</span></div>').join('');
+  document.getElementById('etcount').innerHTML='<b>'+passed+'</b> / '+tests.length+' strike';
+  const miss=tests.find(t=>!t.pass);
+  document.getElementById('ethint').innerHTML = miss
+    ? 'One arrow fell short — <code>'+esc(miss.name)+'</code>. Fix it, then loose again.'
+    : (passed>1 ? 'Every arrow struck. Submit when you are ready.' : 'The arrow flew — write a few checks to grade it truly.');
+  panel.classList.remove('hidden');
+}
 async function runCode(){
   if(!editor) return; const code=editor.getValue(); if(!code.trim()) return;
   const box=addRunOut('<span class="dim">▶ running…</span>');
   try{
     const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({code})})).json();
-    renderRunOut(box, r);
-  }catch(e){ box.innerHTML='<div class="rohead bad">▶ could not run</div>'; }
+    renderRunOut(box, r); renderTests(r);
+  }catch(e){ box.remove(); addErrorCard("Couldn't run your code — the sandbox didn't answer. Try again.", runCode); }
 }
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
@@ -1249,6 +1862,22 @@ let assbusy=false;
 function applyMode(){  // show the AI-assistant drawer only in aiinterview mode
   document.getElementById('assistpanel').classList.toggle('hidden', mode!=='aiinterview');
   document.getElementById('resumebar').classList.toggle('hidden', mode!=='onboard');  // résumé upload only during onboarding
+  showThreshold();  // the framed "Cross the threshold" intro shows only at the start of onboarding
+}
+// Onboarding threshold (template C) — a framed "Cross the threshold / प्रवेश" intro at the
+// head of the chat when a first-time setup begins. It stays above the log until the guru's
+// first message arrives, then recedes (clearWelcome removes it with the welcome block).
+function showThreshold(){
+  const existing=document.getElementById('onbthreshold'); if(existing) existing.remove();
+  const log=document.getElementById('log');
+  if(mode!=='onboard' || log.querySelector('.msg')) return;  // only before the first real message
+  log.insertAdjacentHTML('afterbegin',
+    "<div class='onb-threshold' id='onbthreshold'>"+
+    "<div class='onb-eye'>◆ Cross the threshold</div>"+
+    "<div class='onb-h'>You stand at the forest's edge, <span class='em'>unnamed</span>.</div>"+
+    "<div class='onb-deva'>प्रवेश · the entering</div>"+
+    "<div class='onb-sub'>Before the guru of stone can teach you, it must learn who you are — your goal, your ground, your honest edge. Answer a few questions. Nothing here is a test.</div>"+
+    "<div class='onb-steps'><i class='on'></i><i></i><i></i><i></i><i></i></div></div>");
 }
 function uploadResume(){
   const inp=document.getElementById('resumefile'); const hint=document.getElementById('resumehint');
@@ -1285,6 +1914,7 @@ function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
+  showPane('editor');  // a fresh session starts on the editor, not a stale canvas
   applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
@@ -1444,19 +2074,44 @@ body{min-height:100vh;display:flex;align-items:center;justify-content:center;pad
     <div class="aq">"You were refused a teacher. So become one to yourself — and shoot truer than the princes." <b>— The stone guru</b></div>
   </div>
   <div class="auth-form">
-    <div class="ah">Welcome back, devotee</div>
-    <div class="asub">The forest remembers where you left the string.</div>
+    <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+      <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
+      <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
+    </div>
+    <div class="ah" id="auth-h">Welcome back, devotee</div>
+    <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
     {{error}}
+    <div class="signup-note" id="signup-note" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13.5px;color:var(--parch-dim);border:1px solid var(--line-soft);background:rgba(6,9,20,.4);border-radius:6px;padding:11px 13px;margin:0 0 14px">
+      New statues are raised from the terminal for now — ask your guru to run <code style="font-family:var(--f-mono);color:var(--peacock-bright);font-style:normal">eklavya adduser</code>, then log in here.
+    </div>
     <form method="post" action="/login">
       <div class="field"><label class="field-lbl" for="email">Email</label>
         <input id="email" class="inp" name="email" type="email" autocomplete="username" required autofocus></div>
       <div class="field"><label class="field-lbl" for="password">Password</label>
         <input id="password" class="inp" name="password" type="password" autocomplete="current-password" required></div>
-      <button type="submit" class="btn btn-gold" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
+      <button type="submit" class="btn btn-gold" id="auth-submit" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
     </form>
   </div>
 </div>
 </div>
+<script>
+// Visual Log-in ↔ Sign-up toggle. Auth is email/password only (no OAuth); sign-ups are
+// created from the CLI (eklavya adduser), so the Sign-up tab explains that and keeps the
+// same working login form — it never posts a signup.
+function authMode(m){
+  const login=m==='login';
+  document.getElementById('tab-login').classList.toggle('on',login);
+  document.getElementById('tab-login').setAttribute('aria-selected',login);
+  document.getElementById('tab-signup').classList.toggle('on',!login);
+  document.getElementById('tab-signup').setAttribute('aria-selected',!login);
+  document.getElementById('auth-h').textContent = login ? 'Welcome back, devotee' : 'Raise your own statue';
+  document.getElementById('auth-sub').textContent = login
+    ? 'The forest remembers where you left the string.'
+    : 'The one refused a teacher taught himself. Begin the same way.';
+  document.getElementById('signup-note').style.display = login ? 'none' : 'block';
+  document.getElementById('auth-submit').textContent = login ? 'Sign in — draw the string' : 'Log in to your statue';
+}
+</script>
 </body></html>"""
 
 
