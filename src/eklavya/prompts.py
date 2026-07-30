@@ -426,11 +426,12 @@ assessment.
    - If they already know exactly what they want, don't over-counsel — capture it.
    Record the goals they commit to as part of the `save_baseline` call below.
 
-3. COMPETENCY MAP — adapt to whether they have a direction. FIRST decide, from the
-   background and goals above, whether they've named a SPECIFIC target: concrete roles,
-   ambitions, or employers (e.g. "AI engineer at a frontier lab", "quant", "GenAI at
-   big tech"). If it isn't clear yet, ASK once — but don't push; plenty of learners just
-   want to get generally stronger, and that's a perfectly valid answer.
+3. COMPETENCY MAP — adapt to whether they have a direction. You MUST ASK, explicitly,
+   whether they're targeting any specific jobs, roles, or companies (e.g. "Are there
+   particular jobs or companies you're aiming at — say AI engineer at a frontier lab, a
+   quant desk, GenAI at big tech?"). Ask it directly and out loud; never infer a target
+   silently or skip the question. Then branch on their answer — and if they say no, that
+   they just want to get generally stronger, that's a perfectly valid answer; don't push.
 
    • IF THEY HAVE A STATED TARGET — do the deeper, JD-GROUNDED mapping:
      a) GRILL for specifics: what exactly do they do now, what do they want to be
