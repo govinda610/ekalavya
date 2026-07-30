@@ -10,6 +10,7 @@ real agent in production and by a stub in tests.
 
 from __future__ import annotations
 
+import threading
 from typing import Callable
 
 from rich.markdown import Markdown
@@ -17,8 +18,9 @@ from rich.panel import Panel
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Vertical
+from textual.screen import ModalScreen
 from textual.theme import Theme
-from textual.widgets import Footer, Input, RichLog, Static, TextArea
+from textual.widgets import Button, Footer, Input, Label, RichLog, Static, TextArea
 
 from .commands import EXIT, handle_slash
 
@@ -45,6 +47,53 @@ def _rank(level: int) -> str:
         if level >= threshold:
             return name
     return "Novice"
+
+
+class ApprovalScreen(ModalScreen[bool]):
+    """Asks the learner to approve a run_bash command before it executes.
+
+    Mirrors the web app's approval card and the CLI's y/N prompt: nothing runs
+    without consent. Dismisses with True (approve) or False (reject); Esc rejects.
+    """
+
+    CSS = """
+    ApprovalScreen { align: center middle; }
+    #approve-box {
+        width: 72; max-width: 90%; height: auto; padding: 1 2;
+        border: round $warning; background: $panel;
+    }
+    #approve-title { color: $warning; text-style: bold; margin-bottom: 1; }
+    #approve-cmd {
+        background: $surface; color: $foreground; border: round $secondary;
+        padding: 0 1; margin-bottom: 1;
+    }
+    #approve-why { color: $foreground; margin-bottom: 1; }
+    #approve-btns { height: auto; align-horizontal: center; }
+    #approve-btns Button { margin: 0 1; }
+    """
+
+    BINDINGS = [("escape", "reject", "Reject")]
+
+    def __init__(self, command: str, explanation: str) -> None:
+        super().__init__()
+        self._command = command
+        self._explanation = explanation
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="approve-box"):
+            yield Label("⏻ Run this command?", id="approve-title")
+            yield Static(self._command or "(empty command)", id="approve-cmd")
+            if self._explanation:
+                yield Static(self._explanation, id="approve-why")
+            with Vertical(id="approve-btns"):
+                yield Button("Approve", variant="success", id="approve-yes")
+                yield Button("Reject", variant="error", id="approve-no")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss(event.button.id == "approve-yes")
+
+    def action_reject(self) -> None:
+        self.dismiss(False)
 
 
 class EklavyaApp(App):
@@ -159,6 +208,26 @@ class EklavyaApp(App):
         note = selfcheck(full, context=text)  # blocking model call, but we're on the worker thread
         if note:
             self.call_from_thread(self._write_agent, note)
+
+    def ask_bash_approval(self, command: str, explanation: str) -> bool:
+        """Show the approval modal and BLOCK until the learner decides.
+
+        Called from the streaming worker thread. It hops to the UI thread to push
+        the modal, then waits on an Event that the modal's result callback sets, so
+        run_bash never runs in the TUI without consent. Safe default: reject."""
+        decided = threading.Event()
+        result = {"approved": False}
+
+        def _on_result(approved: bool | None) -> None:
+            result["approved"] = bool(approved)
+            decided.set()
+
+        def _push() -> None:
+            self.push_screen(ApprovalScreen(command, explanation), _on_result)
+
+        self.call_from_thread(_push)
+        decided.wait()
+        return result["approved"]
 
     def _stream_sync(self, text: str) -> None:
         buf: list[str] = []
@@ -311,10 +380,14 @@ def _chunk_text(message_chunk) -> str:
     return ""
 
 
-def make_stream_responder(agent, config):
-    """Yield the agent's reply token-by-token for live streaming in the UI. If the agent
-    asks to run a shell command we reject it here with a note — run_bash has a real
-    approval prompt in the CLI and web; a Textual approval modal is a follow-up."""
+def make_stream_responder(agent, config, approve: Callable[[str, str], bool] | None = None):
+    """Yield the agent's reply token-by-token for live streaming in the UI.
+
+    When the agent calls run_bash, the run pauses on an interrupt. `approve` is a
+    callback `(command, explanation) -> bool` that asks the learner (via the
+    Textual approval modal) whether to run it; the interrupt is then resumed with
+    the matching decision. When `approve` is None (e.g. tests), commands are
+    rejected — nothing runs without consent."""
     from langgraph.types import Command
 
     from .agent import pending_bash_approval
@@ -326,9 +399,13 @@ def make_stream_responder(agent, config):
                 token = _chunk_text(message_chunk)
                 if token:
                     yield token
-            if pending_bash_approval(agent, config) is None:
+            appr = pending_bash_approval(agent, config)
+            if appr is None:
                 break
-            yield "\n\n_(a command needs approval — approve it in the web app for now)_\n"
-            inputs = Command(resume={"decisions": [{"type": "reject"}]})
+            ok = approve(appr["command"], appr["explanation"]) if approve else False
+            decision = "approve" if ok else "reject"
+            if not ok:
+                yield "\n\n_(command rejected — nothing ran)_\n"
+            inputs = Command(resume={"decisions": [{"type": decision}]})
 
     return stream

@@ -191,11 +191,13 @@ def tui(
     touch_chat(config["configurable"]["thread_id"], mode="practice")  # register in history
     tui_app = EklavyaApp(
         responder=make_responder(agent, config),
-        stream_fn=make_stream_responder(agent, config),
         stats_fn=progress.stats,
         kickoff=f"Start today's practice session. I have {minutes} minutes.",
         guard=guard,
     )
+    # Wire streaming after construction so the run_bash approval modal can call
+    # back into this app instance for consent.
+    tui_app.stream_fn = make_stream_responder(agent, config, approve=tui_app.ask_bash_approval)
     progress.start_session(minutes)
     try:
         tui_app.run()
