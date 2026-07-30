@@ -165,9 +165,9 @@ def create_app():
     def overview() -> dict:
         return report.overview()
 
-    @app.get("/api/curriculum")
-    def curriculum(pillar: str = "") -> dict:
-        return report.curriculum_mermaid(pillar or None)
+    @app.get("/api/forest")
+    def forest(pillar: str = "") -> dict:
+        return report.forest_map(pillar or None)
 
     @app.get("/api/config")
     def cfg() -> dict:
@@ -566,19 +566,28 @@ button:disabled{opacity:.42;cursor:default}
 .runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
-#tree{display:none;height:100%;padding:24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
-.treehead{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;margin-bottom:14px;color:var(--parch);flex:none}
-#treefilter{margin-left:12px;background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 10px;font-family:var(--f-mono);font-size:12px;letter-spacing:0}
+/* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
+   Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
+#tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
+.treehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;flex:none}
+.treehead .ttitle{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;color:var(--parch)}
+.treehead .tsub{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute);letter-spacing:.02em}
 .treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
-/* the diagram sits in a gold-hairline frame (template's .mapframe look) that fills the pane
-   and CENTERS its content — so a sparse track floats in the middle, not pinned top-left in a
-   dark void; when a track is bigger than the frame it scrolls inside the frame. */
-.treeframe{flex:1;min-height:0;overflow:auto;border:1px solid var(--line-gold);border-radius:8px;
- background:radial-gradient(1000px 520px at 50% 18%,rgba(46,163,160,.06),transparent 60%),rgba(10,13,28,.55);
- box-shadow:var(--sh-deep);display:flex;align-items:safe center;justify-content:safe center;padding:24px}
-/* 'safe center' centers a small track but, when the graph is bigger than the frame, falls back
-   to start-alignment so the whole thing stays scrollable (plain center would clip the top-left). */
-#treediagram{display:block;margin:auto;flex:none}
+.treehead .grow{flex:1}
+/* two tabs: overview / single track (drill-in) — the template's .treetabs */
+.treetabs{display:flex;gap:6px}
+.ttab{font-family:var(--f-mono);letter-spacing:.06em;font-size:11px;color:var(--parch-dim);
+ background:rgba(6,9,20,.5);border:1px solid var(--line-soft);padding:6px 12px;border-radius:5px;cursor:pointer;transition:.16s}
+.ttab:hover{color:var(--gold-bright)} .ttab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
+.ttab:disabled{opacity:.4;cursor:default}
+/* the map fills the pane in a gold-hairline frame; the SVG scales to width (no overflow) */
+.mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
+ box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528}
+.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0}
+.grove{cursor:pointer;transition:.25s}
+.grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
+.grove.locked{cursor:default}.grove.locked:hover{filter:none}
+.treeempty{margin:auto;padding:50px;text-align:center;max-width:440px;color:var(--parch-dim)}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
 @keyframes blink{50%{opacity:0}}
@@ -751,9 +760,16 @@ button:disabled{opacity:.42;cursor:default}
   <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
   <div id="profile"><iframe id="pframe" src="/profile"></iframe></div>
   <div id="tree">
-    <div class="treehead"><span class="g">Skill Tree</span> — <span class="dim">green = mastered · cyan = unlocked · dim = locked</span>
-      <select id="treefilter" onchange="loadTree(this.value)"></select></div>
-    <div class="treeframe"><div id="treediagram"></div></div>
+    <div class="treehead">
+      <span class="ttitle"><span class="g">The Forest of Mastery</span></span>
+      <span class="tsub" id="treesub">groves on a winding path · a tap enters a grove</span>
+      <span class="grow"></span>
+      <div class="treetabs">
+        <button class="ttab on" id="tabForest" onclick="showForest()">◆ Forest-map overview</button>
+        <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
+      </div>
+    </div>
+    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg></div>
   </div>
 </main>
 
@@ -804,7 +820,7 @@ document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [dat
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
-  if(v==='tree') loadTree();
+  if(v==='tree') showForest();
 });
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
@@ -818,33 +834,199 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-let _treeDefaulted=false;
-async function loadTree(pillar){
-  const d=document.getElementById('treediagram');
-  d.innerHTML='<div class="dim">loading…</div>';
-  const track = pillar && pillar!=='__all__';
+/* ===== Data-driven FOREST MAP (replaces the Mermaid skill tree) =====
+   Renders the /api/forest data as the template's forest map: groves as trees on a
+   winding path, styled by mastery, with a gold 'travelled' path up to the active
+   grove and the clay statue of Droṇa overseeing. Clicking a grove drills into that
+   pillar's concepts as a smaller sub-forest (same visual language). */
+const SVGNS='http://www.w3.org/2000/svg';
+let _curFocus=null;             // active pillar name, for the drill-in default
+function _svgEl(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
+
+// A cubic path threading the layout points bottom→top (Catmull-Rom → Bézier), so
+// the trail winds smoothly whatever the point count. `upto` clips it to the first
+// `upto` points (the travelled/gold portion).
+function _pathThrough(pts,upto){
+  const p=(upto==null?pts:pts.slice(0,upto));
+  if(p.length<1) return '';
+  if(p.length<2) return 'M'+p[0].x+','+p[0].y;
+  let d='M'+p[0].x+','+p[0].y;
+  for(let i=0;i<p.length-1;i++){
+    const p0=p[i-1]||p[i], p1=p[i], p2=p[i+1], p3=p[i+2]||p2;
+    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
+    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
+    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2.x+','+p2.y;
+  }
+  return d;
+}
+
+// One grove tree (art lifted from Ekalavya-Template-v2 §4), colored by status.
+function _groveNode(g,pt,opts){
+  opts=opts||{};
+  const label=opts.label!=null?opts.label:g.pillar;
+  const meta=opts.meta!=null?opts.meta:(g.status==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
+    :g.status==='active'?'○ ACTIVE · '+g.done+'/'+g.total
+    :g.status==='locked'?'— LOCKED':(g.done+'/'+g.total));
+  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+g.status});
+  if(!opts.clickable===false && g.status!=='locked' && opts.onClick) grp.style.cursor='pointer';
+  const st=g.status;
+  if(st==='blossoming'){
+    grp.appendChild(_svgEl('circle',{r:44,fill:'url(#glampM)',opacity:.75}));
+    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
+    grp.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
+    grp.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
+    grp.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
+    grp.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
+  }else if(st==='active'){
+    grp.appendChild(_svgEl('circle',{r:50,fill:'none',stroke:'#57d3ce','stroke-width':2,'stroke-dasharray':'4 6',opacity:.9}));  // ring
+    grp.appendChild(_svgEl('circle',{r:44,fill:'#2ea3a0',opacity:.10}));
+    grp.appendChild(_svgEl('path',{d:'M0 34V4',stroke:'#7a4a2c','stroke-width':5}));
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
+    grp.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
+    grp.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
+  }else if(st==='unlocked'){
+    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
+    grp.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
+    grp.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
+  }else{                                                                          // locked bare sapling
+    grp.setAttribute('opacity',.5);
+    grp.appendChild(_svgEl('path',{d:'M0 30V6',stroke:'#5a4a34','stroke-width':4}));
+    grp.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
+  }
+  const lc=(st==='blossoming')?'#f0e3c6':(st==='active')?'#dcefe6':(st==='unlocked')?'#f0e3c6':'#a89670';
+  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='unlocked')?'#52a061':'#a89670';
+  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':14,fill:lc});
+  t1.textContent=_short(label,20); grp.appendChild(t1);
+  const t2=_svgEl('text',{x:0,y:st==='locked'?66:82,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc});
+  t2.textContent=meta; grp.appendChild(t2);
+  const tt=_svgEl('title'); tt.textContent=g.pillar+' — '+g.done+'/'+g.total+' · '+st; grp.appendChild(tt);
+  if(opts.onClick && st!=='locked') grp.addEventListener('click',opts.onClick);
+  return grp;
+}
+
+// Statue of Droṇa (upper-right ridge) — lifted verbatim.
+function _statue(x,y){
+  const g=_svgEl('g',{transform:'translate('+x+','+y+')',opacity:.85});
+  g.appendChild(_svgEl('rect',{x:-26,y:86,width:52,height:14,rx:3,fill:'#7a4a2c'}));
+  g.appendChild(_svgEl('path',{d:'M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z',fill:'#a8482a'}));
+  g.appendChild(_svgEl('circle',{cx:0,cy:-6,r:13,fill:'#b9764a'}));
+  const dots=_svgEl('g',{fill:'#f2e7cc',opacity:.7});
+  [[-8,34],[8,34],[0,52],[-9,66],[9,66]].forEach(([cx,cy])=>dots.appendChild(_svgEl('circle',{cx,cy,r:1.3})));
+  g.appendChild(dots);
+  const t=_svgEl('text',{x:0,y:112,'text-anchor':'middle','font-family':'Tiro Devanagari Hindi','font-size':13,fill:'#e7b64b'});
+  t.textContent='गुरु द्रोण'; g.appendChild(t);
+  return g;
+}
+
+function _mapDefs(){
+  const defs=_svgEl('defs',{});
+  defs.innerHTML=
+    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".6" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
+   +'<pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>'
+   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>';
+  return defs;
+}
+
+function _paintMap(svg,pts,travelledUpto){
+  const vb=svg.viewBox.baseVal, W=vb.width, H=vb.height;
+  svg.textContent='';
+  svg.appendChild(_mapDefs());
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mdot)'}));
+  // full winding path (dashed clay), then the travelled gold portion up to the active grove
+  const full=_pathThrough(pts,null);
+  if(full) svg.appendChild(_svgEl('path',{d:full,fill:'none',stroke:'#a8482a','stroke-width':6,'stroke-linecap':'round','stroke-dasharray':'2 14',opacity:.55}));
+  if(travelledUpto>=1){
+    const gold=_pathThrough(pts,travelledUpto);
+    if(gold) svg.appendChild(_svgEl('path',{d:gold,fill:'none',stroke:'#e7b64b','stroke-width':4,'stroke-linecap':'round','stroke-dasharray':'2 14'}));
+  }
+  svg.appendChild(_statue(W-140,90));
+}
+
+function _legend(svg,items){
+  const vb=svg.viewBox.baseVal;
+  const g=_svgEl('g',{transform:'translate(28,'+(vb.height-18)+')','font-family':'JetBrains Mono','font-size':10});
+  let x=0;
+  items.forEach(([col,lab])=>{
+    g.appendChild(_svgEl('circle',{cx:x+6,cy:-3,r:5,fill:col}));
+    const t=_svgEl('text',{x:x+16,y:1,fill:'#c3b291'});t.textContent=lab;g.appendChild(t);
+    x+=16+lab.length*7+34;
+  });
+  svg.appendChild(g);
+}
+
+async function showForest(){
+  const svg=document.getElementById('forestsvg');
+  document.getElementById('tabForest').classList.add('on');
+  document.getElementById('tabTrack').classList.remove('on');
+  document.getElementById('treesub').textContent='groves on a winding path · a tap enters a grove';
+  svg.setAttribute('viewBox','0 0 900 640'); svg.textContent='';
   try{
-    const c=await (await fetch('/api/curriculum'+(track?('?pillar='+encodeURIComponent(pillar)):''))).json();
-    const sel=document.getElementById('treefilter');   // populate the filter once
-    if(sel && !sel.dataset.filled && c.pillars){ sel.dataset.filled='1';
-      sel.innerHTML='<option value="__all__">All tracks (overview)</option>'+
-        c.pillars.map(p=>'<option>'+p.replace(/</g,'&lt;')+'</option>').join(''); }
-    // First impression = a legible single track, not the 197-node overview hairball.
-    if(!track && !_treeDefaulted && c.pillars && c.pillars.length){
-      _treeDefaulted=true; if(sel) sel.value=c.pillars[0]; return loadTree(c.pillars[0]);
-    }
-    if(c.empty){ d.innerHTML='<div class="dim" style="padding:50px;text-align:center;max-width:440px">No skill tree yet — finish onboarding and Ekalavya will draft a skill tree you can approve.</div>'; return; }
-    d.innerHTML=''; const m=document.createElement('div'); m.className='mermaid'; m.textContent=c.mermaid; d.appendChild(m);
-    await mermaid.run({nodes:[m]});
-    const svg=m.querySelector('svg'); const vb=svg&&svg.viewBox&&svg.viewBox.baseVal;
-    if(svg&&vb){
-      // NATURAL px size so node labels stay legible — for a track (a left→right chain) and for
-      // the pillar-level overview alike (17 groves, not the 197-node hairball). .treeframe
-      // centers a small graph (no top-left void) and scrolls a larger one.
-      svg.style.width=vb.width+'px'; svg.style.height=vb.height+'px'; svg.style.maxWidth='none';
-    }
-    document.querySelector('.treeframe').scrollTo(0,0);   // start at the top-left, never mid-void
-  }catch(e){ d.innerHTML='<div class="dim">could not load the skill tree.</div>'; }
+    const c=await (await fetch('/api/forest')).json();
+    if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
+    _curFocus=c.active;
+    document.getElementById('tabTrack').disabled=!_curFocus;
+    const pts=c.layout.points, vb=c.viewbox;
+    svg.setAttribute('viewBox',vb.join(' '));
+    // travelled = up to and including the active grove along the walk order
+    let upto=c.groves.findIndex(g=>g.status==='active')+1;
+    if(upto<=0) upto=c.groves.filter(g=>g.status==='blossoming').length;
+    _paintMap(svg,pts,upto);
+    c.groves.forEach((g,i)=>{
+      if(!pts[i]) return;
+      svg.appendChild(_groveNode(g,pts[i],{onClick:()=>showGrove(g.pillar)}));
+    });
+    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
+  }catch(e){ _emptyMap(svg,'could not load the forest map.'); }
+}
+
+// Drill-in: one grove's concepts as a smaller sub-forest (same visual language).
+async function showGrove(pillar){
+  pillar=pillar||_curFocus;
+  if(!pillar) return showForest();
+  const svg=document.getElementById('forestsvg');
+  document.getElementById('tabForest').classList.remove('on');
+  document.getElementById('tabTrack').classList.add('on');
+  document.getElementById('tabTrack').disabled=false;
+  svg.textContent='';
+  try{
+    const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
+    if(c.empty){ _emptyMap(svg); return; }
+    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
+    const pts=c.layout.points, vb=c.viewbox;
+    svg.setAttribute('viewBox',vb.join(' '));
+    const done=c.concepts.filter(x=>x.status==='done').length;
+    _paintMap(svg,pts,done);
+    // map a concept's status onto a grove-status so the same tree art applies
+    const S={done:'blossoming',avail:'active',lock:'locked'};
+    c.concepts.forEach((cc,i)=>{
+      if(!pts[i]) return;
+      const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
+      const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
+      svg.appendChild(_groveNode(g,pts[i],{label:cc.name,meta:meta}));
+    });
+    // a back-to-overview control drawn in-canvas (also on the ◆ tab)
+    const back=_svgEl('g',{transform:'translate(70,40)','class':'grove',style:'cursor:pointer'});
+    back.addEventListener('click',showForest);
+    const bt=_svgEl('text',{x:0,y:0,'font-family':'JetBrains Mono','font-size':12,fill:'#e7b64b'});
+    bt.textContent='← overview'; back.appendChild(bt); svg.appendChild(back);
+    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked']]);
+  }catch(e){ _emptyMap(svg,'could not load this grove.'); }
+}
+
+function _emptyMap(svg,msg){
+  svg.setAttribute('viewBox','0 0 900 560'); svg.textContent='';
+  svg.appendChild(_mapDefs());
+  svg.appendChild(_svgEl('rect',{width:900,height:560,fill:'url(#mapbg)'}));
+  const t=_svgEl('text',{x:450,y:270,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
+  t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
+  svg.appendChild(t);
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});

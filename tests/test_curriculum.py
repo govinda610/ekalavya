@@ -1,4 +1,4 @@
-"""Curriculum graph tests — tools, the Mermaid render with mastery colouring, route."""
+"""Curriculum tools + the data-driven forest map (groves, statuses, route)."""
 
 import os
 import tempfile
@@ -33,20 +33,21 @@ def test_add_get_clear():
     assert "no curriculum" in tools.get_curriculum()
 
 
-def test_mermaid_empty():
-    assert report.curriculum_mermaid()["empty"] is True
+def test_forest_empty():
+    assert report.forest_map()["empty"] is True
 
 
-def test_mermaid_status_colours_by_mastery():
+def test_forest_concept_statuses_track_mastery():
     tools.add_curriculum("generators", "", "Python Fundamentals")
     tools.add_curriculum("async", "generators", "Python Fundamentals")
-    # the single-track view shows concept nodes coloured by mastery
-    m = report.curriculum_mermaid("Python Fundamentals")["mermaid"]
-    assert "graph TD" in m and ":::avail" in m and ":::lock" in m  # gen avail, async locked
+    fm = report.forest_map("Python Fundamentals")
+    st = {c["name"]: c["status"] for c in fm["concepts"]}
+    assert st["generators"] == "avail" and st["async"] == "lock"  # gen unlocked, async locked
     # master generators (a correct attempt named 'generators')
     tools.record_attempt("Python idioms", "syntax_recall", "generators", 2, True)
-    m2 = report.curriculum_mermaid("Python Fundamentals")["mermaid"]
-    assert ":::done" in m2  # generators is now mastered → async unlocks
+    fm2 = report.forest_map("Python Fundamentals")
+    st2 = {c["name"]: c["status"] for c in fm2["concepts"]}
+    assert st2["generators"] == "done" and st2["async"] == "avail"  # gen done → async unlocks
 
 
 def test_route():
@@ -54,5 +55,5 @@ def test_route():
 
     from eklavya.webapp import create_app
 
-    r = TestClient(create_app()).get("/api/curriculum")
+    r = TestClient(create_app()).get("/api/forest")
     assert r.status_code == 200 and "empty" in r.json()
