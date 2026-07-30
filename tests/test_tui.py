@@ -143,6 +143,33 @@ async def test_approval_modal_approve_and_reject():
         assert results == [True, False]
 
 
+async def test_esc_cancels_in_flight_response():
+    """Esc cancels an in-flight response: closes the stream pane, re-enables input."""
+    app = EklavyaApp(responder=lambda t: "x", stats_fn=_stats, use_worker=False)
+    async with app.run_test() as pilot:
+        # Simulate an in-flight streaming turn.
+        app._in_flight = True
+        app.query_one("#streaming").add_class("live")
+        app.query_one("#msg").disabled = True
+
+        await pilot.press("escape")
+
+        assert app._in_flight is False
+        assert not app.query_one("#streaming").has_class("live")
+        assert app.query_one("#msg").disabled is False
+
+
+async def test_esc_noop_when_idle():
+    """Esc does nothing when no response is in flight (doesn't clobber the UI)."""
+    app = EklavyaApp(responder=lambda t: "x", stats_fn=_stats, use_worker=False)
+    async with app.run_test() as pilot:
+        assert app._in_flight is False
+        # Input is enabled when idle; Esc must leave it that way.
+        await pilot.press("escape")
+        assert app._in_flight is False
+        assert app.query_one("#msg").disabled is False
+
+
 async def test_code_editor_submit_sends_fenced_code():
     rec = Recorder()
     app = EklavyaApp(responder=rec, stats_fn=_stats, use_worker=False)

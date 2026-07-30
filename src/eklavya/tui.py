@@ -114,6 +114,7 @@ class EklavyaApp(App):
         ("ctrl+e", "toggle_editor", "Code editor"),
         ("ctrl+s", "submit_code", "Submit code"),
         ("ctrl+g", "toggle_penalty", "Penalty on/off"),
+        ("escape", "cancel", "Cancel reply"),
         ("ctrl+q", "quit", "Quit"),
     ]
 
@@ -133,6 +134,7 @@ class EklavyaApp(App):
         self.history: list[tuple[str, str]] = []  # (role, text) — for tests + record
         self.pastes = 0            # total editor pastes seen
         self._biggest_paste = 0    # chars in the largest paste into the current editor buffer
+        self._in_flight = False    # a response is streaming/thinking (Esc can cancel it)
 
     def compose(self) -> ComposeResult:
         yield Static("🏹 Ekalavya", id="stats")
@@ -181,10 +183,15 @@ class EklavyaApp(App):
             self._write_user(text)
         msg = self.query_one("#msg", Input)
         msg.disabled = True
-        msg.placeholder = "thinking…"
+        msg.placeholder = "thinking…  (Esc to cancel)"
         if self.stream_fn:
-            self._stream_worker(text) if self.use_worker else self._stream_sync(text)
+            if self.use_worker:
+                self._in_flight = True
+                self._stream_worker(text)
+            else:
+                self._stream_sync(text)
         elif self.use_worker:
+            self._in_flight = True
             self._respond(text)
         else:  # synchronous path for tests
             self._deliver(self.responder(text))
@@ -252,9 +259,31 @@ class EklavyaApp(App):
         self._deliver(text)  # finalize as a rendered markdown panel in the log
 
     def _deliver(self, reply: str) -> None:
+        self._in_flight = False
         self.history.append(("agent", reply))
         self._write_agent(reply)
         self._refresh_stats()
+        msg = self.query_one("#msg", Input)
+        msg.disabled = False
+        msg.placeholder = "type your answer…  (Ctrl+E to open the code editor)"
+        msg.focus()
+
+    def action_cancel(self) -> None:
+        """Esc — cancel an in-flight agent response and re-open the input.
+
+        No-op when nothing is streaming (so Esc doesn't clobber an idle UI). The
+        thread worker can't be force-killed, but cancelling it makes its next
+        `call_from_thread` raise, unwinding it cleanly; we reset the UI here."""
+        if not self._in_flight:
+            return
+        self._in_flight = False
+        self.workers.cancel_all()
+        streaming = self.query_one("#streaming", Static)
+        streaming.remove_class("live")
+        streaming.update("")
+        self.query_one("#log", RichLog).write(
+            Panel("[dim]response cancelled.[/]", border_style="yellow", title_align="left")
+        )
         msg = self.query_one("#msg", Input)
         msg.disabled = False
         msg.placeholder = "type your answer…  (Ctrl+E to open the code editor)"
