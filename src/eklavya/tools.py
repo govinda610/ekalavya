@@ -462,15 +462,24 @@ def _web_search_raw(query: str, max_results: int = 6) -> list[dict]:
     return []
 
 
+def has_web_search_key() -> bool:
+    """True when a web-search provider key (Tavily or Serper) is configured.
+
+    The single source of truth for "is web search available?" — used by `web_search`
+    and by the background question-bank auto-refresh to stay offline-safe.
+    """
+    import os
+
+    return bool(os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
+                or os.environ.get("SERPER_API_KEY") or os.environ.get("EKLAVYA_SERPER_API_KEY"))
+
+
 def web_search(query: str) -> str:
     """Search the web for real, current interview questions, references, or role
     requirements — e.g. company/role-specific questions, or researching a target role's
     stack. Uses Tavily if TAVILY_API_KEY is set, otherwise falls back to Serper
     (SERPER_API_KEY). Returns "unavailable" only if neither key is present."""
-    import os
-
-    if not (os.environ.get("TAVILY_API_KEY") or os.environ.get("EKLAVYA_TAVILY_API_KEY")
-            or os.environ.get("SERPER_API_KEY") or os.environ.get("EKLAVYA_SERPER_API_KEY")):
+    if not has_web_search_key():
         return ("Web search unavailable — set TAVILY_API_KEY (or SERPER_API_KEY) to "
                 "enable fresh questions and role research.")
     results = _web_search_raw(query)

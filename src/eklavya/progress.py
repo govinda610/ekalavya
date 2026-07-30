@@ -193,7 +193,12 @@ def stats() -> dict:
 
 
 def start_session(minutes: int, mode: str = "guided") -> int:
-    """Open a session row and remember it as current. Returns the session id."""
+    """Open a session row and remember it as current. Returns the session id.
+
+    Also kicks off a throttled, background, offline-safe refresh of the interview-question
+    bank toward the learner's targets (see `questions_refresh.maybe_autorefresh`). It never
+    blocks this call or raises — a session always starts even if the refresh can't run.
+    """
     from .db import connect
 
     conn = connect()
@@ -206,6 +211,13 @@ def start_session(minutes: int, mode: str = "guided") -> int:
         conn.commit()
     finally:
         conn.close()
+
+    try:
+        from .questions_refresh import maybe_autorefresh
+
+        maybe_autorefresh()
+    except Exception:
+        pass  # a refresh hiccup must never stop a session from starting
     return sid
 
 
