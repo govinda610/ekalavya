@@ -687,6 +687,40 @@ button:disabled{opacity:.42;cursor:default}
 .ed-tests-f{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
 .ed-tests-f .et-hint{flex:1;min-width:180px;font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim)}
 .ed-tests-f .et-hint code{font-family:var(--f-mono);font-size:12px;color:var(--peacock-bright);font-style:normal}
+/* Editor↔Canvas segmented control (template D) */
+.seg{display:flex;gap:3px;border:1px solid var(--line-soft);border-radius:6px;padding:3px;background:rgba(6,9,20,.5)}
+.seg span{font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;padding:6px 13px;border-radius:4px;color:var(--parch-dim);display:flex;align-items:center;gap:6px;cursor:pointer}
+.seg span.on{background:linear-gradient(180deg,rgba(231,182,75,.16),rgba(20,15,10,.7));color:var(--gold-bright)}
+/* Canvas panel — the guru's rendered artifact (template E), inside the right pane */
+#canvaspane{flex:1;display:none;flex-direction:column;min-height:0}
+.col.canvasmode #editor,.col.canvasmode #edtests{display:none}
+.col.canvasmode #canvaspane{display:flex}
+.canvas-tabs{display:flex;gap:4px;padding:8px 12px;border-bottom:1px solid var(--line-soft);align-items:center;overflow-x:auto}
+.artpill{font-family:var(--f-mono);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--line-soft);color:var(--parch-dim);white-space:nowrap;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.artpill:hover{color:var(--gold-bright)} .artpill.on{border-color:var(--gold-deep);color:var(--gold-bright);background:rgba(231,182,75,.08)}
+.artpill .k{opacity:.6}
+.canvas-body{flex:1;padding:20px 24px;overflow:auto;position:relative}
+.art-md h3{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 4px}
+.art-md .adeva{font-family:var(--f-deva);font-size:15px;color:var(--gold-bright);margin-bottom:16px}
+.art-md p{font-family:var(--f-body);font-size:15px;color:var(--parch-dim);line-height:1.65;margin:0 0 14px}
+.art-md p b{color:var(--parch)} .art-md h1,.art-md h2{font-family:var(--f-display);color:var(--parch);margin:14px 0 6px}
+.art-md .callout,.art-md blockquote{border-left:2px solid var(--gold);padding:10px 16px;background:rgba(231,182,75,.05);border-radius:0 6px 6px 0;font-family:var(--f-serif);font-style:italic;color:var(--parch);margin:14px 0}
+.art-md pre{background:rgba(6,9,16,.85) !important;border:1px solid var(--line-soft);border-radius:8px;padding:12px;overflow-x:auto}
+.art-md code{font-family:var(--f-mono);font-size:13px;color:var(--peacock-bright)}
+.selpop{position:absolute;z-index:5;background:linear-gradient(180deg,var(--stone-warm),var(--stone-dark));border:1px solid var(--gold);border-radius:20px;padding:7px 14px;font-family:var(--f-title);font-size:13px;color:var(--gold-bright);box-shadow:0 10px 26px -8px rgba(0,0,0,.7);display:none;gap:8px;align-items:center;white-space:nowrap;cursor:pointer}
+.selpop.on{display:inline-flex;animation:pop .18s ease}
+.selpop::after{content:"";position:absolute;bottom:-6px;left:26px;width:10px;height:10px;background:var(--stone-dark);border-right:1px solid var(--gold);border-bottom:1px solid var(--gold);transform:rotate(45deg)}
+.art-code{font-family:var(--f-mono);font-size:13px;line-height:1.7;background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:16px;white-space:pre-wrap;overflow:auto;color:var(--parch)}
+.art-html{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;background:#fff}
+.art-htmlbar{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);padding:6px 12px;background:rgba(6,9,20,.7);border-bottom:1px solid var(--line-soft)}
+.art-htmlprev{padding:20px;background:linear-gradient(160deg,#fbf6ea,#efe4c9);color:#2a2010;font-family:var(--f-serif)}
+.art-viz{border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5);padding:14px}
+.art-viz svg{width:100%;height:auto}
+.canvas-empty{color:var(--parch-dim);font-family:var(--f-body);text-align:center;padding:50px 20px}
+/* highlight-to-ask echo in chat (template D's .art-echo) */
+.art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
+.art-echo .lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
+.art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
 #library,#settings{display:none;height:100%;overflow-y:auto}
@@ -972,6 +1006,10 @@ body.reduce-motion *{animation:none !important}
           <option value="takehome">Take-home</option>
           <option value="onboard">First-time setup</option>
         </select>
+        <div class="seg" id="rightseg" role="tablist" aria-label="Right pane">
+          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab">▤ Editor</span>
+          <span data-pane="canvas" onclick="showPane('canvas')" role="tab">✦ Canvas</span>
+        </div>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
         <button class="ghost run" onclick="runCode()">▶ Run</button>
@@ -991,6 +1029,11 @@ body.reduce-motion *{animation:none !important}
         <div class="et-list" id="etlist"></div>
         <div class="ed-tests-f"><span class="et-hint" id="ethint">Run your code — each check becomes an arrow that strikes or misses.</span>
           <button class="submit" style="flex:none" onclick="submitCode()">✓ Submit</button></div>
+      </div>
+      <div id="canvaspane">
+        <div class="canvas-tabs" id="canvastabs"></div>
+        <div class="canvas-body" id="canvasbody"><div class="canvas-empty">No artifact selected. When the guru writes a lesson and you save it to your Canvas, it renders here.</div></div>
+        <div class="selpop" id="selpop" onclick="askSelection()">Ask about this ✦</div>
       </div>
     </div>
   </div>
@@ -1169,8 +1212,81 @@ function loadLibrary(){
 function setLibFilter(f){ _libFilter=f; loadLibrary(); }
 function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({pinned:!!on})}).then(()=>loadLibrary()).catch(()=>{}); }
-// openArtifact(id) — opens the artifact in the arena's Canvas tab (defined with the Canvas).
-function openArtifact(id){ showView('practice'); if(window.openCanvas) openCanvas(id); }
+// openArtifact(id) — opens the artifact in the arena's Canvas tab.
+function openArtifact(id){ showView('practice'); openCanvas(id); }
+
+/* ===== Canvas — the Editor↔Canvas tab (template E) ===== */
+let _artifacts=[], _curArt=null, _selText='';
+function showPane(p){
+  const col=document.querySelector('#practice .col:not(.chat)');
+  const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
+  document.querySelectorAll('#rightseg span').forEach(s=>s.classList.toggle('on', s.dataset.pane===p));
+  if(isCanvas){ loadCanvas(); }
+  else if(editor){ setTimeout(()=>editor.layout(),60); }
+}
+function artGlyph(k){ return KIND_GLYPH[k]||'◆'; }
+function loadCanvas(select){
+  return fetch('/api/artifacts').then(r=>r.json()).then(list=>{
+    _artifacts=list;
+    const tabs=document.getElementById('canvastabs');
+    if(!list.length){ tabs.innerHTML=''; document.getElementById('canvasbody').innerHTML=
+      "<div class='canvas-empty'>No artifacts yet. Ask the guru for a lesson and save it to your Canvas — it renders here.</div>"; _curArt=null; return; }
+    if(select!=null) _curArt=select;
+    if(_curArt==null || !list.find(a=>a.id===_curArt)) _curArt=list[0].id;
+    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
+      artGlyph(a.kind)+"</span> "+esc(a.title)+"</span>").join('');
+    renderArtifact(list.find(a=>a.id===_curArt));
+  }).catch(()=>{});
+}
+function selectArtifact(id){ _curArt=id;
+  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
+  const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
+}
+function renderArtifact(a){
+  const body=document.getElementById('canvasbody');
+  if(!a){ body.innerHTML="<div class='canvas-empty'>—</div>"; return; }
+  if(a.kind==='code'){
+    body.innerHTML="<div class='art-code' data-selectable='1'>"+esc(a.content)+"</div>";
+  } else if(a.kind==='html'){
+    body.innerHTML="<div class='art-html'><div class='art-htmlbar'>"+esc(a.title)+" · rendered</div>"+
+      "<div class='art-htmlprev'>"+DOMPurify.sanitize(a.content)+"</div></div>";
+  } else if(a.kind==='viz'){
+    body.innerHTML="<div class='art-viz'>"+DOMPurify.sanitize(a.content,{USE_PROFILES:{svg:true,svgFilters:true,html:true}})+"</div>";
+  } else {  // markdown lesson
+    body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
+    body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+  }
+  body.appendChild(document.getElementById('selpop'));  // keep the popover inside the scroll box
+}
+function openCanvas(id){ showPane('canvas'); loadCanvas(id); }
+// highlight-to-ask: selecting text in a renderable artifact raises the "Ask about this ✦"
+// popover; clicking it sends the selection to the guru as labelled context.
+function onCanvasSelect(){
+  const pop=document.getElementById('selpop'); const sel=window.getSelection();
+  const body=document.getElementById('canvasbody');
+  const txt=(sel&&sel.toString()||'').trim();
+  const inCanvas=sel && sel.anchorNode && body.contains(sel.anchorNode);
+  if(!txt || !inCanvas || txt.length<2){ pop.classList.remove('on'); _selText=''; return; }
+  _selText=txt;
+  const rect=sel.getRangeAt(0).getBoundingClientRect(), br=body.getBoundingClientRect();
+  pop.style.left=Math.max(6,(rect.left-br.left+body.scrollLeft))+'px';
+  pop.style.top=Math.max(6,(rect.top-br.top+body.scrollTop-40))+'px';
+  pop.classList.add('on');
+}
+document.addEventListener('selectionchange',()=>{ if(document.querySelector('#practice .col.canvasmode')) onCanvasSelect(); });
+function askSelection(){
+  if(!_selText) return;
+  const art=_artifacts.find(a=>a.id===_curArt);
+  document.getElementById('selpop').classList.remove('on');
+  // echo the asked-about selection in chat (template's .art-echo), then ask the guru
+  clearWelcome();
+  const echo=el('art-echo');
+  echo.innerHTML="<div><div class='lbl'>◆ asking about a selection in the canvas</div><div class='q'>"+esc(_selText.slice(0,180))+"</div></div>";
+  document.getElementById('log').appendChild(echo); scroll();
+  const q="About the canvas"+(art?" artifact \""+art.title+"\"":"")+", I'm asking about this part:\n\n> "+_selText.slice(0,600)+"\n\nCan you explain it?";
+  const sel=window.getSelection(); if(sel) sel.removeAllRanges(); _selText='';
+  stream(q);
+}
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
   const hidden=document.getElementById('practice').classList.toggle('nocode');
@@ -1746,6 +1862,7 @@ function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
+  showPane('editor');  // a fresh session starts on the editor, not a stale canvas
   applyMode();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
