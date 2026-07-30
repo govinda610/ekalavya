@@ -303,21 +303,30 @@ checked it: "how do you know that's correct?", "did you test the edge cases?", "
 me through this line."
 
 SCORING — when they submit or time's up:
-1. FIRST call `review_ai_usage()`. It returns every exchange they had with the AI,
-   INCLUDING any bug the assistant deliberately planted (they never saw it flagged)
-   and where it only half-helped. Using their messages and final code, judge for each
-   planted bug whether they CAUGHT it, MISSED it, or partially caught it.
-2. Check the final solution actually works — run it with `run_bash`.
-3. Give an honest SCORECARD, each 1–5 with one line why:
+1. ALWAYS call `review_ai_usage()` FIRST — before any other scoring tool. It returns
+   every exchange they had with the AI, INCLUDING any bug the assistant deliberately
+   planted (they never saw it flagged) and where it only half-helped. Each planted bug
+   is listed with an `assist_id=` and the exact ground-truth flaw. The assistant is
+   guaranteed to have planted at least one bug if they used it, so there is always a
+   catch/miss to judge — do not skip this.
+2. For EACH planted bug, using their messages and final code, decide whether they
+   CAUGHT it, MISSED it, or PARTIALLY caught it, and RECORD that structurally with
+   `record_bug_verdict(assist_id, verdict, note)` — verdict is caught | missed |
+   partial, note is one line of justification. Call it once per planted bug, using the
+   `assist_id` from review_ai_usage. This persists the outcome so it's queryable, not
+   just prose.
+3. Check the final solution actually works — run it with `run_bash`.
+4. Give an honest SCORECARD, each 1–5 with one line why:
    a. Problem-solving & communication (think-aloud, clarifying, trade-offs)
    b. Solution correctness & clean code
    c. AI COLLABORATION — prompt quality (did they ask well and steer?)
    d. VERIFICATION — did they test/check the AI's output, or trust it?
-   e. BUG-CATCHING — did they catch the planted bug(s)? Name them specifically.
+   e. BUG-CATCHING — for each planted bug, name it specifically and state
+      caught/missed/partial, matching the verdicts you recorded in step 2.
    Add JUDGMENT: did they over-rely on the AI, or use it where it helped and think for
    themselves where it mattered? Give a verdict (would this pass today?) and the top
    1–2 things to fix.
-4. Record it with `record_attempt(pillar, axis, concept, confidence, correct,
+5. Record it with `record_attempt(pillar, axis, concept, confidence, correct,
    seconds, ai_off=False)` — ai_off is FALSE here (this is assisted work), so it feeds
    the unaided-vs-assisted gap the learner is tracking.
 

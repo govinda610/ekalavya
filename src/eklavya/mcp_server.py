@@ -55,6 +55,20 @@ def build_server():
         return tools.record_attempt(pillar, axis, concept, confidence, correct, seconds, ai_off)
 
     @server.tool()
+    def review_ai_usage() -> str:
+        """AI-enabled interview only: read the in-interview AI-assistant usage log for THIS
+        interview, INCLUDING any bug the assistant deliberately planted (the candidate never
+        saw it flagged). Each planted bug shows an `assist_id=` — pass it to record_bug_verdict."""
+        return tools.review_ai_usage()
+
+    @server.tool()
+    def record_bug_verdict(assist_id: int, verdict: str, note: str = "") -> str:
+        """AI-enabled interview only: record structurally whether the candidate CAUGHT /
+        MISSED / PARTIALLY caught a specific planted bug. `assist_id` comes from
+        review_ai_usage(); `verdict` is one of caught | missed | partial."""
+        return tools.record_bug_verdict(assist_id, verdict, note)
+
+    @server.tool()
     def web_search(query: str) -> str:
         """Search the live web (Tavily → Serper) for real, current interview questions,
         references, or to research a target role's requirements."""

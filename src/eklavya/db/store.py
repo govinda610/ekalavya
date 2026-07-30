@@ -52,6 +52,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
     chat_cols = {r["name"] for r in conn.execute("PRAGMA table_info(chats)")}
     if chat_cols and "user_id" not in chat_cols:
         conn.execute("ALTER TABLE chats ADD COLUMN user_id TEXT")
+    # Structured bug-catching verdict for AI-enabled interviews (caught|missed|partial).
+    assist_cols = {r["name"] for r in conn.execute("PRAGMA table_info(ai_assists)")}
+    if assist_cols and "bug_verdict" not in assist_cols:
+        conn.execute("ALTER TABLE ai_assists ADD COLUMN bug_verdict TEXT")
+    if assist_cols and "verdict_note" not in assist_cols:
+        conn.execute("ALTER TABLE ai_assists ADD COLUMN verdict_note TEXT")
 
 
 def init_db(path: Path | None = None) -> Path:
