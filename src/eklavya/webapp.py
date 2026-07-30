@@ -944,12 +944,26 @@ body.reduce-motion *{animation:none !important}
 *:focus-visible{outline:2px solid var(--gold-bright);outline-offset:2px;border-radius:3px}
 .sh-deep{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
 :root{--sh-deep:0 24px 60px -20px rgba(0,0,0,.8)}
+/* mobile radial bottom-nav (template §7): a centre 'practice' orb + four sections */
+#mnav{display:none;justify-content:space-around;align-items:flex-end;padding:8px 10px 12px;
+ border-top:1px solid var(--line-gold);background:linear-gradient(180deg,rgba(35,29,24,.6),rgba(8,11,32,.95));
+ position:sticky;bottom:0;z-index:80}
+#mnav .ni{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:var(--f-mono);font-size:10px;
+ letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;padding:0}
+#mnav .ni.on{color:var(--gold-bright)}
+#mnav .ni.center{margin-top:-24px}
+#mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
+ display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -6px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,255,255,.5);border:2px solid rgba(255,246,223,.3)}
 /* mobile: header wraps, tabs scroll, creed hides so the HUD + tabs fit */
 @media(max-width:900px){
  header{flex-wrap:wrap;gap:10px;padding:10px 14px}
  .creed{display:none}
  .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
- .hud{font-size:11px;gap:8px}.hud .xpbar{width:60px}
+ .hud{font-size:11px;gap:8px}
+ #prail{display:none}                 /* the rail is desktop-only; mobile uses the radial nav */
+ main{grid-template-columns:1fr}
+ body{overflow:auto}
+ #mnav{display:flex}
 }
 </style></head><body>
 <header>
@@ -1056,6 +1070,13 @@ body.reduce-motion *{animation:none !important}
   <div id="settings"></div>
   </div>
 </main>
+<nav id="mnav" aria-label="Sections">
+  <button class="ni" data-rail="dash" onclick="railGo('dash')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Ashram</button>
+  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
+  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
+  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
+  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
+</nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
 <div id="drawer">
@@ -1124,7 +1145,7 @@ function showView(v){
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
-  document.querySelectorAll('#prail .rail-item').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
+  document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
