@@ -537,7 +537,18 @@ background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;
 .tab:hover{color:var(--gold-bright)}
 .tab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .spacer{flex:1}.who{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
-main{flex:1;min-height:0}
+main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
+/* ashram left rail (template D): Practice/Progress/Forest Map/Library/Settings + mini-HUD title */
+#prail{width:168px;border-right:1px solid var(--line-soft);padding:16px 12px;display:flex;flex-direction:column;gap:4px;background:rgba(6,9,20,.4)}
+#prail .rail-item{display:flex;align-items:center;gap:10px;font-family:var(--f-title);font-size:14px;color:var(--parch-dim);
+ padding:9px 11px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:.14s}
+#prail .rail-item:hover{color:var(--gold-bright);background:rgba(6,9,20,.4)}
+#prail .rail-item.on{color:var(--gold-bright);background:rgba(231,182,75,.08);border-color:var(--line-gold)}
+#prail .rail-item svg{flex:none}
+#prail .rail-mini-hud{margin-top:auto;padding:12px 11px 4px;border-top:1px solid var(--line-soft)}
+#prail .rmh-name{font-family:var(--f-title);font-size:13px;color:var(--parch)}
+#prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+#content{min-height:0;min-width:0;position:relative}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
 #practice.nocode{grid-template-columns:1fr;grid-template-rows:1fr}       /* editor hidden → chat full width */
@@ -625,8 +636,26 @@ button:disabled{opacity:.42;cursor:default}
 .errcard button{margin-top:4px;font-family:var(--f-title);font-size:13px;letter-spacing:.02em;color:var(--gold-bright);
  background:rgba(231,182,75,.08);border:1px solid var(--gold-deep);border-radius:4px;padding:8px 18px;cursor:pointer}
 .errcard button:hover{background:rgba(231,182,75,.16)}
+/* live test-arrow panel (template D's .ed-tests) — per-check pass/fail below the editor */
+.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:38%;overflow-y:auto}
+.ed-tests-h{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
+ font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-dim)}
+.ed-tests-h .et-count{color:var(--peacock-bright);letter-spacing:.06em}
+.ed-tests-h .et-count b{color:var(--gold-bright);font-size:12px}
+.ed-test{display:flex;align-items:center;gap:11px;padding:9px 16px;border-top:1px solid var(--line-soft)}
+.ed-test .et-i{flex:none;width:20px;height:20px;border-radius:50%;display:grid;place-items:center}
+.ed-test.pass .et-i{color:#2a1c07;background:radial-gradient(circle,var(--gold-bright),var(--gold-deep));box-shadow:0 0 10px rgba(231,182,75,.35)}
+.ed-test.fail .et-i{color:var(--vermilion-glow);border:1px solid rgba(214,59,42,.55);background:rgba(143,35,24,.22)}
+.ed-test .et-n{flex:1;font-family:var(--f-body);font-size:14px;color:var(--parch)}
+.ed-test.fail .et-n{color:var(--parch-dim)}
+.ed-test .et-t{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-mute)}
+.ed-test.fail .et-t{color:var(--vermilion-glow)}
+.ed-tests-f{display:flex;align-items:center;gap:12px;padding:12px 16px;border-top:1px solid var(--line-soft);flex-wrap:wrap}
+.ed-tests-f .et-hint{flex:1;min-width:180px;font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim)}
+.ed-tests-f .et-hint code{font-family:var(--f-mono);font-size:12px;color:var(--peacock-bright);font-style:normal}
 #dash,#journey,#profile{display:none;height:100%}
 #dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
+#library,#settings{display:none;height:100%;overflow-y:auto}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
 #tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
@@ -822,6 +851,15 @@ button:disabled{opacity:.42;cursor:default}
   <div class="who" id="who"></div>
 </header>
 <main>
+  <nav id="prail" aria-label="Sections">
+    <div class="rail-item on" data-rail="practice" onclick="railGo('practice')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.6"/></svg> Practice</div>
+    <div class="rail-item" data-rail="dash" onclick="railGo('dash')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Progress</div>
+    <div class="rail-item" data-rail="tree" onclick="railGo('tree')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg> Forest Map</div>
+    <div class="rail-item" data-rail="library" onclick="railGo('library')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg> Library</div>
+    <div class="rail-item" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
+    <div class="rail-mini-hud"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title">Vana-Dhanurdhara</div></div>
+  </nav>
+  <div id="content">
   <div id="practice">
     <div class="col chat">
       <div class="log" id="log"><div class="arena-welcome" id="arenawelcome">
@@ -864,6 +902,12 @@ button:disabled{opacity:.42;cursor:default}
         </div>
       </div>
       <div id="editor"></div>
+      <div class="ed-tests hidden" id="edtests">
+        <div class="ed-tests-h"><span>Test arrows</span><span class="et-count" id="etcount"><b>0</b> / 0 strike</span></div>
+        <div class="et-list" id="etlist"></div>
+        <div class="ed-tests-f"><span class="et-hint" id="ethint">Run your code — each check becomes an arrow that strikes or misses.</span>
+          <button class="submit" style="flex:none" onclick="submitCode()">✓ Submit</button></div>
+      </div>
     </div>
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
@@ -880,6 +924,9 @@ button:disabled{opacity:.42;cursor:default}
       </div>
     </div>
     <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg></div>
+  </div>
+  <div id="library"></div>
+  <div id="settings"></div>
   </div>
 </main>
 
@@ -942,20 +989,25 @@ function looksPasted(code, biggest){
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
-// tabs
-document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>{  // [data-view] excludes the editor toggle
-  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.remove('on')); t.classList.add('on');
-  const v=t.dataset.view;
-  document.getElementById('practice').style.display = v==='practice'?'grid':'none';
-  document.getElementById('dash').style.display = v==='dash'?'block':'none';
-  document.getElementById('journey').style.display = v==='journey'?'block':'none';
-  document.getElementById('profile').style.display = v==='profile'?'block':'none';
-  document.getElementById('tree').style.display = v==='tree'?'flex':'none';
+// view switching — driven by BOTH the header tabs and the ashram left rail.
+// The rail carries Practice/Progress/Forest Map(tree)/Library/Settings; the header
+// tabs carry Practice/Progress/Journey/Profile/Skill Tree — they share these targets.
+function showView(v){
+  const DISP={practice:'grid',dash:'block',journey:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
+  for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
+  // keep both nav surfaces in sync with the active view
+  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
+  document.querySelectorAll('#prail .rail-item').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
-});
+  if(v==='library') loadLibrary();
+  if(v==='settings') loadSettings();
+}
+document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
+function railGo(v){ showView(v); }
+// loadLibrary() and loadSettings() are defined further down (Library + Settings screens).
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
 function toggleEditor(){
   const hidden=document.getElementById('practice').classList.toggle('nocode');
@@ -1422,13 +1474,46 @@ function renderRunOut(box, r){
   if(!r.stdout && !r.stderr) html += '<div class="roempty">(no output)</div>';
   box.innerHTML = html; scroll();
 }
+// Parse a run's output into "test arrows" for the .ed-tests panel. Recognises the common
+// self-check shapes learners print: "✓/✗ name", "PASS/FAIL: name", "name ... ok",
+// assertion lines. Falls back to a single pass/fail from the exit code so the panel is
+// always meaningful after a Run.
+const ET_PASS='<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13 l4 4 L19 7" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg>';
+const ET_FAIL='<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 6 l12 12 M18 6 l-12 12" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>';
+function parseTests(r){
+  const out=[]; const lines=((r.stdout||'')+'\n'+(r.stderr||'')).split('\n');
+  for(let ln of lines){ const s=ln.trim(); if(!s) continue;
+    let m;
+    if((m=s.match(/^(?:✓|PASS(?:ED)?[:\s])\s*(.+)$/i))) out.push({pass:true, name:m[1].trim()});
+    else if((m=s.match(/^(?:✗|✕|x|FAIL(?:ED)?[:\s])\s*(.+)$/i))) out.push({pass:false, name:m[1].trim()});
+    else if((m=s.match(/^(.+?)\s*(?:\.\.\.|:)\s*(ok|pass(?:ed)?)$/i))) out.push({pass:true, name:m[1].trim()});
+    else if((m=s.match(/^(.+?)\s*(?:\.\.\.|:)\s*(fail(?:ed)?|error)$/i))) out.push({pass:false, name:m[1].trim()});
+    else if(/AssertionError|Traceback|Error:/.test(s) && out.length) out[out.length-1].pass=false;
+  }
+  if(!out.length) out.push({pass:r.ok, name:r.ok?'code ran without error':'run failed'});
+  return out;
+}
+function renderTests(r){
+  const tests=parseTests(r);
+  const panel=document.getElementById('edtests'), list=document.getElementById('etlist');
+  const passed=tests.filter(t=>t.pass).length;
+  list.innerHTML=tests.map(t=>
+    '<div class="ed-test '+(t.pass?'pass':'fail')+'"><span class="et-i">'+(t.pass?ET_PASS:ET_FAIL)+
+    '</span><span class="et-n">'+esc(t.name)+'</span><span class="et-t">'+(t.pass?'strike':'miss')+'</span></div>').join('');
+  document.getElementById('etcount').innerHTML='<b>'+passed+'</b> / '+tests.length+' strike';
+  const miss=tests.find(t=>!t.pass);
+  document.getElementById('ethint').innerHTML = miss
+    ? 'One arrow fell short — <code>'+esc(miss.name)+'</code>. Fix it, then loose again.'
+    : (passed>1 ? 'Every arrow struck. Submit when you are ready.' : 'The arrow flew — write a few checks to grade it truly.');
+  panel.classList.remove('hidden');
+}
 async function runCode(){
   if(!editor) return; const code=editor.getValue(); if(!code.trim()) return;
   const box=addRunOut('<span class="dim">▶ running…</span>');
   try{
     const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({code})})).json();
-    renderRunOut(box, r);
+    renderRunOut(box, r); renderTests(r);
   }catch(e){ box.remove(); addErrorCard("Couldn't run your code — the sandbox didn't answer. Try again.", runCode); }
 }
 (function(){const ta=document.getElementById('chatin');
