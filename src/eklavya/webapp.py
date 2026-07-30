@@ -530,9 +530,7 @@ def _mount_auth(app) -> None:
 
 _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 <style>
 /* ===== Option E · cinematic-forest practice arena (product mode) =====
@@ -1980,9 +1978,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
 # {{error}} slot and "Sign in" affordance are all preserved for the auth flow + tests.
 _LOGIN = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Sign in</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/eklavya.css">
 <style>
 body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:26px}
@@ -2120,12 +2116,7 @@ function authMode(m){
 # illustration (lone archer before the stone idol), one clear CTA, varied-weight feature
 # cards. Sparing gold on the uniform indigo ground.
 _HEAD = (
-    '<link rel="preconnect" href="https://fonts.googleapis.com">'
-    '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
-    '<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700;800;900'
-    '&family=Marcellus&family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500'
-    '&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Tiro+Devanagari+Hindi:ital@0;1'
-    '&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">'
+    '<link rel="stylesheet" href="/static/fonts.css">'
     '<link rel="stylesheet" href="/static/eklavya.css">'
 )
 
