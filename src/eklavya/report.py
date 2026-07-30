@@ -122,47 +122,80 @@ def _norm_concept(s: str) -> str:
     return " ".join((s or "").lower().split())
 
 
-def curriculum_mermaid(pillar: str | None = None) -> dict:
-    """The curriculum graph as a Mermaid diagram, nodes coloured by mastery.
+def _parse_prereqs_factory(concepts: list[str]):
+    """Build a prereq parser closed over the known concept names.
 
-    A concept is 'done' if it has a correct attempt, 'avail' if all its prereqs are
-    done (so it's unlocked), else 'lock'. `pillar` filters to one track (its concepts
-    plus their direct prereqs for context) so a large tree stays readable; the full
-    list of pillars is returned for a filter control.
+    Prereqs are stored as free text that names other concepts. Concept names can
+    contain commas (e.g. "Core data structures (list, dict, set, tuple)"), so we
+    can't split on ",". The new format is pipe-delimited EXACT names; the legacy
+    format is free text in which we detect known concept names (longest first, so
+    a short name can't shadow a longer one).
     """
-    conn = connect()
-    try:
-        rows = conn.execute("SELECT concept, prereqs, pillar FROM curriculum ORDER BY id").fetchall()
-        # Match on a normalised key so a correct attempt recorded as e.g. "Async and
-        # Event Loops" still marks the node "async and event loops" done. Exact-string
-        # matching left every node locked whenever the model's wording drifted at all.
-        mastered = {_norm_concept(r["detail"]) for r in
-                    conn.execute("SELECT DISTINCT detail FROM attempts WHERE correct = 1")}
-    finally:
-        conn.close()
-    pillars = sorted({(r["pillar"] or "").strip() for r in rows} - {""})
-    if not rows:
-        return {"empty": True, "mermaid": "", "pillars": pillars}
-
-    concepts = [r["concept"] for r in rows]
-    pillar_of = {r["concept"]: (r["pillar"] or "").strip() for r in rows}
-    ids = {c: f"n{i}" for i, c in enumerate(concepts)}
-    # Prereqs are stored as free text that names other concepts. Concept names can
-    # contain commas (e.g. "Core data structures (list, dict, set, tuple)"), so we
-    # can't split on ",". Instead, detect which known concept names occur in the
-    # prereq text (longest first, so a short name can't shadow a longer one).
     by_len = sorted(concepts, key=len, reverse=True)
 
-    def parse_prereqs(text: str, own: str) -> list[str]:
+    def parse(text: str, own: str) -> list[str]:
         text = (text or "").strip()
-        if "|" in text:  # new format: pipe-delimited EXACT concept names (unambiguous)
+        if "|" in text:
             return [p.strip() for p in text.split("|") if p.strip() and p.strip() != own]
-        found: list[str] = []  # legacy free-text: detect known concept names (longest first)
+        found: list[str] = []
         for name in by_len:
             if name != own and name in text and name not in found:
                 found.append(name)
         return found
 
+    return parse
+
+
+def forest_map(pillar: str | None = None) -> dict:
+    """The curriculum as a DATA-DRIVEN forest map, derived live from the db.
+
+    Everything here comes from the curriculum + attempts — nothing is hard-coded,
+    so the map auto-updates as pillars/concepts are added and as the learner
+    progresses. A concept is:
+      • done   — it has a correct attempt (matched on a normalised name so trivial
+                 wording drift doesn't leave a mastered node stuck locked);
+      • avail  — not done, but all its prereqs are done (so it's unlocked);
+      • lock   — some prereq isn't done yet.
+
+    Each pillar becomes a GROVE with a status:
+      • blossoming — every concept done;
+      • active     — the current focus: the most-recently-practised grove that
+                     isn't fully mastered (falls back to the first grove that has
+                     any unlocked concept when nothing has been practised);
+      • unlocked   — has at least one available (unlocked) concept but isn't active;
+      • locked     — a bare sapling: no concept is unlocked yet.
+
+    Without `pillar` this returns the full forest (one grove per pillar) plus a
+    winding-path layout that scales/wraps for any number of groves. With `pillar`
+    it returns that one grove's ordered concepts as a sub-path (same data shape,
+    for the drill-in).
+    """
+    conn = connect()
+    try:
+        rows = conn.execute("SELECT concept, prereqs, pillar FROM curriculum ORDER BY id").fetchall()
+        mastered = {_norm_concept(r["detail"]) for r in
+                    conn.execute("SELECT DISTINCT detail FROM attempts WHERE correct = 1")}
+        # Recency of practice per pillar → which grove is the current focus. We take
+        # the newest of (a) a rating's last_practiced and (b) an attempt whose concept
+        # maps into that pillar, so a fresh attempt lights the right grove immediately.
+        recency: dict[str, str] = {}
+        for r in conn.execute(
+            "SELECT p.name AS pillar, MAX(r.last_practiced) AS ts FROM ratings r "
+            "JOIN pillars p ON p.id = r.pillar_id WHERE r.last_practiced IS NOT NULL "
+            "GROUP BY p.name"
+        ):
+            if r["ts"]:
+                recency[(r["pillar"] or "").strip()] = r["ts"]
+    finally:
+        conn.close()
+
+    pillars = sorted({(r["pillar"] or "").strip() for r in rows} - {""})
+    if not rows or not pillars:
+        return {"empty": True, "groves": [], "pillars": pillars, "viewbox": [0, 0, 900, 640]}
+
+    concepts = [r["concept"] for r in rows]
+    pillar_of = {r["concept"]: (r["pillar"] or "").strip() for r in rows}
+    parse_prereqs = _parse_prereqs_factory(concepts)
     prereqs = {r["concept"]: parse_prereqs(r["prereqs"], r["concept"]) for r in rows}
 
     def status(c: str) -> str:
@@ -170,71 +203,102 @@ def curriculum_mermaid(pillar: str | None = None) -> dict:
             return "done"
         return "avail" if all(_norm_concept(p) in mastered for p in prereqs[c]) else "lock"
 
-    def label(c: str) -> str:
-        # Sanitize for Mermaid node labels: quotes and brackets break the parser.
-        s = (c.replace('"', "'").replace("[", "(").replace("]", ")")
-              .replace("{", "(").replace("}", ")"))
-        # Wrap a long label onto two lines so nodes stay narrow (no wide tracks).
-        if len(s) > 26:
-            cut = s.rfind(" ", 0, 30)
-            if cut > 12:
-                s = s[:cut] + "<br/>" + s[cut + 1:]
-        return s
+    concept_status = {c: status(c) for c in concepts}
+    concepts_by_pillar: dict[str, list[str]] = {p: [] for p in pillars}
+    for c in concepts:
+        concepts_by_pillar[pillar_of[c]].append(c)
 
-    ramp = [
-        # Option-E ramp: gold = mastered, peacock-teal = unlocked, muted stone = locked.
-        "  classDef done fill:#2a2012,stroke:#e7b64b,color:#f7d98a;",
-        "  classDef avail fill:#0a1a22,stroke:#57d3ce,color:#57d3ce;",
-        "  classDef lock fill:#12100c,stroke:#3a2f26,color:#a89670;",
-    ]
+    def grove_status(p: str) -> str:
+        cs = concepts_by_pillar[p]
+        if cs and all(concept_status[c] == "done" for c in cs):
+            return "blossoming"
+        if any(concept_status[c] != "lock" for c in cs):
+            return "unlocked"   # has a mastered or available concept, but not all done
+        return "locked"
 
-    # No filter → a legible PILLAR-LEVEL forest map: one node per grove (17, not the 197-node
-    # hairball), edges aggregated from cross-pillar concept prereqs. A grove is 'done' when all
-    # its concepts are mastered, 'avail' when every unmastered concept is already unlocked, else
-    # 'lock'. Reading concept labels is the single-track view's job (chosen from the filter).
-    if not pillar:
-        pids = {p: f"p{i}" for i, p in enumerate(pillars)}
-        edges = set()
-        for c in concepts:
-            for p in prereqs[c]:
-                a, b = pillar_of.get(p, ""), pillar_of[c]
-                if a and b and a != b:
-                    edges.add((a, b))
+    statuses = {p: grove_status(p) for p in pillars}
 
-        def pillar_status(p: str) -> str:
-            cs = [c for c in concepts if pillar_of[c] == p]
-            if cs and all(status(c) == "done" for c in cs):
-                return "done"
-            if all(status(c) != "lock" for c in cs):
-                return "avail"
-            return "lock"
+    # The single ACTIVE grove = the most-recently-practised grove that isn't fully
+    # mastered. If nothing's been practised, the first non-locked grove leads the way.
+    non_mastered = [p for p in pillars if statuses[p] != "blossoming"]
+    active = None
+    practised = [p for p in non_mastered if p in recency]
+    if practised:
+        active = max(practised, key=lambda p: recency[p])
+    else:
+        unlocked = [p for p in non_mastered if statuses[p] == "unlocked"]
+        active = unlocked[0] if unlocked else (non_mastered[0] if non_mastered else None)
 
-        lines = ["graph LR"]
-        for p in pillars:
-            done = sum(1 for c in concepts if pillar_of[c] == p and status(c) == "done")
-            total = sum(1 for c in concepts if pillar_of[c] == p)
-            lines.append(f'  {pids[p]}["{label(p)}<br/>{done}/{total}"]:::{pillar_status(p)}')
-        for a, b in sorted(edges):
-            lines.append(f"  {pids[a]} --> {pids[b]}")
-        lines += ramp
-        return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
+    def grove(p: str) -> dict:
+        cs = concepts_by_pillar[p]
+        done = sum(1 for c in cs if concept_status[c] == "done")
+        st = "active" if p == active else statuses[p]
+        return {
+            "pillar": p,
+            "status": st,
+            "done": done,
+            "total": len(cs),
+            "concepts": [{"name": c, "status": concept_status[c]} for c in cs],
+        }
 
-    # A single track (+ its direct prereqs) renders TOP-DOWN so a long chain stacks
-    # vertically (natural web scroll) instead of overflowing wide to the right.
-    shown = {c for c in concepts if pillar_of[c] == pillar}
-    for c in list(shown):
-        shown.update(prereqs[c])
-    render = [c for c in concepts if c in shown]
+    if pillar:
+        # Drill-in: one grove's ordered concepts (+ direct-prereq context concepts
+        # that live in other pillars, so the sub-path shows what unlocked it).
+        if pillar not in concepts_by_pillar:
+            return {"empty": True, "groves": [], "pillars": pillars, "viewbox": [0, 0, 900, 640]}
+        cs = concepts_by_pillar[pillar]
+        nodes = [{"name": c, "status": concept_status[c]} for c in cs]
+        layout = _forest_layout(len(nodes))
+        return {
+            "empty": False, "pillar": pillar, "pillars": pillars,
+            "grove": grove(pillar), "concepts": nodes,
+            "layout": layout, "viewbox": layout["viewbox"],
+        }
 
-    lines = ["graph TD"]
-    for c in render:
-        lines.append(f'  {ids[c]}["{label(c)}"]:::{status(c)}')
-    for c in render:
-        for p in prereqs[c]:
-            if p in ids and p in render:
-                lines.append(f"  {ids[p]} --> {ids[c]}")
-    lines += ramp
-    return {"empty": False, "mermaid": "\n".join(lines), "pillars": pillars}
+    groves = [grove(p) for p in pillars]
+    layout = _forest_layout(len(groves))
+    return {
+        "empty": False, "pillars": pillars, "active": active,
+        "groves": groves, "layout": layout, "viewbox": layout["viewbox"],
+    }
+
+
+def _forest_layout(n: int) -> dict:
+    """Place N nodes along a winding path that CLIMBS and WRAPS as N grows.
+
+    Returns {viewbox:[x,y,w,h], points:[{x,y}...] bottom→top in walk order}. The
+    path serpentines up the canvas in horizontal rows (boustrophedon), so it reads
+    as one continuous trail whether there are 5 groves or 50 — the canvas just gets
+    taller. Column count adapts to N so a handful of groves don't sprawl.
+    """
+    W = 900
+    if n <= 0:
+        return {"viewbox": [0, 0, W, 640], "points": [], "rows": 0, "cols": 0}
+    # Aim for a comfortable density: ~3–5 groves per row.
+    import math
+
+    cols = max(2, min(5, math.ceil(math.sqrt(n * 1.4))))
+    rows = math.ceil(n / cols)
+    row_h = 180                      # vertical spacing between rows
+    margin_x, margin_top, margin_bot = 130, 90, 120
+    H = margin_top + margin_bot + (rows - 1) * row_h
+    H = max(H, 560)
+    usable_w = W - 2 * margin_x
+    points: list[dict] = []
+    for i in range(n):
+        row = i // cols
+        col = i % cols
+        # bottom row is the start of the walk → invert row index for y (climb up)
+        y = H - margin_bot - row * row_h
+        # serpentine: even rows L→R, odd rows R→L
+        in_row = min(cols, n - row * cols)     # groves on this row (last row may be short)
+        span = usable_w if in_row > 1 else 0
+        t = col / (in_row - 1) if in_row > 1 else 0.5
+        x = margin_x + (t if row % 2 == 0 else (1 - t)) * span
+        if in_row == 1:
+            x = W / 2
+        points.append({"x": round(x, 1), "y": round(y, 1)})
+    return {"viewbox": [0, 0, W, round(H)], "points": points, "rows": rows, "cols": cols}
 
 
 def overview() -> dict:

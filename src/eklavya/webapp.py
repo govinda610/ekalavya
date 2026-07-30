@@ -165,9 +165,9 @@ def create_app():
     def overview() -> dict:
         return report.overview()
 
-    @app.get("/api/curriculum")
-    def curriculum(pillar: str = "") -> dict:
-        return report.curriculum_mermaid(pillar or None)
+    @app.get("/api/forest")
+    def forest(pillar: str = "") -> dict:
+        return report.forest_map(pillar or None)
 
     @app.get("/api/config")
     def cfg() -> dict:

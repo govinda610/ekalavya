@@ -1,4 +1,4 @@
-"""Skill-tree graph: pipe-delimited prereq edges + per-pillar filtering."""
+"""Forest map: pipe-delimited prereq edges, grove statuses, active grove, layout."""
 
 import os
 import tempfile
@@ -27,44 +27,78 @@ def fresh():
     yield
 
 
-def test_pipe_prereqs_build_edges_and_pillar_filter_narrows():
-    # a foundation concept with commas in its name, and dependents via pipe-delimited prereqs
+def _grove(fm, name):
+    return next(g for g in fm["groves"] if g["pillar"] == name)
+
+
+def test_forest_groves_counts_and_statuses():
+    # a comma-named foundation, and dependents via pipe-delimited prereqs across pillars
     tools.add_curriculum("Basics: variables, types, control flow", "", "Python Fundamentals")
-    tools.add_curriculum("Embeddings: cosine, dot, norms", "Basics: variables, types, control flow", "RAG & Vector Retrieval")
-    tools.add_curriculum("Re-ranking with cross-encoders", "Embeddings: cosine, dot, norms", "RAG & Vector Retrieval")
+    tools.add_curriculum("Embeddings: cosine, dot, norms",
+                         "Basics: variables, types, control flow", "RAG & Vector Retrieval")
+    tools.add_curriculum("Re-ranking with cross-encoders",
+                         "Embeddings: cosine, dot, norms", "RAG & Vector Retrieval")
 
-    full = report.curriculum_mermaid()
-    assert full["empty"] is False
-    # unfiltered = a legible PILLAR-level forest map: one node per grove, not the concept hairball
-    assert full["mermaid"].splitlines()[0] == "graph LR"
-    pnodes = sum(1 for ln in full["mermaid"].splitlines() if '["' in ln)
-    assert pnodes == 2  # two pillars → two grove nodes
-    # the cross-pillar prereq (RAG depends on Python Fundamentals) aggregates to ONE grove edge,
-    # recovered despite the comma-in-name (not shredded to 0). The intra-RAG edge stays inside the track.
-    assert full["mermaid"].count("-->") == 1
+    fm = report.forest_map()
+    assert fm["empty"] is False
+    assert len(fm["groves"]) == 2  # two pillars → two groves
+    pf = _grove(fm, "Python Fundamentals")
+    rag = _grove(fm, "RAG & Vector Retrieval")
+    assert pf["total"] == 1 and rag["total"] == 2
+    # nothing mastered yet: Python Fundamentals' one concept is unlocked (no prereqs) → its
+    # grove is the current focus (active); RAG's concepts are all locked → a bare sapling.
+    assert pf["status"] == "active"
+    assert rag["status"] == "locked"
+    assert fm["active"] == "Python Fundamentals"
 
-    # filter to one track -> its concepts (+ direct prereqs) render TOP-DOWN (so a long
-    # chain stacks vertically, not overflowing wide), with the comma-named foundation edge
-    # recovered (2 concept edges), not shredded to 0
-    rag = report.curriculum_mermaid("RAG & Vector Retrieval")
-    assert rag["mermaid"].splitlines()[0] == "graph TD"
-    assert rag["mermaid"].count("-->") == 2
-    nodes = sum(1 for ln in rag["mermaid"].splitlines() if '["' in ln)
-    assert nodes == 3  # 2 RAG concepts + 1 prereq foundation for context
+
+def test_grove_status_progresses_to_blossoming_and_active_moves():
+    tools.add_curriculum("Basics: variables, types, control flow", "", "Python Fundamentals")
+    tools.add_curriculum("Embeddings: cosine, dot, norms",
+                         "Basics: variables, types, control flow", "RAG & Vector Retrieval")
+
+    # master the foundation → Python Fundamentals fully done (blossoming); it also unlocks
+    # the Embeddings concept, so RAG becomes the newly-active grove.
+    tools.record_attempt("Python Fundamentals", "syntax_recall",
+                         "Basics: variables, types, control flow", 3, True)
+    fm = report.forest_map()
+    assert _grove(fm, "Python Fundamentals")["status"] == "blossoming"
+    assert _grove(fm, "Python Fundamentals")["done"] == 1
+    # RAG now has an unlocked concept and is the most-recently-relevant non-mastered grove
+    rag = _grove(fm, "RAG & Vector Retrieval")
+    assert rag["status"] in ("active", "unlocked")
+    # after practising RAG, it is unambiguously the active grove
+    tools.record_attempt("RAG & Vector Retrieval", "code_reading",
+                         "Embeddings: cosine, dot, norms", 2, False)
+    fm2 = report.forest_map()
+    assert fm2["active"] == "RAG & Vector Retrieval"
+    assert _grove(fm2, "RAG & Vector Retrieval")["status"] == "active"
 
 
 def test_node_is_done_despite_concept_wording_drift():
-    """A node must count as mastered when a correct attempt's recorded concept differs
-    only by case/whitespace from the curriculum name — exact-match left it locked."""
+    """A concept counts mastered when a correct attempt's recorded name differs only by
+    case/whitespace from the curriculum name — exact-match left it locked."""
     tools.add_pillar("Python Fundamentals")
     tools.add_curriculum("Async and Event Loops", "", "Python Fundamentals")
     tools.add_curriculum("Structured concurrency", "Async and Event Loops", "Python Fundamentals")
-    # a correct attempt recorded with drifted casing/whitespace vs the node name
     tools.record_attempt("Python Fundamentals", "syntax_recall",
-                         "  async and event LOOPS ", 3, True, 1.0)
-    # the concept node lives in the single-track view (the overview is pillar-level now)
-    m = report.curriculum_mermaid("Python Fundamentals")["mermaid"]
-    assert "Async and Event Loops" in m
-    assert ":::done" in m           # the mastered node is marked done despite the wording drift…
-    # …and its dependent is now unlocked (avail), not still locked
-    assert ":::avail" in m
+                         "  async and event LOOPS ", 3, True)
+    fm = report.forest_map("Python Fundamentals")
+    st = {c["name"]: c["status"] for c in fm["concepts"]}
+    assert st["Async and Event Loops"] == "done"      # mastered despite wording drift…
+    assert st["Structured concurrency"] == "avail"    # …and its dependent is now unlocked
+
+
+def test_layout_scales_and_wraps_for_varying_pillar_counts():
+    # 5 pillars and 40 pillars both lay out on a winding path with a taller-when-needed canvas
+    for n, min_h in ((5, 560), (40, 900)):
+        lay = report._forest_layout(n)
+        assert len(lay["points"]) == n
+        vb = lay["viewbox"]
+        assert vb[2] == 900                    # fixed width → no horizontal overflow
+        assert vb[3] >= min_h                  # canvas grows taller as groves multiply
+        # points stay inside the canvas bounds
+        assert all(0 <= p["x"] <= vb[2] for p in lay["points"])
+        assert all(0 <= p["y"] <= vb[3] for p in lay["points"])
+    # many groves wrap into multiple rows (not one endless line off the right edge)
+    assert report._forest_layout(40)["rows"] > 1
