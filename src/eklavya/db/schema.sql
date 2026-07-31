@@ -118,7 +118,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     xp            INTEGER NOT NULL DEFAULT 0,
     mode          TEXT,          -- guided | yolo | auto
     started_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    ended_at      TEXT
+    ended_at      TEXT,
+    last_active   TEXT           -- bumped each turn; lets us reuse an open sitting / measure elapsed
 );
 
 -- Repos the learner has explicitly allow-listed for scanning.

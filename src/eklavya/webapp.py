@@ -26,6 +26,8 @@ _KICKOFF = {
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
     "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
+_SESSION_MIN = {"practice": 30, "mock": 45, "aiinterview": 45, "takehome": 90}
+_SESSION_MODES = ("practice", "mock", "aiinterview", "takehome")
 _MODE_LABEL = {"practice": "Practice session", "mock": "Mock interview",
                "aiinterview": "AI-enabled interview", "takehome": "Take-home",
                "onboard": "Onboarding"}
@@ -318,7 +320,7 @@ def create_app():
         if code:  # let the agent see what's in the editor, as labeled context
             text = (f"{text}\n\n(For context — my code editor currently contains:)\n"
                     f"```python\n{code[:8000]}\n```")
-        if mode in ("practice", "mock", "aiinterview", "takehome"):
+        if mode in _SESSION_MODES:
             # A practice session is beginning: kick off a throttled, background,
             # offline-safe refresh of this user's question bank toward their targets.
             # Non-blocking and never-raising — it can't delay the stream or the first token.
@@ -328,6 +330,15 @@ def create_app():
                 maybe_autorefresh()
             except Exception:
                 pass
+            progress.ensure_session(_SESSION_MIN.get(mode, 30), mode)  # open/reuse this sitting
+        # Temporal awareness: prepend a fresh, private clock/recap line each turn (elapsed,
+        # gap since last visit, last-time topics, due reviews, today's date). Also gives the
+        # otherwise-dateless onboarding agent today's date. Never fatal.
+        try:
+            ctx_line = report.session_context_line()
+            text = f"{ctx_line}\n\n{text}" if text.strip() else ctx_line
+        except Exception:
+            pass
         if mode == "aiinterview":
             from .assist import mark_interview
 

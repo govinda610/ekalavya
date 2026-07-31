@@ -301,6 +301,90 @@ def _forest_layout(n: int) -> dict:
     return {"viewbox": [0, 0, W, round(H)], "points": points, "rows": rows, "cols": cols}
 
 
+def _gap_phrase(days: float) -> str:
+    if days < 0.5:
+        return "last visit a few hours ago"
+    if days < 1.5:
+        return "last visit yesterday"
+    if days < 14:
+        return f"last visit {round(days)} days ago"
+    if days < 60:
+        return f"last visit ~{round(days / 7)} weeks ago"
+    return f"last visit ~{round(days / 30)} months ago"
+
+
+def session_context() -> dict:
+    """Temporal state for the tutor: current-sitting clock, gap since last visit, and a
+    recap of last time (topics derived from the previous session's recorded attempts).
+
+    Everything is derived live from the sessions/attempts tables — no clock is baked into
+    the (cached) system prompt, so injecting this each turn keeps the agent's sense of time
+    fresh. `last_topics` uses the previous session's `session_id`-tagged attempts, which
+    sidesteps timestamp-format mismatches entirely. (Richer narrative continuity lives in
+    the learner's profile.md, which the tutor reads each session.)
+    """
+    from datetime import datetime, timezone
+
+    from .progress import _parse_ts, stats
+    from .scheduling import due_now
+
+    conn = connect()
+    try:
+        cur = conn.execute(
+            "SELECT id, planned_min, started_at, last_active FROM sessions ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        total = conn.execute("SELECT COUNT(*) AS c FROM sessions").fetchone()["c"]
+        prev = conn.execute(
+            "SELECT id, started_at, last_active, ended_at FROM sessions "
+            "WHERE id < ? ORDER BY id DESC LIMIT 1", (cur["id"],)
+        ).fetchone() if cur else None
+        last_topics: list[str] = []
+        if prev:
+            last_topics = [r["detail"] for r in conn.execute(
+                "SELECT DISTINCT detail FROM attempts WHERE session_id = ? "
+                "AND detail IS NOT NULL AND detail != '' ORDER BY id DESC LIMIT 6", (prev["id"],)
+            )]
+    finally:
+        conn.close()
+
+    now = datetime.now(timezone.utc)
+    elapsed = None
+    if cur and (st := _parse_ts(cur["started_at"])):
+        elapsed = max(0, round((now - st).total_seconds() / 60))
+    gap_days = None
+    if prev and (pt := _parse_ts(prev["ended_at"] or prev["last_active"] or prev["started_at"])):
+        gap_days = (now - pt).total_seconds() / 86400
+    s = stats()
+    return {
+        "date": now.strftime("%Y-%m-%d"), "weekday": now.strftime("%a"),
+        "session_elapsed_min": elapsed,
+        "planned_min": cur["planned_min"] if cur else None,
+        "gap_days": round(gap_days, 1) if gap_days is not None else None,
+        "sessions_total": total, "streak": s["streak"],
+        "last_topics": last_topics, "due_count": len(due_now()),
+    }
+
+
+def session_context_line() -> str:
+    """A compact one-line temporal briefing to prepend to the tutor's turn context."""
+    c = session_context()
+    parts: list[str] = []
+    if c["session_elapsed_min"] is not None and c["planned_min"]:
+        parts.append(f"{c['session_elapsed_min']}m elapsed of a planned {c['planned_min']}m")
+    if c["gap_days"] is not None:
+        parts.append(_gap_phrase(c["gap_days"]))
+    if c["sessions_total"]:
+        parts.append(f"session #{c['sessions_total']}")
+    if c["streak"]:
+        parts.append(f"{c['streak']}-day streak")
+    if c["last_topics"]:
+        parts.append("last time: " + ", ".join(c["last_topics"][:5])[:160])
+    if c["due_count"]:
+        parts.append(f"{c['due_count']} review(s) due")
+    parts.append(f"today is {c['weekday']} {c['date']}")
+    return "[session context — " + " · ".join(parts) + "]"
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),

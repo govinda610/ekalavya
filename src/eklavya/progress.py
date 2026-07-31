@@ -191,6 +191,30 @@ def stats() -> dict:
 
 # --- sessions --------------------------------------------------------------
 
+# A "sitting" stays open while the learner keeps interacting; a gap longer than this
+# (minutes) means they left and came back → it counts as a new session.
+IDLE_GAP_MIN = 45
+
+
+def _utcnow() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def _parse_ts(ts: str | None):
+    """Parse a stored timestamp (naive `datetime('now')` OR aware ISO) as UTC-aware,
+    so arithmetic against an aware `now` never raises."""
+    from datetime import datetime, timezone
+
+    if not ts:
+        return None
+    try:
+        dt = datetime.fromisoformat(ts)
+    except ValueError:
+        return None
+    return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+
 
 def start_session(minutes: int, mode: str = "guided") -> int:
     """Open a session row and remember it as current. Returns the session id.
@@ -204,7 +228,8 @@ def start_session(minutes: int, mode: str = "guided") -> int:
     conn = connect()
     try:
         cur = conn.execute(
-            "INSERT INTO sessions(planned_min, mode) VALUES(?, ?)", (minutes, mode)
+            "INSERT INTO sessions(planned_min, mode, last_active) VALUES(?, ?, ?)",
+            (minutes, mode, _utcnow()),
         )
         sid = cur.lastrowid
         _set(conn, "current_session", sid)
@@ -249,3 +274,43 @@ def end_session() -> None:
             conn.commit()
     finally:
         conn.close()
+
+
+def ensure_session(minutes: int, mode: str = "guided") -> int:
+    """Return the current sitting, opening a new one only after an idle gap.
+
+    The web app has no explicit start/stop, so a "session" is a contiguous burst of
+    activity: if the current session was active within IDLE_GAP_MIN minutes we reuse it
+    (and bump its activity); otherwise we finalise the stale one and open a fresh one.
+    Idempotent to call on every turn.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from .db import connect
+
+    conn = connect()
+    try:
+        sid = current_session(conn)
+        if sid:
+            row = conn.execute(
+                "SELECT last_active, started_at, ended_at FROM sessions WHERE id=?", (sid,)
+            ).fetchone()
+            last = _parse_ts(row["last_active"] if row else None) if row else None
+            fresh = (
+                row and not row["ended_at"] and last is not None
+                and datetime.now(timezone.utc) - last <= timedelta(minutes=IDLE_GAP_MIN)
+            )
+            if fresh:
+                conn.execute("UPDATE sessions SET last_active=? WHERE id=?", (_utcnow(), sid))
+                conn.commit()
+                return sid
+            # stale → close it out so the gap is measurable next time
+            if row and not row["ended_at"]:
+                conn.execute(
+                    "UPDATE sessions SET ended_at=? WHERE id=?",
+                    (row["last_active"] or row["started_at"], sid),
+                )
+                conn.commit()
+    finally:
+        conn.close()
+    return start_session(minutes, mode)

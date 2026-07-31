@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ekalavya — Direction D · The Synthesis (Forest Manuscript)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800;900&family=Marcellus&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Spectral:ital,wght@0,300;0,400;0,500;0,600;1,400;1,500&family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Tiro+Devanagari+Hindi:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   EKALAVYA — DIRECTION D · "THE SYNTHESIS"  (Forest Manuscript)
+   A resolution of three siblings into one system:
+     · from A (Pahari manuscript): palette discipline, gold-leaf
+       hierarchy, three distinct card weights, the guru-on-paper voice
+     · from B (Bhil / Pithora):    forest-earth ground, white dotwork
+       texture, the forest-MAP skill overview, the statue-in-forest hero
+     · from C (Raji cinematic):     the mandala/yantra HUD frame, corner
+       brackets, level-up bloom with rays, loss "merit restored", game-feel
+   ================================================================ */
+:root{
+  /* ---- Grounds: indigo night warmed toward forest ---- */
+  --void:        #0a0d1c;   /* deepest margin / abyss */
+  --night:       #101528;   /* primary indigo-night ground */
+  --night-2:     #16203a;   /* raised panel — cool */
+  --bark:        #1c1a16;   /* warm charred-bark panel */
+  --loam:        #241d13;   /* deep soil */
+  --panel:       #171f38;   /* default working surface */
+  --lift:        #202a49;   /* hover / active lift */
+  --hair:        rgba(217,166,58,.16);   /* gold hairline on night */
+  --hair-2:      #2c3760;   /* cool structural hairline */
+
+  /* ---- Paper (aged Pithora / manuscript folio — the guru speaks) ---- */
+  --paper:       #ead9b6;
+  --paper-2:     #dfcaa0;
+  --paper-edge:  #c6ac7d;
+  --paper-ink:   #2a2010;
+  --paper-soft:  #574326;
+
+  /* ---- Pigments (shared, disciplined) ---- */
+  --gold:        #d9a63a;   /* GOLD LEAF — mastery / earned / primary. sparing */
+  --gold-bright: #f4cf76;
+  --gold-deep:   #9c6f1c;
+  --gold-ember:  #7c5615;
+  --vermilion:   #d13f28;   /* sindoor — danger / loss / the thumb */
+  --vermilion-2: #ec5c39;
+  --vermilion-dp:#8f2718;
+  --teal:        #2b9a8e;   /* peacock — info / unlocked / live */
+  --teal-bright: #52cabc;
+  --teal-deep:   #114d48;
+  --forest:      #2f6b3c;   /* deep forest green — growth */
+  --forest-lit:  #52a061;
+  --terracotta:  #a8482a;   /* clay statue */
+  --clay:        #b9764a;
+  --dot:         #f2e7cc;   /* the fine white/ivory dotwork */
+  --parch-mut:   rgba(234,217,182,.62);
+  --parch-dim:   #b6a680;
+
+  --sh-deep: 0 24px 60px -22px rgba(0,0,0,.78);
+  --sh-carve: inset 0 1px 0 rgba(244,207,118,.08), inset 0 -20px 44px -26px rgba(0,0,0,.7);
+  --gild: 0 0 0 1px rgba(217,166,58,.30), 0 10px 34px -12px rgba(217,166,58,.24);
+
+  --f-epic:  'Cinzel', serif;         /* epic titles / level-ups / wordmark */
+  --f-disp:  'Fraunces', 'Marcellus', serif;  /* display headings */
+  --f-title: 'Marcellus', serif;      /* card / component titles */
+  --f-body:  'Spectral', Georgia, serif;
+  --f-serif: 'Cormorant Garamond', serif;  /* guru voice, italic */
+  --f-deva:  'Tiro Devanagari Hindi', serif;
+  --f-mono:  'JetBrains Mono', monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  color:var(--paper);
+  font-family:var(--f-body);
+  font-size:16px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+  background:
+    radial-gradient(1200px 720px at 14% -6%, rgba(47,107,60,.14), transparent 58%),
+    radial-gradient(1000px 640px at 90% 2%, rgba(43,154,142,.10), transparent 60%),
+    radial-gradient(1300px 900px at 50% 118%, rgba(143,39,24,.10), transparent 60%),
+    linear-gradient(180deg, var(--void), var(--night) 34%, #0c1122 100%);
+  background-attachment:fixed;
+  overflow-x:hidden;
+}
+/* film grain + faint dotwork field over everything (B texture + C grain) */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:9998;opacity:.045;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:radial-gradient(rgba(242,231,204,.045) 1px, transparent 1.4px);
+  background-size:22px 22px;
+}
+::selection{background:var(--gold);color:#231705}
+
+.wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:0 26px 130px}
+
+/* ---------- shared bits ---------- */
+.deva{font-family:var(--f-deva)}
+.muted{color:var(--parch-mut)}.dim{color:var(--parch-dim)}
+.gold{color:var(--gold-bright)}
+.rule{height:1px;border:0;background:linear-gradient(90deg,transparent,var(--gold-deep),var(--gold),var(--gold-deep),transparent);opacity:.55}
+/* dotwork divider (Pithora signature, from B) */
+.dotrule{display:flex;gap:12px;justify-content:center;align-items:center;margin:8px auto;opacity:.7}
+.dotrule i{width:4px;height:4px;border-radius:50%;background:var(--gold);display:inline-block}
+.dotrule i:nth-child(even){background:var(--vermilion);width:3px;height:3px}
+
+.sec{margin-top:74px}
+.eyebrow{font-family:var(--f-mono);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:14px;margin:0 0 10px}
+.eyebrow::before{content:"";width:34px;height:1px;background:linear-gradient(90deg,transparent,var(--gold))}
+.eyebrow .n{color:var(--teal-bright)}
+.sec h2{font-family:var(--f-disp);font-weight:600;font-size:clamp(26px,3.8vw,42px);margin:0 0 4px;color:var(--paper);letter-spacing:.005em}
+.sub{font-family:var(--f-serif);font-style:italic;font-size:19px;color:var(--parch-mut);max-width:74ch;margin:0 0 26px}
+
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+
+/* gold-bracket frame (from C) — the signature container */
+.frame{position:relative;background:linear-gradient(162deg,var(--panel),var(--night) 92%);border:1px solid var(--hair);border-radius:5px;box-shadow:var(--sh-carve),var(--sh-deep)}
+.frame>.br{position:absolute;width:14px;height:14px;border:1.5px solid var(--gold);opacity:.65;pointer-events:none}
+.br.tl{top:7px;left:7px;border-right:0;border-bottom:0}
+.br.tr{top:7px;right:7px;border-left:0;border-bottom:0}
+.br.bl{bottom:7px;left:7px;border-right:0;border-top:0}
+.br.brr{bottom:7px;right:7px;border-left:0;border-top:0}
+.pad{padding:22px 24px}
+
+/* ================================================================
+   HERO — the outsider (B's statue-in-forest + C's mandala + A's gild)
+   ================================================================ */
+.hero{position:relative;margin-top:26px;border-radius:8px;overflow:hidden;border:1px solid var(--hair);box-shadow:var(--sh-deep)}
+.hero-scene{display:block;width:100%;height:auto}
+.hero-copy{position:relative;padding:34px 40px 40px;background:linear-gradient(180deg,rgba(10,13,28,.1),rgba(10,13,28,.86) 42%,var(--void));margin-top:-190px;z-index:2}
+.hero-tag{font-family:var(--f-mono);font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--teal-bright)}
+.wordmark{font-family:var(--f-epic);font-weight:800;font-size:clamp(44px,8vw,104px);line-height:.9;letter-spacing:.05em;margin:10px 0 2px;
+  color:transparent;background:linear-gradient(180deg,#fff4d8 0%,var(--gold-bright) 34%,var(--gold) 60%,var(--gold-deep) 100%);
+  -webkit-background-clip:text;background-clip:text;text-shadow:0 2px 30px rgba(217,166,58,.22)}
+.eka-deva{font-family:var(--f-deva);font-size:clamp(20px,3.4vw,32px);color:var(--paper);opacity:.92}
+.hero-line{font-family:var(--f-serif);font-style:italic;font-size:clamp(18px,2.3vw,25px);color:var(--parch-mut);max-width:62ch;margin:16px 0 0;line-height:1.5}
+.hero-line b{color:var(--gold-bright);font-style:normal;font-weight:600}
+.hero-meta{margin-top:22px;display:flex;gap:12px;flex-wrap:wrap;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--parch-dim)}
+.hero-meta span{border:1px solid var(--hair);padding:8px 15px;border-radius:2px;background:rgba(8,11,26,.5)}
+.hero-meta b{color:var(--gold)}
+
+/* the outsider onboarding panel */
+.outsider{margin-top:22px;display:grid;grid-template-columns:1.1fr .9fr;gap:0;border-radius:6px;overflow:hidden;border:1px solid var(--hair);box-shadow:var(--sh-deep)}
+.outsider .story{padding:30px 34px;background:linear-gradient(180deg,var(--bark),var(--loam))}
+.outsider .story .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.34em;text-transform:uppercase;color:var(--gold)}
+.outsider .story h3{font-family:var(--f-disp);font-weight:600;font-size:26px;color:var(--paper);margin:8px 0 12px;line-height:1.14}
+.outsider .story p{font-family:var(--f-body);font-size:15.5px;color:var(--parch-mut);margin:0 0 14px;line-height:1.62}
+.outsider .story p em{color:var(--gold-bright);font-style:italic}
+.outsider .scene2{position:relative;background:radial-gradient(120% 100% at 70% 20%,rgba(47,107,60,.28),transparent 60%),linear-gradient(180deg,#122019,#0c1122);display:flex;align-items:flex-end;justify-content:center}
+
+/* ================================================================
+   PALETTE
+   ================================================================ */
+.swatch{border-radius:5px;overflow:hidden;border:1px solid var(--hair);background:var(--panel);box-shadow:0 12px 30px -20px #000}
+.swatch .chip{height:104px;position:relative;display:flex;align-items:flex-end;padding:11px}
+.swatch .chip .hex{font-family:var(--f-mono);font-size:11px;background:rgba(6,9,20,.72);padding:3px 8px;border-radius:3px;letter-spacing:.04em}
+.swatch .meta{padding:12px 14px 15px}
+.swatch .nm{font-family:var(--f-title);font-size:16px;color:var(--paper)}
+.swatch .use{font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-mut);margin-top:4px;display:block;line-height:1.35}
+.chip.leaf{background:linear-gradient(135deg,#f8db8a 0%,#d9a63a 38%,#9c6f1c 62%,#f4cf76 84%,#c68f24 100%)}
+.chip.leaf::after{content:"";position:absolute;inset:0;opacity:.32;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='60'%3E%3Cfilter id='g'%3E%3CfeTurbulence baseFrequency='.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E")}
+.take{margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.take .t{padding:18px 20px;border-radius:5px;border:1px solid var(--hair);background:linear-gradient(170deg,var(--panel),var(--night))}
+.take .t .from{font-family:var(--f-mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal-bright);margin-bottom:6px}
+.take .t h4{font-family:var(--f-title);font-size:16px;color:var(--gold-bright);margin:0 0 5px}
+.take .t p{margin:0;font-size:14px;color:var(--parch-mut);line-height:1.5}
+
+/* ================================================================
+   TYPE
+   ================================================================ */
+.spec{padding:22px 26px}
+.spec .lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--teal-bright);margin-bottom:12px}
+.d-epic{font-family:var(--f-epic);font-weight:800;font-size:clamp(30px,5vw,58px);line-height:1;letter-spacing:.03em;color:var(--paper);text-shadow:0 2px 0 rgba(0,0,0,.4)}
+.d-disp{font-family:var(--f-disp);font-weight:600;font-size:clamp(26px,4vw,42px);color:var(--paper);line-height:1.08}
+.d-deva{font-family:var(--f-deva);font-size:clamp(28px,4.6vw,44px);color:var(--gold-bright);line-height:1.4}
+.d-deva small{display:block;font-family:var(--f-deva);font-size:16px;color:var(--parch-mut);margin-top:6px}
+.d-guru{font-family:var(--f-serif);font-style:italic;font-size:26px;color:var(--parch-mut);line-height:1.4}
+.d-body{font-family:var(--f-body);font-size:16px;color:var(--paper);line-height:1.66;max-width:56ch}
+.big-num{font-family:var(--f-epic);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.03em;font-size:clamp(42px,7vw,72px);line-height:1;
+  color:transparent;background:linear-gradient(180deg,#fff4d8,var(--gold) 58%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;text-shadow:0 3px 20px rgba(217,166,58,.28)}
+.kw{color:var(--gold-bright)}.st{color:var(--teal-bright)}.fn{color:#c9a3ff}.cm{color:#6b76a8;font-style:italic}
+
+/* ================================================================
+   COMPONENTS
+   ================================================================ */
+/* three deliberately different card weights (from A) */
+.card{border-radius:5px;padding:20px 22px;position:relative}
+.card .tagrow{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.card .h{font-family:var(--f-title);font-size:20px}
+.card .b{font-size:14.5px;line-height:1.55;margin-top:4px}
+.card.paper{background:linear-gradient(180deg,var(--paper),var(--paper-2));color:var(--paper-ink);border:1px solid var(--paper-edge);box-shadow:var(--sh-deep)}
+.card.paper .h{color:#241a08}.card.paper .b{color:#4a3a1c;font-family:var(--f-body)}
+.card.paper::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;border-radius:5px;background-image:radial-gradient(rgba(87,67,38,.16) 1px,transparent 1.3px);background-size:14px 14px}
+.card.night{background:linear-gradient(180deg,var(--panel),var(--night));border:1px solid var(--hair-2);box-shadow:0 14px 40px -26px #000}
+.card.night .h{color:var(--paper)}.card.night .b{color:var(--parch-mut)}
+.card.gild{background:radial-gradient(130% 150% at 0% 0%,rgba(217,166,58,.16),transparent 55%),linear-gradient(180deg,#1a2344,#141c38);border:1px solid var(--gold-deep);box-shadow:var(--gild),0 14px 40px -26px #000}
+.card.gild .h{color:var(--gold-bright)}.card.gild .b{color:var(--parch-mut)}
+
+.tag{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;padding:3px 9px;border-radius:2px;display:inline-block}
+.tag.mastery{color:#231705;background:linear-gradient(180deg,var(--gold-bright),var(--gold));box-shadow:0 2px 8px -2px rgba(217,166,58,.5)}
+.tag.info{color:var(--teal-bright);border:1px solid var(--teal);background:rgba(43,154,142,.12)}
+.tag.lock{color:var(--parch-dim);border:1px solid var(--hair-2)}
+.tag.loss{color:var(--vermilion-2);border:1px solid var(--vermilion-dp);background:rgba(143,39,24,.2)}
+
+.btn{font-family:var(--f-title);font-size:15px;letter-spacing:.04em;padding:12px 24px;border-radius:3px;border:1px solid transparent;cursor:pointer;display:inline-flex;align-items:center;gap:9px;text-decoration:none;transition:.2s}
+.btn-gold{color:#231705;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 58%,var(--gold-deep));box-shadow:0 6px 20px -6px rgba(217,166,58,.55),inset 0 1px 0 rgba(255,255,255,.4);border-color:var(--gold-deep)}
+.btn-gold:hover{filter:brightness(1.06);transform:translateY(-1px)}
+.btn-stone{color:var(--paper);background:linear-gradient(180deg,#2b2620,#1a1610);border:1px solid var(--hair);box-shadow:var(--sh-carve)}
+.btn-stone:hover{border-color:var(--gold);color:var(--gold-bright)}
+.btn-teal{color:#04211e;background:linear-gradient(180deg,var(--teal-bright),var(--teal));border-color:var(--teal-deep)}
+.btn-ghost{color:var(--gold-bright);background:transparent;border-color:var(--gold-deep)}
+.btn-ghost:hover{background:rgba(217,166,58,.1)}
+.btn-danger{color:var(--vermilion-2);background:transparent;border-color:var(--vermilion-dp)}
+.btn-danger:hover{background:rgba(209,63,40,.12)}
+
+.field label{font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);opacity:.82;display:block;margin-bottom:7px}
+.inp{width:100%;background:rgba(6,9,20,.6);border:1px solid var(--hair-2);border-radius:3px;padding:11px 13px;color:var(--paper);font-family:var(--f-body);font-size:15px}
+.inp:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,166,58,.15)}
+.inp::placeholder{color:rgba(234,217,182,.4)}
+
+/* quest banner */
+.quest{position:relative;border-radius:5px;overflow:hidden;border:1px solid var(--gold-deep);box-shadow:var(--gild)}
+.quest .qb{display:flex;gap:20px;align-items:center;padding:22px 26px;background:linear-gradient(115deg,#182147,#20294c 55%,#141a38)}
+.quest .qseal{flex:none}
+.quest .qtxt{flex:1}
+.quest .qk{font-family:var(--f-mono);font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--gold)}
+.quest .qt{font-family:var(--f-disp);font-weight:600;font-size:24px;color:var(--paper);line-height:1.1;margin:4px 0 3px}
+.quest .qd{font-family:var(--f-serif);font-style:italic;font-size:16px;color:var(--parch-mut)}
+.quest .qside{flex:none;text-align:right}
+.quest .qr{font-family:var(--f-epic);font-weight:700;font-size:22px;color:var(--gold-bright);font-variant-numeric:tabular-nums}
+.quest .qrl{font-family:var(--f-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--parch-dim)}
+.quest .qstrip{height:4px;background:linear-gradient(90deg,var(--vermilion-dp),var(--gold),var(--teal))}
+
+/* mandala HUD ribbon (from C) */
+.hud{padding:20px 24px;display:flex;gap:22px;align-items:center;flex-wrap:wrap}
+.hud .medallion{flex:none;position:relative;width:100px;height:100px}
+.hud .medallion .lv{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.hud .medallion .lv .n{font-family:var(--f-epic);font-weight:800;font-size:32px;color:var(--gold-bright);line-height:1;text-shadow:0 2px 8px rgba(217,166,58,.4)}
+.hud .medallion .lv .t{font-family:var(--f-mono);font-size:8px;letter-spacing:.2em;color:var(--parch-dim);margin-top:2px}
+.hud .hinfo{flex:1;min-width:200px}
+.hud .hname{font-family:var(--f-title);font-size:22px;color:var(--paper);display:flex;align-items:center;gap:10px}
+.hud .htitle{font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--gold-bright);margin:2px 0 12px}
+.hud .hstats{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--f-mono);font-size:10.5px;color:var(--parch-dim);letter-spacing:.05em}
+.hud .hstats b{display:block;font-family:var(--f-epic);font-weight:700;font-size:19px;color:var(--gold-bright);font-variant-numeric:tabular-nums;letter-spacing:.02em}
+.hud .hstats .v b{color:var(--vermilion-2)}
+.hud .hstats .t2 b{color:var(--teal-bright)}
+
+/* XP bowstring */
+.bow{padding:18px 22px}
+.bow .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.bow .head .l{font-family:var(--f-title);color:var(--paper);font-size:16px}
+.bow .head .r{font-family:var(--f-epic);font-weight:700;font-size:15px;color:var(--gold-bright);font-variant-numeric:tabular-nums}
+.bow .note{font-family:var(--f-serif);font-style:italic;font-size:13.5px;color:var(--parch-mut);margin:2px 0 8px}
+
+/* streak */
+.streak{display:flex;align-items:center;gap:14px;padding:16px 20px;border-radius:5px;border:1px solid var(--vermilion-dp);background:linear-gradient(180deg,#1e1410,#14100c)}
+.streak .flame{flex:none}
+.streak .n{font-family:var(--f-epic);font-weight:800;font-size:34px;color:var(--gold-bright);line-height:1;font-variant-numeric:tabular-nums}
+.streak .l{font-family:var(--f-serif);font-style:italic;color:var(--parch-mut);font-size:14px}
+.streak .combo{margin-left:auto;display:flex;gap:5px}
+.pip{width:9px;height:9px;border-radius:50%;background:var(--hair-2)}
+.pip.on{background:var(--gold-bright);box-shadow:0 0 8px var(--gold)}
+
+/* achievement toast (C sheen) */
+.toast{display:flex;gap:15px;align-items:center;padding:15px 19px;border:1px solid var(--gold-deep);border-left:4px solid var(--gold);border-radius:5px;background:linear-gradient(120deg,#1a2244,#141a38);box-shadow:var(--gild);position:relative;overflow:hidden}
+.toast::after{content:"";position:absolute;top:0;left:-45%;width:40%;height:100%;background:linear-gradient(100deg,transparent,rgba(255,244,216,.22),transparent);animation:sheen 3.4s ease-in-out infinite}
+@keyframes sheen{0%,60%{left:-45%}82%,100%{left:130%}}
+.toast .badge{flex:none}
+.toast .te{font-family:var(--f-mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--gold)}
+.toast .tn{font-family:var(--f-title);font-size:17px;color:var(--paper)}
+.toast .td{font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-mut)}
+
+/* level-up ceremony (C rays + bloom + A diya) */
+.ceremony{position:relative;min-height:320px;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;
+  background:radial-gradient(circle at center,rgba(34,26,12,.92),var(--void) 72%);border:1px solid var(--gold)}
+.rays{position:absolute;top:50%;left:50%;width:560px;height:560px;transform:translate(-50%,-50%);opacity:.5;animation:spin 44s linear infinite}
+@keyframes spin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+.cont{position:relative;z-index:2;padding:24px;animation:bloom 1.6s cubic-bezier(.2,.7,.3,1) both}
+@keyframes bloom{0%{transform:scale(.5);opacity:0;filter:blur(6px)}56%{transform:scale(1.07)}100%{transform:scale(1);opacity:1;filter:blur(0)}}
+.ceremony .ck{font-family:var(--f-mono);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--teal-bright);margin-bottom:8px}
+.ceremony .clv{font-family:var(--f-epic);font-weight:900;font-size:60px;line-height:1;color:transparent;background:linear-gradient(180deg,#fff4d8,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;text-shadow:0 4px 30px rgba(217,166,58,.5)}
+.ceremony .cdeva{font-family:var(--f-deva);font-size:22px;color:var(--paper);opacity:.92;margin-top:6px}
+.ceremony .ct{font-family:var(--f-serif);font-style:italic;font-size:16px;color:var(--parch-mut);margin-top:8px}
+.diya-b{position:absolute;bottom:22px;filter:drop-shadow(0 0 14px rgba(217,166,58,.7));z-index:2}
+.diya-b.l{left:16%}.diya-b.r{right:16%}
+.flick{animation:flick 1.4s ease-in-out infinite;transform-origin:center bottom}
+@keyframes flick{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.14) translateY(-1px);opacity:.86}}
+
+/* loss screen (C cracks + merit restored, NOT dark souls) */
+.loss{position:relative;min-height:330px;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;text-align:center;
+  background:radial-gradient(circle at center,rgba(74,18,12,.5),var(--void) 72%);border:1px solid var(--vermilion-dp)}
+.loss .lc{position:relative;z-index:2;padding:22px}
+.loss .lk{font-family:var(--f-mono);font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--vermilion-2);margin-bottom:12px}
+.loss .lbig{font-family:var(--f-epic);font-weight:800;font-size:clamp(28px,4.8vw,50px);line-height:1.05;letter-spacing:.03em;color:transparent;
+  background:linear-gradient(180deg,#ffb9ac,var(--vermilion) 60%,var(--vermilion-dp));-webkit-background-clip:text;background-clip:text;text-shadow:0 2px 24px rgba(209,63,40,.4)}
+.loss .ldeva{font-family:var(--f-deva);font-size:26px;color:var(--vermilion-2);margin-top:4px}
+.loss .lsub{font-family:var(--f-serif);font-style:italic;font-size:17px;color:var(--parch-mut);margin:14px auto 0;max-width:46ch}
+.loss .lmerit{margin-top:20px;display:inline-flex;align-items:center;gap:12px;padding:11px 20px;border:1px solid var(--gold);border-radius:4px;background:rgba(217,166,58,.08)}
+.loss .lmerit .mn{font-family:var(--f-epic);font-weight:700;font-size:19px;color:var(--gold-bright)}
+.loss .lmerit .ml{font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--parch-dim)}
+.loss .lmerit .deva{font-family:var(--f-deva);font-size:17px;color:var(--gold)}
+
+/* empty state */
+.empty{text-align:center;border-radius:6px;padding:38px 26px;border:1px dashed var(--gold-deep);background:linear-gradient(180deg,var(--panel),var(--night))}
+.empty .t{font-family:var(--f-disp);font-weight:600;font-size:22px;color:var(--paper);margin-top:12px}
+.empty .b{font-family:var(--f-serif);font-style:italic;color:var(--parch-mut);max-width:44ch;margin:6px auto 16px}
+
+/* ================================================================
+   SKILL TREE — forest-map (B) + mandala (C), both shown
+   ================================================================ */
+.treetabs{display:flex;gap:8px;margin-bottom:16px}
+.ttab{font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--parch-dim);padding:8px 16px;border:1px solid var(--hair-2);border-radius:3px;background:rgba(6,9,20,.4);cursor:default}
+.ttab.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(217,166,58,.1)}
+.mapframe{border-radius:6px;overflow:hidden;border:1px solid var(--hair);box-shadow:var(--sh-deep)}
+.mapframe svg{display:block;width:100%;height:auto}
+.mandala-stage{padding:16px;display:flex;align-items:center;justify-content:center;min-height:520px}
+.mandala-stage svg{width:100%;height:auto;max-width:520px}
+.petal{cursor:pointer;transition:.25s}
+.petal:hover{filter:brightness(1.25) drop-shadow(0 0 10px rgba(217,166,58,.5))}
+.track-panel{padding:22px 24px;display:flex;flex-direction:column}
+.track-panel .tk{font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--teal-bright)}
+.track-panel .tt{font-family:var(--f-disp);font-weight:600;font-size:24px;color:var(--paper);margin:4px 0 2px}
+.track-panel .tdeva{font-family:var(--f-deva);font-size:16px;color:var(--gold-bright);margin-bottom:12px}
+.tnode{display:flex;gap:13px;align-items:center;padding:12px 0;border-bottom:1px solid var(--hair)}
+.tnode:last-child{border-bottom:0}
+.dot38{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;position:relative}
+.dot38.done{background:radial-gradient(circle,var(--gold-bright),var(--gold-deep));box-shadow:0 0 14px rgba(217,166,58,.5),inset 0 1px 0 rgba(255,255,255,.4)}
+.dot38.active{background:radial-gradient(circle,rgba(43,154,142,.5),rgba(17,77,72,.7));border:1.5px solid var(--teal-bright);box-shadow:0 0 14px rgba(43,154,142,.5)}
+.dot38.lock{background:var(--loam);border:1px solid var(--hair-2);opacity:.7}
+.tninfo{flex:1;min-width:0}
+.tnn{font-family:var(--f-title);font-size:16px;color:var(--paper)}
+.tnn.lock{color:var(--parch-dim)}
+.tnm{font-family:var(--f-mono);font-size:10px;letter-spacing:.05em;color:var(--parch-dim)}
+.tnxp{font-family:var(--f-epic);font-weight:700;font-size:13px;color:var(--gold);font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-dim)}
+.legend span{display:flex;align-items:center;gap:7px}
+.legend i{width:11px;height:11px;border-radius:50%;display:inline-block}
+
+/* ================================================================
+   ACTIVITY — diya heatmap + XP curve
+   ================================================================ */
+.heat{display:grid;grid-template-columns:repeat(26,1fr);gap:5px;margin-top:14px}
+.lamp{aspect-ratio:1;border-radius:2px;background:rgba(217,166,58,.06);border:1px solid rgba(217,166,58,.08)}
+.lamp.l1{background:rgba(217,166,58,.22);border-color:transparent}
+.lamp.l2{background:rgba(217,166,58,.42);box-shadow:0 0 4px rgba(217,166,58,.3);border-color:transparent}
+.lamp.l3{background:rgba(217,166,58,.68);box-shadow:0 0 7px rgba(217,166,58,.5);border-color:transparent}
+.lamp.l4{background:radial-gradient(circle,var(--gold-bright),var(--gold-deep));box-shadow:0 0 11px rgba(217,166,58,.75);border-color:transparent}
+.heat-legend{display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-top:12px;font-family:var(--f-mono);font-size:10px;color:var(--parch-dim)}
+
+/* ================================================================
+   KEY SCREENS
+   ================================================================ */
+.mock{border-radius:8px;overflow:hidden;border:1px solid var(--hair);box-shadow:var(--sh-deep);background:var(--void)}
+.mbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:linear-gradient(180deg,#231d16,#161009);border-bottom:1px solid var(--hair)}
+.mbar .dots{display:flex;gap:6px}
+.mbar .dots i{width:10px;height:10px;border-radius:50%}
+.mbar .dots i:nth-child(1){background:var(--vermilion)}.mbar .dots i:nth-child(2){background:var(--gold)}.mbar .dots i:nth-child(3){background:var(--teal)}
+.mbar .brand{font-family:var(--f-epic);font-weight:700;font-size:17px;color:var(--gold-bright);letter-spacing:.05em}
+.mnav{display:flex;gap:4px;margin-left:6px}
+.mnav a{font-family:var(--f-title);font-size:14px;color:var(--parch-mut);padding:5px 11px;border-radius:3px;text-decoration:none}
+.mnav a.on{color:var(--gold-bright);background:rgba(217,166,58,.12);border:1px solid var(--gold-deep)}
+
+.practice{display:grid;grid-template-columns:210px 1fr 300px;min-height:580px;background:radial-gradient(600px 400px at 82% 0%,rgba(43,154,142,.06),transparent),linear-gradient(180deg,var(--night),var(--void))}
+.prail{border-right:1px solid var(--hair);padding:18px 14px;display:flex;flex-direction:column;gap:5px;background:rgba(6,9,20,.4)}
+.ritem{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:4px;font-family:var(--f-title);font-size:14px;color:var(--parch-mut)}
+.ritem.on{background:linear-gradient(90deg,rgba(217,166,58,.15),transparent);color:var(--gold-bright);border-left:2px solid var(--gold)}
+.pcenter{display:flex;flex-direction:column;min-height:0}
+.pchat{flex:1;padding:22px;display:flex;flex-direction:column;gap:15px}
+.msg{max-width:88%;font-size:14.5px;line-height:1.55}
+.msg .who{font-family:var(--f-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:6px}
+.msg.guru{align-self:flex-start}
+.msg.guru .bub{background:linear-gradient(180deg,var(--paper),var(--paper-2));color:var(--paper-ink);border:1px solid var(--paper-edge);border-radius:4px 12px 12px 12px;padding:13px 16px;font-family:var(--f-body);box-shadow:var(--sh-deep)}
+.msg.guru .who{color:var(--gold-deep)}
+.msg.you{align-self:flex-end}
+.msg.you .bub{background:rgba(43,154,142,.13);border:1px solid var(--teal);border-radius:12px 4px 12px 12px;padding:13px 16px;color:var(--paper);font-family:var(--f-mono);font-size:13px}
+.msg.you .who{color:var(--teal-bright);text-align:right}
+.pinput{border-top:1px solid var(--hair);padding:12px 16px;display:flex;gap:10px;align-items:center;background:rgba(6,9,20,.4)}
+.pcode{border-left:1px solid var(--hair);background:#080b18;display:flex;flex-direction:column}
+.chead{display:flex;align-items:center;gap:8px;padding:9px 14px;background:#0b0f1e;border-bottom:1px solid var(--hair-2);font-family:var(--f-mono);font-size:11.5px;color:var(--parch-dim)}
+.editor{flex:1;padding:15px 16px;font-family:var(--f-mono);font-size:12.5px;line-height:1.7;color:#cdd6ff}
+.editor .ln{color:#4a5590;user-select:none;display:inline-block;width:20px}
+.cfoot{border-top:1px solid var(--hair-2);padding:10px 14px;display:flex;gap:10px;align-items:center;background:#0b0f1e}
+
+.dash{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;padding:18px;background:linear-gradient(180deg,#0e1428,var(--void))}
+.stat-big{border-radius:5px;padding:15px 16px;text-align:center;border:1px solid var(--hair-2);background:linear-gradient(180deg,var(--panel),var(--night))}
+.stat-big .v{font-family:var(--f-epic);font-weight:700;font-size:32px;color:var(--gold-bright);font-variant-numeric:tabular-nums;line-height:1}
+.stat-big .l{font-family:var(--f-mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--parch-dim);margin-top:5px}
+
+/* ================================================================
+   MOBILE
+   ================================================================ */
+.phone{width:340px;margin:0 auto;border-radius:32px;padding:10px;background:linear-gradient(180deg,#05060e,#0a0b16);box-shadow:0 30px 70px -24px #000,0 0 0 2px #2a2f4c}
+.phone .screen{border-radius:24px;overflow:hidden;background:var(--night);height:660px;display:flex;flex-direction:column;position:relative}
+.notch{height:22px;background:#05060e;position:relative}
+.notch::after{content:"";position:absolute;left:50%;top:6px;transform:translateX(-50%);width:90px;height:6px;border-radius:4px;background:#1a1c30}
+.mtop{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--hair);background:#141b32}
+.mtop .brand{font-family:var(--f-epic);font-weight:700;color:var(--gold-bright);font-size:16px;letter-spacing:.04em}
+.mbody{flex:1;overflow:auto;padding:13px}
+.mmsg{border-radius:5px;padding:10px 12px;font-size:13px;margin-bottom:10px;line-height:1.5}
+.mmsg.guru{background:linear-gradient(180deg,var(--paper),var(--paper-2));color:var(--paper-ink);font-family:var(--f-body)}
+.mmsg.guru .who{font-family:var(--f-mono);font-size:8px;letter-spacing:.18em;color:var(--gold-deep);text-transform:uppercase;display:block;margin-bottom:4px}
+.mmsg.you{background:rgba(43,154,142,.14);border:1px solid var(--teal);color:var(--paper);font-family:var(--f-mono);font-size:12px}
+.mcode{background:#080b18;border:1px solid var(--hair-2);border-radius:5px;font-family:var(--f-mono);font-size:11px;color:#cdd6ff;padding:10px 12px;line-height:1.6}
+.mtabs{display:flex;background:#0b0f1e;border-top:1px solid var(--gold-deep)}
+.mtab{flex:1;text-align:center;padding:9px 0 11px;color:var(--parch-dim);font-family:var(--f-mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase}
+.mtab svg{display:block;margin:0 auto 3px}
+.mtab.on{color:var(--gold-bright)}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+@media(max-width:900px){
+  .g4{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:1fr}
+  .g2{grid-template-columns:1fr}
+  .take{grid-template-columns:1fr}
+  .outsider{grid-template-columns:1fr}
+  .outsider .scene2{min-height:200px}
+  .practice{grid-template-columns:1fr}
+  .pcode{border-left:0;border-top:1px solid var(--hair)}
+  .dash{grid-template-columns:1fr}
+  .mnav{display:none}
+  .hero-copy{margin-top:-120px}
+}
+@media(max-width:520px){
+  .g4{grid-template-columns:1fr}
+  .heat{grid-template-columns:repeat(13,1fr)}
+  .hud{gap:14px}
+}
+.foot{margin-top:74px;text-align:center;font-family:var(--f-serif);font-style:italic;color:var(--parch-mut);font-size:15px}
+.foot .deva{font-family:var(--f-deva);color:var(--gold);font-style:normal}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ==================== HERO ==================== -->
+<header class="hero">
+  <svg class="hero-scene" viewBox="0 0 1180 520" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Ekalavya drawing a bow before the clay statue of Drona, alone in a Pithora forest at night, a mandala rising over the trees">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0f2018"/><stop offset=".5" stop-color="#122040"/><stop offset="1" stop-color="#0a0d1c"/></linearGradient>
+      <radialGradient id="moon" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fbeec2"/><stop offset="1" stop-color="#d9a63a"/></radialGradient>
+      <radialGradient id="lampglow" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#d9a63a" stop-opacity="0"/></radialGradient>
+      <pattern id="dotfield" width="15" height="15" patternUnits="userSpaceOnUse"><circle cx="7.5" cy="7.5" r="1.2" fill="#f2e7cc" opacity="0.16"/></pattern>
+    </defs>
+    <rect width="1180" height="520" fill="url(#sky)"/>
+    <rect width="1180" height="520" fill="url(#dotfield)"/>
+
+    <!-- mandala / yantra rising as a moon-halo (C) -->
+    <g transform="translate(955,150)" opacity="0.5">
+      <g fill="none" stroke="#d9a63a" stroke-width="1">
+        <circle r="128" opacity=".35"/><circle r="100" opacity=".5"/><circle r="72" opacity=".7"/>
+      </g>
+      <circle r="58" fill="url(#moon)"/>
+      <g stroke="#f4cf76" stroke-width="2" opacity=".8">
+        <path d="M0 -110 V-90 M0 90 V110 M-110 0 H-90 M90 0 H110 M-78 -78 l14 14 M64 64 l14 14 M78 -78 l-14 14 M-64 64 l-14 14"/>
+      </g>
+      <!-- 12 fine petals -->
+      <g id="heropetals" fill="rgba(217,166,58,.16)" stroke="#d9a63a" stroke-width="0.8"></g>
+    </g>
+
+    <!-- Pithora sacred horse, faint upper-left -->
+    <g transform="translate(120,72)" opacity="0.42" fill="none" stroke="#d9a63a" stroke-width="2.4">
+      <path d="M0,40 C10,10 40,6 55,18 C60,4 72,2 78,10 C74,18 72,22 76,26 C92,24 104,34 104,50 L98,50 C98,40 88,36 80,40 L82,64 L74,64 L72,44 C60,50 40,50 30,44 L34,64 L26,64 L24,46 C10,50 4,46 0,40 Z"/>
+      <circle cx="70" cy="14" r="1.6" fill="#d9a63a" stroke="none"/>
+    </g>
+
+    <!-- forest trees (Pithora tree-of-life, B) -->
+    <g stroke="#52a061" stroke-width="4" fill="none" opacity="0.92">
+      <g transform="translate(72,318)">
+        <line x1="0" y1="0" x2="0" y2="140"/>
+        <path d="M0,20 C-32,10 -42,-16 -36,-38 M0,20 C32,10 42,-16 36,-38 M0,54 C-28,46 -36,26 -32,6 M0,54 C28,46 36,26 32,6"/>
+        <circle cx="-36" cy="-38" r="8" fill="#d9a63a" stroke="none"/><circle cx="36" cy="-38" r="8" fill="#d13f28" stroke="none"/><circle cx="0" cy="-18" r="9" fill="#2b9a8e" stroke="none"/>
+      </g>
+      <g transform="translate(1092,350)">
+        <line x1="0" y1="0" x2="0" y2="120"/>
+        <path d="M0,10 C-26,2 -34,-18 -30,-38 M0,10 C26,2 34,-18 30,-38 M0,42 C-22,36 -30,18 -26,2 M0,42 C22,36 30,18 26,2"/>
+        <circle cx="-30" cy="-38" r="7" fill="#f4cf76" stroke="none"/><circle cx="30" cy="-38" r="7" fill="#2b9a8e" stroke="none"/>
+      </g>
+      <g transform="translate(230,360)" opacity=".7" stroke-width="3">
+        <line x1="0" y1="0" x2="0" y2="100"/>
+        <path d="M0,14 C-22,6 -28,-12 -24,-28 M0,14 C22,6 28,-12 24,-28"/>
+        <circle cx="0" cy="-14" r="6" fill="#2f6b3c" stroke="none"/>
+      </g>
+    </g>
+
+    <!-- clay STATUE OF DRONA on plinth, center-right (B) -->
+    <g transform="translate(792,238)">
+      <ellipse cx="0" cy="196" rx="70" ry="12" fill="#000" opacity=".3"/>
+      <rect x="-46" y="150" width="92" height="26" rx="4" fill="#7a4a2c"/>
+      <rect x="-38" y="120" width="76" height="34" rx="3" fill="#8a5433"/>
+      <path d="M0,10 C-24,10 -34,34 -32,60 L-30,120 L30,120 L32,60 C34,34 24,10 0,10 Z" fill="#a8482a"/>
+      <circle cx="0" cy="-8" r="20" fill="#b9764a"/>
+      <path d="M-20,-14 C-14,-30 14,-30 20,-14" fill="none" stroke="#7a4a2c" stroke-width="4"/>
+      <g fill="#f2e7cc" opacity="0.7">
+        <circle cx="-14" cy="46" r="1.6"/><circle cx="0" cy="42" r="1.6"/><circle cx="14" cy="46" r="1.6"/>
+        <circle cx="-18" cy="70" r="1.6"/><circle cx="-6" cy="66" r="1.6"/><circle cx="6" cy="66" r="1.6"/><circle cx="18" cy="70" r="1.6"/>
+        <circle cx="-14" cy="94" r="1.6"/><circle cx="0" cy="90" r="1.6"/><circle cx="14" cy="94" r="1.6"/>
+      </g>
+      <path d="M28,40 C46,32 52,44 44,58" fill="none" stroke="#a8482a" stroke-width="8" stroke-linecap="round"/>
+    </g>
+
+    <!-- lit diya at the statue's feet -->
+    <g transform="translate(792,432)">
+      <ellipse cx="0" cy="4" rx="18" ry="5" fill="#9c6f1c"/>
+      <path d="M-16 2 Q0 12 16 2 Q11 -3 0 -3 Q-11 -3 -16 2Z" fill="#d9a63a"/>
+      <path d="M0 -3 C-2 -9 3 -13 0 -20 C-3 -13 2 -9 0 -3Z" fill="#f4cf76"/>
+      <circle cx="0" cy="-8" r="10" fill="rgba(244,207,118,.3)"/>
+    </g>
+
+    <!-- Ekalavya, lone learner drawing the bow toward the statue (B) -->
+    <g transform="translate(486,326)">
+      <path d="M0,0 C-16,0 -22,18 -20,38 L-18,88 L18,88 L20,38 C22,18 16,0 0,0 Z" fill="#2f6b3c"/>
+      <circle cx="0" cy="-14" r="14" fill="#b9764a"/>
+      <g fill="#f2e7cc" opacity="0.7"><circle cx="-8" cy="30" r="1.4"/><circle cx="8" cy="30" r="1.4"/><circle cx="0" cy="52" r="1.4"/><circle cx="-10" cy="66" r="1.4"/><circle cx="10" cy="66" r="1.4"/></g>
+      <path d="M62,-42 C100,-6 100,42 62,78" fill="none" stroke="#d9a63a" stroke-width="4"/>
+      <line x1="62" y1="-42" x2="62" y2="78" stroke="#f2e7cc" stroke-width="1.4"/>
+      <line x1="12" y1="18" x2="124" y2="18" stroke="#f4cf76" stroke-width="2.6"/>
+      <path d="M124,18 l-10,-5 l0,10 z" fill="#f4cf76"/>
+      <path d="M8,22 L60,18" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+      <path d="M-2,22 L14,18" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+    </g>
+
+    <!-- ground with dotwork -->
+    <rect x="0" y="488" width="1180" height="32" fill="#0a0d1c"/>
+    <g fill="#d9a63a" opacity="0.5"><circle cx="40" cy="495" r="1.4"/><circle cx="130" cy="495" r="1.4"/><circle cx="220" cy="495" r="1.4"/><circle cx="310" cy="495" r="1.4"/><circle cx="400" cy="495" r="1.4"/><circle cx="490" cy="495" r="1.4"/><circle cx="580" cy="495" r="1.4"/><circle cx="670" cy="495" r="1.4"/><circle cx="760" cy="495" r="1.4"/><circle cx="850" cy="495" r="1.4"/><circle cx="940" cy="495" r="1.4"/><circle cx="1030" cy="495" r="1.4"/><circle cx="1120" cy="495" r="1.4"/></g>
+  </svg>
+
+  <div class="hero-copy">
+    <div class="hero-tag">Direction D · The Synthesis — Forest Manuscript</div>
+    <h1 class="wordmark">EKALAVYA</h1>
+    <div class="eka-deva">एकलव्य · स्वाध्याय</div>
+    <p class="hero-line">The <b>hall was closed</b> to him — so he walked into the forest, raised a statue of the guru who refused him, and taught himself to outshoot the princes. An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b></p>
+    <div class="hero-meta">
+      <span>Guru: <b>the statue</b></span>
+      <span>Arena: <b>the forest</b></span>
+      <span>Path: <b>svādhyāya</b> · self-study</span>
+      <span>Dakshinā: <b>the thumb</b></span>
+    </div>
+  </div>
+</header>
+
+<!-- the outsider onboarding moment -->
+<div class="outsider">
+  <div class="story">
+    <div class="k">Onboarding · The Threshold</div>
+    <h3>Droṇa turned him away at the door.</h3>
+    <p>Ekalavya came to the greatest teacher of the age and was <em>refused</em> — not for want of skill, but for being a forest-born outsider, the wrong caste, from outside the hall.</p>
+    <p>So he did not beg. He went into the forest, shaped Droṇa's likeness from clay, and set to work <em>alone</em> — until the day the royal archers found that the boy no one would teach had surpassed them all.</p>
+    <p style="margin-bottom:22px">This tool is built for that boy. For the economics grad locked out of the CS program. For the career-changer, the self-taught, the one learning it in the forest because the hall was closed. <em>Draw the string.</em></p>
+    <button class="btn btn-gold">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231705" stroke-width="2"><path d="M4 12h11M15 8l4 4-4 4"/></svg>
+      Enter the forest
+    </button>
+  </div>
+  <div class="scene2">
+    <svg viewBox="0 0 380 300" width="100%" role="img" aria-label="A single lamp lit before the clay statue in the dark forest">
+      <defs><radialGradient id="g2glow" cx="50%" cy="80%" r="60%"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".55"/><stop offset="1" stop-color="#d9a63a" stop-opacity="0"/></radialGradient></defs>
+      <ellipse cx="200" cy="250" rx="150" ry="60" fill="url(#g2glow)"/>
+      <!-- statue -->
+      <g transform="translate(200,120)">
+        <rect x="-38" y="128" width="76" height="20" rx="3" fill="#7a4a2c"/>
+        <path d="M0,6 C-20,6 -28,28 -26,50 L-24,124 L24,124 L26,50 C28,28 20,6 0,6 Z" fill="#a8482a"/>
+        <circle cx="0" cy="-8" r="16" fill="#b9764a"/>
+        <g fill="#f2e7cc" opacity="0.65"><circle cx="-10" cy="40" r="1.4"/><circle cx="0" cy="36" r="1.4"/><circle cx="10" cy="40" r="1.4"/><circle cx="-12" cy="64" r="1.4"/><circle cx="0" cy="60" r="1.4"/><circle cx="12" cy="64" r="1.4"/><circle cx="-10" cy="90" r="1.4"/><circle cx="10" cy="90" r="1.4"/></g>
+      </g>
+      <!-- lamp -->
+      <g transform="translate(200,270)">
+        <ellipse cx="0" cy="3" rx="20" ry="5" fill="#9c6f1c"/>
+        <path d="M-18 1 Q0 12 18 1 Q12 -4 0 -4 Q-12 -4 -18 1Z" fill="#d9a63a"/>
+        <path d="M0 -4 C-2 -12 4 -16 0 -25 C-4 -16 2 -12 0 -4Z" fill="#f4cf76" class="flick"/>
+      </g>
+      <!-- faint trees -->
+      <g stroke="#2f6b3c" stroke-width="3" fill="none" opacity=".55">
+        <path d="M40 300 V210 M40 235 C22 228 16 212 20 198 M40 235 C58 228 64 212 60 198"/>
+        <path d="M344 300 V220 M344 244 C328 238 322 224 326 212 M344 244 C360 238 366 224 362 212"/>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<!-- ==================== 1 · PALETTE ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">01</span> The Palette &amp; What It Borrows</div>
+  <h2>Gold for what is earned</h2>
+  <p class="sub">Warm, temple-lit, earthy — never the AI-neon triad. Indigo-night is warmed toward the forest; gold leaf stays <em>precious</em>, reserved for mastery and the primary path. Each hue carries meaning, never decoration.</p>
+  <div class="grid g4">
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#16203a,#0a0d1c)"><span class="hex">#101528</span></div><div class="meta"><div class="nm">Indigo Night</div><span class="use">The forest sky — the page. Layered into 4 depths.</span></div></div>
+    <div class="swatch"><div class="chip leaf"><span class="hex" style="color:#231705;background:rgba(255,244,216,.6)">#D9A63A</span></div><div class="meta"><div class="nm gold">Gold Leaf</div><span class="use">Mastery · earned XP · primary. Burnished, sparing.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#e8532f,#8f2718)"><span class="hex">#D13F28</span></div><div class="meta"><div class="nm" style="color:var(--vermilion-2)">Vermilion / Sindoor</div><span class="use">Danger · loss · the sacrificed thumb. Never decorative.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#52cabc,#2b9a8e)"><span class="hex">#2B9A8E</span></div><div class="meta"><div class="nm" style="color:var(--teal-bright)">Peacock Teal</div><span class="use">Info · unlocked · the step you are on now.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#eddcb8,#d9c49b)"><span class="hex" style="color:#241a08;background:rgba(255,255,255,.5)">#EAD9B6</span></div><div class="meta"><div class="nm" style="color:#241a08">Pithora Paper</div><span class="use">The guru speaks on paper — teaching surfaces only.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#52a061,#2f6b3c)"><span class="hex">#2F6B3C</span></div><div class="meta"><div class="nm" style="color:#a7d8b3">Forest Green</div><span class="use">Growth &amp; correctness — a passed test, a live grove.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(160deg,#c26a44,#a8482a)"><span class="hex">#A8482A</span></div><div class="meta"><div class="nm" style="color:#e6b79c">Terracotta / Clay</div><span class="use">The statue of the guru — the self-made teacher.</span></div></div>
+    <div class="swatch"><div class="chip" style="background:radial-gradient(circle at 40% 34%,#4a4638,#241d13)"></div><div class="meta"><div class="nm" style="color:#c4bda8">Unfired Stone</div><span class="use">Locked badges — stone that becomes gold when earned.</span></div></div>
+  </div>
+  <div class="take">
+    <div class="t"><div class="from">Taken from A · Pahari</div><h4>Palette discipline &amp; gold hierarchy</h4><p>Four layered indigo depths, gold kept scarce for mastery, three distinct card weights, and the guru speaking on aged paper — hierarchy you can read at a glance.</p></div>
+    <div class="t"><div class="from">Taken from B · Bhil</div><h4>Forest texture &amp; the forest-map</h4><p>Earth-and-forest tones, white Pithora dotwork over every surface, the statue-in-forest hero, and the legible forest-map skill overview (groves, not a hairball).</p></div>
+    <div class="t"><div class="from">Taken from C · Raji</div><h4>Cinematic HUD &amp; game-feel</h4><p>The mandala/yantra medallion frame with corner brackets, gold-clipped numerals, the level-up bloom with rotating rays, and the "merit restored" loss screen.</p></div>
+  </div>
+</section>
+
+<!-- ==================== 2 · TYPE ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">02</span> Type Specimens</div>
+  <h2>Four voices, one manuscript</h2>
+  <p class="sub"><strong>Cinzel</strong> — epic Roman caps for the wordmark, level-ups, big numerals. <strong>Fraunces</strong> — a warm high-contrast display for headings. <strong>Cormorant italic</strong> — the guru's voice. <strong>Spectral</strong> — body. <strong>Tiro Devanagari Hindi</strong> — a genuine Devanagari face. <strong>JetBrains Mono</strong> — code &amp; labels.</p>
+  <div class="grid g2">
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Epic display · Cinzel</div><div class="d-epic">THE FOREST<br>REMEMBERS</div></div>
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Devanagari · Tiro</div><div class="d-deva">स्वाध्याय · साधना · सिद्धि<small>स्वयं-अध्ययन से निपुणता तक — self-study to mastery</small></div></div>
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Display heading · Fraunces</div><div class="d-disp">Discipline over privilege</div></div>
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Guru voice · Cormorant italic</div><div class="d-guru">"You were refused a teacher. So become one to yourself — and shoot truer than the princes."</div></div>
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Body · Spectral / Mono · JetBrains</div><div class="d-body" style="margin-bottom:12px">A recursive function calls itself with a smaller input until it reaches a base case — the archer draws, releases, and nocks again, one arrow shorter each time.</div><div style="font-family:var(--f-mono);font-size:13px;color:#cdd6ff;line-height:1.7"><span class="kw">def</span> <span class="fn">aim</span>(target, arrows):<br>&nbsp;&nbsp;<span class="kw">if</span> arrows == <span class="st">0</span>: <span class="kw">return</span> target<br>&nbsp;&nbsp;<span class="kw">return</span> <span class="fn">aim</span>(target, arrows - <span class="st">1</span>)</div></div>
+    <div class="frame spec"><span class="br tl"></span><span class="br brr"></span><div class="lbl">Big gold tabular numerals · Cinzel</div><div style="display:flex;gap:26px;align-items:baseline"><span class="big-num">2,480</span><div><div style="font-family:var(--f-epic);font-weight:700;font-size:24px;color:var(--gold-bright)">Lv 14</div><div class="dim" style="font-family:var(--f-mono);font-size:10px;letter-spacing:.18em">XP · STREAK · RANK</div></div></div></div>
+  </div>
+</section>
+
+<!-- ==================== 3 · COMPONENTS ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">03</span> Component Gallery</div>
+  <h2>The working parts</h2>
+  <p class="sub">Three card weights make hierarchy unmistakable: <em>paper</em> (the guru instructs), <em>night</em> (default), <em>gilded</em> (something earned). Everything below is inline SVG — no chrome emoji.</p>
+
+  <div class="grid g3">
+    <div class="card paper"><div class="tagrow"><span class="tag mastery">Instruction</span></div><div class="h">The Guru Speaks</div><div class="b">Aged Pithora paper — the highest-authority teaching surface. Iron-gall serif, dotwork grain.</div></div>
+    <div class="card night"><div class="tagrow"><span class="tag info">Default</span></div><div class="h">Practice Panel</div><div class="b">Indigo-night — the everyday working surface for problems, notes and lists.</div></div>
+    <div class="card gild"><div class="tagrow"><span class="tag mastery">Earned</span></div><div class="h">Mastery Unlocked</div><div class="b">Gilded — reserved for achievement, milestones, and the primary path forward.</div></div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+      <div class="lbl" style="font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:14px">Buttons</div>
+      <div style="display:flex;gap:11px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-gold"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#231705" stroke-width="2"><path d="M4 12h11M15 8l4 4-4 4"/></svg> Loose the Arrow</button>
+        <button class="btn btn-stone">Review</button>
+        <button class="btn btn-teal">Unlock</button>
+        <button class="btn btn-ghost">Ask a Hint</button>
+        <button class="btn btn-danger">Concede</button>
+      </div>
+    </div>
+    <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+      <div class="lbl" style="font-family:var(--f-mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:14px">Inputs &amp; tags</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="field"><label>Your answer</label><input class="inp" placeholder="Type your solution, then loose the arrow…"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="tag mastery">Mastered</span><span class="tag info">Unlocked</span><span class="tag lock">Locked</span><span class="tag loss">Missed</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- quest banner -->
+  <div class="quest" style="margin-top:18px">
+    <div class="qb">
+      <div class="qseal">
+        <svg width="56" height="56" viewBox="0 0 56 56"><circle cx="28" cy="28" r="25" fill="none" stroke="#d9a63a" stroke-width="1.4" opacity=".6"/><circle cx="28" cy="28" r="19" fill="rgba(217,166,58,.1)" stroke="#9c6f1c"/><path d="M14 28 C24 20 32 20 42 28 M28 20 v16" stroke="#f4cf76" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <div class="qtxt"><div class="qk">Today's Sādhanā · Quest</div><div class="qt">Fell the Recursive Beast</div><div class="qd">Solve 3 recursion katas before the diya burns out.</div></div>
+      <div class="qside"><div class="qr">+180 XP</div><div class="qrl">+ Self-Referring Bow</div></div>
+    </div>
+    <div class="qstrip"></div>
+  </div>
+
+  <!-- HUD -->
+  <div class="frame hud" style="margin-top:18px"><span class="br tl"></span><span class="br brr"></span>
+    <div class="medallion">
+      <svg width="100" height="100" viewBox="0 0 100 100"><circle cx="50" cy="50" r="47" fill="none" stroke="rgba(217,166,58,.14)" stroke-width="3"/><circle cx="50" cy="50" r="47" fill="none" stroke="#d9a63a" stroke-width="3" stroke-dasharray="221 999" stroke-linecap="round" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" r="38" fill="#101528" stroke="#f4cf76" stroke-width="1.4"/><g fill="none" stroke="#9c6f1c" stroke-width="1"><circle cx="50" cy="50" r="30"/></g></svg>
+      <div class="lv"><div class="n">14</div><div class="t">LEVEL</div></div>
+    </div>
+    <div class="hinfo">
+      <div class="hname">Ekalavya <span class="tag mastery" style="font-size:8.5px">Nishāda</span></div>
+      <div class="htitle">Forest Adept · greater already than three princes</div>
+      <div class="hstats">
+        <div><b>2,480</b>XP</div>
+        <div class="v"><b>27</b>Day Streak</div>
+        <div class="t2"><b>9/17</b>Groves</div>
+        <div><b>640</b>to next</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- XP bowstring + streak -->
+  <div class="grid g2" style="margin-top:18px">
+    <div class="frame bow"><span class="br tl"></span><span class="br brr"></span>
+      <div class="head"><span class="l">Level 14 → 15</span><span class="r">640 / 800 XP</span></div>
+      <p class="note">XP as a drawn bowstring — the fuller the draw, the closer the release.</p>
+      <svg width="100%" height="92" viewBox="0 0 400 92" preserveAspectRatio="none">
+        <defs><linearGradient id="bowg" x1="0" x2="1"><stop offset="0" stop-color="#9c6f1c"/><stop offset=".5" stop-color="#f4cf76"/><stop offset="1" stop-color="#9c6f1c"/></linearGradient></defs>
+        <path d="M40 10 Q16 46 40 82" fill="none" stroke="url(#bowg)" stroke-width="5" stroke-linecap="round"/>
+        <path d="M40 10 L40 82" fill="none" stroke="#2c3760" stroke-width="1.4" stroke-dasharray="3 4"/>
+        <path d="M40 10 L296 46 L40 82" fill="none" stroke="#f4cf76" stroke-width="2.4"/>
+        <line x1="296" y1="46" x2="118" y2="46" stroke="#ead9b6" stroke-width="3"/>
+        <path d="M118 46 l14 -6 l-4 6 l4 6 z" fill="#d13f28"/>
+        <circle cx="296" cy="46" r="5.5" fill="#f4cf76"/>
+        <path d="M296 46 l14 -8 M296 46 l14 8" stroke="#52cabc" stroke-width="2.4"/>
+      </svg>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="streak">
+        <svg class="flame" width="40" height="46" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f4cf76" stroke="#d9a63a"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#d13f28"/></svg>
+        <div><div class="n">27</div><div class="l">days at the statue</div></div>
+        <div class="combo"><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip on"></span><span class="pip"></span></div>
+      </div>
+      <div class="toast">
+        <svg class="badge" width="50" height="50" viewBox="0 0 24 24"><circle cx="12" cy="10" r="7" fill="url(#bowg)" stroke="#9c6f1c"/><path d="M12 7l1.4 2.8 3 .4-2.2 2.1.5 3-2.7-1.4-2.7 1.4.5-3L7.6 10.2l3-.4z" fill="#231705"/><path d="M8 16l-1 5 5-2.5" fill="#a8482a"/><path d="M16 16l1 5-5-2.5" fill="#a8482a"/></svg>
+        <div><div class="te">Achievement Unlocked</div><div class="tn">Bullseye Combo ×5</div><div class="td">Five katas without a miss — the stone badge burnished to gold.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ceremony + loss -->
+  <div class="grid g2" style="margin-top:18px">
+    <div class="ceremony">
+      <svg class="rays" viewBox="0 0 200 200"><g id="rays" stroke="#f4cf76" stroke-width="1.2"></g></svg>
+      <div class="cont">
+        <div class="ck">Level Up · The Lamp is Lit</div>
+        <div class="clv">LEVEL 15</div>
+        <div class="cdeva">दीप प्रज्वलित — एक और दीया जला</div>
+        <div class="ct">Another lamp lit before the statue. A gold bloom radiates on ascent.</div>
+      </div>
+      <svg class="diya-b l" width="46" height="40" viewBox="0 0 46 40"><ellipse cx="23" cy="30" rx="18" ry="5" fill="#9c6f1c"/><path d="M6 28 Q23 38 40 28 Q34 22 23 22 Q12 22 6 28Z" fill="#d9a63a"/><path d="M23 22 C21 15 26 11 23 3 C20 11 25 15 23 22Z" fill="#f4cf76" class="flick"/></svg>
+      <svg class="diya-b r" width="46" height="40" viewBox="0 0 46 40"><ellipse cx="23" cy="30" rx="18" ry="5" fill="#9c6f1c"/><path d="M6 28 Q23 38 40 28 Q34 22 23 22 Q12 22 6 28Z" fill="#d9a63a"/><path d="M23 22 C21 15 26 11 23 3 C20 11 25 15 23 22Z" fill="#f4cf76" class="flick"/></svg>
+    </div>
+    <div class="loss">
+      <svg class="rays" viewBox="0 0 200 200" style="opacity:.14;animation:none"><g id="cracks" stroke="#d13f28" stroke-width="1"></g></svg>
+      <div class="lc">
+        <div class="lk">The Miss</div>
+        <div class="lbig">YOUR AIM FALTERED</div>
+        <div class="ldeva deva">पुण्य क्षीण</div>
+        <p class="lsub">The arrow flew wide — but the archer who misses and returns is greater than the prince who never drew.</p>
+        <div class="lmerit"><span class="mn">+40</span><span class="ml">पुण्य / merit restored on your next true shot</span><span class="deva">☉</span></div>
+        <div style="margin-top:18px"><button class="btn btn-danger">Draw Once More</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- empty state -->
+  <div class="empty" style="margin-top:18px">
+    <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#d9a63a" stroke-width="1.2" style="opacity:.85"><path d="M3 20c2-6 6-9 9-9s7 3 9 9"/><path d="M12 11V3M9 6l3-3 3 3"/><circle cx="12" cy="20" r="1.5" fill="#d9a63a"/></svg>
+    <div class="t">The Quiver is Empty</div>
+    <div class="b">No katas drawn today. Choose a grove from the forest and set an arrow to the string.</div>
+    <button class="btn btn-gold">Begin a Grove</button>
+  </div>
+</section>
+
+<!-- ==================== 4 · SKILL TREE ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">04</span> Skill Overview — Two Legible Views</div>
+  <h2>Not a 197-node hairball</h2>
+  <p class="sub">Two ways to see the whole journey at a glance, then drill into one track. The <strong>forest-map</strong> (from B) reads as a walkable landscape of groves; the <strong>mandala</strong> (from C) as a ceremonial yantra of 17 petals. Both drill into the same single-track path.</p>
+
+  <div class="treetabs"><span class="ttab on">◆ Forest-map overview</span><span class="ttab">◇ Mandala overview</span><span class="ttab">→ Single track</span></div>
+
+  <!-- FOREST MAP (B) -->
+  <div class="mapframe">
+    <svg viewBox="0 0 1180 600" role="img" aria-label="Forest map of 17 learning groves connected by winding paths">
+      <defs>
+        <linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".6" stop-color="#111a30"/><stop offset="1" stop-color="#1a1305"/></linearGradient>
+        <pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>
+        <radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#d9a63a" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="1180" height="600" fill="url(#mapbg)"/>
+      <rect width="1180" height="600" fill="url(#mdot)"/>
+      <!-- winding path -->
+      <path d="M70,520 C220,510 260,410 400,390 C540,370 560,460 700,440 C840,420 860,310 1000,290 C1080,280 1110,210 1120,110" fill="none" stroke="#a8482a" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14" opacity="0.55"/>
+      <path d="M70,520 C220,510 260,410 400,390 C540,370 560,460 700,440" fill="none" stroke="#d9a63a" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 14"/>
+      <path d="M400,390 C420,290 500,260 560,190" fill="none" stroke="#2f6b3c" stroke-width="4" stroke-dasharray="2 12" opacity="0.7"/>
+      <path d="M700,440 C720,540 800,550 880,510" fill="none" stroke="#2f6b3c" stroke-width="4" stroke-dasharray="2 12" opacity="0.7"/>
+      <!-- statue of Drona overseeing -->
+      <g transform="translate(150,80)" opacity="0.85">
+        <rect x="-26" y="86" width="52" height="14" rx="3" fill="#7a4a2c"/>
+        <path d="M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z" fill="#a8482a"/>
+        <circle cx="0" cy="-6" r="13" fill="#b9764a"/>
+        <g fill="#f2e7cc" opacity="0.7"><circle cx="-8" cy="34" r="1.3"/><circle cx="8" cy="34" r="1.3"/><circle cx="0" cy="52" r="1.3"/><circle cx="-9" cy="66" r="1.3"/><circle cx="9" cy="66" r="1.3"/></g>
+        <text x="0" y="112" text-anchor="middle" font-family="Tiro Devanagari Hindi" font-size="13" fill="#d9a63a">गुरु द्रोण</text>
+      </g>
+      <!-- mastered groves -->
+      <g transform="translate(70,520)">
+        <circle r="46" fill="url(#glampM)" opacity="0.8"/>
+        <path d="M0 34V6" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-6" r="16" fill="#2f6b3c"/><circle cx="-14" cy="6" r="10" fill="#52a061"/><circle cx="14" cy="6" r="10" fill="#52a061"/>
+        <circle cx="0" cy="-6" r="4" fill="#f4cf76"/><circle cx="-10" cy="-2" r="2.4" fill="#d13f28"/><circle cx="10" cy="-2" r="2.4" fill="#f4cf76"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Marcellus" font-size="15" fill="#f0e3c6">Syntax Grove</text>
+        <text x="0" y="82" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#d9a63a">◆ MASTERED · 12/12</text>
+      </g>
+      <g transform="translate(400,390)">
+        <circle r="44" fill="url(#glampM)" opacity="0.7"/>
+        <path d="M0 34V6" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-6" r="15" fill="#2f6b3c"/><circle cx="-13" cy="5" r="9" fill="#52a061"/><circle cx="13" cy="5" r="9" fill="#52a061"/><circle cx="0" cy="-6" r="4" fill="#f4cf76"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Marcellus" font-size="15" fill="#f0e3c6">Data Structures</text>
+        <text x="0" y="82" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#d9a63a">◆ MASTERED · 14/14</text>
+      </g>
+      <!-- active grove -->
+      <g transform="translate(700,440)">
+        <circle r="50" fill="none" stroke="#52cabc" stroke-width="2" stroke-dasharray="4 6" opacity="0.9"/>
+        <circle r="44" fill="#2b9a8e" opacity="0.10"/>
+        <path d="M0 34V4" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-8" r="15" fill="#2f6b3c"/><circle cx="-13" cy="4" r="8" fill="#2b9a8e"/><circle cx="13" cy="4" r="8" fill="#52a061"/><circle cx="0" cy="-8" r="4" fill="#52cabc"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Marcellus" font-size="15" fill="#dcefe6">Recursion Grove</text>
+        <text x="0" y="82" text-anchor="middle" font-family="JetBrains Mono" font-size="9.5" fill="#52cabc">○ ACTIVE · 6/11</text>
+      </g>
+      <!-- locked saplings -->
+      <g transform="translate(1000,290)" opacity="0.5"><path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/><text x="0" y="50" text-anchor="middle" font-family="Marcellus" font-size="14" fill="#a89670">Dynamic Prog.</text><text x="0" y="66" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8f7f5c">— LOCKED</text></g>
+      <g transform="translate(560,190)" opacity="0.5"><path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/><text x="0" y="50" text-anchor="middle" font-family="Marcellus" font-size="14" fill="#a89670">Graphs</text><text x="0" y="66" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8f7f5c">— LOCKED</text></g>
+      <g transform="translate(880,510)" opacity="0.5"><path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/><text x="0" y="50" text-anchor="middle" font-family="Marcellus" font-size="14" fill="#a89670">Concurrency</text><text x="0" y="66" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#8f7f5c">— LOCKED</text></g>
+      <g transform="translate(1120,110)" opacity="0.5"><path d="M0 26V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-9-7M0 12l9-7" stroke="#5a4a34" stroke-width="3"/><text x="0" y="46" text-anchor="middle" font-family="Marcellus" font-size="13" fill="#a89670">Systems</text></g>
+      <!-- legend -->
+      <g transform="translate(30,570)" font-family="JetBrains Mono" font-size="10">
+        <circle cx="6" cy="-3" r="5" fill="#d9a63a"/><text x="16" y="1" fill="#c3b291">mastered grove (lit lamp)</text>
+        <circle cx="216" cy="-3" r="5" fill="#52cabc"/><text x="226" y="1" fill="#c3b291">active grove</text>
+        <circle cx="356" cy="-3" r="5" fill="#5a4a34"/><text x="366" y="1" fill="#c3b291">locked sapling</text>
+      </g>
+    </svg>
+  </div>
+
+  <!-- MANDALA + SINGLE TRACK -->
+  <div class="grid g2" style="margin-top:18px;align-items:stretch">
+    <div class="frame mandala-stage"><span class="br tl"></span><span class="br brr"></span>
+      <svg id="mandala" viewBox="0 0 560 560" aria-label="Mandala overview: 17 tracks as petals around a central yantra"></svg>
+    </div>
+    <div class="frame track-panel"><span class="br tl"></span><span class="br brr"></span>
+      <div class="tk">Single track · drilled in</div>
+      <div class="tt">Recursion Grove</div>
+      <div class="tdeva">पुनरावर्तन · अपने भीतर लौटना</div>
+      <div class="tnode"><div class="dot38 done"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#231705" fill="none" stroke-width="2.4"><path d="M5 13l4 4 10-11"/></svg></div><div class="tninfo"><div class="tnn">Base Cases</div><div class="tnm">When the arrow stops. ◆ mastered</div></div><span class="tnxp">40 XP</span></div>
+      <div class="tnode"><div class="dot38 done"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#231705" fill="none" stroke-width="2.4"><path d="M5 13l4 4 10-11"/></svg></div><div class="tninfo"><div class="tnn">The Recursive Call</div><div class="tnm">Drawing the same bow, smaller. ◆ mastered</div></div><span class="tnxp">60 XP</span></div>
+      <div class="tnode"><div class="dot38 done"><svg width="18" height="18" viewBox="0 0 24 24" stroke="#231705" fill="none" stroke-width="2.4"><path d="M5 13l4 4 10-11"/></svg></div><div class="tninfo"><div class="tnn">The Call Stack</div><div class="tnm">Arrows waiting in the quiver. ◆ mastered</div></div><span class="tnxp">60 XP</span></div>
+      <div class="tnode"><div class="dot38 active"><svg width="16" height="16" viewBox="0 0 24 24" stroke="#04211e" fill="none" stroke-width="2.4"><path d="M4 12h11M15 8l4 4-4 4"/></svg></div><div class="tninfo"><div class="tnn">Tree Recursion &amp; Memoization <span class="tag info" style="font-size:8px">○ you are here</span></div><div class="tnm">Fibonacci without the exponential tax · 5/8 checks</div></div><span class="tnxp" style="color:var(--teal-bright)">+60</span></div>
+      <div class="tnode"><div class="dot38 lock"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#8f7f5c" fill="none" stroke-width="2"><rect x="6" y="11" width="12" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><div class="tninfo"><div class="tnn lock">Mutual Recursion</div><div class="tnm">Locked — clear the node above.</div></div></div>
+      <div class="tnode"><div class="dot38 lock"><svg width="15" height="15" viewBox="0 0 24 24" stroke="#8f7f5c" fill="none" stroke-width="2"><rect x="6" y="11" width="12" height="9" rx="1"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></div><div class="tninfo"><div class="tnn lock">Tail-call &amp; Trampolining</div><div class="tnm">Locked · the final, cleanest release.</div></div></div>
+      <div class="legend"><span><i style="background:#d9a63a"></i>mastered</span><span><i style="background:#2b9a8e"></i>active</span><span><i style="background:#5a4a34"></i>locked</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 5 · ACTIVITY ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">05</span> Activity</div>
+  <h2>Half a year of devotion</h2>
+  <p class="sub">Each cell is a diya: the brighter the flame, the more you practised that day. The XP curve is an ascending arrow-arc across the folio.</p>
+  <div class="grid g2">
+    <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><div style="font-family:var(--f-disp);font-weight:600;font-size:18px;color:var(--paper)">Diya heatmap</div><span class="dim" style="font-family:var(--f-mono);font-size:11px">182 diyas · 27-day streak</span></div>
+      <div class="heat" id="heat"></div>
+      <div class="heat-legend">less <span class="lamp" style="width:11px;height:11px"></span><span class="lamp l1" style="width:11px;height:11px"></span><span class="lamp l2" style="width:11px;height:11px"></span><span class="lamp l3" style="width:11px;height:11px"></span><span class="lamp l4" style="width:11px;height:11px"></span> more</div>
+    </div>
+    <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+      <div style="font-family:var(--f-disp);font-weight:600;font-size:18px;color:var(--paper);margin-bottom:6px">XP · the ascending arc</div>
+      <svg width="100%" height="208" viewBox="0 0 400 208">
+        <defs><linearGradient id="xpfill" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="rgba(244,207,118,.32)"/><stop offset="1" stop-color="rgba(244,207,118,0)"/></linearGradient></defs>
+        <g stroke="#2c3760" stroke-width=".6" opacity=".5"><line x1="30" y1="18" x2="30" y2="178"/><line x1="30" y1="178" x2="390" y2="178"/><line x1="30" y1="128" x2="390" y2="128"/><line x1="30" y1="78" x2="390" y2="78"/></g>
+        <path d="M30 176 C110 170 150 138 200 110 C260 76 320 50 388 22 L388 178 L30 178 Z" fill="url(#xpfill)"/>
+        <path d="M30 176 C110 170 150 138 200 110 C260 76 320 50 388 22" fill="none" stroke="#f4cf76" stroke-width="2.6"/>
+        <path d="M388 22 l-12 2 l6 4 l-2 7 z" fill="#d13f28"/>
+        <circle cx="110" cy="169" r="3.4" fill="#d9a63a"/><circle cx="200" cy="110" r="3.4" fill="#d9a63a"/><circle cx="300" cy="58" r="3.4" fill="#f4cf76"/>
+        <text x="30" y="198" font-family="JetBrains Mono" font-size="9" fill="#9fa8d8">Feb</text>
+        <text x="200" y="198" font-family="JetBrains Mono" font-size="9" fill="#9fa8d8" text-anchor="middle">May</text>
+        <text x="388" y="198" font-family="JetBrains Mono" font-size="9" fill="#9fa8d8" text-anchor="end">Jul</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 6 · KEY SCREENS ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">06</span> Key Screens</div>
+  <h2>The two load-bearing views</h2>
+  <p class="sub">The <strong>Practice</strong> view (guru chat on paper + code editor on night) and the <strong>Progress Dashboard</strong>, rendered fully in-style.</p>
+
+  <!-- PRACTICE -->
+  <div class="mock">
+    <div class="mbar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span class="brand">EKALAVYA</span>
+      <nav class="mnav"><a href="#" class="on">Practice</a><a href="#">Forest</a><a href="#">Progress</a><a href="#">Codex</a></nav>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:12px;font-family:var(--f-mono);font-size:12px">
+        <span style="display:inline-flex;align-items:center;gap:4px;color:var(--vermilion-2)"><svg width="13" height="15" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f4cf76"/></svg>27</span>
+        <span style="color:var(--gold-bright);font-family:var(--f-epic);font-weight:700">Lv 14</span>
+      </div>
+    </div>
+    <div class="practice">
+      <div class="prail">
+        <div class="ritem on"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12h11M15 8l4 4-4 4"/></svg>Practice</div>
+        <div class="ritem"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8zM7 15a4 4 0 105 0M17 15a4 4 0 10-5 0"/></svg>Forest Map</div>
+        <div class="ritem"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Progress</div>
+        <div class="ritem"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 21c1-5 4-8 6-8s5 3 6 8M12 3v6M9 6h6"/><ellipse cx="12" cy="21" rx="7" ry="2"/></svg>Codex</div>
+        <div style="margin-top:auto;border-top:1px solid var(--hair);padding-top:14px">
+          <div style="font-family:var(--f-mono);font-size:9px;letter-spacing:.16em;color:var(--parch-dim);text-transform:uppercase">Level 14 → 15</div>
+          <div style="height:6px;border-radius:3px;background:#1a2138;margin-top:8px;overflow:hidden"><div style="width:80%;height:100%;background:linear-gradient(90deg,#9c6f1c,#f4cf76)"></div></div>
+          <div style="font-family:var(--f-mono);font-size:10px;color:var(--gold-bright);margin-top:5px">640 / 800 XP</div>
+        </div>
+      </div>
+      <div class="pcenter">
+        <div class="pchat">
+          <div class="msg guru"><div class="who">Droṇa · the statue speaks</div><div class="bub">Write <em>factorial(n)</em> using recursion. Remember the base case — the arrow must know when to stop, or it flies forever.</div></div>
+          <div class="msg you"><div class="who">You</div><div class="bub">def factorial(n):<br>&nbsp;&nbsp;return n * factorial(n-1)</div></div>
+          <div class="msg guru"><div class="who">Droṇa</div><div class="bub">Close — but with no base case, your bow never lowers. What should happen when <em>n</em> reaches zero?</div></div>
+        </div>
+        <div class="pinput"><input class="inp" placeholder="Answer the guru, or ask for a hint…"><button class="btn btn-gold" style="padding:10px 16px;flex:none"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#231705" stroke-width="2"><path d="M4 12h11M15 8l4 4-4 4"/></svg></button></div>
+      </div>
+      <div class="pcode">
+        <div class="chead"><span style="width:9px;height:9px;border-radius:50%;background:var(--vermilion)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--gold)"></span><span style="width:9px;height:9px;border-radius:50%;background:var(--teal)"></span><span style="margin-left:6px">solution.py</span></div>
+        <div class="editor">
+<span class="ln">1</span><span class="cm"># Draw the same bow, one arrow smaller</span><br>
+<span class="ln">2</span><span class="kw">def</span> <span class="fn">factorial</span>(n):<br>
+<span class="ln">3</span>&nbsp;&nbsp;<span class="kw">if</span> n == <span class="st">0</span>:<span class="cm">  # base case</span><br>
+<span class="ln">4</span>&nbsp;&nbsp;&nbsp;&nbsp;<span class="kw">return</span> <span class="st">1</span><br>
+<span class="ln">5</span>&nbsp;&nbsp;<span class="kw">return</span> n * <span class="fn">factorial</span>(n - <span class="st">1</span>)<br>
+<span class="ln">6</span><br>
+<span class="ln">7</span><span class="fn">print</span>(<span class="fn">factorial</span>(<span class="st">5</span>))  <span class="cm"># → 120</span>
+        </div>
+        <div class="cfoot">
+          <button class="btn btn-gold" style="padding:9px 16px;font-size:13.5px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#231705" stroke-width="2"><path d="M4 12h11M15 8l4 4-4 4"/></svg> Loose the Arrow</button>
+          <span style="margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--forest-lit)">✓ 2/3 tests pass</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div class="mock" style="margin-top:22px">
+    <div class="mbar">
+      <div class="dots"><i></i><i></i><i></i></div>
+      <span class="brand">EKALAVYA</span>
+      <nav class="mnav"><a href="#">Practice</a><a href="#">Forest</a><a href="#" class="on">Progress</a><a href="#">Codex</a></nav>
+      <div style="margin-left:auto;font-family:var(--f-serif);font-style:italic;color:var(--parch-mut);font-size:14px">"Discipline over privilege."</div>
+    </div>
+    <div class="dash">
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="quest"><div class="qb"><div class="qtxt"><div class="qk">Your standing</div><div class="qt">Nishāda · Forest Adept</div><div class="qd">9 of 17 groves mastered · greater already than three royal princes.</div></div><div class="qside"><div class="qr">Lv 14</div><div class="qrl">2,480 XP</div></div></div><div class="qstrip"></div></div>
+        <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+          <div style="font-family:var(--f-disp);font-weight:600;font-size:17px;color:var(--paper);margin-bottom:10px">Recent unlocks</div>
+          <div class="tnode" style="border:0;padding:8px 0"><div class="dot38 done"><svg width="16" height="16" viewBox="0 0 24 24" stroke="#231705" fill="none" stroke-width="2.4"><path d="M5 13l4 4 10-11"/></svg></div><div class="tninfo"><div class="tnn">The Call Stack</div><div class="tnm">+120 XP · mastered 2 days ago</div></div></div>
+          <div class="tnode" style="border:0;padding:8px 0"><div class="dot38 active"><svg width="14" height="14" viewBox="0 0 24 24" stroke="#04211e" fill="none" stroke-width="2.4"><path d="M4 12h11M15 8l4 4-4 4"/></svg></div><div class="tninfo"><div class="tnn">Tree Recursion</div><div class="tnm">in progress · 60%</div></div></div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="grid g2" style="gap:12px">
+          <div class="stat-big"><div class="v">2,480</div><div class="l">Total XP</div></div>
+          <div class="stat-big"><div class="v" style="color:var(--vermilion-2)">27</div><div class="l">Day Streak</div></div>
+          <div class="stat-big"><div class="v" style="color:var(--teal-bright)">9</div><div class="l">Groves Mastered</div></div>
+          <div class="stat-big"><div class="v">182</div><div class="l">Diyas Lit</div></div>
+        </div>
+        <div class="frame pad"><span class="br tl"></span><span class="br brr"></span>
+          <div style="font-family:var(--f-disp);font-weight:600;font-size:17px;color:var(--paper);margin-bottom:6px">The half-year folio</div>
+          <div class="heat" id="heat2" style="grid-template-columns:repeat(20,1fr)"></div>
+        </div>
+        <div class="toast"><svg class="badge" width="46" height="46" viewBox="0 0 24 24"><circle cx="12" cy="10" r="7" fill="url(#bowg)" stroke="#9c6f1c"/><path d="M12 7l1.4 2.8 3 .4-2.2 2.1.5 3-2.7-1.4-2.7 1.4.5-3L7.6 10.2l3-.4z" fill="#231705"/></svg><div><div class="te">Next seal</div><div class="tn">The Golden Thumb</div><div class="td">Master 3 more groves to earn the manuscript's rarest mark.</div></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== 7 · MOBILE ==================== -->
+<section class="sec">
+  <div class="eyebrow"><span class="n">07</span> Mobile</div>
+  <h2>Practice &amp; bottom-tab nav</h2>
+  <p class="sub">The desktop split stacks into a single column; navigation collapses to a gold-ruled bottom tab bar with custom bow / grove / scroll / lamp icons. Tap targets ≥ 44px.</p>
+  <div class="phone">
+    <div class="screen">
+      <div class="notch"></div>
+      <div class="mtop">
+        <span class="brand">EKALAVYA</span>
+        <span style="display:flex;gap:9px;align-items:center;font-family:var(--f-mono);font-size:11px"><span style="display:inline-flex;align-items:center;gap:3px;color:var(--vermilion-2)"><svg width="12" height="14" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f4cf76"/></svg>27</span><span style="color:var(--gold-bright);font-family:var(--f-epic);font-weight:700">Lv14</span></span>
+      </div>
+      <div class="mbody">
+        <div class="mmsg guru"><span class="who">Droṇa · the statue</span>Write factorial(n) with recursion. The arrow must know when to stop.</div>
+        <div class="mmsg you">def factorial(n): return n * factorial(n-1)</div>
+        <div class="mmsg guru"><span class="who">Droṇa</span>No base case — your bow never lowers. What at n == 0?</div>
+        <div class="mcode">
+<span class="kw">def</span> <span class="fn">factorial</span>(n):<br>
+&nbsp;&nbsp;<span class="kw">if</span> n == <span class="st">0</span>: <span class="kw">return</span> <span class="st">1</span><br>
+&nbsp;&nbsp;<span class="kw">return</span> n*<span class="fn">factorial</span>(n-<span class="st">1</span>)
+        </div>
+        <button class="btn btn-gold" style="width:100%;justify-content:center;margin-top:12px;font-size:14px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#231705" stroke-width="2"><path d="M4 12h11M15 8l4 4-4 4"/></svg> Loose the Arrow</button>
+      </div>
+      <div class="mtabs">
+        <div class="mtab on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 12h11M15 8l4 4-4 4"/></svg>Practice</div>
+        <div class="mtab"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8zM7 15a4 4 0 105 0M17 15a4 4 0 10-5 0"/></svg>Forest</div>
+        <div class="mtab"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Progress</div>
+        <div class="mtab"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 21c1-5 4-8 6-8s5 3 6 8M12 3v6M9 6h6"/><ellipse cx="12" cy="21" rx="7" ry="2"/></svg>Codex</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="dotrule"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+<div class="foot">
+  Ekalavya · Direction D — The Synthesis (Forest Manuscript) · design artifact, not shipped code.<br>
+  <span class="deva">विद्या ददाति विनयम्</span> — knowledge gives humility. The hall was closed; he taught himself in the forest.
+</div>
+
+</div>
+
+<script>
+/* ---- diya heatmap ---- */
+function fillHeat(id, cols){
+  var el=document.getElementById(id); if(!el)return;
+  var html='';
+  for(var i=0;i<cols*7;i++){
+    var r=Math.random(), c='';
+    if(r>0.86)c='l4'; else if(r>0.66)c='l3'; else if(r>0.42)c='l2'; else if(r>0.22)c='l1';
+    html+='<div class="lamp '+c+'"></div>';
+  }
+  el.innerHTML=html;
+}
+fillHeat('heat',26);
+fillHeat('heat2',20);
+
+/* ---- hero mandala petals ---- */
+(function(){
+  var g=document.getElementById('heropetals'); if(!g)return;
+  var n=12,out='';
+  for(var i=0;i<n;i++){
+    var a=(i/n)*Math.PI*2, a2=((i+0.5)/n)*Math.PI*2;
+    var x0=Math.cos(a)*66,y0=Math.sin(a)*66;
+    var xt=Math.cos(a2-((0.5/n)*Math.PI*2))*118,yt=Math.sin(a2-((0.5/n)*Math.PI*2))*118;
+    var x1=Math.cos(((i+0.7)/n)*Math.PI*2)*66,y1=Math.sin(((i+0.7)/n)*Math.PI*2)*66;
+    out+='<path d="M'+x0.toFixed(1)+' '+y0.toFixed(1)+' Q'+xt.toFixed(1)+' '+yt.toFixed(1)+' '+x1.toFixed(1)+' '+y1.toFixed(1)+' Z"/>';
+  }
+  g.innerHTML=out;
+})();
+
+/* ---- level-up rays ---- */
+(function(){
+  var g=document.getElementById('rays'); if(!g)return;
+  var s='';
+  for(var i=0;i<48;i++){
+    var a=i*(360/48)*Math.PI/180;
+    var x1=100+Math.cos(a)*58,y1=100+Math.sin(a)*58,x2=100+Math.cos(a)*100,y2=100+Math.sin(a)*100;
+    s+='<line x1="'+x1.toFixed(1)+'" y1="'+y1.toFixed(1)+'" x2="'+x2.toFixed(1)+'" y2="'+y2.toFixed(1)+'" opacity="'+(i%2?.3:.7)+'"/>';
+  }
+  g.innerHTML=s;
+})();
+
+/* ---- loss cracks ---- */
+(function(){
+  var g=document.getElementById('cracks'); if(!g)return;
+  var s='';
+  for(var i=0;i<14;i++){
+    var a=i*(360/14)*Math.PI/180, r=40+Math.random()*60;
+    s+='<line x1="100" y1="100" x2="'+(100+Math.cos(a)*r).toFixed(1)+'" y2="'+(100+Math.sin(a)*r).toFixed(1)+'"/>';
+  }
+  g.innerHTML=s;
+})();
+
+/* ---- mandala skill tree ---- */
+(function(){
+  var svg=document.getElementById('mandala'); if(!svg)return;
+  var tracks=[
+    'gold','gold','gold','teal','gold','gold','dim','gold','gold',
+    'teal','dim','gold','dim','teal','gold','dim','dim'
+  ];
+  var cx=280,cy=280,n=tracks.length,inner=92,plen=168;
+  function col(s){return s==='gold'?'#d9a63a':s==='teal'?'#2b9a8e':'#3a2f26';}
+  function cb(s){return s==='gold'?'#f4cf76':s==='teal'?'#52cabc':'#5a4a3a';}
+  var out='';
+  out+='<circle cx="280" cy="280" r="256" fill="none" stroke="rgba(217,166,58,.12)" stroke-width="2"/>';
+  out+='<circle cx="280" cy="280" r="256" fill="none" stroke="#d9a63a" stroke-width="3" stroke-dasharray="'+(2*Math.PI*256*0.53).toFixed(0)+' 9999" stroke-linecap="round" transform="rotate(-90 280 280)"/>';
+  out+='<circle cx="280" cy="280" r="220" fill="none" stroke="rgba(217,166,58,.1)" stroke-width="1"/>';
+  for(var i=0;i<n;i++){
+    var a=(i*(360/n)-90)*Math.PI/180, s=tracks[i], c=col(s), cbr=cb(s);
+    var x0=cx+Math.cos(a)*inner, y0=cy+Math.sin(a)*inner;
+    var xt=cx+Math.cos(a)*(inner+plen), yt=cy+Math.sin(a)*(inner+plen);
+    var perp=a+Math.PI/2, w=44;
+    var wx=Math.cos(perp)*w, wy=Math.sin(perp)*w;
+    var mx=cx+Math.cos(a)*(inner+plen*0.5), my=cy+Math.sin(a)*(inner+plen*0.5);
+    var fill=s==='dim'?'rgba(58,47,38,.5)':(s==='teal'?'rgba(43,154,142,.20)':'rgba(217,166,58,.17)');
+    out+='<path class="petal" d="M'+x0.toFixed(1)+' '+y0.toFixed(1)+' Q'+(mx+wx).toFixed(1)+' '+(my+wy).toFixed(1)+' '+xt.toFixed(1)+' '+yt.toFixed(1)+' Q'+(mx-wx).toFixed(1)+' '+(my-wy).toFixed(1)+' '+x0.toFixed(1)+' '+y0.toFixed(1)+' Z" fill="'+fill+'" stroke="'+cbr+'" stroke-width="'+(s==='dim'?1:1.6)+'"/>';
+    var nx=cx+Math.cos(a)*(inner+plen-14), ny=cy+Math.sin(a)*(inner+plen-14);
+    out+='<circle cx="'+nx.toFixed(1)+'" cy="'+ny.toFixed(1)+'" r="9" fill="'+(s==='dim'?'#1a1610':c)+'" stroke="'+cbr+'" stroke-width="1.5"/>';
+    if(s==='gold') out+='<path d="M'+(nx-4).toFixed(1)+' '+ny.toFixed(1)+' l3 3 l6 -6" stroke="#231705" stroke-width="2" fill="none" stroke-linecap="round"/>';
+  }
+  out+='<circle cx="280" cy="280" r="76" fill="#101528" stroke="#f4cf76" stroke-width="2"/>';
+  out+='<circle cx="280" cy="280" r="60" fill="none" stroke="#d9a63a" stroke-width="1" opacity=".5"/>';
+  out+='<path d="M256 250 C286 268 286 292 256 310" stroke="#d9a63a" stroke-width="3" fill="none" stroke-linecap="round"/>';
+  out+='<line x1="256" y1="250" x2="256" y2="310" stroke="#52cabc" stroke-width="1.4"/>';
+  out+='<line x1="256" y1="280" x2="312" y2="280" stroke="#f4cf76" stroke-width="2.5"/>';
+  out+='<path d="M312 280 l-8 -5 M312 280 l-8 5" stroke="#f4cf76" stroke-width="2.5" stroke-linecap="round"/>';
+  out+='<text x="280" y="336" text-anchor="middle" fill="#c3b48f" font-family="JetBrains Mono" font-size="11" letter-spacing="2">9 / 17</text>';
+  svg.innerHTML=out;
+})();
+</script>
+</body>
+</html>

@@ -58,6 +58,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE ai_assists ADD COLUMN bug_verdict TEXT")
     if assist_cols and "verdict_note" not in assist_cols:
         conn.execute("ALTER TABLE ai_assists ADD COLUMN verdict_note TEXT")
+    # Temporal awareness: track each sitting's last activity (to reuse/measure it).
+    # Additive; NULL on legacy rows.
+    session_cols = {r["name"] for r in conn.execute("PRAGMA table_info(sessions)")}
+    if session_cols and "last_active" not in session_cols:
+        conn.execute("ALTER TABLE sessions ADD COLUMN last_active TEXT")
     # Canvas artifacts (per-user). Additive: create the table on databases made by a
     # version that predates the Scriptorium. `init_db` also runs the CREATE from schema.sql,
     # so this is a belt-and-braces guard that keeps _migrate self-contained.

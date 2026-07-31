@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ekalavya · Bhil Forest / Pithora — Design Playground B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Display: Fraunces (soft-serif, folk-carved feel) · Body: Spectral · Devanagari: Baloo 2 (rounded, folk) + Tiro Devanagari Hindi (refined) · Mono: Spline Sans Mono -->
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,900;1,9..144,500&family=Spectral:ital,wght@0,400;0,500;0,600;1,400&family=Baloo+2:wght@500;600;700;800&family=Tiro+Devanagari+Hindi:ital@0;1&family=Spline+Sans+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   EKALAVYA — Bhil Forest / Pithora Folk-Art
+   Design tokens
+   ============================================================ */
+:root{
+  /* ---- earth & forest base ---- */
+  --night:      #171a1e;   /* deep charred bark, near-black-green */
+  --night-2:    #1f242a;   /* raised panels */
+  --bark:       #2a2117;   /* warm brown-black */
+  --loam:       #3a2c1c;   /* soil / raised card on paper */
+  --indigo:     #1b2a4a;   /* indigo night sky */
+  --indigo-2:   #24386a;
+
+  /* ---- Pithora paper (light surfaces) ---- */
+  --paper:      #e9dcc0;   /* the classic ochre-lime mud wall */
+  --paper-2:    #ddceac;   /* deeper wall */
+  --paper-edge: #c9b489;
+  --ink:        #2c2113;   /* brown ink (never pure black) */
+  --ink-soft:   #5a4a34;
+
+  /* ---- Pithora pigments ---- */
+  --gold:       #d9a41a;   /* GOLD LEAF — mastery, earned, precious/sparse */
+  --gold-deep:  #b47e0c;
+  --gold-glow:  #f2c94c;
+  --vermilion:  #c0341d;   /* sindoor — danger / loss */
+  --vermilion-2:#e0512e;
+  --teal:       #1f8a7a;   /* peacock teal — info / unlocked */
+  --teal-lit:   #34b8a0;
+  --forest:     #2f6b3c;   /* deep forest green */
+  --forest-lit: #4f9a5a;
+  --terracotta: #a8482a;   /* clay statue */
+  --clay:       #b9764a;
+  --white-dot:  #f4ecd8;   /* the fine white dotwork */
+  --peacock-blue:#245a8f;
+
+  --r-lg: 22px;
+  --r-md: 14px;
+  --r-sm: 9px;
+  --shadow-carve: 0 2px 0 rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.45);
+  --shadow-soft: 0 10px 30px rgba(0,0,0,.35);
+
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Spectral", Georgia, serif;
+  --font-deva: "Tiro Devanagari Hindi", serif;
+  --font-deva-round: "Baloo 2", sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:var(--font-body);
+  color:#e8dcc4;
+  background:
+    radial-gradient(1200px 700px at 12% -8%, #223a2b 0%, transparent 60%),
+    radial-gradient(1100px 800px at 100% 0%, #1c2540 0%, transparent 55%),
+    linear-gradient(180deg, #14171b 0%, #12140f 55%, #171208 100%);
+  background-attachment:fixed;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* subtle forest-earth grain everywhere */
+body::before{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+  mix-blend-mode:overlay;
+}
+
+.wrap{position:relative;z-index:1;max-width:1180px;margin:0 auto;padding:0 22px 120px}
+
+/* ============ dotwork divider (Pithora signature) ============ */
+.dotrow{height:16px;background-image:radial-gradient(var(--gold) 1.6px, transparent 1.9px);
+  background-size:13px 13px;background-position:center;opacity:.55;margin:8px 0}
+hr.thread{border:none;height:2px;margin:0;
+  background:repeating-linear-gradient(90deg,var(--gold) 0 7px,transparent 7px 15px);opacity:.4}
+
+/* =================== SECTIONS =================== */
+section{margin:70px 0}
+.sec-head{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.sec-num{font-family:var(--font-mono);color:var(--gold);font-size:.8rem;letter-spacing:.28em;
+  border:1px solid rgba(217,164,26,.4);border-radius:40px;padding:4px 12px}
+.sec-head h2{font-family:var(--font-display);font-weight:900;font-size:clamp(1.6rem,3.4vw,2.5rem);
+  margin:0;color:#f3e6c8;letter-spacing:-.01em;font-optical-sizing:auto}
+.sec-head .deva{font-family:var(--font-deva);color:var(--gold);font-size:1.5rem;opacity:.9}
+.sec-note{color:#c3b291;max-width:70ch;margin:6px 0 26px;font-size:1.02rem}
+.cap{font-family:var(--font-mono);font-size:.72rem;letter-spacing:.04em;color:#a89670;margin-top:9px}
+.cap b{color:var(--gold);font-weight:600}
+
+/* =================== HERO =================== */
+.hero{position:relative;margin-top:34px;border-radius:var(--r-lg);overflow:hidden;
+  border:1px solid rgba(217,164,26,.3);box-shadow:var(--shadow-carve);
+  background:linear-gradient(180deg,#12261b 0%, #10203a 65%, #1a1305 100%)}
+.hero-canvas{display:block;width:100%;height:auto}
+.hero-txt{position:absolute;left:clamp(20px,4vw,54px);top:50%;transform:translateY(-50%);max-width:min(560px,60%)}
+.hero-kicker{font-family:var(--font-mono);letter-spacing:.34em;font-size:.7rem;color:var(--gold-glow);text-transform:uppercase}
+.hero h1{font-family:var(--font-display);font-weight:900;font-size:clamp(2.6rem,7vw,5rem);line-height:.92;
+  margin:.12em 0 .1em;color:#f6ead0;text-shadow:0 3px 0 rgba(0,0,0,.4)}
+.hero h1 em{font-style:italic;font-weight:500;color:var(--gold-glow)}
+.hero .deva-sub{font-family:var(--font-deva);font-size:clamp(1.1rem,2.4vw,1.7rem);color:#e7c876}
+.hero p{color:#d6c7a3;font-size:1.02rem;max-width:44ch}
+.hero-tags{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.hero-tags span{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.06em;
+  padding:5px 11px;border-radius:30px;border:1px solid rgba(244,236,216,.22);color:#e3d4b1;background:rgba(0,0,0,.25)}
+
+/* =================== PALETTE =================== */
+.pal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px}
+.swatch{border-radius:var(--r-md);overflow:hidden;border:1px solid rgba(255,255,255,.09);background:var(--night-2);
+  box-shadow:var(--shadow-soft)}
+.swatch .chip{height:82px;position:relative}
+.swatch .chip .dots{position:absolute;inset:0;
+  background-image:radial-gradient(rgba(255,255,255,.5) 1px,transparent 1.4px);background-size:9px 9px;opacity:.14}
+.swatch .meta{padding:10px 12px}
+.swatch .meta b{font-family:var(--font-display);font-weight:600;font-size:.98rem;color:#f0e3c6;display:block}
+.swatch .meta code{font-family:var(--font-mono);font-size:.68rem;color:#9f8d68}
+.swatch .meta p{font-size:.78rem;color:#b7a684;margin:5px 0 0;line-height:1.35}
+
+/* =================== CARDS / PANELS =================== */
+.grid{display:grid;gap:18px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.panel{background:linear-gradient(180deg,var(--night-2),#191d22);border:1px solid rgba(217,164,26,.16);
+  border-radius:var(--r-lg);padding:22px;box-shadow:var(--shadow-soft);position:relative}
+
+/* paper card variant (Pithora wall) */
+.paper{background:
+    radial-gradient(120% 120% at 20% 0%, #efe2c6 0%, var(--paper) 45%, var(--paper-2) 100%);
+  color:var(--ink);border:1px solid var(--paper-edge);border-radius:var(--r-lg);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.25), var(--shadow-carve);position:relative;overflow:hidden}
+.paper::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.08'/%3E%3C/svg%3E");
+  mix-blend-mode:multiply}
+
+/* =================== TYPE SPECIMENS =================== */
+.type-row{border-bottom:1px dashed rgba(217,164,26,.22);padding:20px 0}
+.type-row:last-child{border-bottom:none}
+.type-label{font-family:var(--font-mono);font-size:.68rem;letter-spacing:.16em;color:#a89670;text-transform:uppercase}
+.big-num{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;
+  font-size:clamp(2.4rem,7vw,4.2rem);color:var(--gold);letter-spacing:.02em;line-height:1}
+.big-num small{font-family:var(--font-body);font-size:1rem;color:#b7a684;letter-spacing:0}
+
+/* =================== BUTTONS =================== */
+.btn{font-family:var(--font-display);font-weight:600;font-size:.95rem;border:none;cursor:pointer;
+  padding:11px 20px;border-radius:40px;letter-spacing:.01em;display:inline-flex;align-items:center;gap:9px;
+  transition:transform .12s ease, box-shadow .2s ease, filter .2s}
+.btn:active{transform:translateY(1px)}
+.btn svg{width:18px;height:18px}
+.btn-gold{background:linear-gradient(180deg,var(--gold-glow),var(--gold-deep));color:#2a1c02;
+  box-shadow:0 2px 0 #7d5605, 0 8px 20px rgba(217,164,26,.28)}
+.btn-gold:hover{filter:brightness(1.06);box-shadow:0 2px 0 #7d5605, 0 10px 26px rgba(242,201,76,.42)}
+.btn-teal{background:linear-gradient(180deg,var(--teal-lit),var(--teal));color:#04231e;box-shadow:0 2px 0 #0c4a41}
+.btn-ghost{background:transparent;color:#eadcbc;border:1.5px solid rgba(217,164,26,.5)}
+.btn-ghost:hover{background:rgba(217,164,26,.1)}
+.btn-danger{background:linear-gradient(180deg,var(--vermilion-2),var(--vermilion));color:#fff2ec;box-shadow:0 2px 0 #7a1f10}
+
+.field{width:100%;font-family:var(--font-body);font-size:.98rem;color:#f0e3c6;background:#14181d;
+  border:1.5px solid rgba(217,164,26,.28);border-radius:var(--r-md);padding:12px 14px;outline:none;transition:border .18s,box-shadow .18s}
+.field::placeholder{color:#7e7150}
+.field:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(217,164,26,.16)}
+
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:.7rem;
+  letter-spacing:.05em;padding:4px 11px;border-radius:30px;border:1px solid transparent}
+.pill.gold{color:var(--gold-glow);border-color:rgba(217,164,26,.5);background:rgba(217,164,26,.09)}
+.pill.teal{color:var(--teal-lit);border-color:rgba(52,184,160,.5);background:rgba(31,138,122,.12)}
+.pill.verm{color:var(--vermilion-2);border-color:rgba(224,81,46,.5);background:rgba(192,52,29,.12)}
+.pill.mut{color:#a89670;border-color:rgba(168,150,112,.4)}
+
+/* =================== HUD RIBBON =================== */
+.hud{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  background:linear-gradient(180deg,#20160a,#160f06);border:1px solid rgba(217,164,26,.34);
+  border-radius:60px;padding:12px 20px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),var(--shadow-carve)}
+.hud .avatar{width:52px;height:52px;border-radius:50%;flex:none;border:2px solid var(--gold);
+  background:radial-gradient(circle at 40% 35%,#2f6b3c,#123018);display:grid;place-items:center;box-shadow:0 0 16px rgba(217,164,26,.35)}
+.hud .who b{font-family:var(--font-display);font-weight:700;color:#f4e7c8;font-size:1.02rem;display:block;line-height:1.1}
+.hud .who span{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;color:var(--gold);text-transform:uppercase}
+.hud .stat{display:flex;flex-direction:column;align-items:center;min-width:56px}
+.hud .stat .n{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:1.25rem;color:#f0e3c6}
+.hud .stat .l{font-family:var(--font-mono);font-size:.58rem;letter-spacing:.12em;color:#9f8d68;text-transform:uppercase}
+.hud .stat.gold .n{color:var(--gold-glow)}
+.hud .sep{width:1px;height:34px;background:rgba(217,164,26,.25)}
+
+/* =================== XP BOWSTRING =================== */
+.bow-wrap{display:flex;flex-direction:column;gap:6px}
+.bow-meta{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:.72rem;color:#b7a684}
+.bow-meta b{color:var(--gold-glow)}
+
+/* =================== STREAK =================== */
+.streak{display:flex;gap:9px;align-items:flex-end}
+.flame{width:26px;text-align:center}
+.flame.on svg{filter:drop-shadow(0 0 6px rgba(242,201,76,.6))}
+.flame .d{font-family:var(--font-mono);font-size:.58rem;color:#8f7f5c;margin-top:2px}
+
+/* =================== ACHIEVEMENT TOAST =================== */
+.toast{display:flex;align-items:center;gap:14px;background:linear-gradient(180deg,#241a0b,#1a1207);
+  border:1px solid var(--gold);border-radius:16px;padding:14px 18px;max-width:420px;
+  box-shadow:0 0 0 1px rgba(217,164,26,.3),0 18px 40px rgba(0,0,0,.5)}
+.toast .badge{width:56px;height:56px;flex:none}
+.toast .tt b{font-family:var(--font-display);font-weight:700;color:var(--gold-glow);display:block;font-size:1.05rem}
+.toast .tt span{font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;color:#b39a5f;text-transform:uppercase}
+.toast .tt p{margin:4px 0 0;font-size:.86rem;color:#cbb98f}
+
+/* =================== LEVEL-UP CEREMONY =================== */
+.ceremony{position:relative;text-align:center;padding:40px 24px;border-radius:var(--r-lg);overflow:hidden;
+  background:radial-gradient(120% 120% at 50% 120%, #3a2408 0%, #1b1305 55%, #100c04 100%);
+  border:1px solid rgba(242,201,76,.4)}
+.ceremony .rays{position:absolute;inset:-40%;background:
+    repeating-conic-gradient(from 0deg,rgba(242,201,76,.12) 0deg 6deg,transparent 6deg 12deg);
+  animation:spin 40s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ceremony .inner{position:relative}
+.ceremony .flair{font-family:var(--font-mono);letter-spacing:.34em;font-size:.7rem;color:var(--gold-glow);text-transform:uppercase}
+.ceremony h3{font-family:var(--font-display);font-weight:900;font-size:clamp(2rem,5vw,3.2rem);margin:.1em 0;color:#ffedb8;
+  text-shadow:0 0 24px rgba(242,201,76,.5)}
+.ceremony .deva{font-family:var(--font-deva);font-size:1.6rem;color:#f2c94c}
+.ceremony .lvl{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-size:1rem;color:#e7d4a2;margin-top:10px}
+
+/* =================== LOSS SCREEN =================== */
+.loss{position:relative;text-align:center;padding:44px 24px;border-radius:var(--r-lg);overflow:hidden;
+  background:radial-gradient(120% 120% at 50% -20%, #3a0f08 0%, #1a0d0a 55%, #100807 100%);
+  border:1px solid rgba(192,52,29,.5)}
+.loss .flair{font-family:var(--font-mono);letter-spacing:.34em;font-size:.7rem;color:var(--vermilion-2);text-transform:uppercase}
+.loss h3{font-family:var(--font-display);font-weight:900;font-style:italic;font-size:clamp(1.9rem,5vw,3rem);margin:.12em 0;color:#f0c9bd}
+.loss .deva{font-family:var(--font-deva);font-size:1.4rem;color:#e0512e}
+.loss p{color:#d3b3a8;max-width:46ch;margin:10px auto 20px}
+
+/* =================== EMPTY STATE =================== */
+.empty{text-align:center;padding:40px 24px}
+.empty svg{width:120px;height:120px;opacity:.9}
+.empty h4{font-family:var(--font-display);font-weight:700;color:#eadcbc;font-size:1.3rem;margin:10px 0 4px}
+.empty p{color:#b7a684;max-width:40ch;margin:0 auto 18px}
+
+/* =================== FOREST MAP =================== */
+.mapframe{border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(217,164,26,.3);box-shadow:var(--shadow-carve)}
+.mapframe svg{display:block;width:100%;height:auto}
+
+/* =================== TRACK VIEW =================== */
+.track-node{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border-radius:var(--r-md);
+  border:1px solid rgba(217,164,26,.16);background:linear-gradient(180deg,#1e2329,#191d22);margin-bottom:10px;position:relative}
+.track-node.done{border-color:rgba(217,164,26,.5);background:linear-gradient(180deg,#241a0b,#1a1408)}
+.track-node.active{border-color:var(--teal);box-shadow:0 0 0 1px rgba(52,184,160,.35)}
+.track-node.locked{opacity:.55}
+.track-node .ic{width:42px;height:42px;flex:none}
+.track-node b{font-family:var(--font-display);font-weight:600;color:#f0e3c6;font-size:1rem;display:block}
+.track-node p{margin:3px 0 0;font-size:.84rem;color:#b7a684}
+
+/* =================== HEATMAP =================== */
+.heat{display:grid;grid-template-columns:repeat(26,1fr);gap:5px}
+.heat .cell{aspect-ratio:1;border-radius:4px;background:#20242a;border:1px solid rgba(255,255,255,.03)}
+
+/* =================== CHAT / EDITOR MOCK =================== */
+.appwin{border-radius:var(--r-lg);overflow:hidden;border:1px solid rgba(217,164,26,.28);box-shadow:var(--shadow-carve);
+  background:#14171b}
+.appbar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:linear-gradient(180deg,#20160a,#181008);
+  border-bottom:1px solid rgba(217,164,26,.22)}
+.appbar .brand{font-family:var(--font-display);font-weight:900;color:var(--gold-glow);letter-spacing:.02em}
+.appbar .brand .deva{font-family:var(--font-deva);color:#e7c876;font-weight:400;font-size:.9em;margin-left:6px}
+.dot3{display:flex;gap:6px;margin-left:auto}
+.dot3 i{width:10px;height:10px;border-radius:50%;display:block}
+
+.chat{display:grid;grid-template-columns:1.05fr 1fr;min-height:420px}
+.chatcol{padding:18px;display:flex;flex-direction:column;gap:12px;background:
+    radial-gradient(140% 120% at 0% 0%,#182a1e 0%,transparent 55%),#14171b;overflow:hidden}
+.msg{max-width:88%;padding:11px 15px;border-radius:16px;font-size:.92rem;line-height:1.5}
+.msg.guru{align-self:flex-start;background:linear-gradient(180deg,#23190c,#1c1409);border:1px solid rgba(217,164,26,.3);color:#eadcbc;border-bottom-left-radius:4px}
+.msg.you{align-self:flex-end;background:linear-gradient(180deg,#173129,#123024);border:1px solid rgba(52,184,160,.3);color:#dcefe6;border-bottom-right-radius:4px}
+.msg .nm{font-family:var(--font-mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;display:block;margin-bottom:5px;opacity:.8}
+.msg.guru .nm{color:var(--gold)}
+.msg.you .nm{color:var(--teal-lit)}
+.editorcol{background:#0e1114;border-left:1px solid rgba(217,164,26,.18);display:flex;flex-direction:column}
+.edtop{display:flex;align-items:center;gap:8px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.06);
+  font-family:var(--font-mono);font-size:.72rem;color:#9f8d68}
+.edtop .tab{padding:3px 10px;border-radius:6px 6px 0 0;background:#151a1f;color:#cdbf9c;border:1px solid rgba(255,255,255,.06);border-bottom:none}
+pre.code{margin:0;padding:16px;font-family:var(--font-mono);font-size:.8rem;line-height:1.7;color:#cdbf9c;overflow:auto;flex:1}
+.code .k{color:#e0512e}.code .f{color:var(--gold-glow)}.code .s{color:var(--teal-lit)}.code .c{color:#6f6244;font-style:italic}.code .n{color:#c9a2ff}
+.edbar{display:flex;align-items:center;gap:10px;padding:10px 14px;border-top:1px solid rgba(255,255,255,.06)}
+.composer{display:flex;gap:10px;align-items:center;margin-top:auto}
+.composer .field{border-radius:40px}
+
+/* =================== DASHBOARD MOCK =================== */
+.dash{display:grid;grid-template-columns:1fr;gap:16px}
+.statcard{padding:18px;border-radius:var(--r-md);border:1px solid rgba(217,164,26,.18);
+  background:linear-gradient(180deg,#1f242a,#191d22);display:flex;flex-direction:column;gap:4px}
+.statcard .n{font-family:var(--font-mono);font-weight:600;font-variant-numeric:tabular-nums;font-size:2rem;color:var(--gold)}
+.statcard .l{font-family:var(--font-mono);font-size:.64rem;letter-spacing:.12em;color:#9f8d68;text-transform:uppercase}
+.statcard.teal .n{color:var(--teal-lit)}
+.statcard.verm .n{color:var(--vermilion-2)}
+
+/* =================== MOBILE FRAMES =================== */
+.phones{display:flex;gap:26px;flex-wrap:wrap;justify-content:center}
+.phone{width:300px;border-radius:34px;padding:11px;background:#0a0c0e;border:1px solid rgba(217,164,26,.28);
+  box-shadow:var(--shadow-carve);flex:none}
+.phone .screen{border-radius:26px;overflow:hidden;background:#14171b;position:relative;height:600px;display:flex;flex-direction:column}
+.phone .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#0a0c0e;border-radius:0 0 14px 14px;z-index:5}
+.msc{flex:1;overflow:hidden;padding:14px;display:flex;flex-direction:column;gap:10px}
+.mtabs{display:flex;justify-content:space-around;align-items:center;padding:10px 6px 12px;
+  background:linear-gradient(180deg,#181008,#100b05);border-top:1px solid rgba(217,164,26,.28)}
+.mtab{display:flex;flex-direction:column;align-items:center;gap:3px;font-family:var(--font-mono);font-size:.54rem;
+  letter-spacing:.08em;color:#8f7f5c;text-transform:uppercase}
+.mtab svg{width:22px;height:22px}
+.mtab.on{color:var(--gold-glow)}
+.mtab.on svg{filter:drop-shadow(0 0 6px rgba(242,201,76,.5))}
+.mhud{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:40px;
+  background:linear-gradient(180deg,#20160a,#160f06);border:1px solid rgba(217,164,26,.32)}
+.mhud .av{width:34px;height:34px;border-radius:50%;border:2px solid var(--gold);flex:none;
+  background:radial-gradient(circle at 40% 35%,#2f6b3c,#123018)}
+
+/* footer */
+.foot{text-align:center;color:#8f7f5c;font-family:var(--font-mono);font-size:.72rem;margin-top:60px;letter-spacing:.06em}
+
+/* ================ RESPONSIVE ================ */
+@media(max-width:820px){
+  .g2,.g3{grid-template-columns:1fr}
+  .chat{grid-template-columns:1fr}
+  .editorcol{border-left:none;border-top:1px solid rgba(217,164,26,.18)}
+  .hero-txt{position:static;transform:none;max-width:100%;padding:26px 22px}
+  .hero-canvas{opacity:.55;position:absolute;inset:0;height:100%;object-fit:cover}
+  .hero{display:block}
+  .heat{grid-template-columns:repeat(20,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <svg class="hero-canvas" viewBox="0 0 1180 460" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pithora forest scene: Ekalavya before the clay statue of Drona">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#12261b"/><stop offset="0.5" stop-color="#132444"/><stop offset="1" stop-color="#1a1305"/>
+      </linearGradient>
+      <radialGradient id="moon" cx="50%" cy="50%" r="50%">
+        <stop offset="0" stop-color="#f7e9bd"/><stop offset="1" stop-color="#d9a41a"/>
+      </radialGradient>
+      <pattern id="dotfield" width="14" height="14" patternUnits="userSpaceOnUse">
+        <circle cx="7" cy="7" r="1.3" fill="#f4ecd8" opacity="0.22"/>
+      </pattern>
+    </defs>
+    <rect width="1180" height="460" fill="url(#sky)"/>
+    <rect width="1180" height="460" fill="url(#dotfield)"/>
+    <!-- sun/moon -->
+    <circle cx="965" cy="120" r="58" fill="url(#moon)"/>
+    <g stroke="#f2c94c" stroke-width="3" opacity="0.7">
+      <line x1="965" y1="30" x2="965" y2="48"/><line x1="965" y1="192" x2="965" y2="210"/>
+      <line x1="875" y1="120" x2="893" y2="120"/><line x1="1037" y1="120" x2="1055" y2="120"/>
+      <line x1="905" y1="60" x2="918" y2="73"/><line x1="1012" y1="167" x2="1025" y2="180"/>
+      <line x1="1025" y1="60" x2="1012" y2="73"/><line x1="918" y1="167" x2="905" y2="180"/>
+    </g>
+    <!-- Pithora sacred horse silhouette, faint, upper-left -->
+    <g transform="translate(120,90)" opacity="0.5" fill="none" stroke="#d9a41a" stroke-width="2.5">
+      <path d="M0,40 C10,10 40,6 55,18 C60,4 72,2 78,10 C74,18 72,22 76,26 C92,24 104,34 104,50 L98,50 C98,40 88,36 80,40 L82,64 L74,64 L72,44 C60,50 40,50 30,44 L34,64 L26,64 L24,46 C10,50 4,46 0,40 Z"/>
+      <circle cx="70" cy="14" r="1.6" fill="#d9a41a" stroke="none"/>
+    </g>
+    <!-- forest trees (Pithora tree-of-life motifs) -->
+    <g stroke="#4f9a5a" stroke-width="4" fill="none" opacity="0.9">
+      <g transform="translate(70,300)">
+        <line x1="0" y1="0" x2="0" y2="120"/>
+        <path d="M0,20 C-30,10 -40,-14 -34,-34 M0,20 C30,10 40,-14 34,-34 M0,50 C-26,42 -34,24 -30,6 M0,50 C26,42 34,24 30,6"/>
+        <circle cx="-34" cy="-34" r="8" fill="#d9a41a" stroke="none"/><circle cx="34" cy="-34" r="8" fill="#c0341d" stroke="none"/>
+        <circle cx="0" cy="-16" r="9" fill="#1f8a7a" stroke="none"/>
+      </g>
+      <g transform="translate(1080,320)">
+        <line x1="0" y1="0" x2="0" y2="110"/>
+        <path d="M0,10 C-26,2 -34,-18 -30,-36 M0,10 C26,2 34,-18 30,-36 M0,40 C-22,34 -30,18 -26,2 M0,40 C22,34 30,18 26,2"/>
+        <circle cx="-30" cy="-36" r="7" fill="#f2c94c" stroke="none"/><circle cx="30" cy="-36" r="7" fill="#1f8a7a" stroke="none"/>
+      </g>
+    </g>
+    <!-- clay STATUE OF DRONA on a plinth, center-right -->
+    <g transform="translate(770,215)">
+      <rect x="-46" y="150" width="92" height="26" rx="4" fill="#7a4a2c"/>
+      <rect x="-38" y="120" width="76" height="34" rx="3" fill="#8a5433"/>
+      <!-- statue figure, terracotta, dotwork robe -->
+      <path d="M0,10 C-24,10 -34,34 -32,60 L-30,120 L30,120 L32,60 C34,34 24,10 0,10 Z" fill="#a8482a"/>
+      <circle cx="0" cy="-8" r="20" fill="#b9764a"/>
+      <path d="M-20,-14 C-14,-30 14,-30 20,-14" fill="none" stroke="#7a4a2c" stroke-width="4"/><!-- topknot/turban -->
+      <!-- dotwork on robe -->
+      <g fill="#f4ecd8" opacity="0.7">
+        <circle cx="-14" cy="46" r="1.6"/><circle cx="0" cy="42" r="1.6"/><circle cx="14" cy="46" r="1.6"/>
+        <circle cx="-18" cy="70" r="1.6"/><circle cx="-6" cy="66" r="1.6"/><circle cx="6" cy="66" r="1.6"/><circle cx="18" cy="70" r="1.6"/>
+        <circle cx="-14" cy="94" r="1.6"/><circle cx="0" cy="90" r="1.6"/><circle cx="14" cy="94" r="1.6"/>
+      </g>
+      <!-- guru's raised hand / bow held out -->
+      <path d="M28,40 C46,32 52,44 44,58" fill="none" stroke="#a8482a" stroke-width="8" stroke-linecap="round"/>
+    </g>
+    <!-- Ekalavya, lone learner, drawing a bow, facing the statue -->
+    <g transform="translate(470,300)">
+      <!-- body -->
+      <path d="M0,0 C-16,0 -22,18 -20,38 L-18,86 L18,86 L20,38 C22,18 16,0 0,0 Z" fill="#2f6b3c"/>
+      <circle cx="0" cy="-14" r="14" fill="#b9764a"/>
+      <!-- dotwork -->
+      <g fill="#f4ecd8" opacity="0.7"><circle cx="-8" cy="30" r="1.4"/><circle cx="8" cy="30" r="1.4"/><circle cx="0" cy="52" r="1.4"/><circle cx="-10" cy="66" r="1.4"/><circle cx="10" cy="66" r="1.4"/></g>
+      <!-- bow arms drawing an arrow toward statue -->
+      <path d="M60,-40 C96,-6 96,40 60,74" fill="none" stroke="#d9a41a" stroke-width="4"/>
+      <line x1="60" y1="-40" x2="60" y2="74" stroke="#f4ecd8" stroke-width="1.4"/>
+      <line x1="12" y1="17" x2="120" y2="17" stroke="#f2c94c" stroke-width="2.5"/>
+      <path d="M120,17 l-10,-5 l0,10 z" fill="#f2c94c"/>
+      <!-- front & back arm -->
+      <path d="M8,20 L58,17" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+      <path d="M-2,20 L14,17" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+    </g>
+    <!-- ground line with dotwork -->
+    <rect x="0" y="430" width="1180" height="30" fill="#1a1305"/>
+    <g fill="#d9a41a" opacity="0.5"><circle cx="40" cy="436" r="1.4"/><circle cx="120" cy="436" r="1.4"/><circle cx="200" cy="436" r="1.4"/><circle cx="280" cy="436" r="1.4"/><circle cx="360" cy="436" r="1.4"/><circle cx="440" cy="436" r="1.4"/><circle cx="520" cy="436" r="1.4"/><circle cx="600" cy="436" r="1.4"/><circle cx="680" cy="436" r="1.4"/><circle cx="760" cy="436" r="1.4"/><circle cx="840" cy="436" r="1.4"/><circle cx="920" cy="436" r="1.4"/><circle cx="1000" cy="436" r="1.4"/><circle cx="1080" cy="436" r="1.4"/><circle cx="1160" cy="436" r="1.4"/></g>
+  </svg>
+  <div class="hero-txt">
+    <div class="hero-kicker">Design Direction B · Bhil Forest / Pithora</div>
+    <h1>Ekalavya<em>.</em></h1>
+    <div class="deva-sub">स्वाध्याय · साधना · सिद्धि</div>
+    <p>The self-taught outsider, alone in the forest, mastering the craft before the clay statue of the teacher who turned him away. An AI coding tutor rendered in Bhil Pithora folk-art.</p>
+    <div class="hero-tags"><span>forest &amp; earth</span><span>gold = mastery, earned</span><span>dotwork texture</span><span>no AI-dashboard</span></div>
+  </div>
+</header>
+
+<div class="dotrow"></div>
+
+<!-- ============================ 1. PALETTE ============================ -->
+<section id="palette">
+  <div class="sec-head"><span class="sec-num">01</span><h2>Palette &amp; Rationale</h2><span class="deva">रंग</span></div>
+  <p class="sec-note">Pigments ground on a mud-wall ochre. Gold is the <b>precious, earned</b> colour — used sparsely for mastery only, never as chrome. Vermilion sindoor marks loss. Peacock teal is the calm "unlocked / info" voice. Everything else is forest and earth, so gold actually feels rare when it appears.</p>
+  <div class="pal-grid">
+    <div class="swatch"><div class="chip" style="background:#1b2a4a"><div class="dots"></div></div><div class="meta"><b>Indigo Night</b><code>#1B2A4A</code><p>The sky Ekalavya trains under. Deep ground for panels.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:linear-gradient(180deg,#f2c94c,#b47e0c)"><div class="dots"></div></div><div class="meta"><b>Gold Leaf</b><code>#D9A41A</code><p>Mastery / earned / primary. Precious &amp; sparse — the reward colour.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#c0341d"><div class="dots"></div></div><div class="meta"><b>Vermilion Sindoor</b><code>#C0341D</code><p>Danger, failed aim, loss. The sacrificed thumb.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#1f8a7a"><div class="dots"></div></div><div class="meta"><b>Peacock Teal</b><code>#1F8A7A</code><p>Info / unlocked / active path. The calm second voice.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#2f6b3c"><div class="dots"></div></div><div class="meta"><b>Forest Green</b><code>#2F6B3C</code><p>The grove. Progress, growth, the living skill-tree.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#a8482a"><div class="dots"></div></div><div class="meta"><b>Terracotta / Clay</b><code>#A8482A</code><p>The statue of Drona. Illustration + warm accents.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#e9dcc0"><div class="dots"></div></div><div class="meta"><b>Mud-Wall Paper</b><code>#E9DCC0</code><p>The Pithora surface. Light cards, receipts, scrolls.</p></div></div>
+    <div class="swatch"><div class="chip" style="background:#171a1e"><div class="dots"></div></div><div class="meta"><b>Charred Bark</b><code>#171A1E</code><p>App night ground. Warm-black, never pure #000.</p></div></div>
+  </div>
+</section>
+
+<!-- ============================ 2. TYPE ============================ -->
+<section id="type">
+  <div class="sec-head"><span class="sec-num">02</span><h2>Type Specimens</h2><span class="deva">अक्षर</span></div>
+  <p class="sec-note"><b>Fraunces</b> (a soft, slightly wonky old-style serif) is the display voice — carved and human, not a geometric sans. <b>Spectral</b> carries body copy. <b>Tiro Devanagari Hindi</b> gives an authentic, calligraphic script; <b>Baloo 2</b> a rounder folk register. <b>Spline Sans Mono</b> for code &amp; the big gold tabular numerals.</p>
+  <div class="panel">
+    <div class="type-row"><div class="type-label">Display · Fraunces 900 / italic 500</div>
+      <div style="font-family:var(--font-display);font-weight:900;font-size:clamp(2.2rem,6vw,4rem);color:#f3e6c8;line-height:1;letter-spacing:-.015em">The lone <em style="font-weight:500;font-style:italic;color:var(--gold-glow)">learner</em> in the grove</div></div>
+    <div class="type-row"><div class="type-label">Devanagari · Tiro Devanagari Hindi + Baloo 2</div>
+      <div style="font-family:var(--font-deva);font-size:clamp(1.8rem,5vw,3rem);color:#eadcbc;line-height:1.3">स्वाध्याय · साधना · सिद्धि</div>
+      <div style="font-family:var(--font-deva-round);font-weight:700;font-size:1.5rem;color:var(--gold);margin-top:6px">एकलव्य · वन · गुरु</div></div>
+    <div class="type-row"><div class="type-label">Body · Spectral 400 / 600</div>
+      <p style="font-family:var(--font-body);font-size:1.05rem;color:#dccdaa;max-width:64ch;margin:8px 0 0">Ekalavya could not enter the teacher's hall, so he made the forest his classroom and a statue of clay his guru. Every problem you solve here is loosed like an arrow — patiently, alone, until the aim is true.</p></div>
+    <div class="type-row"><div class="type-label">Mono · Spline Sans Mono 500</div>
+      <code style="font-family:var(--font-mono);font-size:.95rem;color:#cdbf9c">def loose(arrow, target): return aim(arrow) == target  # स्वाध्याय</code></div>
+    <div class="type-row"><div class="type-label">Big Gold Tabular Numerals</div>
+      <div style="display:flex;gap:34px;flex-wrap:wrap;align-items:baseline;margin-top:8px">
+        <div class="big-num">14<small> day streak</small></div>
+        <div class="big-num">2,480<small> XP</small></div>
+        <div class="big-num">09<small> / 17 tracks</small></div>
+      </div></div>
+  </div>
+</section>
+
+<!-- ============================ 3. COMPONENTS ============================ -->
+<section id="components">
+  <div class="sec-head"><span class="sec-num">03</span><h2>Component Gallery</h2><span class="deva">अंग</span></div>
+  <p class="sec-note">Buttons carved (2px hard shadow), gold reserved for the single primary action. Cards vary in weight — paper scrolls, night panels, ceremonial surfaces — so hierarchy is felt, not flat.</p>
+
+  <div class="grid g2">
+    <!-- buttons + inputs + pills -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">Buttons · Inputs · Pills</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn btn-gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h12M12 6l6 6-6 6"/></svg>Loose the arrow</button>
+        <button class="btn btn-teal">Continue path</button>
+        <button class="btn btn-ghost">Skip</button>
+        <button class="btn btn-danger">Reset aim</button>
+      </div>
+      <input class="field" placeholder="Type your answer, then draw the bow…" style="margin-bottom:12px"/>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <span class="pill gold">◆ mastered</span><span class="pill teal">○ unlocked</span>
+        <span class="pill verm">✕ missed</span><span class="pill mut">— locked</span>
+      </div>
+    </div>
+
+    <!-- HUD ribbon -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">Character HUD / Ribbon</div>
+      <div class="hud">
+        <div class="avatar"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f2c94c" stroke-width="1.8"><path d="M20 4C14 8 14 16 20 20M20 4v16"/><path d="M20 12H5"/><path d="M5 12l3-2v4z" fill="#f2c94c"/></svg></div>
+        <div class="who"><b>Ekalavya</b><span>Adept · Grove IV</span></div>
+        <div class="sep"></div>
+        <div class="stat gold"><span class="n">2,480</span><span class="l">XP</span></div>
+        <div class="stat"><span class="n">14</span><span class="l">Streak</span></div>
+        <div class="stat"><span class="n">9/17</span><span class="l">Tracks</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <!-- XP BOWSTRING -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:6px">XP · drawn bowstring</div>
+      <div class="bow-meta"><span>Grove IV — Adept</span><span><b>2,480</b> / 3,000 XP</span></div>
+      <svg viewBox="0 0 400 120" style="width:100%;height:auto">
+        <!-- bow limb -->
+        <path d="M40,10 C110,45 110,75 40,110" fill="none" stroke="#b47e0c" stroke-width="7" stroke-linecap="round"/>
+        <path d="M40,10 C110,45 110,75 40,110" fill="none" stroke="#f2c94c" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- full string (empty part) -->
+        <line x1="40" y1="10" x2="40" y2="110" stroke="#5a4a34" stroke-width="2"/>
+        <!-- drawn string = progress: nock pulled to ~83% -->
+        <line x1="40" y1="10" x2="330" y2="60" stroke="#f2c94c" stroke-width="2.5"/>
+        <line x1="40" y1="110" x2="330" y2="60" stroke="#f2c94c" stroke-width="2.5"/>
+        <!-- arrow -->
+        <line x1="330" y1="60" x2="120" y2="60" stroke="#e9dcc0" stroke-width="3"/>
+        <path d="M120,60 l14,-6 l0,12 z" fill="#e0512e"/>
+        <path d="M330,60 l-8,-5 M330,60 l-8,5" stroke="#d9a41a" stroke-width="2"/>
+        <!-- nock -->
+        <circle cx="330" cy="60" r="6" fill="#f2c94c"/>
+        <text x="344" y="64" font-family="Spline Sans Mono" font-size="12" fill="#b7a684">83%</text>
+      </svg>
+      <div class="cap"><b>+520 XP</b> to draw the string full and loose into Grove V.</div>
+    </div>
+
+    <!-- STREAK -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">Streak · fires lit each day</div>
+      <div class="streak">
+        <div class="flame on"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f2c94c"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#e0512e"/></svg><div class="d">M</div></div>
+        <div class="flame on"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f2c94c"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#e0512e"/></svg><div class="d">T</div></div>
+        <div class="flame on"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f2c94c"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#e0512e"/></svg><div class="d">W</div></div>
+        <div class="flame on"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f2c94c"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#e0512e"/></svg><div class="d">T</div></div>
+        <div class="flame on"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#f2c94c"/><path d="M12 12c1 2 3 3 3 6a3 3 0 01-6 0c0-2 1-3 3-6z" fill="#e0512e"/></svg><div class="d">F</div></div>
+        <div class="flame"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#3a3226"/></svg><div class="d">S</div></div>
+        <div class="flame"><svg width="24" height="30" viewBox="0 0 24 30"><path d="M12 2c3 5 8 7 8 14a8 8 0 01-16 0c0-3 1-5 3-7 0 2 1 3 2 3-1-4 1-7 3-10z" fill="#3a3226"/></svg><div class="d">S</div></div>
+        <div style="margin-left:auto;text-align:right"><div class="big-num" style="font-size:2.4rem">14<small></small></div><div class="type-label">day fire</div></div>
+      </div>
+      <div class="cap" style="margin-top:14px">Miss a day and the fire dims to embers — not extinguished. <b>Rekindle within 1 day</b> to keep the grove alight.</div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <!-- ACHIEVEMENT TOAST -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">Achievement unlock · badge stone → gold</div>
+      <div class="toast">
+        <svg class="badge" viewBox="0 0 56 56">
+          <!-- target with arrow thunked in -->
+          <circle cx="28" cy="28" r="24" fill="#20160a" stroke="#d9a41a" stroke-width="2"/>
+          <circle cx="28" cy="28" r="17" fill="none" stroke="#a8482a" stroke-width="3"/>
+          <circle cx="28" cy="28" r="9" fill="none" stroke="#f2c94c" stroke-width="3"/>
+          <circle cx="28" cy="28" r="3" fill="#e0512e"/>
+          <line x1="28" y1="28" x2="52" y2="6" stroke="#e9dcc0" stroke-width="2.4"/>
+          <path d="M52 6l-7 1 3 3z" fill="#e0512e"/>
+        </svg>
+        <div class="tt"><span>Achievement · गुरु-दक्षिणा</span><b>Bullseye Recursion</b><p>Solved 10 recursion katas without a hint. The arrow found its mark.</p></div>
+      </div>
+      <div class="cap" style="margin-top:12px">On unlock the arrow animates a hard <b>"thunk"</b> into the ring and the stone badge floods to gold.</div>
+    </div>
+
+    <!-- LEVEL-UP CEREMONY -->
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div class="type-label" style="padding:22px 22px 0">Level-up ceremony · a grove fire is lit</div>
+      <div class="ceremony" style="margin:14px 22px 22px">
+        <div class="rays"></div>
+        <div class="inner">
+          <div class="flair">The grove blossoms</div>
+          <svg width="70" height="70" viewBox="0 0 70 70" style="margin:4px auto">
+            <path d="M35 66V34" stroke="#7a4a2c" stroke-width="5"/>
+            <circle cx="35" cy="24" r="14" fill="#2f6b3c"/>
+            <circle cx="20" cy="34" r="9" fill="#4f9a5a"/><circle cx="50" cy="34" r="9" fill="#4f9a5a"/>
+            <circle cx="35" cy="24" r="4" fill="#f2c94c"/><circle cx="24" cy="20" r="2.4" fill="#e0512e"/><circle cx="46" cy="20" r="2.4" fill="#e0512e"/><circle cx="35" cy="40" r="2.4" fill="#f2c94c"/>
+          </svg>
+          <h3>Grove V Reached</h3>
+          <div class="deva">साधना फलती है</div>
+          <div class="lvl">ADEPT → ARCHER · +1 quiver slot · new grove unlocked</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <!-- LOSS SCREEN -->
+    <div class="panel" style="padding:0;overflow:hidden">
+      <div class="type-label" style="padding:22px 22px 0">Loss screen · re-themed (not "YOU DIED")</div>
+      <div class="loss" style="margin:14px 22px 22px">
+        <svg width="60" height="60" viewBox="0 0 60 60" style="margin:0 auto 6px">
+          <!-- fallen/broken arrow -->
+          <line x1="8" y1="46" x2="40" y2="30" stroke="#c0341d" stroke-width="3"/>
+          <line x1="44" y1="28" x2="52" y2="24" stroke="#c0341d" stroke-width="3"/>
+          <path d="M8 46l6-3-1 5z" fill="#e0512e"/>
+          <circle cx="30" cy="18" r="13" fill="none" stroke="#c0341d" stroke-width="2" stroke-dasharray="3 4"/>
+        </svg>
+        <div class="flair">The test was failed</div>
+        <h3>Your aim faltered.</h3>
+        <div class="deva">पुण्य पुनः अर्जित करो</div>
+        <p>The arrow flew wide — 3 of 8 checks passed. No shame in the forest; the outsider missed a thousand times before he did not. Steady the bow and loose again.</p>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+          <button class="btn btn-gold">Draw again</button>
+          <button class="btn btn-ghost">See the guru's hint</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:6px">Empty state</div>
+      <div class="empty">
+        <svg viewBox="0 0 120 120">
+          <!-- empty quiver -->
+          <path d="M42 30h36l-6 74a12 12 0 01-24 0z" fill="none" stroke="#5a4a34" stroke-width="3"/>
+          <path d="M42 30h36" stroke="#d9a41a" stroke-width="3"/>
+          <line x1="60" y1="18" x2="60" y2="44" stroke="#3a3226" stroke-width="3"/>
+          <g fill="#d9a41a" opacity="0.5"><circle cx="52" cy="60" r="1.6"/><circle cx="60" cy="66" r="1.6"/><circle cx="68" cy="60" r="1.6"/><circle cx="56" cy="76" r="1.6"/><circle cx="64" cy="76" r="1.6"/></g>
+        </svg>
+        <h4>Your quiver is empty</h4>
+        <p>No practice sessions yet. Choose a grove from the forest map and loose your first arrow.</p>
+        <button class="btn btn-teal">Open the forest map</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUEST BANNER -->
+  <div class="paper" style="margin-top:18px;padding:22px 24px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">
+    <svg width="54" height="54" viewBox="0 0 54 54" style="flex:none">
+      <circle cx="27" cy="27" r="25" fill="#e0d;stroke:none" fill-opacity="0"/>
+      <path d="M27 4l6 14 15 1-11 10 3 15-13-8-13 8 3-15L6 19l15-1z" fill="#d9a41a" stroke="#a8482a" stroke-width="1.5"/>
+    </svg>
+    <div style="flex:1;min-width:200px">
+      <div style="font-family:var(--font-mono);font-size:.66rem;letter-spacing:.18em;color:#a8482a;text-transform:uppercase">Today's quest · दैनिक साधना</div>
+      <div style="font-family:var(--font-display);font-weight:700;font-size:1.4rem;color:#2c2113;line-height:1.15">Fell three bugs in the <em style="font-style:italic;color:#a8482a">Recursion Grove</em></div>
+      <div style="font-family:var(--font-body);color:#5a4a34;font-size:.92rem">Reward: 150 XP · a lit lamp on your map · +1 to the weekly fire.</div>
+    </div>
+    <button class="btn btn-gold" style="flex:none">Accept quest</button>
+  </div>
+</section>
+
+<!-- ============================ 4. FOREST MAP ============================ -->
+<section id="map">
+  <div class="sec-head"><span class="sec-num">04</span><h2>The Forest Map</h2><span class="deva">वन-पथ</span></div>
+  <p class="sec-note">The overview is a <b>legible forest, not a 197-node hairball</b>. The 17 tracks are <b>groves</b> connected by winding paths. A mastered grove is a <b>blossoming tree with a lit lamp</b>; the active one glows teal; locked groves are bare saplings. You see the whole journey at a glance, then walk into one grove to see its nodes.</p>
+  <div class="mapframe">
+    <svg viewBox="0 0 1180 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Forest map of 17 learning groves">
+      <defs>
+        <linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#13251a"/><stop offset="0.6" stop-color="#142033"/><stop offset="1" stop-color="#1a1305"/></linearGradient>
+        <pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f4ecd8" opacity="0.10"/></pattern>
+        <radialGradient id="lamp" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#d9a41a" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="1180" height="620" fill="url(#mapbg)"/>
+      <rect width="1180" height="620" fill="url(#mdot)"/>
+      <!-- winding river/path threads connecting groves -->
+      <path d="M70,530 C220,520 260,420 400,400 C540,380 560,470 700,450 C840,430 860,320 1000,300 C1080,290 1110,220 1120,120"
+            fill="none" stroke="#a8482a" stroke-width="6" stroke-linecap="round" stroke-dasharray="2 14" opacity="0.6"/>
+      <path d="M70,530 C220,520 260,420 400,400 C540,380 560,470 700,450 C840,430 860,320 1000,300"
+            fill="none" stroke="#d9a41a" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 14"/>
+      <!-- branch paths -->
+      <path d="M400,400 C420,300 500,270 560,200" fill="none" stroke="#2f6b3c" stroke-width="4" stroke-dasharray="2 12" opacity="0.7"/>
+      <path d="M700,450 C720,550 800,560 880,520" fill="none" stroke="#2f6b3c" stroke-width="4" stroke-dasharray="2 12" opacity="0.7"/>
+
+      <!-- ==== GROVE glyphs. blossom = done (gold lamp), teal = active, bare = locked ==== -->
+      <!-- helper visual: mastered grove -->
+      <g transform="translate(70,530)">
+        <ellipse cx="0" cy="52" rx="30" ry="7" fill="#000" opacity="0.3"/>
+        <circle cx="0" cy="0" r="46" fill="url(#lamp)" opacity="0.8"/>
+        <path d="M0 34V6" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-6" r="16" fill="#2f6b3c"/><circle cx="-14" cy="6" r="10" fill="#4f9a5a"/><circle cx="14" cy="6" r="10" fill="#4f9a5a"/>
+        <circle cx="0" cy="-6" r="4" fill="#f2c94c"/><circle cx="-10" cy="-2" r="2.4" fill="#e0512e"/><circle cx="10" cy="-2" r="2.4" fill="#f2c94c"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="15" fill="#f0e3c6">Syntax Grove</text>
+        <text x="0" y="82" text-anchor="middle" font-family="Spline Sans Mono" font-size="9.5" fill="#d9a41a">◆ MASTERED · 12/12</text>
+      </g>
+      <g transform="translate(400,400)">
+        <circle cx="0" cy="0" r="44" fill="url(#lamp)" opacity="0.7"/>
+        <path d="M0 34V6" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-6" r="15" fill="#2f6b3c"/><circle cx="-13" cy="5" r="9" fill="#4f9a5a"/><circle cx="13" cy="5" r="9" fill="#4f9a5a"/><circle cx="0" cy="-6" r="4" fill="#f2c94c"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="15" fill="#f0e3c6">Data Structures</text>
+        <text x="0" y="82" text-anchor="middle" font-family="Spline Sans Mono" font-size="9.5" fill="#d9a41a">◆ MASTERED · 14/14</text>
+      </g>
+      <!-- ACTIVE grove (teal glow, half-blossomed) -->
+      <g transform="translate(700,450)">
+        <circle cx="0" cy="0" r="50" fill="none" stroke="#34b8a0" stroke-width="2" stroke-dasharray="4 6" opacity="0.9"/>
+        <circle cx="0" cy="0" r="44" fill="#34b8a0" opacity="0.10"/>
+        <path d="M0 34V4" stroke="#7a4a2c" stroke-width="5"/><circle cx="0" cy="-8" r="15" fill="#2f6b3c"/><circle cx="-13" cy="4" r="8" fill="#1f8a7a"/><circle cx="13" cy="4" r="8" fill="#4f9a5a"/><circle cx="0" cy="-8" r="4" fill="#34b8a0"/>
+        <text x="0" y="66" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="15" fill="#dcefe6">Recursion Grove</text>
+        <text x="0" y="82" text-anchor="middle" font-family="Spline Sans Mono" font-size="9.5" fill="#34b8a0">○ ACTIVE · 6/11</text>
+      </g>
+      <!-- LOCKED groves (bare saplings) -->
+      <g transform="translate(1000,300)" opacity="0.5">
+        <path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/>
+        <text x="0" y="50" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="14" fill="#a89670">Dynamic Prog.</text>
+        <text x="0" y="66" text-anchor="middle" font-family="Spline Sans Mono" font-size="9" fill="#8f7f5c">— LOCKED</text>
+      </g>
+      <g transform="translate(560,200)" opacity="0.5">
+        <path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/>
+        <text x="0" y="50" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="14" fill="#a89670">Graphs</text>
+        <text x="0" y="66" text-anchor="middle" font-family="Spline Sans Mono" font-size="9" fill="#8f7f5c">— LOCKED</text>
+      </g>
+      <g transform="translate(880,520)" opacity="0.5">
+        <path d="M0 30V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6" stroke="#5a4a34" stroke-width="3"/>
+        <text x="0" y="50" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="14" fill="#a89670">Concurrency</text>
+        <text x="0" y="66" text-anchor="middle" font-family="Spline Sans Mono" font-size="9" fill="#8f7f5c">— LOCKED</text>
+      </g>
+      <g transform="translate(1120,120)" opacity="0.5">
+        <path d="M0 26V6" stroke="#5a4a34" stroke-width="4"/><path d="M0 12l-9-7M0 12l9-7" stroke="#5a4a34" stroke-width="3"/>
+        <text x="0" y="46" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="13" fill="#a89670">Systems</text>
+      </g>
+      <!-- statue of Drona watching over the map (top-left) -->
+      <g transform="translate(150,90)" opacity="0.85">
+        <rect x="-26" y="86" width="52" height="14" rx="3" fill="#7a4a2c"/>
+        <path d="M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z" fill="#a8482a"/>
+        <circle cx="0" cy="-6" r="13" fill="#b9764a"/>
+        <g fill="#f4ecd8" opacity="0.7"><circle cx="-8" cy="34" r="1.3"/><circle cx="8" cy="34" r="1.3"/><circle cx="0" cy="52" r="1.3"/><circle cx="-9" cy="66" r="1.3"/><circle cx="9" cy="66" r="1.3"/></g>
+        <text x="0" y="112" text-anchor="middle" font-family="Tiro Devanagari Hindi" font-size="13" fill="#d9a41a">गुरु द्रोण</text>
+      </g>
+      <!-- legend -->
+      <g transform="translate(30,586)" font-family="Spline Sans Mono" font-size="10">
+        <circle cx="6" cy="-3" r="5" fill="#d9a41a"/><text x="16" y="1" fill="#c3b291">mastered grove (lit lamp)</text>
+        <circle cx="216" cy="-3" r="5" fill="#34b8a0"/><text x="226" y="1" fill="#c3b291">active grove</text>
+        <circle cx="356" cy="-3" r="5" fill="#5a4a34"/><text x="366" y="1" fill="#c3b291">locked sapling</text>
+      </g>
+    </svg>
+  </div>
+  <div class="cap"><b>17 groves, one glance.</b> Tap a grove to walk into it — that's the single-track view below. No spaghetti of 197 nodes.</div>
+
+  <!-- SINGLE TRACK VIEW -->
+  <div class="grid g2" style="margin-top:26px;align-items:start">
+    <div>
+      <div style="font-family:var(--font-display);font-weight:700;font-size:1.5rem;color:#dcefe6;margin-bottom:2px">Recursion Grove <span style="font-family:var(--font-deva);color:var(--teal-lit);font-size:1.1rem">— पुनरावर्तन</span></div>
+      <div class="cap" style="margin:0 0 14px"><b>6 / 11 nodes</b> · the active path. A single grove drilled in — a walkable trail, not a web.</div>
+      <div class="track-node done"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#20160a" stroke="#d9a41a" stroke-width="2"/><path d="M13 21l6 6 11-13" fill="none" stroke="#f2c94c" stroke-width="3"/></svg><div><b>What is recursion?</b><p>Base case &amp; the recursive leap. ◆ mastered · 40 XP</p></div></div>
+      <div class="track-node done"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#20160a" stroke="#d9a41a" stroke-width="2"/><path d="M13 21l6 6 11-13" fill="none" stroke="#f2c94c" stroke-width="3"/></svg><div><b>Factorial &amp; the call stack</b><p>Trace the frames by hand. ◆ mastered · 60 XP</p></div></div>
+      <div class="track-node active"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#123024" stroke="#34b8a0" stroke-width="2"/><path d="M17 13l10 8-10 8z" fill="#34b8a0"/></svg><div><b>Tree recursion &amp; memoization <span class="pill teal" style="vertical-align:middle">○ you are here</span></b><p>Fibonacci without the exponential tax. In progress · 5/8 checks</p></div></div>
+      <div class="track-node locked"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#1e2329" stroke="#5a4a34" stroke-width="2"/><rect x="15" y="19" width="12" height="10" rx="2" fill="none" stroke="#5a4a34" stroke-width="2"/><path d="M17 19v-3a4 4 0 018 0v3" fill="none" stroke="#5a4a34" stroke-width="2"/></svg><div><b>Mutual recursion</b><p>Locked — clear the node above to unlock.</p></div></div>
+      <div class="track-node locked"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#1e2329" stroke="#5a4a34" stroke-width="2"/><rect x="15" y="19" width="12" height="10" rx="2" fill="none" stroke="#5a4a34" stroke-width="2"/><path d="M17 19v-3a4 4 0 018 0v3" fill="none" stroke="#5a4a34" stroke-width="2"/></svg><div><b>Tail-call &amp; trampolining</b><p>Locked</p></div></div>
+    </div>
+    <div class="paper" style="padding:22px">
+      <div style="font-family:var(--font-mono);font-size:.64rem;letter-spacing:.16em;color:#a8482a;text-transform:uppercase">Grove reward</div>
+      <div style="font-family:var(--font-display);font-weight:700;font-size:1.3rem;color:#2c2113;margin:2px 0 10px">Clear all 11 to light this grove's lamp</div>
+      <svg viewBox="0 0 300 150" style="width:100%">
+        <path d="M150 130V70" stroke="#7a4a2c" stroke-width="6"/>
+        <circle cx="150" cy="52" r="26" fill="#2f6b3c"/><circle cx="120" cy="72" r="16" fill="#4f9a5a"/><circle cx="180" cy="72" r="16" fill="#4f9a5a"/>
+        <circle cx="150" cy="52" r="6" fill="#d9a41a"/><circle cx="132" cy="48" r="3.4" fill="#c0341d"/><circle cx="168" cy="48" r="3.4" fill="#d9a41a"/><circle cx="150" cy="70" r="3.4" fill="#c0341d"/>
+        <g fill="#a8482a"><circle cx="150" cy="130" r="3"/></g>
+      </svg>
+      <div style="font-family:var(--font-body);color:#5a4a34;font-size:.9rem;text-align:center">+220 XP · a blossoming tree on your forest map · unlocks <b>Dynamic Programming</b>.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 5. HEATMAP + CURVE ============================ -->
+<section id="data">
+  <div class="sec-head"><span class="sec-num">05</span><h2>Practice Data</h2><span class="deva">अभ्यास</span></div>
+  <p class="sec-note">Consistency is drawn as <b>lamps kept burning</b> — a Pithora lamp-grid instead of the generic green squares. The XP curve is a hand-inked line rising through the groves.</p>
+  <div class="grid g2" style="align-items:start">
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">Devotion · lamps lit (last 6 months)</div>
+      <div class="heat" id="heat"></div>
+      <div style="display:flex;gap:12px;align-items:center;margin-top:14px">
+        <span class="type-label">dim</span>
+        <span style="width:14px;height:14px;border-radius:4px;background:#20242a;display:inline-block"></span>
+        <span style="width:14px;height:14px;border-radius:4px;background:#4a3a12;display:inline-block"></span>
+        <span style="width:14px;height:14px;border-radius:4px;background:#8a6410;display:inline-block"></span>
+        <span style="width:14px;height:14px;border-radius:4px;background:#d9a41a;display:inline-block"></span>
+        <span style="width:14px;height:14px;border-radius:4px;background:#f2c94c;box-shadow:0 0 8px #f2c94c;display:inline-block"></span>
+        <span class="type-label">blazing</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="type-label" style="margin-bottom:12px">XP earned · rising through the groves</div>
+      <svg viewBox="0 0 460 220" style="width:100%">
+        <!-- grid -->
+        <g stroke="#2a2f36" stroke-width="1">
+          <line x1="40" y1="20" x2="440" y2="20"/><line x1="40" y1="70" x2="440" y2="70"/><line x1="40" y1="120" x2="440" y2="120"/><line x1="40" y1="170" x2="440" y2="170"/>
+        </g>
+        <g font-family="Spline Sans Mono" font-size="10" fill="#8f7f5c"><text x="6" y="24">3k</text><text x="6" y="124">1.5k</text><text x="10" y="174">0</text></g>
+        <!-- area -->
+        <path d="M40,170 C90,160 120,150 160,120 C200,92 230,100 270,70 C310,44 350,52 400,30 L440,24 L440,170 Z" fill="#d9a41a" opacity="0.10"/>
+        <!-- line (hand-inked) -->
+        <path d="M40,170 C90,160 120,150 160,120 C200,92 230,100 270,70 C310,44 350,52 400,30 L440,24" fill="none" stroke="#f2c94c" stroke-width="3" stroke-linecap="round"/>
+        <!-- grove markers -->
+        <circle cx="160" cy="120" r="5" fill="#d9a41a"/><circle cx="270" cy="70" r="5" fill="#d9a41a"/><circle cx="400" cy="30" r="6" fill="#34b8a0" stroke="#f2c94c" stroke-width="2"/>
+        <g font-family="Spline Sans Mono" font-size="9" fill="#a89670"><text x="140" y="196">Feb</text><text x="250" y="196">Apr</text><text x="380" y="196">Jul</text></g>
+      </svg>
+      <div class="cap"><b>+2,480 XP</b> across 6 groves. The curve steepens each time a lamp is lit.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 6. KEY SCREENS ============================ -->
+<section id="screens">
+  <div class="sec-head"><span class="sec-num">06</span><h2>Key Screens</h2><span class="deva">दृश्य</span></div>
+  <p class="sec-note">Two full mockups. <b>Practice</b> (guru chat + live editor) and the <b>Dashboard</b> (home grove). Gamification is present in-the-moment, not buried on a stats page.</p>
+
+  <!-- PRACTICE -->
+  <div class="appwin" style="margin-bottom:28px">
+    <div class="appbar">
+      <span class="brand">Ekalavya<span class="deva">एकलव्य</span></span>
+      <div class="mhud" style="margin-left:14px;padding:5px 12px"><div class="av" style="width:28px;height:28px"></div><span style="font-family:var(--font-mono);font-size:.66rem;color:#e7c876">Grove IV · <b style="color:#f2c94c">14🔥</b></span></div>
+      <div class="dot3"><i style="background:#c0341d"></i><i style="background:#d9a41a"></i><i style="background:#1f8a7a"></i></div>
+    </div>
+    <div class="chat">
+      <div class="chatcol">
+        <div class="msg guru"><span class="nm">Guru Drona · the clay teacher</span>Your Fibonacci works, but it recomputes the same branch a thousand times. What could you keep beside the bow so you never draw the same arrow twice?</div>
+        <div class="msg you"><span class="nm">You</span>A cache? Memoize the results in a dict keyed by n.</div>
+        <div class="msg guru"><span class="nm">Guru Drona</span>Good aim. Add it — then run the checks. Watch the call count fall.</div>
+        <div style="margin-top:auto">
+          <div class="bow-meta" style="margin-bottom:4px"><span style="font-family:var(--font-mono);font-size:.66rem;color:#a89670">Node XP</span><span style="font-family:var(--font-mono);font-size:.66rem;color:#f2c94c">5/8 checks · +60 on clear</span></div>
+          <div style="height:8px;border-radius:6px;background:#20242a;overflow:hidden"><div style="width:62%;height:100%;background:linear-gradient(90deg,#b47e0c,#f2c94c)"></div></div>
+          <div class="composer" style="margin-top:12px">
+            <input class="field" placeholder="Ask the guru, or describe your approach…"/>
+            <button class="btn btn-gold" style="flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h12M12 6l6 6-6 6"/></svg>Loose</button>
+          </div>
+        </div>
+      </div>
+      <div class="editorcol">
+        <div class="edtop"><span class="tab">fib.py</span><span style="margin-left:auto">python · recursion grove</span></div>
+        <pre class="code"><span class="c"># स्वाध्याय — self-study</span>
+<span class="k">def</span> <span class="f">fib</span>(n, <span class="n">memo</span>={}):
+    <span class="k">if</span> n <span class="k">in</span> memo:
+        <span class="k">return</span> memo[n]
+    <span class="k">if</span> n &lt; <span class="s">2</span>:
+        <span class="k">return</span> n
+    memo[n] = <span class="f">fib</span>(n-<span class="s">1</span>, memo) + <span class="f">fib</span>(n-<span class="s">2</span>, memo)
+    <span class="k">return</span> memo[n]
+
+<span class="c"># calls: 21 → 11  (arrow flew true)</span>
+</pre>
+        <div class="edbar">
+          <span class="pill teal">○ 5/8 checks</span>
+          <span class="pill verm">✕ 3 edge cases</span>
+          <button class="btn btn-teal" style="margin-left:auto;padding:9px 16px">Run checks</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cap" style="margin-bottom:36px"><b>Practice screen.</b> The guru speaks as the clay statue; XP bar lives under the conversation; the editor shows real pass/fail as vermilion vs teal.</div>
+
+  <!-- DASHBOARD -->
+  <div class="appwin">
+    <div class="appbar">
+      <span class="brand">Ekalavya<span class="deva">एकलव्य</span></span>
+      <span style="font-family:var(--font-mono);font-size:.66rem;letter-spacing:.14em;color:#a89670;margin-left:14px">HOME GROVE</span>
+      <div class="dot3"><i style="background:#c0341d"></i><i style="background:#d9a41a"></i><i style="background:#1f8a7a"></i></div>
+    </div>
+    <div style="padding:20px;background:radial-gradient(120% 90% at 100% 0%,#152a1e 0%,transparent 55%),#14171b">
+      <!-- HUD -->
+      <div class="hud" style="margin-bottom:18px">
+        <div class="avatar"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#f2c94c" stroke-width="1.8"><path d="M20 4C14 8 14 16 20 20M20 4v16"/><path d="M20 12H5"/><path d="M5 12l3-2v4z" fill="#f2c94c"/></svg></div>
+        <div class="who"><b>Ekalavya</b><span>Adept · Grove IV</span></div>
+        <div class="sep"></div>
+        <div class="stat gold"><span class="n">2,480</span><span class="l">XP</span></div>
+        <div class="stat"><span class="n">14</span><span class="l">Fire</span></div>
+        <div class="stat"><span class="n">9/17</span><span class="l">Groves</span></div>
+        <div style="flex:1"></div>
+        <button class="btn btn-gold" style="flex:none">Resume Recursion</button>
+      </div>
+      <!-- stat cards + quest -->
+      <div class="grid g3" style="margin-bottom:18px">
+        <div class="statcard"><span class="n">2,480</span><span class="l">Total XP · Grove IV</span></div>
+        <div class="statcard teal"><span class="n">6</span><span class="l">Groves mastered</span></div>
+        <div class="statcard verm"><span class="n">31</span><span class="l">Arrows missed (retry)</span></div>
+      </div>
+      <div class="grid g2" style="align-items:stretch">
+        <div class="paper" style="padding:20px">
+          <div style="font-family:var(--font-mono);font-size:.64rem;letter-spacing:.16em;color:#a8482a;text-transform:uppercase">Today's quest</div>
+          <div style="font-family:var(--font-display);font-weight:700;font-size:1.25rem;color:#2c2113;line-height:1.2;margin:2px 0 8px">Memoize three recursions before dusk</div>
+          <div style="height:9px;border-radius:6px;background:#c9b489;overflow:hidden;margin-bottom:6px"><div style="width:66%;height:100%;background:linear-gradient(90deg,#a8482a,#d9a41a)"></div></div>
+          <div style="font-family:var(--font-body);color:#5a4a34;font-size:.86rem">2 of 3 · +150 XP &amp; a lit lamp on completion</div>
+        </div>
+        <div class="panel" style="padding:18px;display:flex;flex-direction:column;justify-content:center">
+          <div class="type-label" style="margin-bottom:8px">Next in the grove</div>
+          <div class="track-node active" style="margin:0"><svg class="ic" viewBox="0 0 42 42"><circle cx="21" cy="21" r="19" fill="#123024" stroke="#34b8a0" stroke-width="2"/><path d="M17 13l10 8-10 8z" fill="#34b8a0"/></svg><div><b>Tree recursion &amp; memoization</b><p>5/8 checks · +60 XP to clear</p></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cap"><b>Dashboard / home grove.</b> HUD ribbon on top, quest on a paper scroll, the next node one tap away. Gold appears only on XP and the single primary action.</div>
+</section>
+
+<!-- ============================ 7. MOBILE ============================ -->
+<section id="mobile">
+  <div class="sec-head"><span class="sec-num">07</span><h2>Mobile</h2><span class="deva">चल-दूरभाष</span></div>
+  <p class="sec-note">Fully responsive. The desktop split-view stacks (chat over editor), and navigation becomes a <b>bottom tab-bar</b> with custom bow / tree / lamp / target icons — no hamburger, no broken layout.</p>
+  <div class="phones">
+    <!-- PRACTICE mobile -->
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+        <div style="padding:26px 14px 10px;background:linear-gradient(180deg,#20160a,#160f06);border-bottom:1px solid rgba(217,164,26,.28)">
+          <div class="mhud"><div class="av"></div><div style="flex:1"><div style="font-family:var(--font-display);font-weight:700;color:#f4e7c8;font-size:.9rem;line-height:1">Recursion Grove</div><div style="font-family:var(--font-mono);font-size:.56rem;color:#e7c876">5/8 checks · 14🔥</div></div><div style="font-family:var(--font-mono);color:#f2c94c;font-weight:600;font-size:.9rem">2,480</div></div>
+        </div>
+        <div class="msc">
+          <div class="msg guru" style="max-width:94%"><span class="nm">Guru Drona</span>Your Fibonacci recomputes the same branch a thousand times. What could you keep beside the bow?</div>
+          <div class="msg you" style="max-width:94%"><span class="nm">You</span>Memoize in a dict keyed by n.</div>
+          <div class="msg guru" style="max-width:94%"><span class="nm">Guru Drona</span>Good aim. Run the checks.</div>
+          <div style="margin-top:auto">
+            <div style="height:7px;border-radius:6px;background:#20242a;overflow:hidden;margin-bottom:8px"><div style="width:62%;height:100%;background:linear-gradient(90deg,#b47e0c,#f2c94c)"></div></div>
+            <div style="display:flex;gap:6px"><input class="field" placeholder="Reply…" style="padding:9px 12px;font-size:.82rem"/><button class="btn btn-gold" style="padding:9px 12px;flex:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px"><path d="M4 12h12M12 6l6 6-6 6"/></svg></button></div>
+          </div>
+        </div>
+        <div class="mtabs">
+          <div class="mtab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 4C14 8 14 16 20 20M20 4v16M20 12H5"/><path d="M5 12l3-2v4z" fill="currentColor"/></svg>Practice</div>
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8zM7 15a4 4 0 105 0M17 15a4 4 0 10-5 0"/></svg>Forest</div>
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Quests</div>
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c2 4 6 5 6 10a6 6 0 01-12 0c0-3 1-4 2-6 0 2 1 2 2 2-1-3 0-5 2-6z"/></svg>Fire</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOREST MAP mobile -->
+    <div class="phone">
+      <div class="screen">
+        <div class="notch"></div>
+        <div style="padding:26px 14px 8px;background:linear-gradient(180deg,#20160a,#160f06);border-bottom:1px solid rgba(217,164,26,.28)">
+          <div style="font-family:var(--font-display);font-weight:900;color:#f2c94c;font-size:1.1rem">The Forest <span style="font-family:var(--font-deva);font-weight:400;font-size:.8em;color:#e7c876">वन-पथ</span></div>
+          <div style="font-family:var(--font-mono);font-size:.56rem;color:#a89670">9 / 17 groves · walk the path</div>
+        </div>
+        <div class="msc" style="padding:0;overflow:hidden">
+          <svg viewBox="0 0 300 470" style="width:100%;height:100%" preserveAspectRatio="xMidYMid slice">
+            <rect width="300" height="470" fill="#142033"/>
+            <rect width="300" height="470" fill="url(#mdot)"/>
+            <path d="M60,430 C120,410 100,330 160,300 C220,270 180,190 220,120 C240,80 250,60 250,40" fill="none" stroke="#d9a41a" stroke-width="3" stroke-dasharray="2 12"/>
+            <!-- mastered -->
+            <g transform="translate(60,430)"><circle r="30" fill="url(#lamp)" opacity="0.7"/><path d="M0 22V4" stroke="#7a4a2c" stroke-width="4"/><circle cx="0" cy="-4" r="11" fill="#2f6b3c"/><circle cx="-9" cy="4" r="7" fill="#4f9a5a"/><circle cx="9" cy="4" r="7" fill="#4f9a5a"/><circle cx="0" cy="-4" r="3" fill="#f2c94c"/><text x="0" y="44" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="11" fill="#f0e3c6">Syntax</text></g>
+            <g transform="translate(160,300)"><circle r="28" fill="url(#lamp)" opacity="0.6"/><path d="M0 22V4" stroke="#7a4a2c" stroke-width="4"/><circle cx="0" cy="-4" r="11" fill="#2f6b3c"/><circle cx="-9" cy="4" r="7" fill="#4f9a5a"/><circle cx="9" cy="4" r="7" fill="#4f9a5a"/><circle cx="0" cy="-4" r="3" fill="#f2c94c"/><text x="0" y="44" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="11" fill="#f0e3c6">Structures</text></g>
+            <!-- active -->
+            <g transform="translate(220,120)"><circle r="34" fill="none" stroke="#34b8a0" stroke-width="2" stroke-dasharray="4 6"/><circle r="30" fill="#34b8a0" opacity="0.1"/><path d="M0 22V2" stroke="#7a4a2c" stroke-width="4"/><circle cx="0" cy="-6" r="11" fill="#2f6b3c"/><circle cx="-9" cy="2" r="6" fill="#1f8a7a"/><circle cx="9" cy="2" r="6" fill="#4f9a5a"/><circle cx="0" cy="-6" r="3" fill="#34b8a0"/><text x="0" y="44" text-anchor="middle" font-family="Fraunces" font-weight="700" font-size="11" fill="#dcefe6">Recursion</text><text x="0" y="58" text-anchor="middle" font-family="Spline Sans Mono" font-size="8" fill="#34b8a0">○ 6/11</text></g>
+            <!-- locked -->
+            <g transform="translate(250,40)" opacity="0.5"><path d="M0 20V4" stroke="#5a4a34" stroke-width="3"/><path d="M0 10l-7-6M0 10l7-6" stroke="#5a4a34" stroke-width="2.4"/></g>
+          </svg>
+        </div>
+        <div class="mtabs">
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 4C14 8 14 16 20 20M20 4v16M20 12H5"/></svg>Practice</div>
+          <div class="mtab on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8zM7 15a4 4 0 105 0M17 15a4 4 0 10-5 0"/></svg>Forest</div>
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></svg>Quests</div>
+          <div class="mtab"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3c2 4 6 5 6 10a6 6 0 01-12 0c0-3 1-4 2-6 0 2 1 2 2 2-1-3 0-5 2-6z"/></svg>Fire</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cap"><b>Mobile practice + forest nav.</b> Split-view stacks; bottom tabs use hand-drawn bow / tree / target / flame glyphs.</div>
+</section>
+
+<div class="dotrow"></div>
+<div class="foot">EKALAVYA · Design Direction B — Bhil Forest / Pithora Folk-Art · स्वाध्याय साधना सिद्धि · design artifact, not production code</div>
+
+<script>
+// heatmap fill — Pithora lamp intensities
+(function(){
+  var levels=['#20242a','#4a3a12','#8a6410','#d9a41a','#f2c94c'];
+  var h=document.getElementById('heat'); if(!h)return;
+  for(var i=0;i<26*7;i++){
+    var c=document.createElement('div'); c.className='cell';
+    var r=Math.random();
+    var lv = r<0.34?0 : r<0.55?1 : r<0.74?2 : r<0.9?3 : 4;
+    c.style.background=levels[lv];
+    if(lv===4) c.style.boxShadow='0 0 7px #f2c94c';
+    h.appendChild(c);
+  }
+})();
+</script>
+</div>
+</body>
+</html>
