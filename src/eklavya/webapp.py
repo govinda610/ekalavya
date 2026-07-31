@@ -2223,17 +2223,20 @@ _LOGIN = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/eklavya.css">
 <style>
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:26px}
-.authwrap{width:100%;max-width:960px;min-width:0}
-.auth{border-radius:8px;overflow:hidden;border:1px solid var(--line-gold);box-shadow:var(--sh-deep);min-height:520px;min-width:0}
+/* full-viewport split: art fills the left half, the form the right — no floating card,
+   no dead side-space. Collapses to a single centred column on narrow screens. */
+body{min-height:100vh;margin:0;padding:0}
+.authwrap{width:100%;max-width:none;min-width:0;min-height:100vh}
+.auth{overflow:hidden;min-height:100vh;min-width:0}
 .auth>*{min-width:0}
-.auth-form{max-width:none}
+.auth-form{max-width:none;padding:44px 7%;justify-content:center;align-items:center}  /* centre content in the right half */
+.auth-form>*{width:100%;max-width:460px}
 .auth-form form{display:flex;flex-direction:column}
 .err{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em;color:var(--vermilion-glow);
   border:1px solid rgba(214,59,42,.4);background:rgba(143,35,24,.16);border-radius:4px;
   padding:9px 12px;margin:0 0 16px}
 @media(max-width:1000px){.auth{grid-template-columns:1fr}.auth-art{display:none}}
-@media(max-width:560px){.auth-form .ah{font-size:24px}.authwrap{padding:0}}
+@media(max-width:560px){.auth-form .ah{font-size:24px}.auth-form{padding:32px 22px}}
 </style></head><body>
 <div class="authwrap">
 <div class="auth">
