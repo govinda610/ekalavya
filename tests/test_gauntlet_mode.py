@@ -30,3 +30,15 @@ def test_config_route_exposes_gauntlet_kickoff():
 
     cfg = TestClient(webapp.create_app()).get("/api/config").json()
     assert "gauntlet" in cfg["kickoff"]
+
+
+def test_blitz_and_boss_modes_are_wired():
+    assert prompts.BLITZ.count("Blitz") or "BLITZ" in prompts.BLITZ
+    assert "BOSS FIGHT" in prompts.BOSS and "CONQUERED" in prompts.BOSS
+    for m in ("blitz", "boss"):
+        assert webapp._PROMPTS[m] is getattr(prompts, m.upper())
+        assert m in webapp._KICKOFF and m in webapp._MODE_LABEL and m in webapp._SESSION_MODES
+        assert m in webapp._SESSION_MIN
+        assert f'value="{m}"' in webapp._INDEX
+    # both reuse the grader/weakness machinery, not a new toolset
+    assert "grade_and_record" in prompts.BOSS and "suggest_focus" in prompts.BLITZ

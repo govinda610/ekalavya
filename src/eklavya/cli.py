@@ -191,6 +191,55 @@ def gauntlet(
 
 
 @app.command()
+def blitz(
+    minutes: int = typer.Option(7, help="how long the sprint runs"),
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+) -> None:
+    """BLITZ — a fast recall sprint: rapid-fire questions against the clock."""
+    from . import progress, prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .tools import SESSION_TOOLS
+
+    init_db()
+    p = _configured_provider(provider)
+    banner.render(console)
+    console.print(f"\n[dim]⚡ blitz: {p.label} · {p.default_model} · {minutes} min[/]\n")
+    agent = build_agent(prompts.BLITZ, SESSION_TOOLS, provider=p.key)
+    progress.start_session(minutes, mode="blitz")
+    try:
+        chat_loop(agent, kickoff=f"Start a {minutes}-minute Blitz round. Fire fast recall questions at me.",
+                  console=console, mode="blitz")
+    finally:
+        progress.end_session()
+
+
+@app.command()
+def boss(
+    pillar: str = typer.Option(None, help="the pillar to be tested on (else the guru picks)"),
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+) -> None:
+    """BOSS FIGHT — one hard, multi-part problem that certifies a whole pillar."""
+    from . import progress, prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .tools import SESSION_TOOLS
+
+    init_db()
+    p = _configured_provider(provider)
+    banner.render(console)
+    console.print(f"\n[dim]🐉 boss fight: {p.label} · {p.default_model}[/]\n")
+    agent = build_agent(prompts.BOSS, SESSION_TOOLS, provider=p.key)
+    kickoff = (f"I'm ready for a boss fight on {pillar}." if pillar
+               else "I'm ready for a boss fight — pick the pillar and let's go.")
+    progress.start_session(30, mode="boss")
+    try:
+        chat_loop(agent, kickoff=kickoff, console=console, mode="boss")
+    finally:
+        progress.end_session()
+
+
+@app.command()
 def tui(
     minutes: int = typer.Option(30, help="how long you have today"),
     provider: str = typer.Option(None, help="glm or minimax (default: glm)"),

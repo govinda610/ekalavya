@@ -18,19 +18,24 @@ _log = logging.getLogger("eklavya")
 
 _PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK,
             "aiinterview": prompts.AI_INTERVIEW, "gauntlet": prompts.GAUNTLET,
+            "blitz": prompts.BLITZ, "boss": prompts.BOSS,
             "takehome": prompts.TAKEHOME, "onboard": prompts.ONBOARDING}
 _KICKOFF = {
     "practice": "Start today's practice session. I have 30 minutes.",
     "mock": "Start a mock interview. I have 45 minutes.",
     "aiinterview": "Start an AI-assisted mock interview. I have 45 minutes.",
     "gauntlet": "Enter the Gauntlet. Throw challenges at me until I break.",
+    "blitz": "Start a Blitz round. Fire fast recall questions at me.",
+    "boss": "I'm ready for a boss fight — pick the pillar and let's go.",
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
     "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
-_SESSION_MIN = {"practice": 30, "mock": 45, "aiinterview": 45, "takehome": 90, "gauntlet": 20}
-_SESSION_MODES = ("practice", "mock", "aiinterview", "takehome", "gauntlet")
+_SESSION_MIN = {"practice": 30, "mock": 45, "aiinterview": 45, "takehome": 90,
+                "gauntlet": 20, "blitz": 7, "boss": 30}
+_SESSION_MODES = ("practice", "mock", "aiinterview", "takehome", "gauntlet", "blitz", "boss")
 _MODE_LABEL = {"practice": "Practice session", "mock": "Mock interview",
                "aiinterview": "AI-enabled interview", "gauntlet": "The Gauntlet",
+               "blitz": "Blitz", "boss": "Boss fight",
                "takehome": "Take-home", "onboard": "Onboarding"}
 
 
@@ -1143,6 +1148,8 @@ body.reduce-motion *{animation:none !important}
           <option value="mock">Mock interview</option>
           <option value="aiinterview">AI-enabled interview</option>
           <option value="gauntlet">⚔ The Gauntlet</option>
+          <option value="blitz">⚡ Blitz</option>
+          <option value="boss">🐉 Boss fight</option>
           <option value="takehome">Take-home</option>
           <option value="onboard">First-time setup</option>
         </select>
