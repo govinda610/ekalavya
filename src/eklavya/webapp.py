@@ -17,20 +17,21 @@ from . import prompts, report
 _log = logging.getLogger("eklavya")
 
 _PROMPTS = {"practice": prompts.SESSION, "mock": prompts.MOCK,
-            "aiinterview": prompts.AI_INTERVIEW,
+            "aiinterview": prompts.AI_INTERVIEW, "gauntlet": prompts.GAUNTLET,
             "takehome": prompts.TAKEHOME, "onboard": prompts.ONBOARDING}
 _KICKOFF = {
     "practice": "Start today's practice session. I have 30 minutes.",
     "mock": "Start a mock interview. I have 45 minutes.",
     "aiinterview": "Start an AI-assisted mock interview. I have 45 minutes.",
+    "gauntlet": "Enter the Gauntlet. Throw challenges at me until I break.",
     "takehome": "Give me a take-home assignment. I have 90 minutes.",
     "onboard": "Begin my first-time onboarding — I'm brand new here.",
 }
-_SESSION_MIN = {"practice": 30, "mock": 45, "aiinterview": 45, "takehome": 90}
-_SESSION_MODES = ("practice", "mock", "aiinterview", "takehome")
+_SESSION_MIN = {"practice": 30, "mock": 45, "aiinterview": 45, "takehome": 90, "gauntlet": 20}
+_SESSION_MODES = ("practice", "mock", "aiinterview", "takehome", "gauntlet")
 _MODE_LABEL = {"practice": "Practice session", "mock": "Mock interview",
-               "aiinterview": "AI-enabled interview", "takehome": "Take-home",
-               "onboard": "Onboarding"}
+               "aiinterview": "AI-enabled interview", "gauntlet": "The Gauntlet",
+               "takehome": "Take-home", "onboard": "Onboarding"}
 
 
 def _pending_approval(agent, config) -> dict | None:
@@ -1141,6 +1142,7 @@ body.reduce-motion *{animation:none !important}
           <option value="practice">Daily practice</option>
           <option value="mock">Mock interview</option>
           <option value="aiinterview">AI-enabled interview</option>
+          <option value="gauntlet">⚔ The Gauntlet</option>
           <option value="takehome">Take-home</option>
           <option value="onboard">First-time setup</option>
         </select>

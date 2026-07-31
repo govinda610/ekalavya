@@ -168,6 +168,29 @@ def practice(
 
 
 @app.command()
+def gauntlet(
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+) -> None:
+    """THE GAUNTLET — endless, escalating challenges aimed at your weak spots. Die, learn, rematch."""
+    from . import progress, prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .tools import SESSION_TOOLS
+
+    init_db()
+    p = _configured_provider(provider)
+    banner.render(console)
+    console.print(f"\n[dim]⚔ the gauntlet: {p.label} · {p.default_model}[/]\n")
+    agent = build_agent(prompts.GAUNTLET, SESSION_TOOLS, provider=p.key)
+    progress.start_session(20, mode="gauntlet")
+    try:
+        chat_loop(agent, kickoff="Enter the Gauntlet. Throw challenges at me until I break.",
+                  console=console, mode="gauntlet")
+    finally:
+        progress.end_session()
+
+
+@app.command()
 def tui(
     minutes: int = typer.Option(30, help="how long you have today"),
     provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
