@@ -2213,128 +2213,493 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
 </script></body></html>"""
 
 
+# --- shared cinematic hero scene (Option E) --------------------------------
+# The lone Bhil archer repeatedly drawing and loosing arrows at a distant target beside the
+# clay statue of Droṇa under a spinning sun (MISS, MISS, then HIT + a celebration burst).
+# The SVG below is copied VERBATIM from docs/design/E_merged/index.html (scene lines 913–1156);
+# only `preserveAspectRatio` is parameterised so the same scene fills a full-viewport slice.
+# `_HERO_JS` is the verbatim driving IIFE (source lines 2620–2755) wrapped in a <script>.
+# One scene instance per page → no duplicate-id collisions across pages.
+def _hero_scene(preserve: str) -> str:
+    return (
+        '<svg viewBox="0 0 1180 620" preserveAspectRatio="' + preserve + '" role="img"'
+        + r"""
+      aria-label="Ekalavya, the lone forest archer, repeatedly draws and looses arrows at a distant target beside the clay statue of Drona, under a spinning sun, in a cinematic gold-lit forest at night.">
+      <defs>
+        <!-- ONE uniform indigo-night ground, top to bottom (C's cinematic ground).
+             Barely-there horizon warmth stays inside the SAME indigo family — no grey plane. -->
+        <linearGradient id="skyE" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#0c1226"/><stop offset=".42" stop-color="#101528"/>
+          <stop offset=".72" stop-color="#0c1122"/><stop offset="1" stop-color="#0a0d1c"/>
+        </linearGradient>
+        <!-- a whisper-thin horizon glow in the indigo/gold key, not a distinct band -->
+        <radialGradient id="horizonE" cx="50%" cy="100%" r="80%">
+          <stop offset="0" stop-color="#1a2340" stop-opacity=".55"/><stop offset=".6" stop-color="#141a30" stop-opacity=".2"/><stop offset="1" stop-color="#101528" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="sunE" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c8"/><stop offset=".55" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></radialGradient>
+        <radialGradient id="sunhaze" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f7d98a" stop-opacity=".55"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>
+        <radialGradient id="groundglow" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="rgba(231,182,75,.28)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>
+        <pattern id="dotfieldE" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1.1" fill="#f2e7cc" opacity="0.13"/></pattern>
+        <linearGradient id="goldStroke" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".5" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient>
+      </defs>
+
+      <!-- FLAT indigo scene ground — exactly the page's #101528, no vertical gradient, no
+           horizon band, and NO full-rect dot texture (that textured band was reading as a faint
+           dulled rectangle against the plain copy area below). The scene is now identical to the
+           page ground, so no tonal seam can ever show through the title. -->
+      <rect width="1180" height="620" fill="#101528"/>
+
+      <!-- SPINNING + GLOWING SUN, top-right — nudged DOWN & IN so the whole disc, rays and dashed
+           rings render COMPLETE inside the scene (no clipping at the top or right edge). -->
+      <g transform="translate(-20,44)">
+        <circle id="sun-glow" cx="1040" cy="150" r="120" fill="url(#sunhaze)"/>
+        <circle cx="1040" cy="150" r="52" fill="url(#sunE)"/>
+        <g id="sun-spin">
+          <g stroke="#f7d98a" stroke-width="2.4" opacity=".9">
+            <path d="M1040 60 V80 M1040 220 V240 M950 150 H970 M1110 150 H1130 M976 86 l14 14 M1090 200 l14 14 M1104 86 l-14 14 M990 200 l-14 14"/>
+          </g>
+          <g stroke="#e7b64b" stroke-width="1.4" opacity=".55">
+            <circle cx="1040" cy="150" r="86" fill="none"/>
+            <circle cx="1040" cy="150" r="104" fill="none" stroke-dasharray="3 8"/>
+          </g>
+        </g>
+      </g>
+
+      <!-- (removed the faint upper-left Pithora animal motif — at this scale it read as a
+           malformed bird rather than a horse, and it clipped at the top edge.) -->
+
+      <!-- forest trees (D's tree-of-life), re-lit in gold-green -->
+      <g stroke="#52a061" stroke-width="4" fill="none" opacity="0.9">
+        <g transform="translate(80,400)">
+          <line x1="0" y1="0" x2="0" y2="170"/>
+          <path d="M0,20 C-34,10 -44,-18 -38,-42 M0,20 C34,10 44,-18 38,-42 M0,58 C-30,50 -38,28 -34,6 M0,58 C30,50 38,28 34,6"/>
+          <circle cx="-38" cy="-42" r="8" fill="#e7b64b" stroke="none"/><circle cx="38" cy="-42" r="8" fill="#d63b2a" stroke="none"/><circle cx="0" cy="-20" r="9" fill="#2ea3a0" stroke="none"/>
+        </g>
+        <g transform="translate(1140,430)" opacity=".85">
+          <line x1="0" y1="0" x2="0" y2="150"/>
+          <path d="M0,10 C-28,2 -36,-20 -32,-42 M0,10 C28,2 36,-20 32,-42"/>
+          <circle cx="-32" cy="-42" r="7" fill="#f7d98a" stroke="none"/><circle cx="32" cy="-42" r="7" fill="#2ea3a0" stroke="none"/>
+        </g>
+        <g transform="translate(250,450)" opacity=".6" stroke-width="3">
+          <line x1="0" y1="0" x2="0" y2="120"/>
+          <path d="M0,14 C-24,6 -30,-14 -26,-30 M0,14 C24,6 30,-14 26,-30"/>
+          <circle cx="0" cy="-16" r="6" fill="#2f6b3c" stroke="none"/>
+        </g>
+      </g>
+
+      <!-- NO ground-glow ellipses: at low opacity over the dark indigo the gold radial read as a
+           muddy, desaturated horizontal smudge (not a glow). The ground stays flat uniform indigo. -->
+
+      <!-- ACTION BAND — sits in the clear upper-middle of the scene, above the copy;
+           statue FAR-LEFT shrine · archer left-of-centre · target FAR-RIGHT (long distance) -->
+      <g transform="translate(0,0)">
+
+      <!-- ========================================================
+           STONE/CLAY STATUE OF DROṆA (idol) — D's design, but rendered
+           as an unmistakable CARVED STONE-CLAY IDOL: matte, desaturated
+           terracotta-stone, monumental on a clear stepped PEDESTAL, static.
+           It is the shrine the self-taught archer practises before.
+           Placed FAR-LEFT.
+           ======================================================== -->
+      <g transform="translate(140,182)">
+        <defs>
+          <linearGradient id="stoneBody" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#9a8574"/><stop offset=".5" stop-color="#7e6a5a"/><stop offset="1" stop-color="#584a3f"/>
+          </linearGradient>
+          <linearGradient id="stonePlinth" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#8b7868"/><stop offset="1" stop-color="#4a3f36"/>
+          </linearGradient>
+        </defs>
+        <!-- cast shadow -->
+        <ellipse cx="0" cy="226" rx="80" ry="14" fill="#000" opacity=".4"/>
+        <!-- stepped stone PEDESTAL / plinth -->
+        <rect x="-56" y="192" width="112" height="34" rx="3" fill="url(#stonePlinth)" stroke="#3a3128" stroke-width="1"/>
+        <rect x="-46" y="158" width="92" height="36" rx="2" fill="url(#stonePlinth)" stroke="#3a3128" stroke-width="1"/>
+        <line x1="-46" y1="176" x2="46" y2="176" stroke="#3a3128" stroke-width=".6" opacity=".5"/>
+        <!-- rigid monumental body (D's silhouette), carved stone -->
+        <path d="M0,12 C-26,12 -36,38 -34,66 L-32,128 L32,128 L34,66 C36,38 26,12 0,12 Z" fill="url(#stoneBody)" stroke="#4a3f36" stroke-width="1.2"/>
+        <!-- carved/chiselled shading strokes on the robe (matte, not flat) -->
+        <g stroke="#3d3229" stroke-width="1" opacity=".45" fill="none">
+          <path d="M-20,40 C-14,70 -14,100 -18,124"/>
+          <path d="M20,40 C14,70 14,100 18,124"/>
+          <path d="M0,34 V126"/>
+        </g>
+        <!-- head — same stone material -->
+        <circle cx="0" cy="-10" r="21" fill="url(#stoneBody)" stroke="#4a3f36" stroke-width="1.2"/>
+        <path d="M-21,-16 C-14,-32 14,-32 21,-16" fill="none" stroke="#3d3229" stroke-width="4"/>
+        <!-- carved brow + eyes (idol, not living face) -->
+        <path d="M-11,-12 h7 M4,-12 h7" stroke="#3d3229" stroke-width="1.4" stroke-linecap="round"/>
+        <!-- faint ivory dotwork carved into the robe (D's Pithora signature) -->
+        <g fill="#efe6d2" opacity="0.5">
+          <circle cx="-14" cy="52" r="1.5"/><circle cx="0" cy="48" r="1.5"/><circle cx="14" cy="52" r="1.5"/>
+          <circle cx="-18" cy="78" r="1.5"/><circle cx="-6" cy="74" r="1.5"/><circle cx="6" cy="74" r="1.5"/><circle cx="18" cy="78" r="1.5"/>
+          <circle cx="-14" cy="102" r="1.5"/><circle cx="0" cy="98" r="1.5"/><circle cx="14" cy="102" r="1.5"/>
+        </g>
+        <!-- carved blessing arm (stone) -->
+        <path d="M30,44 C50,36 56,48 46,64" fill="none" stroke="url(#stoneBody)" stroke-width="9" stroke-linecap="round"/>
+        <!-- faint gold rim-light from the scene, keeps it in C's cinematic key -->
+        <path d="M0,12 C-26,12 -36,38 -34,66 L-32,128" fill="none" stroke="#b8862f" stroke-width=".8" opacity=".5"/>
+      </g>
+
+      <!-- lit diya at the statue's feet (D) -->
+      <g transform="translate(140,322)">
+        <ellipse cx="0" cy="4" rx="19" ry="5" fill="#9c6f1c"/>
+        <path d="M-17 2 Q0 12 17 2 Q11 -3 0 -3 Q-11 -3 -17 2Z" fill="#e7b64b"/>
+        <path class="flick" d="M0 -3 C-2 -9 3 -13 0 -20 C-3 -13 2 -9 0 -3Z" fill="#f7d98a"/>
+        <circle cx="0" cy="-9" r="11" fill="rgba(247,217,138,.3)"/>
+      </g>
+
+      <!-- DISTANT TARGET — FAR RIGHT (long distance from the archer) -->
+      <g transform="translate(1070,268)">
+        <line x1="0" y1="16" x2="0" y2="150" stroke="#3a2f26" stroke-width="7" stroke-linecap="round"/>
+        <line x1="0" y1="16" x2="0" y2="150" stroke="#b8862f" stroke-width="2.4"/>
+        <circle cx="0" cy="0" r="42" fill="#151b0f" stroke="#e7b64b" stroke-width="2"/>
+        <circle cx="0" cy="0" r="31" fill="none" stroke="#f2e7cc" stroke-width="2" opacity=".8"/>
+        <circle cx="0" cy="0" r="20" fill="none" stroke="#d63b2a" stroke-width="2.4"/>
+        <circle cx="0" cy="0" r="8" fill="#d63b2a"/>
+        <!-- (No separate "landed" arrow — there is only ONE arrow (#fly-arrow). On a hit it
+             simply STOPS in the bullseye and stays; on a miss it drops short and fades. This
+             is why there is never a second arrow appearing in the target.) -->
+        <!-- container for the "progress trail": at most a couple of arrows that truly stuck near
+             the mark on earlier hits. JS appends correctly-placed single arrows here; never overlaps
+             into a fake bullseye. -->
+        <g id="stuck-arrows"></g>
+        <!-- reduced-motion resolved state: ONE arrow buried head-first in the bullseye -->
+        <g id="rest-stuck-arrow">
+          <line x1="-70" y1="0" x2="-2" y2="0" stroke="#e8dcc0" stroke-width="2.6"/>
+          <path d="M4 0 l-11 -5 l3 5 l-3 5 z" fill="#f7d98a" stroke="#b8862f" stroke-width=".6"/>
+          <path d="M-70 0 l-12 -6 l6 6 l-6 6 z" fill="#57d3ce"/>
+          <path d="M-63 0 l-10 -5 M-63 0 l-10 5" stroke="#f7d98a" stroke-width="1.8" stroke-linecap="round"/>
+        </g>
+        <!-- HIT burst (gold ripple) -->
+        <g id="hit-burst" transform="translate(0,0)">
+          <circle cx="0" cy="0" r="18" fill="none" stroke="#f7d98a" stroke-width="3"/>
+          <circle cx="0" cy="0" r="30" fill="none" stroke="#e7b64b" stroke-width="1.6" opacity=".7"/>
+          <g stroke="#fff6df" stroke-width="2.2" stroke-linecap="round">
+            <path d="M0 -26 V-40 M0 26 V40 M-26 0 H-40 M26 0 H40 M-19 -19 l-9 -9 M19 19 l9 9 M19 -19 l9 -9 M-19 19 l-9 9"/>
+          </g>
+        </g>
+        <!-- soft chime flash -->
+        <circle id="chime-flash" cx="0" cy="0" r="52" fill="url(#sunhaze)"/>
+      </g>
+
+      <!-- (THE ONE ARROW is rendered AFTER the archer/bow below, so its shaft crosses IN FRONT of the
+           bowstring and projects past the bow — never tucked behind the string.) -->
+
+      <!-- ============ EKALAVYA — lone Bhil learner, left-of-centre, FACING RIGHT toward the target ============
+           Head is a right-facing PROFILE: a small nose/brow juts right (toward the target), the eye sits on the
+           right of the face and gazes at the mark, the single feather sweeps BACK (left) as a head facing right would. -->
+      <g transform="translate(330,218)"><g id="archer">
+        <!-- back quiver of arrows (behind the torso, on the far shoulder) -->
+        <g transform="translate(-20,-8) rotate(-16)" opacity=".92">
+          <path d="M0,4 l-7,44 l13,0 l7,-44 z" fill="#3a2f26" stroke="#b8862f" stroke-width=".8"/>
+          <line x1="1" y1="2" x2="-1" y2="-14" stroke="#e8dcc0" stroke-width="1.6"/><path d="M-1 -14 l4 3 M-1 -14 l4 -1" stroke="#f7d98a" stroke-width="1.4" stroke-linecap="round"/>
+          <line x1="6" y1="2" x2="5" y2="-12" stroke="#e8dcc0" stroke-width="1.6"/><path d="M5 -12 l4 3 M5 -12 l4 -1" stroke="#f7d98a" stroke-width="1.4" stroke-linecap="round"/>
+        </g>
+        <!-- torso — a slight forward lean toward the target -->
+        <path d="M-2,0 C-18,1 -22,20 -19,40 L-16,92 L20,92 L21,40 C22,20 15,0 -2,0 Z" fill="#2f6b3c" stroke="#b8862f" stroke-width=".8"/>
+        <g fill="#f2e7cc" opacity="0.72"><circle cx="-6" cy="32" r="1.4"/><circle cx="8" cy="32" r="1.4"/><circle cx="2" cy="54" r="1.4"/><circle cx="-6" cy="68" r="1.4"/><circle cx="10" cy="68" r="1.4"/></g>
+        <!-- HEAD (right-facing profile): the face-mass leans right, a small nose juts toward the target -->
+        <path d="M-11,-15 C-13,-25 -6,-31 3,-31 C13,-31 18,-24 18,-15 C18,-8 14,-2 6,-1 L8,3 L2,2 C-6,1 -11,-6 -11,-15 Z" fill="#b9764a" stroke="#e7b64b" stroke-width=".9"/>
+        <!-- nose ridge jutting to the right (points at the mark) -->
+        <path d="M18,-16 l4,3 l-4,3" fill="none" stroke="#a05a35" stroke-width="1.2" stroke-linecap="round"/>
+        <!-- EYE on the right of the face, gaze toward the target -->
+        <circle cx="10" cy="-17" r="1.9" fill="#241a0e"/>
+        <path d="M6,-21 q4,-2 8,0" fill="none" stroke="#3a2f26" stroke-width="1.4" stroke-linecap="round"/>
+        <!-- single Bhil feather sweeping BACK-LEFT from the crown (natural for a head facing right) -->
+        <path d="M-6,-28 C-16,-36 -24,-40 -32,-44 C-24,-40 -18,-33 -10,-30 Z" fill="#d63b2a" stroke="#8a5e1f" stroke-width=".6"/>
+        <line x1="-8" y1="-29" x2="-30" y2="-43" stroke="#8a5e1f" stroke-width=".8"/>
+        <!-- a second short feather + a dotwork hair-band -->
+        <path d="M-4,-30 C-12,-40 -18,-44 -24,-49 C-17,-42 -12,-35 -6,-32 Z" fill="#e7b64b" stroke="#8a5e1f" stroke-width=".5" opacity=".85"/>
+        <path d="M-9,-24 q9,-5 18,-2" fill="none" stroke="#8a5e1f" stroke-width="1.4"/>
+        <!-- ===== SHOOTING RIG (rebuilt) =====
+             A symmetric bow whose BOTH limbs curve evenly and bulge RIGHT toward the target,
+             its tips at (58,-42) and (58,76). The BOWSTRING is a chord that meets those exact tips
+             (JS swaps its `d` between the resting chord and the drawn V). The BOW HAND grips the
+             riser at the bow's middle; the DRAW HAND holds the nock and pulls the string back. -->
+        <g id="shoot-arms">
+          <!-- bow-arm: shoulder → riser grip (holds the bow out toward the mark) -->
+          <path d="M4,20 C26,15 44,16 56,17" fill="none" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+          <!-- symmetric bow: both limbs curve evenly, bulging right; tips at (58,-42) & (58,76) -->
+          <path d="M58,-42 C92,-24 92,58 58,76" fill="none" stroke="url(#goldStroke)" stroke-width="4.8"/>
+          <!-- bow hand gripping the middle (riser). NOTE: no inner "riser highlight" curve —
+               it read as a spurious second bow-limb between the string and the bow. -->
+          <circle cx="58" cy="17" r="5" fill="#b9764a" stroke="#8a5e1f" stroke-width=".6"/>
+          <!-- BOWSTRING — chord meeting the two tips; JS sets its `d` (rest = straight, drawn = V) -->
+          <path id="bowstring" d="M58,-42 L16,17 L58,76" fill="none" stroke="#f2e7cc" stroke-width="1.5"/>
+          <!-- DRAW HAND — grips the nock at the string (moves with the draw, JS repositions) -->
+          <g id="draw-arm">
+            <path d="M-2,24 C6,22 12,20 16,17" fill="none" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+            <circle cx="16" cy="17" r="4.2" fill="#b9764a" stroke="#8a5e1f" stroke-width=".6"/>
+          </g>
+        </g>
+        <!-- CELEBRATION: both arms thrown UP in triumph, bow held aloft overhead (only on a HIT) -->
+        <g id="celebrate-arm">
+          <!-- right arm flung high, gripping the bow aloft -->
+          <path d="M6,18 C24,-4 34,-34 40,-62" fill="none" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="40" cy="-62" r="4.5" fill="#b9764a"/>
+          <!-- left arm raised high in a triumphant fist -->
+          <path d="M-4,18 C-20,-4 -30,-34 -34,-62" fill="none" stroke="#2f6b3c" stroke-width="8" stroke-linecap="round"/>
+          <circle cx="-34" cy="-64" r="4.5" fill="#b9764a"/>
+          <!-- the bow, lifted horizontally above the head in triumph (clearly overhead) -->
+          <g transform="translate(4,-74)">
+            <path d="M-40,0 C-16,-24 16,-24 40,0" fill="none" stroke="url(#goldStroke)" stroke-width="4.8"/>
+            <line x1="-40" y1="0" x2="40" y2="0" stroke="#f2e7cc" stroke-width="1.4"/>
+          </g>
+          <!-- little joy-sparks -->
+          <g fill="#f7d98a"><circle cx="-46" cy="-40" r="2"/><circle cx="50" cy="-44" r="2"/><circle cx="0" cy="-92" r="2.4"/></g>
+        </g>
+      </g></g>
+
+      <!-- ================= THE ONE ARROW (rendered on TOP of the bow — never behind the string) =================
+           At rest: nock/fletching (~x=366) sits ON the string (scene-x≈388); the shaft CROSSES the string and
+           the single arrowHEAD (~x=474) projects PAST the bow toward the target. JS gives it ONE transform per
+           shot — a hit buries it in the bullseye; a miss drops it short/below and it fades. Never two arrows. -->
+      <g id="fly-arrow">
+        <!-- shaft: from the nock (left), across the string, projecting past the bow (right) -->
+        <line x1="366" y1="235" x2="466" y2="235" stroke="#e8dcc0" stroke-width="2.6"/>
+        <!-- single solid arrowhead at the FRONT (right), leading the flight -->
+        <path d="M476 235 l-13 -5 l3 5 l-3 5 z" fill="#f7d98a" stroke="#b8862f" stroke-width=".7"/>
+        <!-- fletching (the nock end): swept feathers at the TAIL -->
+        <path d="M366 235 l-12 -6 l6 6 l-6 6 z" fill="#57d3ce"/>
+        <path d="M374 235 l-11 -5" stroke="#f7d98a" stroke-width="1.8" stroke-linecap="round"/>
+        <path d="M374 235 l-11 5" stroke="#f7d98a" stroke-width="1.8" stroke-linecap="round"/>
+      </g>
+      </g><!-- /action band lift -->
+    </svg>"""
+    )
+
+
+# The verbatim shot-loop IIFE (docs/design/E_merged/index.html lines 2620–2755), wrapped in a
+# <script>. Drives the draw → loose → fly → hit/miss cycle via the Web Animations API.
+_HERO_JS = r"""<script>
+(function(){
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---- the progression knob -------------------------------------------
+  var LEVEL = 24, MAX_LEVEL = 40;           // illustrative current rank
+  // beginners land ~1 in 5 (0.20); masters land ~9 in 10 (0.90)
+  var HIT_MIN = 0.20, HIT_MAX = 0.90;
+  var t = Math.max(0, Math.min(1, LEVEL / MAX_LEVEL));
+  var hitRate = HIT_MIN + (HIT_MAX - HIT_MIN) * t;   // e.g. Lvl 24/40 -> 0.62
+
+  // Deterministic "n hits per window" schedule so it reads as skill, not luck.
+  // Round hitRate to k hits out of WINDOW shots, spread as evenly as possible.
+  var WINDOW = 5;
+  var hits = Math.round(hitRate * WINDOW);          // Lvl 24 -> 3 of 5
+  var schedule = [];
+  for (var i=0;i<WINDOW;i++){
+    // Bresenham-style even spread of `hits` true values across WINDOW slots
+    schedule.push(Math.floor((i+1)*hits/WINDOW) - Math.floor(i*hits/WINDOW) > 0);
+  }
+  // put an early miss first so the "struggle then succeed" story is legible
+  if (schedule[0] === true && hits < WINDOW){
+    var j = schedule.indexOf(false); schedule[0]=false; schedule[j]=true;
+  }
+
+  var arrow   = document.getElementById('fly-arrow');
+  var drawArm = document.getElementById('draw-arm');
+  var bowstr  = document.getElementById('bowstring');   // the string path (d swapped: chord vs drawn V)
+  var shootArms = document.getElementById('shoot-arms');
+  var celeb   = document.getElementById('celebrate-arm');
+  var archer  = document.getElementById('archer');
+  var burst   = document.getElementById('hit-burst');
+  var chime   = document.getElementById('chime-flash');
+  var stuck   = document.getElementById('stuck-arrows'); // container for arrows that truly stuck near the mark
+  if(!arrow) return;
+
+  // reduced motion: rest on the resolved frame (ONE arrow already stuck in the bullseye)
+  if (reduce){ arrow.style.opacity=0; return; }
+
+  // string shapes (archer-local coords): rest = straight chord tip-to-tip; drawn = V pulled to the cheek
+  var STRING_REST = 'M58,-42 L58,76';
+  var STRING_DRAWN = 'M58,-42 L16,17 L58,76';
+  if(bowstr) bowstr.setAttribute('d', STRING_REST);
+
+  var shot = 0, hitsShown = 0;
+  // The arrow's HEAD tip sits at scene ~(476,235); the bullseye centre is at scene ~(1070,268).
+  // So to bury the head in the bullseye the arrow travels dx≈594, dy≈33.
+  var HIT = {x:594, y:33};
+  // Misses land visibly SHORT or BELOW and stay there briefly, then fade. They never reach the target.
+  var MISSES = [
+    {x:300, y:150},   // falls short, into the near ground
+    {x:470, y:120},   // half-way, drops low
+    {x:560, y:150},   // close but drops well BELOW the bullseye
+    {x:200, y:70}     // a weak early release, barely past the bow
+  ];
+  var EASE_FLY = 'cubic-bezier(.30,.02,.34,1)';   // a smooth, weighty flight arc
+  function anim(el, frames, opts){ return el.animate(frames, Object.assign({fill:'forwards'}, opts)); }
+
+  function shoot(){
+    var isHit = schedule[shot % WINDOW];
+    var missIdx = shot % MISSES.length;
+    shot++;
+
+    // Hard reset — guarantee exactly ONE live arrow, nocked, before every shot.
+    if(celeb) celeb.style.opacity = 0; if(shootArms) shootArms.style.opacity = 1;
+    arrow.style.opacity = 0;
+    arrow.style.transform = 'translate(0,0)';
+
+    // 1) DRAW — string bends into the V, the draw hand + nocked arrow pull back to the cheek (~ -34px)
+    if(bowstr) setTimeout(function(){ bowstr.setAttribute('d', STRING_DRAWN); }, 40);
+    arrow.style.opacity = 1;
+    if(arrow)   anim(arrow,   [{transform:'translate(0,0)'},{transform:'translate(-34px,0)'}], {duration:560, easing:'cubic-bezier(.4,0,.5,1)'});
+    if(drawArm) anim(drawArm, [{transform:'translate(0,0)'},{transform:'translate(-34px,0)'}], {duration:560, easing:'cubic-bezier(.4,0,.5,1)'});
+    if(archer)  anim(archer,  [{transform:'translateX(0)'},{transform:'translateX(-2px)'}], {duration:560, easing:'ease-out'});
+
+    setTimeout(function(){
+      // 2) LOOSE — string snaps to the resting chord, the draw hand releases, a crisp recoil
+      if(bowstr) bowstr.setAttribute('d', STRING_REST);
+      if(drawArm) anim(drawArm, [{transform:'translate(-34px,0)'},{transform:'translate(2px,0)'},{transform:'translate(0,0)'}], {duration:150, easing:'ease-out'});
+      if(archer)  anim(archer, [{transform:'translateX(-2px)'},{transform:'translateX(3px)'},{transform:'translateX(0)'}], {duration:260, easing:'ease-out'});
+
+      // 3) THE ONE ARROW FLIES — from the drawn (-34) position, in a gravity-touched arc to its destination.
+      var dest = isHit ? HIT : MISSES[missIdx];
+      var midX = -34 + (dest.x+34)*0.52, midY = dest.y*0.5 - (isHit?24:10);   // apex, lifted
+      var flight = anim(arrow, [
+        {transform:'translate(-34px,0) rotate(-4deg)', opacity:1, offset:0},
+        {transform:'translate('+midX+'px,'+midY+'px) rotate(1deg)', opacity:1, offset:0.5},
+        {transform:'translate('+dest.x+'px,'+dest.y+'px) rotate('+(isHit?4:16)+'deg)', opacity:1, offset:1}
+      ], {duration: isHit?700:560, easing:EASE_FLY});
+
+      flight.onfinish = function(){
+        if (isHit){
+          // 4a) HIT — the SAME arrow is now buried in the bullseye. Celebrate ONLY here.
+          //     Freeze the arrow stuck in the mark, fire the burst/chime, raise the bow, jump.
+          arrow.style.transform = 'translate('+HIT.x+'px,'+HIT.y+'px) rotate(4deg)';  // stays stuck
+          if(burst){ burst.style.opacity=1; anim(burst,[{transform:'scale(.2)',opacity:1},{transform:'scale(1)',opacity:1,offset:.4},{transform:'scale(1.6)',opacity:0}],{duration:760,easing:'ease-out'}); }
+          if(chime){ chime.style.opacity=0; anim(chime,[{opacity:0},{opacity:.6,offset:.3},{opacity:0}],{duration:760,easing:'ease-out'}); }
+          if(shootArms) shootArms.style.opacity = 0;
+          if(celeb){ celeb.style.opacity=1; }
+          if(archer) anim(archer, [
+            {transform:'translateY(0)'},{transform:'translateY(-22px)',offset:.34},
+            {transform:'translateY(-26px)',offset:.5},{transform:'translateY(-4px)',offset:.8},{transform:'translateY(0)'}
+          ], {duration:1000, easing:'cubic-bezier(.3,.7,.35,1)'});
+          setTimeout(function(){
+            // leave a small "progress trail": keep this hit as a stuck arrow near the mark, then hide the live arrow.
+            if(stuck && hitsShown < 2){
+              var s = document.createElementNS('http://www.w3.org/2000/svg','g');
+              // place trail arrows in the OUTER rings (never the dead-centre bullseye) so they read as
+              // "arrows from earlier hits" and can never be mistaken for a second live centre hit.
+              var ty = hitsShown ? -24 : 22;
+              s.setAttribute('transform','translate(-8,'+ty+') rotate('+(hitsShown?-8:8)+')');
+              s.innerHTML='<line x1="-58" y1="0" x2="-8" y2="0" stroke="#e8dcc0" stroke-width="2.2" opacity=".7"/>'+
+                '<path d="M-4 0 l-9 -4 l2 4 l-2 4 z" fill="#e7b64b" opacity=".8"/>'+
+                '<path d="M-58 0 l-10 -5 l5 5 l-5 5 z" fill="#3fa39f" opacity=".7"/>';
+              stuck.appendChild(s); hitsShown++;
+            }
+            if(celeb) celeb.style.opacity=0; if(shootArms) shootArms.style.opacity=1;
+            arrow.style.opacity=0; arrow.style.transform='translate(0,0)';
+            next();
+          }, 1600);
+        } else {
+          // 4b) MISS — the SAME arrow lies short/below where it fell; NO celebration.
+          //     A brief stick, then it fades, and the archer simply re-nocks and tries again.
+          setTimeout(function(){
+            anim(arrow, [{opacity:1},{opacity:0}], {duration:340, easing:'ease-in'}).onfinish=function(){
+              arrow.style.opacity=0; arrow.style.transform='translate(0,0)';
+            };
+            setTimeout(next, 360);
+          }, 360);
+        }
+      };
+    }, 620);
+  }
+  function next(){ setTimeout(shoot, 480); }
+  // kick off after fonts/paint settle
+  setTimeout(shoot, 800);
+})();
+</script>"""
+
+
 # --- login page (multi-user) -----------------------------------------------
-# Option E "cinematic forest" auth screen: a calm brand panel (the guru's vow + the lone
-# archer silhouette) on the left, a focused email/password form on the right. Reuses the
-# shared design system (/static/eklavya.css). The form action, field names, autofocus,
-# {{error}} slot and "Sign in" affordance are all preserved for the auth flow + tests.
-_LOGIN = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+# Apple-style scroll auth: the page OPENS on a full-viewport HERO over a FIXED animated Option E
+# scene (the lone archer looses arrows at a distant target — miss, miss, hit + celebration),
+# which keeps running behind everything; scrolling down floats a GLASSMORPHIC login/signup card
+# CENTERED over the same still-visible scene. Reuses the shared design system (/static/eklavya.css).
+# The form action, field names, autofocus, {{start}}/{{error}} slots and the Log in / Sign up tab
+# toggle are all preserved for the auth flow + tests. The scene JS is injected before </body>.
+_LOGIN = (r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Sign in</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/eklavya.css">
 <style>
-/* full-viewport split: art fills the left half, the form the right — no floating card,
-   no dead side-space. Collapses to a single centred column on narrow screens. */
-body{min-height:100vh;margin:0;padding:0}
-.authwrap{width:100%;max-width:none;min-width:0;min-height:100vh}
-.auth{overflow:hidden;min-height:100vh;min-width:0}
-.auth>*{min-width:0}
-.auth-form{max-width:none;padding:44px 7%;justify-content:center;align-items:center}  /* centre content in the right half */
-.auth-form>*{width:100%;max-width:460px}
-.auth-form form{display:flex;flex-direction:column}
+/* Apple-style scroll: a FIXED full-viewport animated Option E scene, content scrolls above it.
+   The hero opens on the brand; scrolling floats a glassmorphic auth card centered over the SAME
+   still-running scene (visible around/through the frosted glass). */
+html{scroll-behavior:smooth}
+body{min-height:100vh;margin:0;padding:0;background:var(--void)}
+/* 1) FIXED background layer — the animated scene fills the viewport and stays put on scroll */
+.scene-fixed{position:fixed;inset:0;z-index:0;overflow:hidden}
+.scene-fixed svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* dark-indigo scrim over the scene for legibility (keeps the artwork readable behind glass) */
+.scene-scrim{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,13,28,.34) 0%,rgba(10,13,28,.20) 42%,rgba(10,13,28,.58) 100%)}
+/* 2) scrolling content above the scene */
+.scroll{position:relative;z-index:1}
+.sec{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:56px 22px;text-align:center}
+/* HERO */
+.hero-brand{display:flex;align-items:center;gap:14px;font-family:var(--f-display);
+  font-size:clamp(30px,6vw,54px);letter-spacing:.14em;color:var(--gold-bright);
+  text-shadow:0 2px 30px rgba(10,13,28,.6)}
+.hero-tagline{margin:22px 0 6px;font-family:var(--f-serif);font-style:italic;
+  font-size:clamp(17px,2.6vw,24px);color:var(--parch);max-width:640px}
+.hero-sub{font-family:var(--f-body);color:var(--parch-dim);max-width:560px;
+  font-size:clamp(14px,1.8vw,17px);line-height:1.55}
+.hero-cta{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:20px}
+.scrollcue{font-family:var(--f-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--parch-mute);text-decoration:none;animation:bob 2.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(7px);opacity:1}}
+/* AUTH — the glassmorphic card floating over the scene */
+.glass{width:100%;max-width:460px;text-align:left;
+  background:rgba(10,13,28,.55);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+  border:1px solid var(--line-gold);border-radius:18px;
+  box-shadow:0 24px 70px -20px rgba(0,0,0,.7),0 1px 0 rgba(247,217,138,.08) inset;
+  padding:34px 34px 30px}
+.glass form{display:flex;flex-direction:column}
 .err{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em;color:var(--vermilion-glow);
   border:1px solid rgba(214,59,42,.4);background:rgba(143,35,24,.16);border-radius:4px;
   padding:9px 12px;margin:0 0 16px}
-@media(max-width:1000px){.auth{grid-template-columns:1fr}.auth-art{display:none}}
-@media(max-width:560px){.auth-form .ah{font-size:24px}.auth-form{padding:32px 22px}}
+@media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.sec{padding:44px 16px}}
 </style></head><body>
-<div class="authwrap">
-<div class="auth">
-  <div class="auth-art">
-    <svg viewBox="0 0 400 560" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true">
-      <defs>
-        <linearGradient id="authbg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#0d1226"/><stop offset=".45" stop-color="#12172c"/>
-          <stop offset=".78" stop-color="#0e1324"/><stop offset="1" stop-color="#0a0d1c"/>
-        </linearGradient>
-        <radialGradient id="authhaze" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f7d98a" stop-opacity=".42"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>
-        <radialGradient id="authhorizon" cx="50%" cy="100%" r="72%"><stop offset="0" stop-color="#26304f" stop-opacity=".55"/><stop offset="1" stop-color="#101528" stop-opacity="0"/></radialGradient>
-        <linearGradient id="authridge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a2138"/><stop offset="1" stop-color="#0c1020"/></linearGradient>
-        <linearGradient id="authskin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c9855a"/><stop offset="1" stop-color="#9d6440"/></linearGradient>
-        <radialGradient id="sunE" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c8"/><stop offset=".55" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></radialGradient>
-        <radialGradient id="groundglow" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="rgba(231,182,75,.28)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>
-        <linearGradient id="goldStroke" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".5" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient>
-      </defs>
-      <rect width="400" height="560" fill="url(#authbg)"/>
-      <rect y="290" width="400" height="270" fill="url(#authhorizon)"/>
-      <g fill="#f2e7cc">
-        <circle cx="46" cy="62" r="1.5" opacity=".55"/><circle cx="112" cy="34" r="1.1" opacity=".38"/>
-        <circle cx="168" cy="96" r="1.3" opacity=".45"/><circle cx="72" cy="146" r="1" opacity=".3"/>
-        <circle cx="242" cy="42" r="1.2" opacity=".34"/><circle cx="352" cy="188" r="1.3" opacity=".4"/>
-        <circle cx="24" cy="214" r="1" opacity=".26"/><circle cx="196" cy="168" r="1" opacity=".28"/>
-        <circle cx="330" cy="252" r="1.1" opacity=".24"/><circle cx="128" cy="222" r="1.2" opacity=".3"/>
-      </g>
-      <g stroke="#8fa3c4" fill="none" opacity=".13" stroke-linecap="round">
-        <path d="M-10 128 q60 -12 120 0 q54 11 108 -2" stroke-width="9"/>
-        <path d="M150 206 q70 -14 140 2" stroke-width="7"/>
-        <path d="M-20 262 q80 -10 150 4" stroke-width="6"/>
-      </g>
-      <circle cx="300" cy="78" r="92" fill="url(#authhaze)"/>
-      <circle cx="300" cy="78" r="42" fill="url(#sunE)" opacity=".95"/>
-      <g stroke="#f7d98a" stroke-width="1.6" opacity=".5" fill="none">
-        <circle cx="300" cy="78" r="62"/><circle cx="300" cy="78" r="76" stroke-dasharray="3 8"/>
-      </g>
-      <path d="M-10 372 L58 330 L104 356 L152 318 L214 358 L268 332 L330 364 L410 336 L410 560 L-10 560 Z" fill="url(#authridge)" opacity=".85"/>
-      <g stroke="#1d2b28" stroke-width="3" opacity=".7" fill="none">
-        <path d="M40 372 v-26 M40 356 l-9 -8 M40 356 l9 -8 M40 344 l-7 -6 M40 344 l7 -6"/>
-        <path d="M232 380 v-30 M232 362 l-10 -9 M232 362 l10 -9 M232 350 l-8 -7 M232 350 l8 -7"/>
-        <path d="M352 386 v-24 M352 370 l-8 -7 M352 370 l8 -7"/>
-      </g>
-      <ellipse cx="200" cy="470" rx="210" ry="46" fill="url(#groundglow)" opacity=".5"/>
-      <g stroke="#e7b64b" stroke-width="1" opacity=".16" fill="none"><circle cx="180" cy="404" r="150"/><circle cx="180" cy="404" r="108"/><circle cx="180" cy="404" r="66"/></g>
-      <g transform="translate(150,366) scale(1.34)">
-        <ellipse cx="4" cy="106" rx="30" ry="6" fill="#000" opacity=".38"/>
-        <g transform="translate(-19,-6) rotate(-16)" opacity=".95">
-          <path d="M0,3 l-6,38 l11,0 l6,-38 z" fill="#3a2f26" stroke="#b8862f" stroke-width=".7"/>
-          <line x1="1" y1="1" x2="-1" y2="-13" stroke="#e8dcc0" stroke-width="1.4"/><path d="M-1 -13 l4 3 M-1 -13 l4 -1" stroke="#f7d98a" stroke-width="1.2" stroke-linecap="round"/>
-          <line x1="6" y1="1" x2="5" y2="-11" stroke="#e8dcc0" stroke-width="1.4"/><path d="M5 -11 l4 3 M5 -11 l4 -1" stroke="#f7d98a" stroke-width="1.2" stroke-linecap="round"/>
-        </g>
-        <path d="M-2,0 C-16,1 -19,17 -17,35 L-14,80 L18,80 L19,35 C20,17 13,0 -2,0 Z" fill="#2f6b3c" stroke="#b8862f" stroke-width=".7"/>
-        <g fill="#f2e7cc" opacity=".7"><circle cx="-5" cy="28" r="1.2"/><circle cx="7" cy="28" r="1.2"/><circle cx="1" cy="47" r="1.2"/><circle cx="-5" cy="60" r="1.2"/><circle cx="9" cy="60" r="1.2"/></g>
-        <path d="M-9,78 C-12,92 -16,100 -20,104" stroke="#2a5c35" stroke-width="7" stroke-linecap="round" fill="none"/>
-        <path d="M12,78 C15,92 19,98 24,102" stroke="#2f6b3c" stroke-width="7" stroke-linecap="round" fill="none"/>
-        <path d="M-10,-13 C-11,-22 -5,-27 3,-27 C11,-27 16,-21 16,-13 C16,-7 12,-2 5,-1 L7,3 L2,2 C-5,1 -10,-6 -10,-13 Z" fill="url(#authskin)" stroke="#e7b64b" stroke-width=".8"/>
-        <path d="M16,-14 l3.4,2.6 l-3.4,2.6" fill="none" stroke="#8f5432" stroke-width="1.1" stroke-linecap="round"/>
-        <circle cx="9" cy="-15" r="1.7" fill="#241a0e"/>
-        <path d="M5,-19 q4,-2 7,0" fill="none" stroke="#3a2f26" stroke-width="1.2" stroke-linecap="round"/>
-        <path d="M-5,-24 C-14,-31 -21,-35 -28,-39 C-21,-35 -16,-29 -9,-26 Z" fill="#d63b2a" stroke="#8a5e1f" stroke-width=".5"/>
-        <path d="M-3,-26 C-11,-35 -16,-39 -22,-43 C-15,-37 -11,-31 -5,-28 Z" fill="#e7b64b" stroke="#8a5e1f" stroke-width=".45" opacity=".9"/>
-        <path d="M-8,-21 q8,-4 16,-2" fill="none" stroke="#8a5e1f" stroke-width="1.2"/>
-        <path d="M4,17 C24,13 40,14 51,15" fill="none" stroke="#2f6b3c" stroke-width="7" stroke-linecap="round"/>
-        <path d="M53,-38 C84,-21 84,52 53,68" fill="none" stroke="url(#goldStroke)" stroke-width="4.2"/>
-        <circle cx="53" cy="15" r="4.4" fill="#b9764a" stroke="#8a5e1f" stroke-width=".5"/>
-        <path d="M53,-38 L14,15 L53,68" fill="none" stroke="#f2e7cc" stroke-width="1.4"/>
-        <line x1="6" y1="15" x2="74" y2="15" stroke="#e8dcc0" stroke-width="2.1"/>
-        <path d="M80 15 l-10 -4 l2 4 l-2 4 z" fill="#f7d98a" stroke="#b8862f" stroke-width=".5"/>
-        <path d="M6 15 l-9 -5 l4 5 l-4 5 z" fill="#57d3ce"/>
-        <path d="M12 15 l-8 -4 M12 15 l-8 4" stroke="#f7d98a" stroke-width="1.4" stroke-linecap="round"/>
-        <path d="M-2,21 C5,19 10,17 14,15" fill="none" stroke="#2f6b3c" stroke-width="7" stroke-linecap="round"/>
-        <circle cx="14" cy="15" r="3.6" fill="#b9764a" stroke="#8a5e1f" stroke-width=".5"/>
-      </g>
-    </svg>
-    <div class="aq">"You were refused a teacher. So become one to yourself — and shoot truer than the princes." <b>— The stone guru</b></div>
-  </div>
-  <div class="auth-form">
-    <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
-      <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
-      <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
+<div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
+<div class="scene-scrim"></div>
+<div class="scroll">
+  <section class="sec" id="hero">
+    <div class="hero-brand">
+      <svg width="30" height="36" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg>
+      EKALAVYA
     </div>
-    <div class="ah" id="auth-h">Welcome back, devotee</div>
-    <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
-    {{error}}
-    <div class="err" id="client-err" style="display:none"></div>
-    <form method="post" action="/login" id="authform">
-      <div class="field"><label class="field-lbl" for="email">Email</label>
-        <input id="email" class="inp" name="email" type="email" autocomplete="username" required autofocus></div>
-      <div class="field"><label class="field-lbl" for="password">Password</label>
-        <input id="password" class="inp" name="password" type="password" autocomplete="current-password" required></div>
-      <div class="field" id="confirm-field" style="display:none"><label class="field-lbl" for="confirm">Confirm password</label>
-        <input id="confirm" class="inp" name="confirm" type="password" autocomplete="new-password"></div>
-      <div class="signup-note" id="pw-hint" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch-dim);margin:-2px 0 14px">At least 10 characters. Your password is hashed with argon2 — never stored in the clear.</div>
-      <button type="submit" class="btn btn-gold" id="auth-submit" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
-    </form>
-  </div>
-</div>
+    <div class="hero-tagline">the archer who taught himself</div>
+    <div class="hero-sub">The hall was closed to him — so he taught himself to outshoot the princes.</div>
+    <div class="hero-cta">
+      <a class="btn btn-gold" href="#auth" style="padding:12px 26px">Log in / Sign up</a>
+      <a class="scrollcue" href="#auth">↓ enter</a>
+    </div>
+  </section>
+  <section class="sec" id="auth">
+    <div class="glass">
+      <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
+        <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
+        <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
+      </div>
+      <div class="ah" id="auth-h">Welcome back, devotee</div>
+      <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
+      {{error}}
+      <div class="err" id="client-err" style="display:none"></div>
+      <form method="post" action="/login" id="authform">
+        <div class="field"><label class="field-lbl" for="email">Email</label>
+          <input id="email" class="inp" name="email" type="email" autocomplete="username" required></div>
+        <div class="field"><label class="field-lbl" for="password">Password</label>
+          <input id="password" class="inp" name="password" type="password" autocomplete="current-password" required></div>
+        <div class="field" id="confirm-field" style="display:none"><label class="field-lbl" for="confirm">Confirm password</label>
+          <input id="confirm" class="inp" name="confirm" type="password" autocomplete="new-password"></div>
+        <div class="signup-note" id="pw-hint" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch-dim);margin:-2px 0 14px">At least 10 characters. Your password is hashed with argon2 — never stored in the clear.</div>
+        <button type="submit" class="btn btn-gold" id="auth-submit" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
+      </form>
+    </div>
+  </section>
 </div>
 <script>
 // Visual Log-in ↔ Sign-up toggle. Auth is email/password only (no OAuth). Both tabs post a
@@ -2368,7 +2733,8 @@ document.getElementById('authform').addEventListener('submit',function(e){
 });
 authMode('{{start}}');
 </script>
-</body></html>"""
+""" + _HERO_JS + r"""
+</body></html>""")
 
 
 # --- public landing (brand mode, marketing) --------------------------------
@@ -2383,7 +2749,17 @@ _HEAD = (
 _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — the archer who taught himself</title>
 """ + _HEAD + r"""
-<style>body{padding:0;min-height:100vh}.landing{min-height:100vh}</style></head><body>
+<style>body{padding:0;min-height:100vh}
+/* fixed animated Option E scene behind the whole landing — the brand entry matches the auth hero */
+.scene-fixed{position:fixed;inset:0;z-index:0;overflow:hidden}
+.scene-fixed svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.scene-scrim{position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(10,13,28,.5) 0%,rgba(10,13,28,.4) 40%,rgba(10,13,28,.74) 100%)}
+/* landing content floats above the scene; drop its own opaque ground so the scene shows through */
+.landing{min-height:100vh;position:relative;z-index:1;background:none!important}
+</style></head><body>
+<div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
+<div class="scene-scrim"></div>
 <div class="landing">
   <div class="land-nav">
     <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
@@ -2435,6 +2811,7 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
       <h4>A guru that writes</h4><p>Lessons, diagrams, and interactive visuals authored right in your canvas — and saved to a library you revisit.</p></div>
   </div>
 </div>
+""" + _HERO_JS + r"""
 </body></html>"""
 
 

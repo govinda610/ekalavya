@@ -172,7 +172,7 @@ h1.eka{
    (Web Animations API) so hit-vs-miss is tied to the learner's LEVEL — see the
    <script> block: hitRate rises with rank (struggle early, mastery later).
    Only the ambient sun/flame idle here in CSS. */
-#sun-spin{transform-box:fill-box;transform-origin:center;animation:sunspin 64s linear infinite}
+#sun-spin{transform-box:fill-box;transform-origin:center;animation:sunspin 26s linear infinite}
 /* birds: slow lateral drift with a gentle rise, each on its own phase */
 .bird{transform-box:view-box}
 .bird.b1{animation:birdfly1 46s linear infinite}
