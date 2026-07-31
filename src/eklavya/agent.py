@@ -59,7 +59,7 @@ def pending_bash_approval(agent, config) -> dict | None:
 
 
 def build_agent(system_prompt: str, tools: list, provider: str | None = None,
-                model: str | None = None, checkpointer=None):
+                model: str | None = None, checkpointer=None, balance: bool | None = None):
     """Create a deep agent with our tools and prompt, wired to a provider.
 
     Defaults to the persistent SQLite checkpointer so conversations survive restarts
@@ -82,7 +82,7 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
     # hops to the next configured provider on a transient/provider error, so one
     # provider being down or rate-limited doesn't kill the session. Single-provider
     # setups get a chain of length 1 — identical to before.
-    chat = build_fallback_chat_model(provider, model=model, max_tokens=_MAX_TOKENS)
+    chat = build_fallback_chat_model(provider, model=model, balance=balance, max_tokens=_MAX_TOKENS)
     return create_deep_agent(
         model=chat,
         tools=list(tools) + cached_mcp_tools(),  # + web search / docs, when warmed

@@ -127,12 +127,21 @@ def create_app():
         return provider
 
     def agent_for(mode: str, user_id: str | None = None):
+        from . import settings
+
         mode = mode if mode in _PROMPTS else "practice"
         uid = user_id or _current_user_id()
+        tools = _TOOLS.get(mode, SESSION_TOOLS)
+        if settings.get_provider() == "auto":
+            # Balanced: no pinned lead — the entry provider rotates across configured keys
+            # (still falls back on error). Rebuilds cache-independently of any single key.
+            key = (uid, mode, "auto")
+            if key not in agents:
+                agents[key] = build_agent(_PROMPTS[mode], tools, provider=None, balance=True)
+            return agents[key]
         prov = _active_provider()
         key = (uid, mode, prov.key)   # provider in the key → switching rebuilds the agent
         if key not in agents:
-            tools = _TOOLS.get(mode, SESSION_TOOLS)
             agents[key] = build_agent(_PROMPTS[mode], tools, provider=prov.key)
         return agents[key]
 
@@ -216,8 +225,15 @@ def create_app():
 
     @app.get("/api/config")
     def cfg() -> dict:
-        from . import settings
+        from . import providers, settings
 
+        if settings.get_provider() == "auto":
+            configured = providers.configured_providers()
+            return {"provider": "Auto (balanced)",
+                    "model": "rotates across " + str(len(configured)) + " provider(s)",
+                    "kickoff": _KICKOFF, "configured": bool(configured),
+                    "first_run": report.is_first_run(),
+                    "death_on_cheat": settings.get_death_on_cheat()}
         prov = _active_provider()
         return {"provider": prov.label, "model": prov.default_model,
                 "kickoff": _KICKOFF, "configured": prov.is_configured(),
@@ -233,7 +249,8 @@ def create_app():
         # selector can list glm/minimax/qwen/kimi and mark the configured ones.
         provs = [{"key": p.key, "label": p.label, "configured": p.is_configured()}
                  for p in providers.PROVIDERS.values()]
-        return {**s, "providers": provs, "active_provider": _active_provider().key}
+        active = "auto" if settings.get_provider() == "auto" else _active_provider().key
+        return {**s, "providers": provs, "active_provider": active}
 
     @app.put("/api/settings")
     async def settings_put(request: Request):
@@ -247,7 +264,8 @@ def create_app():
             guru_voice=body.get("guru_voice"),
             provider=body.get("provider"),
         )
-        return {**updated, "active_provider": _active_provider().key}
+        active = "auto" if settings.get_provider() == "auto" else _active_provider().key
+        return {**updated, "active_provider": active}
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
@@ -1296,7 +1314,8 @@ function saveSetting(patch){
 function loadSettings(){
   fetch('/api/settings').then(r=>r.json()).then(s=>{
     applyReducedMotion(s.reduced_motion);
-    const provOpts=(s.providers||[]).map(p=>
+    const autoOpt="<option value='auto'"+(s.active_provider==='auto'?" selected":"")+">Auto (balanced) · load-balances across your keys</option>";
+    const provOpts=autoOpt+(s.providers||[]).map(p=>
       "<option value='"+p.key+"'"+(p.key===s.active_provider?" selected":"")+(p.configured?"":" disabled")+">"+
       p.label+(p.configured?"":" · no key")+"</option>").join('');
     const tog=(on,danger)=>"<div class='toggle"+(danger?" danger":"")+(on?" on":"")+"' role='switch' tabindex='0' aria-checked='"+(!!on)+"'><i></i></div>";
