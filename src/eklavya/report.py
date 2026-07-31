@@ -385,6 +385,19 @@ def session_context_line() -> str:
     return "[session context — " + " · ".join(parts) + "]"
 
 
+def with_session_context(text: str) -> str:
+    """Prepend the fresh private session-context briefing to a user turn (no-op on error).
+
+    Shared by every surface (web/CLI/TUI) so temporal awareness is uniform — the same
+    `[session context — …]` line the web injects also reaches CLI and TUI turns.
+    """
+    try:
+        line = session_context_line()
+    except Exception:
+        return text
+    return f"{line}\n\n{text}" if (text and text.strip()) else line
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),

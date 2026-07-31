@@ -36,9 +36,11 @@ def run_turn(agent, config: dict, user_text: str, console: Console | None = None
     from langgraph.types import Command
 
     from .agent import pending_bash_approval
+    from .report import with_session_context
     from .verify import selfcheck
 
-    inputs = {"messages": [{"role": "user", "content": user_text}]}
+    # Same fresh temporal-context line the web injects, so CLI turns are time-aware too.
+    inputs = {"messages": [{"role": "user", "content": with_session_context(user_text)}]}
     while True:
         result = agent.invoke(inputs, config=config)
         appr = pending_bash_approval(agent, config)

@@ -60,6 +60,15 @@ def test_session_context_reports_gap_and_last_topics():
     assert line.startswith("[session context —") and "last time:" in line and "today is" in line
 
 
+def test_with_session_context_prepends_the_line_for_every_surface():
+    # the shared helper (used by web + CLI + TUI) prefixes the private briefing to a turn
+    out = report.with_session_context("write a generator")
+    assert out.startswith("[session context —")
+    assert out.rstrip().endswith("write a generator")
+    # empty turn (e.g. a kickoff resume) still yields just the line, never a crash
+    assert report.with_session_context("").startswith("[session context —")
+
+
 def test_session_context_empty_when_no_sessions():
     ctx = report.session_context()
     assert ctx["sessions_total"] == 0

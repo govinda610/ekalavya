@@ -422,7 +422,10 @@ def make_stream_responder(agent, config, approve: Callable[[str, str], bool] | N
     from .agent import pending_bash_approval
 
     def stream(text: str):
-        inputs = {"messages": [{"role": "user", "content": text}]}
+        from .report import with_session_context
+
+        # Same fresh temporal-context line the web/CLI inject, so the TUI is time-aware too.
+        inputs = {"messages": [{"role": "user", "content": with_session_context(text)}]}
         while True:
             for message_chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
                 token = _chunk_text(message_chunk)

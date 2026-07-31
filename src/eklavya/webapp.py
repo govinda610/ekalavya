@@ -339,12 +339,8 @@ def create_app():
             progress.ensure_session(_SESSION_MIN.get(mode, 30), mode)  # open/reuse this sitting
         # Temporal awareness: prepend a fresh, private clock/recap line each turn (elapsed,
         # gap since last visit, last-time topics, due reviews, today's date). Also gives the
-        # otherwise-dateless onboarding agent today's date. Never fatal.
-        try:
-            ctx_line = report.session_context_line()
-            text = f"{ctx_line}\n\n{text}" if text.strip() else ctx_line
-        except Exception:
-            pass
+        # otherwise-dateless onboarding agent today's date. Shared with CLI/TUI for parity.
+        text = report.with_session_context(text)
         if mode == "aiinterview":
             from .assist import mark_interview
 

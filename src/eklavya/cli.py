@@ -159,7 +159,7 @@ def practice(
     banner.render(console)
     console.print(f"\n[dim]teacher: {p.label} · {p.default_model} · {minutes} min[/]\n")
     agent = build_agent(prompts.SESSION, SESSION_TOOLS, provider=p.key)
-    progress.start_session(minutes)
+    progress.start_session(minutes, mode="practice")
     try:
         chat_loop(agent, kickoff=f"Start today's practice session. I have {minutes} minutes.",
                   console=console, mode="practice")
@@ -270,7 +270,7 @@ def tui(
     # Wire streaming after construction so the run_bash approval modal can call
     # back into this app instance for consent.
     tui_app.stream_fn = make_stream_responder(agent, config, approve=tui_app.ask_bash_approval)
-    progress.start_session(minutes)
+    progress.start_session(minutes, mode="practice")
     try:
         tui_app.run()
     finally:
