@@ -46,6 +46,11 @@ DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "glm")
 # always active regardless of this flag.
 BALANCE_PROVIDERS = os.environ.get("EKLAVYA_BALANCE", "0") not in ("0", "", "false", "False")
 
+# When on, a self-service signup creates a PENDING account that the owner must approve
+# (`eklavya approve <email>`) before it can log in — so opening registration in the wild
+# can't be abused by anyone who just types an email + password. Off by default.
+SIGNUP_APPROVAL = os.environ.get("EKLAVYA_SIGNUP_APPROVAL", "0") not in ("0", "", "false", "False")
+
 
 # --- the current user's home (contextvar) ----------------------------------
 

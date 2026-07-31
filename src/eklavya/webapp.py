@@ -599,10 +599,11 @@ def _mount_auth(app) -> None:
 
     _secret()
 
-    def _auth_page(start: str, error: str) -> str:
+    def _auth_page(start: str, error: str, notice: str = "") -> str:
         # one themed template serves both tabs; `start` picks which is active on load.
         return (_LOGIN.replace("{{start}}", start)
-                .replace("{{error}}", error and f'<div class="err">{error}</div>' or ""))
+                .replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
+                .replace("{{notice}}", notice and f'<div class="notice">{notice}</div>' or ""))
 
     def _begin_session(uid: str):
         """Create the user's home/db on first entry and hand back a logged-in redirect."""
@@ -614,12 +615,12 @@ def _mount_auth(app) -> None:
         return resp
 
     @app.get("/login", response_class=HTMLResponse)
-    def login_form(error: str = "") -> str:
-        return _auth_page("login", error)
+    def login_form(error: str = "", notice: str = "") -> str:
+        return _auth_page("login", error, notice)
 
     @app.get("/signup", response_class=HTMLResponse)
-    def signup_form(error: str = "") -> str:
-        return _auth_page("signup", error)
+    def signup_form(error: str = "", notice: str = "") -> str:
+        return _auth_page("signup", error, notice)
 
     @app.post("/login")
     async def login_submit(request: Request):
@@ -636,6 +637,12 @@ def _mount_auth(app) -> None:
             return RedirectResponse("/login?error=Invalid+email+or+password.",
                                     status_code=303)
         auth.reset_failures(email, ip)
+        # credentials are right, but an unapproved account can't enter yet
+        user = auth.get_user(uid)
+        if user and user.get("status") != "active":
+            return RedirectResponse(
+                "/login?notice=Your+account+is+awaiting+approval+by+the+owner.",
+                status_code=303)
         return _begin_session(uid)
 
     @app.post("/signup")
@@ -645,10 +652,17 @@ def _mount_auth(app) -> None:
         form = await request.form()
         email = (form.get("email") or "").strip()
         password = form.get("password") or ""
+        # when the approval gate is on, new accounts land pending and must be approved
+        # (`eklavya approve <email>`) before they can log in — no self-service access.
+        pending = config.MULTIUSER and config.SIGNUP_APPROVAL
         try:
-            uid = auth.create_user(email, password)  # validates email + password length + uniqueness
+            uid = auth.create_user(email, password, status="pending" if pending else "active")
         except ValueError as exc:
             return RedirectResponse(f"/signup?error={quote(str(exc))}", status_code=303)
+        if pending:
+            return RedirectResponse(
+                "/login?notice=" + quote("Account created — the owner must approve it before you can sign in."),
+                status_code=303)
         return _begin_session(uid)
 
     @app.post("/logout")
@@ -2686,6 +2700,7 @@ body{min-height:100vh;margin:0;padding:0;background:var(--void)}
       </div>
       <div class="ah" id="auth-h">Welcome back, devotee</div>
       <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
+      {{notice}}
       {{error}}
       <div class="err" id="client-err" style="display:none"></div>
       <form method="post" action="/login" id="authform">

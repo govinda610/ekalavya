@@ -107,10 +107,13 @@ class AuthMiddleware(BaseHTTPMiddleware):
         path = request.url.path
         uid = read_uid(request)
 
-        # A signature-valid cookie for a since-deleted user must not still grant access
-        # (SECURITY_AUDIT_2026-08-01b N4) — treat it as unauthenticated.
-        if uid is not None and auth.get_user(uid) is None:
-            uid = None
+        # A signature-valid cookie only grants access to an existing, ACTIVE account —
+        # a since-deleted user (N4) or one still awaiting approval is treated as
+        # unauthenticated.
+        if uid is not None:
+            u = auth.get_user(uid)
+            if u is None or u.get("status") != "active":
+                uid = None
 
         if uid is not None:
             # bind this user's home for the whole request context (Phase 1 isolation)

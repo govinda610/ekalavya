@@ -432,10 +432,13 @@ def serve(
 def adduser(
     email: str = typer.Option(None, help="account email (prompted if omitted)"),
 ) -> None:
-    """Create a user account (multi-user deployment). Prompts for a hidden password.
+    """Create an ACTIVE user account directly (multi-user deployment). Prompts for a hidden
+    password.
 
-    Accounts exist only in the shared users.db; public signup is disabled by design, so
-    this is how the two trusted users get in. Requires EKLAVYA_DATA_ROOT to be set.
+    Accounts live in the shared users.db. Self-service signup exists at /signup; when the
+    approval gate (EKLAVYA_SIGNUP_APPROVAL) is on, those land pending until `eklavya approve`.
+    This command bypasses that — it provisions a ready-to-use account. Requires
+    EKLAVYA_DATA_ROOT to be set.
     """
     from . import auth
 
@@ -464,10 +467,27 @@ def listusers() -> None:
         return
     table = Table(show_header=True, header_style="bold cyan", box=None, pad_edge=False)
     table.add_column("email")
+    table.add_column("status")
     table.add_column("created")
     for r in rows:
-        table.add_row(r["email"], (r["created_at"] or "")[:16])
+        status = r.get("status") or "active"
+        badge = status if status == "active" else f"[yellow]{status}[/]"
+        table.add_row(r["email"], badge, (r["created_at"] or "")[:16])
     console.print(table)
+
+
+@app.command()
+def approve(
+    email: str = typer.Argument(..., help="email of the pending account to approve"),
+) -> None:
+    """Approve a pending signup so it can log in (multi-user, when EKLAVYA_SIGNUP_APPROVAL is on)."""
+    from . import auth
+
+    if auth.approve_user(email):
+        console.print(f"[green]✓[/green] approved [bold]{email.strip().lower()}[/] — they can now log in.")
+    else:
+        console.print(f"[red]✗[/red] no account found for {email.strip().lower()}")
+        raise typer.Exit(1)
 
 
 @app.command()

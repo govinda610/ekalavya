@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS users (
     id            TEXT PRIMARY KEY,       -- short slug/uuid; also the on-disk home dir name
     email         TEXT NOT NULL UNIQUE,   -- stored lowercased
     password_hash TEXT NOT NULL,          -- argon2id
+    status        TEXT NOT NULL DEFAULT 'active',  -- active | pending (awaiting owner approval)
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -38,6 +39,10 @@ def _connect() -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA busy_timeout = 5000;")
     conn.executescript(_SCHEMA)
+    # additive migration for accounts created before the approval gate existed
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
+    if "status" not in cols:
+        conn.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
     return conn
 
 
@@ -49,10 +54,11 @@ def _hasher():
     return PasswordHasher()
 
 
-def create_user(email: str, password: str) -> str:
+def create_user(email: str, password: str, status: str = "active") -> str:
     """Create an account and return its uid. Raises ``ValueError`` if the email already
     exists or the password is too short (< 10 chars). The password is argon2-hashed; the
-    plaintext is never stored or logged."""
+    plaintext is never stored or logged. ``status`` is 'active' normally, or 'pending' when
+    the signup-approval gate is on (the owner approves before the account can log in)."""
     email = email.strip().lower()
     if not email or "@" not in email:
         raise ValueError("a valid email is required")
@@ -63,8 +69,8 @@ def create_user(email: str, password: str) -> str:
     conn = _connect()
     try:
         conn.execute(
-            "INSERT INTO users(id, email, password_hash) VALUES(?, ?, ?)",
-            (uid, email, password_hash),
+            "INSERT INTO users(id, email, password_hash, status) VALUES(?, ?, ?, ?)",
+            (uid, email, password_hash, status),
         )
         conn.commit()
     except sqlite3.IntegrityError as exc:
@@ -72,6 +78,30 @@ def create_user(email: str, password: str) -> str:
     finally:
         conn.close()
     return uid
+
+
+def approve_user(email: str) -> bool:
+    """Mark a pending account active. Returns True if a matching account was updated."""
+    email = email.strip().lower()
+    conn = _connect()
+    try:
+        cur = conn.execute("UPDATE users SET status='active' WHERE email=?", (email,))
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
+def list_pending() -> list[dict]:
+    """Accounts awaiting approval (status != 'active'), oldest first."""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, email, created_at FROM users WHERE status != 'active' ORDER BY created_at"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
 
 
 def verify_login(email: str, password: str) -> str | None:
@@ -103,11 +133,11 @@ def verify_login(email: str, password: str) -> str | None:
 
 
 def get_user(uid: str) -> dict | None:
-    """Return {id, email, created_at} for a uid, or None."""
+    """Return {id, email, status, created_at} for a uid, or None."""
     conn = _connect()
     try:
         row = conn.execute(
-            "SELECT id, email, created_at FROM users WHERE id = ?", (uid,)
+            "SELECT id, email, status, created_at FROM users WHERE id = ?", (uid,)
         ).fetchone()
     finally:
         conn.close()
@@ -119,7 +149,7 @@ def list_users() -> list[dict]:
     conn = _connect()
     try:
         rows = conn.execute(
-            "SELECT id, email, created_at FROM users ORDER BY created_at"
+            "SELECT id, email, status, created_at FROM users ORDER BY created_at"
         ).fetchall()
     finally:
         conn.close()

@@ -631,6 +631,9 @@ footer .fm{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);lette
 .auth-tabs span.on{background:linear-gradient(180deg,rgba(231,182,75,.16),rgba(20,15,10,.6));color:var(--gold-bright)}
 .auth-alt{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);margin-top:18px;text-align:center;letter-spacing:.03em}
 .auth-alt a{color:var(--gold-bright);text-decoration:none}
+/* friendly (non-error) info banner in the auth card — e.g. "awaiting approval" */
+.notice{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em;color:var(--gold-bright);
+  border:1px solid var(--line-gold);background:rgba(231,182,75,.1);border-radius:4px;padding:9px 12px;margin:0 0 16px}
 .oauth{display:flex;gap:10px;margin-top:16px}
 .oauth .ob{flex:1;font-family:var(--f-title);font-size:13px;padding:11px;border:1px solid var(--line-gold);border-radius:4px;text-align:center;color:var(--parch-dim);background:rgba(6,9,20,.5)}
 
