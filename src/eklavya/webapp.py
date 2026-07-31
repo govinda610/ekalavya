@@ -195,6 +195,18 @@ def create_app():
 
         return render_journey()
 
+    @app.get("/effectiveness", response_class=HTMLResponse)
+    def effectiveness() -> str:
+        from .effectiveness import render as render_effectiveness
+
+        return render_effectiveness()
+
+    @app.get("/api/effectiveness")
+    def effectiveness_api() -> dict:
+        from .effectiveness import summary
+
+        return summary()
+
     @app.get("/profile", response_class=HTMLResponse)
     def profile_page() -> str:
         from .profileview import render as render_profile
@@ -903,8 +915,8 @@ button:disabled{opacity:.42;cursor:default}
 .art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
 .art-echo .lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
 .art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
-#dash,#journey,#profile{display:none;height:100%}
-#dash iframe,#journey iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
+#dash,#journey,#effect,#profile{display:none;height:100%}
+#dash iframe,#journey iframe,#effect iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
 #library,#settings{display:none;height:100%;overflow-y:auto}
 /* settings screen (template K) — setrows + toggles */
 .settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
@@ -1155,6 +1167,7 @@ body.reduce-motion *{animation:none !important}
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
     <button class="tab" data-view="journey">Journey</button>
+    <button class="tab" data-view="effect">Effectiveness</button>
     <button class="tab" data-view="profile">Profile</button>
     <button class="tab" data-view="tree">Skill Tree</button>
   </div>
@@ -1239,6 +1252,7 @@ body.reduce-motion *{animation:none !important}
   </div>
   <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
   <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
+  <div id="effect"><iframe id="effectframe" src="/effectiveness"></iframe></div>
   <div id="profile"><iframe id="pframe" src="/profile"></iframe></div>
   <div id="tree">
     <div class="treehead">
@@ -1329,13 +1343,14 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 // The rail carries Practice/Progress/Forest Map(tree)/Library/Settings; the header
 // tabs carry Practice/Progress/Journey/Profile/Skill Tree — they share these targets.
 function showView(v){
-  const DISP={practice:'grid',dash:'block',journey:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
+  const DISP={practice:'grid',dash:'block',journey:'block',effect:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='dash') document.getElementById('dashframe').src='/dashboard';
   if(v==='journey') document.getElementById('jframe').src='/journey';
+  if(v==='effect') document.getElementById('effectframe').src='/effectiveness';  // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
   if(v==='library') loadLibrary();

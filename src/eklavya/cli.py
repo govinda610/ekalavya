@@ -341,6 +341,28 @@ def chats() -> None:
 
 
 @app.command()
+def export(
+    out: str = typer.Option("./eklavya_attempts.csv", "--out", help="output file path"),
+    format: str = typer.Option("csv", "--format", help="csv or jsonl"),
+) -> None:
+    """Export one tidy row per attempt for offline analysis (pandas / R).
+
+    Writes your own attempts (single-user by default) with pillar/axis, confidence,
+    correctness, timing, session, and the rating change — the substrate every causal
+    analysis in docs/EFFECTIVENESS_MEASUREMENT.md builds on.
+    """
+    from .effectiveness import export_attempts
+
+    fmt = format.lower()
+    if fmt not in ("csv", "jsonl"):
+        console.print("[red]✗[/red] --format must be csv or jsonl.")
+        raise typer.Exit(1)
+    init_db()
+    n = export_attempts(out, fmt)
+    console.print(f"[green]✓[/green] wrote {n} attempt(s) to [bold]{out}[/] ({fmt}).")
+
+
+@app.command()
 def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `eklavya chats`)")) -> None:
     """Resume a past chat and continue it (most recent by default)."""
     from .agent import build_agent
