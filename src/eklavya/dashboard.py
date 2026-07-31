@@ -437,11 +437,14 @@ h2 .ic{width:15px;height:15px}
   grid-template-areas:
     "cal cal cal cal cal cal"
     "map map map map axes axes"
-    "quests quests gap gap gap gap"
-    "ach ach ach ach chron chron";}
+    "map map map map gap gap"
+    "quests quests ach ach chron chron";}
 .b-cal{grid-area:cal}
 .b-map{grid-area:map}.b-axes{grid-area:axes}.b-quests{grid-area:quests}
 .b-gap{grid-area:gap}.b-ach{grid-area:ach}.b-chron{grid-area:chron}
+/* the skill map is the tall hero — cap it so it scrolls internally instead of dwarfing
+   the shorter right-column cards (axes + AI-gap), which now stack beside it to fill the row */
+.b-map{max-height:620px;overflow:auto}
 .bento .card{margin:0}
 @media(max-width:820px){
   .bento{grid-template-columns:1fr;grid-template-areas:"cal" "map" "axes" "quests" "gap" "ach" "chron"}
