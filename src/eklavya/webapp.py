@@ -599,9 +599,27 @@ def _mount_auth(app) -> None:
 
     _secret()
 
+    def _auth_page(start: str, error: str) -> str:
+        # one themed template serves both tabs; `start` picks which is active on load.
+        return (_LOGIN.replace("{{start}}", start)
+                .replace("{{error}}", error and f'<div class="err">{error}</div>' or ""))
+
+    def _begin_session(uid: str):
+        """Create the user's home/db on first entry and hand back a logged-in redirect."""
+        config.set_current_home(config.user_home(uid))
+        config.ensure_home()
+        init_db()
+        resp = RedirectResponse("/", status_code=303)
+        issue_session(resp, uid)
+        return resp
+
     @app.get("/login", response_class=HTMLResponse)
     def login_form(error: str = "") -> str:
-        return _LOGIN.replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
+        return _auth_page("login", error)
+
+    @app.get("/signup", response_class=HTMLResponse)
+    def signup_form(error: str = "") -> str:
+        return _auth_page("signup", error)
 
     @app.post("/login")
     async def login_submit(request: Request):
@@ -618,13 +636,20 @@ def _mount_auth(app) -> None:
             return RedirectResponse("/login?error=Invalid+email+or+password.",
                                     status_code=303)
         auth.reset_failures(email, ip)
-        # ensure the user's home + per-user db exist within their own context on first login
-        config.set_current_home(config.user_home(uid))
-        config.ensure_home()
-        init_db()
-        resp = RedirectResponse("/", status_code=303)
-        issue_session(resp, uid)
-        return resp
+        return _begin_session(uid)
+
+    @app.post("/signup")
+    async def signup_submit(request: Request):
+        from urllib.parse import quote
+
+        form = await request.form()
+        email = (form.get("email") or "").strip()
+        password = form.get("password") or ""
+        try:
+            uid = auth.create_user(email, password)  # validates email + password length + uniqueness
+        except ValueError as exc:
+            return RedirectResponse(f"/signup?error={quote(str(exc))}", status_code=303)
+        return _begin_session(uid)
 
     @app.post("/logout")
     def logout():
@@ -2294,23 +2319,24 @@ body{min-height:100vh;display:flex;align-items:center;justify-content:center;pad
     <div class="ah" id="auth-h">Welcome back, devotee</div>
     <div class="asub" id="auth-sub">The forest remembers where you left the string.</div>
     {{error}}
-    <div class="signup-note" id="signup-note" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13.5px;color:var(--parch-dim);border:1px solid var(--line-soft);background:rgba(6,9,20,.4);border-radius:6px;padding:11px 13px;margin:0 0 14px">
-      New statues are raised from the terminal for now — ask your guru to run <code style="font-family:var(--f-mono);color:var(--peacock-bright);font-style:normal">eklavya adduser</code>, then log in here.
-    </div>
-    <form method="post" action="/login">
+    <div class="err" id="client-err" style="display:none"></div>
+    <form method="post" action="/login" id="authform">
       <div class="field"><label class="field-lbl" for="email">Email</label>
         <input id="email" class="inp" name="email" type="email" autocomplete="username" required autofocus></div>
       <div class="field"><label class="field-lbl" for="password">Password</label>
         <input id="password" class="inp" name="password" type="password" autocomplete="current-password" required></div>
+      <div class="field" id="confirm-field" style="display:none"><label class="field-lbl" for="confirm">Confirm password</label>
+        <input id="confirm" class="inp" name="confirm" type="password" autocomplete="new-password"></div>
+      <div class="signup-note" id="pw-hint" style="display:none;font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch-dim);margin:-2px 0 14px">At least 10 characters. Your password is hashed with argon2 — never stored in the clear.</div>
       <button type="submit" class="btn btn-gold" id="auth-submit" style="width:100%;justify-content:center;margin-top:8px">Sign in — draw the string</button>
     </form>
   </div>
 </div>
 </div>
 <script>
-// Visual Log-in ↔ Sign-up toggle. Auth is email/password only (no OAuth); sign-ups are
-// created from the CLI (eklavya adduser), so the Sign-up tab explains that and keeps the
-// same working login form — it never posts a signup.
+// Visual Log-in ↔ Sign-up toggle. Auth is email/password only (no OAuth). Both tabs post a
+// REAL form — login → /login, signup → /signup (which creates the account) — sharing one
+// themed form; the signup tab reveals a confirm field + a password hint.
 function authMode(m){
   const login=m==='login';
   document.getElementById('tab-login').classList.toggle('on',login);
@@ -2321,9 +2347,23 @@ function authMode(m){
   document.getElementById('auth-sub').textContent = login
     ? 'The forest remembers where you left the string.'
     : 'The one refused a teacher taught himself. Begin the same way.';
-  document.getElementById('signup-note').style.display = login ? 'none' : 'block';
-  document.getElementById('auth-submit').textContent = login ? 'Sign in — draw the string' : 'Log in to your statue';
+  document.getElementById('confirm-field').style.display = login ? 'none' : 'block';
+  document.getElementById('pw-hint').style.display = login ? 'none' : 'block';
+  document.getElementById('confirm').required = !login;
+  document.getElementById('password').setAttribute('autocomplete', login ? 'current-password' : 'new-password');
+  document.getElementById('authform').setAttribute('action', login ? '/login' : '/signup');
+  document.getElementById('auth-submit').textContent = login ? 'Sign in — draw the string' : 'Raise your statue — begin';
+  document.getElementById('client-err').style.display='none';
 }
+// client-side guard on signup: length + match, so obvious mistakes never round-trip.
+document.getElementById('authform').addEventListener('submit',function(e){
+  if((this.getAttribute('action')||'').indexOf('/signup')>=0){
+    const p=document.getElementById('password').value, c=document.getElementById('confirm').value;
+    const msg = p.length<10 ? 'Password must be at least 10 characters.' : (p!==c ? 'Passwords do not match.' : '');
+    if(msg){ e.preventDefault(); const el=document.getElementById('client-err'); el.textContent=msg; el.style.display='block'; }
+  }
+});
+authMode('{{start}}');
 </script>
 </body></html>"""
 
@@ -2347,7 +2387,7 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
     <div class="links"><span>The Method</span><span>Skill Forest</span><span>Manifesto</span></div>
     <span style="flex:1"></span>
     <a class="btn btn-ghost" style="padding:9px 18px" href="/login">Log in</a>
-    <a class="btn btn-stone" style="padding:9px 20px" href="/">Begin your svādhyāya</a>
+    <a class="btn btn-stone" style="padding:9px 20px" href="/signup">Begin your svādhyāya</a>
   </div>
   <div class="land-hero">
     <div>

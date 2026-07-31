@@ -31,9 +31,9 @@ from . import config
 COOKIE_NAME = "eklavya_session"
 COOKIE_MAX_AGE = 14 * 24 * 3600  # 14 days
 
-# routes reachable without a session (the login form + its POST, the logout POST, and the
-# public marketing landing page)
-_OPEN_PATHS = {"/login", "/logout", "/welcome"}
+# routes reachable without a session (the login + signup forms and their POSTs, the logout
+# POST, and the public marketing landing page)
+_OPEN_PATHS = {"/login", "/signup", "/logout", "/welcome"}
 
 # Baseline security headers (SECURITY_AUDIT_2026-08-01b N5). SAMEORIGIN, not DENY, because
 # the SPA embeds its own dashboard/journey/profile routes in same-origin iframes. CSP is
