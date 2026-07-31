@@ -75,3 +75,10 @@ def test_session_context_empty_when_no_sessions():
     assert ctx["session_elapsed_min"] is None and ctx["gap_days"] is None
     # still yields today's date, so the onboarding agent is never dateless
     assert "today is" in report.session_context_line()
+
+
+def test_chatstore_strips_the_session_context_from_titles_and_transcript():
+    from eklavya import chatstore
+    ctx = "[session context — 4m elapsed of a planned 30m · session #12 · today is Fri 2026-08-01]"
+    assert chatstore._strip_ctx(ctx + "\n\nExplain closures.") == "Explain closures."
+    assert chatstore._strip_ctx("no context here") == "no context here"

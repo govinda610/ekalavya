@@ -182,6 +182,17 @@ def _messages(thread_id: str) -> list:
         return []
 
 
+import re as _re
+
+# The private "[session context — …]" briefing the app prepends to each user turn (#59) is
+# for the AGENT only — strip it from anything the learner sees (transcript, chat title).
+_CTX_RE = _re.compile(r"^\[session context —[^\]]*\]\s*\n+")
+
+
+def _strip_ctx(text: str) -> str:
+    return _CTX_RE.sub("", text or "", count=1)
+
+
 def transcript(thread_id: str) -> list[dict]:
     """The human + assistant turns of a chat, in order, for display.
 
@@ -193,6 +204,8 @@ def transcript(thread_id: str) -> list[dict]:
         if role not in ("human", "ai"):
             continue
         text = _text(m).strip()
+        if role == "human":
+            text = _strip_ctx(text).strip()   # hide the private session-context briefing
         if text:
             out.append({"role": "you" if role == "human" else "ai", "text": text})
     return out
@@ -208,7 +221,7 @@ def auto_title(thread_id: str, limit: int = 48, skip: set | None = None) -> str 
     for m in _messages(thread_id):
         if getattr(m, "type", None) != "human":
             continue
-        raw = _text(m).strip()
+        raw = _strip_ctx(_text(m)).strip()   # title from the real message, not the ctx briefing
         if not raw or raw in skip:
             continue
         first = " ".join(raw.splitlines()[0].split())
