@@ -196,6 +196,12 @@ def test_webapp_returns_404_for_foreign_thread(monkeypatch):
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
     monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")
     monkeypatch.setenv("EKLAVYA_DATA_ROOT", tempfile.mkdtemp(prefix="eklavya-web-mu-"))
+    # uid-x must be a real account, else the auth middleware rejects the cookie (N4).
+    from eklavya import auth
+    _u = auth._connect()
+    _u.execute("INSERT INTO users(id, email, password_hash) VALUES('uid-x', 'x@eklavya.dev', 'x')")
+    _u.commit()
+    _u.close()
     home = config.user_home("uid-x")
     from eklavya.config import _current_home
 

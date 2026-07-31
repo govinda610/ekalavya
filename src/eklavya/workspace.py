@@ -85,11 +85,15 @@ def build_backend():
                 return _DENY_MSG
             return await super().aread(file_path, *args, **kwargs)
 
-    # Single-user reads the whole host home (so you can point it at your real code);
-    # multi-user roots reads at the user's own home as defence-in-depth behind the
-    # _is_forbidden guard, so one tenant's agent can't wander the host.
+    # Single-user reads the whole host home (so you can point it at your real code), with
+    # virtual_mode=False + the _is_forbidden guard on read. MULTI-USER is different: the
+    # read override only guards `read`, but ls/glob/grep/download route through the backend
+    # directly — so we MUST confine at the backend with virtual_mode=True rooted at the
+    # user's own home. Without this, an absolute-path search escapes the tenant's tree and
+    # can read the shared users.db / other tenants (cross-tenant breach). Belt-and-braces:
+    # _is_forbidden still guards read() in both modes.
     read_root = config.paths().home if config.MULTIUSER else Path.home()
     return CompositeBackend(
-        default=ReadOnlyHost(root_dir=str(read_root), virtual_mode=False),
+        default=ReadOnlyHost(root_dir=str(read_root), virtual_mode=config.MULTIUSER),
         routes={"/workspace/": FilesystemBackend(root_dir=str(workspace_dir()), virtual_mode=True)},
     )

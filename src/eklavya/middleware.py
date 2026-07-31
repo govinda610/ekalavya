@@ -35,6 +35,15 @@ COOKIE_MAX_AGE = 14 * 24 * 3600  # 14 days
 # public marketing landing page)
 _OPEN_PATHS = {"/login", "/logout", "/welcome"}
 
+# Baseline security headers (SECURITY_AUDIT_2026-08-01b N5). SAMEORIGIN, not DENY, because
+# the SPA embeds its own dashboard/journey/profile routes in same-origin iframes. CSP is
+# deliberately left for the pre-public hardening pass (needs SRI-pinned CDN scripts first).
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+}
+
 
 def _secret() -> str:
     secret = os.environ.get("EKLAVYA_SECRET_KEY", "")
@@ -93,17 +102,30 @@ class AuthMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
+        from . import auth
+
         path = request.url.path
         uid = read_uid(request)
+
+        # A signature-valid cookie for a since-deleted user must not still grant access
+        # (SECURITY_AUDIT_2026-08-01b N4) — treat it as unauthenticated.
+        if uid is not None and auth.get_user(uid) is None:
+            uid = None
 
         if uid is not None:
             # bind this user's home for the whole request context (Phase 1 isolation)
             config.set_current_home(config.user_home(uid))
-            return await call_next(request)
+            return self._secure(await call_next(request))
 
         # unauthenticated
         if path in _OPEN_PATHS or path.startswith("/static/"):
-            return await call_next(request)
+            return self._secure(await call_next(request))
         if path.startswith("/api/"):
-            return JSONResponse({"detail": "authentication required"}, status_code=401)
-        return RedirectResponse("/login", status_code=303)
+            return self._secure(JSONResponse({"detail": "authentication required"}, status_code=401))
+        return self._secure(RedirectResponse("/login", status_code=303))
+
+    @staticmethod
+    def _secure(response):
+        for header, value in _SECURITY_HEADERS.items():
+            response.headers.setdefault(header, value)
+        return response
