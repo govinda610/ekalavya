@@ -206,6 +206,12 @@ def create_app():
         # to /login, so a single "Enter the forest" button works for both deployments.
         return _LANDING
 
+    @app.get("/about", response_class=HTMLResponse)
+    def about() -> str:
+        # Public "About Ekalavya" page (brand mode): what it is, what it stands for (the
+        # Ekalavya story), and how to use it (the loop). Reachable from the landing nav.
+        return _ABOUT
+
     @app.get("/canvas", response_class=HTMLResponse)
     def canvas() -> str:
         # Canvas & Artifacts shell (product mode). A styled scaffold today — the guru
@@ -3236,7 +3242,7 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <div class="landing">
   <div class="land-nav">
     <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
-    <div class="links"><a href="#method" style="color:inherit;text-decoration:none">The Method</a><a href="#method" style="color:inherit;text-decoration:none">Skill Forest</a><a href="#method" style="color:inherit;text-decoration:none">Manifesto</a></div>
+    <div class="links"><a href="/about" style="color:inherit;text-decoration:none">The Method</a><a href="/about#loop" style="color:inherit;text-decoration:none">Skill Forest</a><a href="/about" style="color:inherit;text-decoration:none">Manifesto</a></div>
     <span style="flex:1"></span>
     <a class="btn btn-ghost" style="padding:9px 18px" href="/login">Log in</a>
     <a class="btn btn-stone" style="padding:9px 20px" href="/signup">Begin your svādhyāya</a>
@@ -3289,6 +3295,122 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
   </div>
 </div>
 """ + _HERO_JS + r"""
+</body></html>"""
+
+
+# --- About Ekalavya (public, brand mode) -----------------------------------
+# A static page in Option E's typography: WHAT it is, WHAT it stands for (the Ekalavya story),
+# and HOW to use it (the loop: practice → drills graded unaided → forest/mastery → effectiveness).
+# Reachable from the landing/login nav ("The Method" / "Manifesto"). Reuses the shared Option E
+# design-system classes (.wrap, .eyebrow, h2.sec, .sec-sub, .frame, .divider, .dotrule, footer).
+_ABOUT = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — About the method</title>
+""" + _HEAD + r"""
+<style>body{padding:0}
+/* a slim About hero: the gold wordmark on the uniform indigo ground (no scene — this is a read page) */
+.about-nav{display:flex;align-items:center;gap:14px;padding:20px clamp(26px,6vw,90px);border-bottom:1px solid var(--line-soft)}
+.about-hero{padding:clamp(56px,9vw,110px) clamp(26px,6vw,90px) clamp(30px,5vw,60px);max-width:1000px}
+.about-hero .hero-tag{margin-bottom:18px}
+.about-hero h1.eka{font-size:clamp(46px,8vw,104px)}
+/* the how-to loop: four numbered steps on a winding gold thread */
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:8px}
+.loop .step{padding:22px 22px 24px;position:relative}
+.loop .step .n{font-family:var(--f-display);font-weight:800;font-size:30px;color:transparent;
+  background:linear-gradient(180deg,#fff6df,var(--gold) 60%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;
+  font-variant-numeric:tabular-nums;line-height:1}
+.loop .step h4{font-family:var(--f-title);font-size:18px;color:var(--parch);margin:12px 0 6px}
+.loop .step p{font-family:var(--f-body);font-size:14px;color:var(--parch-dim);margin:0;line-height:1.55}
+.loop .step .deva{font-family:var(--f-deva);font-size:14px;color:var(--gold-bright);margin-top:8px}
+@media(max-width:820px){.loop{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.loop{grid-template-columns:1fr}}
+/* the story reads as one flowing column of serif prose */
+.story{max-width:70ch}
+.story p{font-family:var(--f-body);font-size:17px;color:var(--parch-dim);line-height:1.7;margin:0 0 18px}
+.story p b{color:var(--parch);font-weight:600}
+.story .pull{font-family:var(--f-serif);font-style:italic;font-size:clamp(20px,2.6vw,28px);color:var(--gold-bright);
+  line-height:1.4;margin:26px 0;padding-left:20px;border-left:2px solid var(--gold-deep)}
+.stands{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
+.stands .frame{padding:24px 26px}
+.stands h4{font-family:var(--f-title);font-size:19px;color:var(--gold-bright);margin:0 0 6px}
+.stands p{font-family:var(--f-body);font-size:15px;color:var(--parch-dim);margin:0;line-height:1.6}
+@media(max-width:640px){.stands{grid-template-columns:1fr}}
+</style></head><body>
+<div class="landing">
+  <!-- thin brand bar, mirrors the landing/login nav -->
+  <div class="about-nav">
+    <div class="brand" style="font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--gold-bright);letter-spacing:.08em;display:flex;align-items:center;gap:9px"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
+    <span style="flex:1"></span>
+    <a class="btn btn-ghost" style="padding:9px 18px" href="/welcome">Home</a>
+    <a class="btn btn-stone" style="padding:9px 20px" href="/login">Enter the forest</a>
+  </div>
+
+  <!-- HERO — the gold wordmark + the one-line claim -->
+  <header class="about-hero">
+    <div class="hero-tag">About the method</div>
+    <h1 class="eka">EKALAVYA</h1>
+    <div class="eka-deva">एकलव्य · स्वाध्याय · self-study</div>
+    <p class="hero-sub">An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught</b> — built to grade what you can do <b>unaided</b>, and to grow that unaided ability the honest way.</p>
+  </header>
+
+  <!-- 1 · WHAT IT IS -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">01</span> What it is</div>
+    <h2 class="sec">A guru that refuses to do the work for you</h2>
+    <p class="sec-sub">Most AI tutors hand you the answer. Ekalavya does the opposite: it is a Socratic coding guru that teaches, sets drills, and then <b>grades what you can do on your own</b> — separating your real, portable skill from what the AI carried for you.</p>
+    <div class="story">
+      <p>Ekalavya is a terminal-and-web coding tutor. It authors lessons, diagrams, and interactive visuals into a canvas you keep; it walks you along a <b>forest of mastery</b> — learning groves on a winding path rather than a flat wall of nodes; and after every session it shows you, honestly, whether you are actually getting better.</p>
+      <p>Its one non-negotiable: it measures your <b>unaided accuracy</b> and keeps it separate from AI-assisted work. Paste a full answer and the round is lost — the streak breaks, merit drops. Type it yourself and you reclaim it. The point is not to look productive; it is to <b>become</b> capable.</p>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- 2 · WHAT IT STANDS FOR — the story -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">02</span> What it stands for · the story</div>
+    <h2 class="sec">The hall was closed to him — so he taught himself</h2>
+    <div class="story">
+      <p>In the Mahābhārata, <b>Ekalavya</b> is a forest-dwelling Bhil boy who wants to learn archery from Droṇa, the greatest teacher of the age. Droṇa refuses him — he is an outsider, born outside the circle allowed to be taught.</p>
+      <p>So Ekalavya walks back into the forest, shapes a <b>clay statue</b> of the guru who turned him away, and practises before it, alone, until he can outshoot the very princes the hall was built for. When Droṇa discovers this self-taught mastery, he demands his fee — <b>dakshinā</b> — and asks for Ekalavya's right thumb, so the outsider can never surpass his favoured student. Ekalavya gives it, without a word.</p>
+      <p class="pull">A story of a boundary-crosser who was denied a teacher, taught himself anyway, and was made to pay for it.</p>
+      <p>We keep the discipline and the devotion — and we refuse the ending. This tutor is the statue turned kind: the guru you were denied, rebuilt to <b>teach you rather than break you</b>. It stands for the self-taught, and it is engineered so that what you earn here is <b>yours to keep</b> — no thumb owed.</p>
+    </div>
+    <div class="stands">
+      <div class="frame"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <h4>Merit you can carry</h4><p>Your unaided score is portable proof of skill — not a number inflated by the model doing your thinking.</p></div>
+      <div class="frame"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <h4>Honesty over comfort</h4><p>It tells you when you only <i>think</i> you know something — the calibration gap between confidence and truth.</p></div>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- 3 · HOW TO USE IT — the loop -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">03</span> How to use it · the loop</div>
+    <h2 class="sec">Practise · graded unaided · walk the forest · check the trend</h2>
+    <p class="sec-sub">One simple loop, repeated. Each turn of it moves a grove from locked to lit, and moves your real ability up.</p>
+    <div class="loop">
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">01</div><h4>Practise in the Arena</h4><p>The guru sets a drill and teaches around it — lessons and visuals authored into your canvas as you go.</p><div class="deva">अभ्यास · practice</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">02</div><h4>Graded unaided</h4><p>Solve it yourself and your unaided accuracy is recorded; lean on the AI and that round is scored as assisted, kept separate.</p><div class="deva">स्वाध्याय · self-study</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">03</div><h4>Walk the forest</h4><p>Mastered skills light up groves on the winding path; the next grove unlocks only when the last is truly yours.</p><div class="deva">वन · the forest</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">04</div><h4>Check the trend</h4><p>Effectiveness answers one question — <i>am I getting better?</i> — with your unaided trend, dependency gap, and ability curve.</p><div class="deva">प्रगति · progress</div></div>
+    </div>
+    <div class="dotrule" style="margin-top:34px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="btn-row" style="justify-content:center;margin-top:26px">
+      <a class="btn btn-gold" href="/login">Enter the forest — begin</a>
+      <a class="btn btn-stone" href="/welcome">Back to home</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="fw">EKALAVYA</div>
+    <div class="fd">विद्या ददाति विनयम् — knowledge gives humility</div>
+    <div class="fm">एकलव्य · स्वाध्याय · an AI coding tutor for the self-taught</div>
+  </footer>
+</div>
 </body></html>"""
 
 
