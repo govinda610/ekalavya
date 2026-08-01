@@ -3192,7 +3192,9 @@ document.getElementById('authform').addEventListener('submit',function(e){
 (function(){
   const card=document.querySelector('.glass');
   const auth=document.getElementById('auth');
-  const hasMsg=!!card.querySelector('.err, .notice');
+  // a SERVER-rendered error/notice means the visitor already submitted — jump to the card.
+  // (Ignore the always-present, hidden #client-err validation placeholder.)
+  const hasMsg=[...card.querySelectorAll('.err, .notice')].some(el=>el.id!=='client-err' && el.textContent.trim());
   const openOnAuth = location.hash==='#auth' || {{start_is_signup}} || hasMsg;
   if(openOnAuth){
     card.classList.add('in');
