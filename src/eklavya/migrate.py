@@ -57,6 +57,19 @@ def migrate_single_user(uid: str, source: Path | None = None,
 
     try:
         dst_db = dest / "workspace" / "eklavya.db"
+        # copytree can capture a LIVE WAL db in a torn state (its committed data may still be
+        # in the -wal sidecar), which made the parity check flaky. Re-copy the db as a
+        # CONSISTENT snapshot via SQLite's read-only .backup (the source is only READ, never
+        # touched), then drop the now-stale WAL sidecars so the copy is self-contained.
+        _s = sqlite3.connect(str(src_db)); _d = sqlite3.connect(str(dst_db))
+        try:
+            _s.backup(_d)
+        finally:
+            _d.close(); _s.close()
+        for _sfx in ("-wal", "-shm"):
+            _side = dst_db.parent / (dst_db.name + _sfx)
+            if _side.exists():
+                _side.unlink()
         before, after = _counts(src_db), _counts(dst_db)
         src_profile = source / "workspace" / "profile.md"
         dst_profile = dest / "workspace" / "profile.md"
