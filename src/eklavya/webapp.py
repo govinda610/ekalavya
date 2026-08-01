@@ -730,7 +730,12 @@ background:linear-gradient(120deg,rgba(35,29,24,.6),rgba(12,10,20,.7))}
 background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;cursor:pointer;transition:.16s}
 .tab:hover{color:var(--gold-bright)}
 .tab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
-.spacer{flex:1}.who{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
+.spacer{flex:1}
+/* provider chip — compact pill, not raw wrapped debug text */
+.who{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;
+ background:rgba(6,9,20,.5);border:1px solid var(--line-gold);border-radius:999px;padding:5px 11px;
+ white-space:nowrap;flex:none;cursor:default}
+.who:empty{display:none}
 main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 /* ashram left rail (template D): Practice/Progress/Forest Map/Library/Settings + mini-HUD title */
 #prail{width:168px;border-right:1px solid var(--line-soft);padding:16px 12px;display:flex;flex-direction:column;gap:4px;background:rgba(6,9,20,.4)}
@@ -1022,11 +1027,11 @@ body.reduce-motion *{animation:none !important}
  border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
 #penaltybtn:hover{border-color:var(--gold-deep)}
 #penaltybtn.off{color:var(--vermilion-glow);border-color:rgba(214,59,42,.5)}
-#drawerscrim{position:fixed;inset:0;z-index:110;background:rgba(2,6,12,.6);opacity:0;pointer-events:none;transition:opacity .22s}
+#drawerscrim{position:fixed;inset:0;z-index:900;background:rgba(2,6,12,.62);opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(1.5px)}
 #drawerscrim.open{opacity:1;pointer-events:auto}
-#drawer{position:fixed;top:0;left:0;bottom:0;width:300px;z-index:120;transform:translateX(-105%);
+#drawer{position:fixed;top:0;left:0;bottom:0;width:300px;max-width:88vw;z-index:910;transform:translateX(-105%);
  transition:transform .22s ease;display:flex;flex-direction:column;
- background:linear-gradient(180deg,rgba(35,29,24,.6),rgba(12,10,20,.85));border-right:1px solid var(--line-gold);box-shadow:2px 0 30px #0008}
+ background:linear-gradient(180deg,#1c1712,#0b0912);border-right:1px solid var(--line-gold);box-shadow:2px 0 30px #000c}
 #drawer.open{transform:translateX(0)}
 .drawerhead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
 .drawerhead .t{font-family:var(--f-mono);letter-spacing:.16em;font-size:12px;color:var(--gold-bright);text-transform:uppercase}
@@ -1142,8 +1147,9 @@ body.reduce-motion *{animation:none !important}
 #mnav{display:none;justify-content:space-around;align-items:flex-end;padding:8px 10px 12px;
  border-top:1px solid var(--line-gold);background:linear-gradient(180deg,rgba(35,29,24,.6),rgba(8,11,32,.95));
  position:sticky;bottom:0;z-index:80}
-#mnav .ni{display:flex;flex-direction:column;align-items:center;gap:4px;font-family:var(--f-mono);font-size:10px;
- letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;padding:0}
+#mnav .ni{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-family:var(--f-mono);font-size:10px;
+ letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;
+ padding:6px 8px;min-width:56px;min-height:48px}
 #mnav .ni.on{color:var(--gold-bright)}
 #mnav .ni.center{margin-top:-24px}
 #mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
@@ -1152,25 +1158,40 @@ body.reduce-motion *{animation:none !important}
 @media(max-width:900px){
  header{flex-wrap:wrap;gap:10px;padding:10px 14px}
  .creed{display:none}
- .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none}.tabs::-webkit-scrollbar{display:none}
+ /* tab bar scrolls horizontally with a right-edge fade so hidden tabs are discoverable */
+ .tabsrail{position:relative;margin-left:0;flex:1 1 100%;min-width:0}
+ .tabsrail::after{content:"";position:absolute;top:0;right:0;bottom:0;width:26px;pointer-events:none;
+  background:linear-gradient(90deg,transparent,rgba(12,10,20,.9))}
+ .tabsrail::before{content:"›";position:absolute;top:50%;right:5px;transform:translateY(-50%);pointer-events:none;
+  color:var(--gold-bright);font-size:16px;opacity:.7;z-index:1}
+ .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none;padding-right:22px}.tabs::-webkit-scrollbar{display:none}
+ .tab{padding:14px 13px}                 /* >=44px hit area */
  .hud{font-size:11px;gap:8px}
  #prail{display:none}                 /* the rail is desktop-only; mobile uses the radial nav */
- main{grid-template-columns:1fr}
+ main{grid-template-columns:1fr;overflow-x:hidden}
+ #content{overflow-x:hidden}
  body{overflow:auto}
  #mnav{display:flex}
+ /* the editor toolbar must wrap on narrow screens — root cause of the horizontal overflow */
+ .edtoolbar{flex-wrap:wrap}
+ .edtoolbar .grow{flex-basis:100%;height:0}
+ #chatsbtn,#penaltybtn{padding:14px 12px}   /* >=44px hit area */
+ .edtoolbar select{padding:14px 10px}
+ .seg span{padding:14px 12px}
+ .edtoolbar button{padding-top:12px;padding-bottom:12px}
 }
 </style></head><body>
 <header>
   <div><div class="logo"><span class="bowmark"><svg width="17" height="22" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
   <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
-  <div class="tabs">
+  <div class="tabsrail"><div class="tabs">
     <button class="tab on" data-view="practice">Practice</button>
     <button class="tab" data-view="dash">Progress</button>
     <button class="tab" data-view="journey">Journey</button>
     <button class="tab" data-view="effect">Effectiveness</button>
     <button class="tab" data-view="profile">Profile</button>
     <button class="tab" data-view="tree">Skill Tree</button>
-  </div>
+  </div></div>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <div class="spacer"></div>
   <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
@@ -1392,8 +1413,7 @@ function loadSettings(){
     wire('#sr-voice','guru_voice');
     document.getElementById('provselect').onchange=e=>{
       saveSetting({provider:e.target.value}).then(()=>{
-        fetch('/api/config').then(r=>r.json()).then(c=>{
-          document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set'; });
+        fetch('/api/config').then(r=>r.json()).then(c=>setWho(c));
       });
     };
   }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
@@ -2231,9 +2251,16 @@ function renameChat(id, cur){
    .then(()=>loadChats()).catch(()=>{});
 }
 
+// render the provider chip as a compact label (verbose "rotates across N" → tooltip only)
+function setWho(c){
+  const el=document.getElementById('who'); if(!el) return;
+  if(!c.configured){ el.textContent='no provider key'; el.title='no provider key set'; return; }
+  const short=(c.provider||'').replace(/\s*\(.*?\)\s*/,'').trim()||'Auto';
+  el.textContent=short; el.title=c.provider+' · '+c.model;
+}
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
-  document.getElementById('who').textContent = c.configured ? (c.provider+' · '+c.model) : 'no provider key set';
+  setWho(c);
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
