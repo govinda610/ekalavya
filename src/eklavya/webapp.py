@@ -111,6 +111,14 @@ def create_app():
     def _current_user_id() -> str:
         return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
 
+    def _current_email() -> str | None:
+        """The logged-in user's email (multi-user only) — for the account menu."""
+        if not config.MULTIUSER:
+            return None
+        from . import auth
+        u = auth.get_user(_current_user_id())
+        return u.get("email") if u else None
+
     def _active_provider():
         """The provider to use for this user: their saved Settings choice if it's
         configured, else the constructed default (auto-picked)."""
@@ -264,12 +272,12 @@ def create_app():
             return {"provider": "Auto (balanced)",
                     "model": "rotates across " + str(len(configured)) + " provider(s)",
                     "kickoff": _KICKOFF, "configured": bool(configured),
-                    "first_run": report.is_first_run(),
+                    "first_run": report.is_first_run(), "email": _current_email(),
                     "death_on_cheat": settings.get_death_on_cheat()}
         prov = _active_provider()
         return {"provider": prov.label, "model": prov.default_model,
                 "kickoff": _KICKOFF, "configured": prov.is_configured(),
-                "first_run": report.is_first_run(),
+                "first_run": report.is_first_run(), "email": _current_email(),
                 "death_on_cheat": settings.get_death_on_cheat()}
 
     @app.get("/api/settings")
@@ -819,11 +827,21 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 #prail .rail-item.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;
  background:linear-gradient(180deg,var(--gold-bright),var(--gold-deep));box-shadow:0 0 8px rgba(231,182,75,.5)}
 #prail .rail-item svg{flex:none}
-#prail .rail-mini-hud{margin-top:auto;padding:14px 12px 4px;position:relative}
+#prail .rail-mini-hud{margin-top:auto;padding:14px 10px 4px;position:relative;display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;transition:background .15s}
+#prail .rail-mini-hud:hover{background:rgba(231,182,75,.06)}
 #prail .rail-mini-hud::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;
  background:linear-gradient(90deg,transparent,var(--line-gold),transparent)}
-#prail .rmh-name{font-family:var(--f-title);font-size:14px;color:var(--parch)}
+#prail .rmh-meta{flex:1;min-width:0}
+#prail .rmh-name{font-family:var(--f-title);font-size:14px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+#prail .rmh-caret{color:var(--parch-dim);font-size:9px;flex:none}
+.acctmenu{position:absolute;left:12px;right:12px;bottom:72px;z-index:80;padding:13px 13px 12px;border-radius:11px;
+ background:linear-gradient(160deg,rgba(30,24,18,.98),rgba(16,12,7,.98));border:1px solid var(--line-gold);box-shadow:0 18px 44px -12px rgba(0,0,0,.78)}
+.acctmenu[hidden]{display:none}
+.acctmenu .am-hd{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--parch-dim);margin-bottom:5px}
+.acctmenu .am-email{font-family:var(--f-body);font-size:12.5px;color:var(--parch);word-break:break-all;line-height:1.35;margin-bottom:11px}
+.acctmenu .am-logout{width:100%;background:rgba(214,59,42,.13);color:var(--vermilion-glow);border:1px solid rgba(214,59,42,.5);border-radius:7px;padding:9px;font-family:var(--f-title);font-size:13px;letter-spacing:.02em;cursor:pointer;transition:background .15s}
+.acctmenu .am-logout:hover{background:rgba(214,59,42,.24)}
 #content{min-height:0;min-width:0;position:relative}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
@@ -867,7 +885,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 .msg.ai>*{position:relative;z-index:1}
 .msg.you{align-self:flex-end;background:linear-gradient(160deg,rgba(18,77,76,.4),rgba(8,20,20,.6));
  border:1px solid rgba(46,163,160,.35);border-radius:12px 4px 12px 12px;color:var(--parch)}
-.msg.ai .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--gold-ember);text-transform:uppercase;margin-bottom:5px}
+.msg.ai .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:#5f3d10;font-weight:600;text-transform:uppercase;margin-bottom:5px}
 .msg.you .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--peacock-bright);text-transform:uppercase;margin-bottom:5px}
 .msg pre{background:rgba(20,15,8,.9) !important;border:1px solid rgba(231,182,75,.2);border-radius:8px;padding:12px;overflow-x:auto}
 .msg.you pre{background:rgba(6,9,20,.7) !important;border-color:var(--line-soft)}
@@ -1323,7 +1341,15 @@ body.reduce-motion *{animation:none !important}
     <div class="rail-item" data-rail="effect" onclick="railGo('effect')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12 h4 l3 7 4-14 3 7 h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Effectiveness</div>
     <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
     <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
-    <div class="rail-mini-hud"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title">Vana-Dhanurdhara</div></div>
+    <div class="rail-mini-hud" id="acctbtn" role="button" tabindex="0" title="Account & sign out" onclick="toggleAcct(event)">
+      <div class="rmh-meta"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title" id="railtitle">Vana-Dhanurdhara</div></div>
+      <span class="rmh-caret">▴</span>
+    </div>
+    <div class="acctmenu" id="acctmenu" hidden>
+      <div class="am-hd">Signed in as</div>
+      <div class="am-email" id="am_email">—</div>
+      <form method="post" action="/logout"><button type="submit" class="am-logout">⎋ Log out</button></form>
+    </div>
   </nav>
   <div id="content">
   <div id="practice">
@@ -2523,11 +2549,16 @@ function deleteChat(id, title){
 
 // render the provider chip as a compact label (verbose "rotates across N" → tooltip only)
 function setWho(c){
+  const ae=document.getElementById('am_email'); if(ae) ae.textContent=c.email||'(local session)';
   const el=document.getElementById('who'); if(!el) return;
   if(!c.configured){ el.textContent='no provider key'; el.title='no provider key set'; return; }
   const short=(c.provider||'').replace(/\s*\(.*?\)\s*/,'').trim()||'Auto';
   el.textContent=short; el.title=c.provider+' · '+c.model;
 }
+// bottom-left account menu: who you're signed in as + Log out
+function toggleAcct(e){ if(e) e.stopPropagation(); const m=document.getElementById('acctmenu'); if(m) m.hidden=!m.hidden; }
+document.addEventListener('click', function(e){ const m=document.getElementById('acctmenu'), b=document.getElementById('acctbtn');
+  if(m && !m.hidden && b && !b.contains(e.target) && !m.contains(e.target)) m.hidden=true; });
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   setWho(c);
