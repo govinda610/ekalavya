@@ -1146,16 +1146,9 @@ body.reduce-motion *{animation:none !important}
 .mapframe.forest{cursor:grab}
 .mapframe.forest.dragging{cursor:grabbing}
 .mapframe svg#forestsvg{transform:none !important}        /* pan/zoom is via viewBox now, not CSS scale */
-/* dependency vines: a dim base for locked prereqs, a lit gold flow for satisfied ones */
-.vine{fill:none;stroke-linecap:round}
-.vine.dim{stroke:#3c5a44;stroke-width:2.4;opacity:.5}
-.vine.lit{stroke:url(#vineflow);stroke-width:3;opacity:.9}
-.vine.ext{stroke-dasharray:3 9;opacity:.7}
-.vine.flow{stroke:#9be6c8;stroke-width:1.4;stroke-dasharray:2 16;opacity:.8;animation:vineflow 3.2s linear infinite}
 /* soft glow-pulse on the nodes that beckon (active + available) */
 .grove.active .halo,.grove.avail .halo{transform-box:fill-box;transform-origin:center;animation:haloPulse 3.4s ease-in-out infinite}
 @keyframes haloPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.14)}}
-@keyframes vineflow{to{stroke-dashoffset:-180}}
 /* "you are here" beacon on the active node */
 .youhere{pointer-events:none}
 .youhere .ring{fill:none;stroke:#7ff2ea;stroke-width:2.2;transform-box:fill-box;transform-origin:center;animation:beacon 2.6s ease-out infinite}
@@ -1163,10 +1156,50 @@ body.reduce-motion *{animation:none !important}
 /* fireflies / drifting motes drift over the canvas */
 .mote{fill:#ffe9a8}
 @keyframes drift{0%{transform:translate(0,0);opacity:0}10%,80%{opacity:.85}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
-.foliage{transform-box:fill-box;transform-origin:center;animation:sway 6s ease-in-out infinite}
-@keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
-.reduce-motion .grove .halo,.reduce-motion .youhere .ring,.reduce-motion .vine.flow,
-.reduce-motion .mote,.reduce-motion .foliage{animation:none !important}
+/* gentle canopy sway (used by the lush grove trees + background parallax) */
+@keyframes sway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.6deg)}}
+/* ===== enchanted LANDSCAPE forest ===== */
+/* ambient prerequisite TRAILS on the ground — a faint luminous thread from a mastered
+   grove to the one it unlocks. Barely there by default; they BRIGHTEN only on hover/
+   select so the structure is discoverable but never clutters the scene. */
+.trail{fill:none;stroke-linecap:round}
+.trail.dim{stroke:#2c4a3a;stroke-width:2;opacity:.20}
+.trail.lit{stroke:url(#trailglow);stroke-width:2.4;opacity:.34}
+.trail.hot{opacity:.95 !important;stroke-width:3.2 !important;filter:drop-shadow(0 0 6px rgba(155,230,200,.6))}
+/* a slow travelling glimmer runs along LIT trails (prereq mastered) — like light seeping
+   from grove to grove. Sparse dashes so it reads as motes, not a marching-ants edge. */
+.trail.flow{stroke:#bff0d6;stroke-width:1.3;stroke-dasharray:1.5 26;opacity:.55;
+  animation:trailflow 6s linear infinite}
+@keyframes trailflow{to{stroke-dashoffset:-220}}
+/* BIRDS gliding from a mastered grove toward the grove it unlocks — the connections,
+   shown as life rather than wiring. Each rides its own path via offset-path + rAF is
+   overkill, so we translate along a CSS custom flight and flap the wings. */
+.bird{fill:none;stroke:#e9dcbf;stroke-width:2;stroke-linecap:round;opacity:0}
+.bird.flying{animation:birdglide var(--dur,9s) ease-in-out var(--delay,0s) infinite}
+.bird .wing{transform-box:fill-box;transform-origin:center;animation:flap 1.1s ease-in-out infinite}
+@keyframes flap{0%,100%{transform:rotate(0)}50%{transform:rotate(-16deg)}}
+/* the bird is placed at the trail start and glides to the end via translate; opacity
+   fades in/out so it appears mid-flight, never popping at the endpoints. */
+@keyframes birdglide{
+  0%{opacity:0;transform:translate(0,0) scale(.7)}
+  12%{opacity:.85}
+  50%{transform:translate(var(--fx),var(--fy)) scale(1)}
+  88%{opacity:.85}
+  100%{opacity:0;transform:translate(calc(var(--fx)*2),calc(var(--fy)*2)) scale(.7)}
+}
+/* soft god-rays sweeping from the moon; low mist drifting across the mid-ground */
+.godray{fill:url(#rayfade);opacity:.0;transform-box:fill-box;transform-origin:top center;
+  animation:raybreath 11s ease-in-out infinite}
+@keyframes raybreath{0%,100%{opacity:.05}50%{opacity:.16}}
+.mistband{transform-box:fill-box;animation:mist 26s ease-in-out infinite}
+@keyframes mist{0%,100%{transform:translateX(-24px)}50%{transform:translateX(24px)}}
+.canopy{transform-box:fill-box;transform-origin:bottom center;animation:sway 6s ease-in-out infinite}
+.canopy.s2{animation-duration:7.6s;animation-delay:-1.4s}
+.canopy.s3{animation-duration:5.2s;animation-delay:-.6s}
+.reduce-motion .trail.flow,.reduce-motion .bird.flying,.reduce-motion .bird .wing,
+.reduce-motion .godray,.reduce-motion .mistband,.reduce-motion .canopy{animation:none !important}
+.reduce-motion .godray{opacity:.10}
+.reduce-motion .grove .halo,.reduce-motion .youhere .ring,.reduce-motion .mote{animation:none !important}
 .reduce-motion .grove.active .halo,.reduce-motion .grove.avail .halo{opacity:.55;transform:none}
 /* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
 .mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
@@ -1887,74 +1920,6 @@ function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
 function _reduced(){return document.body.classList.contains('reduce-motion')
   || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
 
-// An organic VINE between two points (prereq → dependent). It flows mostly downward
-// with an S-curve so the graph reads like roots/branches, not rigid wiring. Returns a
-// cubic-Bézier path string; the vertical control offset scales with the drop so long
-// cross-layer links arc gracefully.
-function _vine(a,b){
-  const dx=b.x-a.x, dy=b.y-a.y;
-  const k=Math.min(90,Math.max(28,Math.abs(dy)*0.45));
-  const c1x=a.x+dx*0.12, c1y=a.y+k;
-  const c2x=b.x-dx*0.12, c2y=b.y-k;
-  return 'M'+a.x+','+a.y+' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '
-        +c2x.toFixed(1)+','+c2y.toFixed(1)+' '+b.x+','+b.y;
-}
-
-// One node (grove or concept) as a small tree, colored by status. `opts.r` scales it,
-// `opts.onClick` makes it interactive, and available/active nodes get a pulsing halo so
-// the eye is drawn to what's playable. Art lifted from Ekalavya-Template-v2 §4.
-function _groveNode(g,pt,opts){
-  opts=opts||{};
-  const label=opts.label!=null?opts.label:g.pillar;
-  const meta=opts.meta!=null?opts.meta:(g.status==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
-    :g.status==='active'?'○ ACTIVE · '+g.done+'/'+g.total
-    :g.status==='locked'?'— LOCKED':(g.done+'/'+g.total));
-  const cls=(opts.cls?opts.cls+' ':'');   // e.g. 'avail' so the halo pulses on available concepts
-  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+cls+g.status});
-  const st=g.status;
-  // a soft radial halo that pulses on active/available nodes (glow-pulse, CSS-driven)
-  if(st==='active'||st==='blossoming'||cls.indexOf('avail')>=0){
-    const halo=_svgEl('circle',{r:46,fill:'url(#glampM)',opacity:.42,'class':'halo'});
-    grp.appendChild(halo);
-  }
-  const fol=_svgEl('g',{'class':_reduced()?'':'foliage'});   // the canopy sways gently
-  if(st==='blossoming'){
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
-    fol.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
-    fol.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
-    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
-    fol.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
-    fol.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
-  }else if(st==='active'){
-    grp.appendChild(_svgEl('circle',{r:50,fill:'none',stroke:'#57d3ce','stroke-width':2,'stroke-dasharray':'4 6',opacity:.9}));  // ring
-    grp.appendChild(_svgEl('circle',{r:44,fill:'#2ea3a0',opacity:.10}));
-    grp.appendChild(_svgEl('path',{d:'M0 34V4',stroke:'#7a4a2c','stroke-width':5}));
-    fol.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
-    fol.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
-    fol.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
-    fol.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
-  }else if(st==='unlocked'){
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
-    fol.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
-    fol.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
-  }else{                                                                          // locked bare sapling
-    grp.setAttribute('opacity',.55);
-    grp.appendChild(_svgEl('path',{d:'M0 30V6',stroke:'#5a4a34','stroke-width':4}));
-    fol.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
-  }
-  grp.appendChild(fol);
-  const lc=(st==='blossoming')?'#f0e3c6':(st==='active')?'#dcefe6':(st==='unlocked')?'#f0e3c6':'#a89670';
-  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='unlocked')?'#52a061':'#a89670';
-  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':opts.fs||14,fill:lc});
-  t1.textContent=_short(label,opts.labN||20); grp.appendChild(t1);
-  const t2=_svgEl('text',{x:0,y:st==='locked'?66:82,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc});
-  t2.textContent=meta; grp.appendChild(t2);
-  const tt=_svgEl('title'); tt.textContent=(opts.title||g.pillar); grp.appendChild(tt);
-  if(opts.onClick){ grp.style.cursor='pointer'; grp.addEventListener('click',(e)=>{e.stopPropagation();opts.onClick(e);}); }
-  return grp;
-}
 
 // Statue of Droṇa (upper-right ridge) — lifted verbatim.
 function _statue(x,y){
@@ -1973,11 +1938,22 @@ function _statue(x,y){
 function _mapDefs(){
   const defs=_svgEl('defs',{});
   defs.innerHTML=
-    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".55" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
-   +'<pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>'
+    // deep indigo night → a whisper of warm horizon at the ground (matches the hero sky)
+    '<linearGradient id="skyF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080a18"/><stop offset=".34" stop-color="#0c1226"/><stop offset=".66" stop-color="#101528"/><stop offset="1" stop-color="#141326"/></linearGradient>'
+   +'<radialGradient id="horizF" cx="50%" cy="100%" r="90%"><stop offset="0" stop-color="#2a2340" stop-opacity=".5"/><stop offset=".55" stop-color="#1a1a34" stop-opacity=".18"/><stop offset="1" stop-color="#101528" stop-opacity="0"/></radialGradient>'
+   +'<radialGradient id="groundF" cx="50%" cy="18%" r="80%"><stop offset="0" stop-color="rgba(231,182,75,.14)"/><stop offset=".6" stop-color="rgba(87,160,97,.06)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>'
+    // the moon: a pale-gold disc with a soft haze
+   +'<radialGradient id="moonF" cx="42%" cy="40%" r="60%"><stop offset="0" stop-color="#fff6df"/><stop offset=".6" stop-color="#f7d98a"/><stop offset="1" stop-color="#caa24e"/></radialGradient>'
+   +'<radialGradient id="moonhaze" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f7d98a" stop-opacity=".5"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>'
+   +'<linearGradient id="rayfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".5"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></linearGradient>'
+   +'<radialGradient id="mistF" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9fb8c8" stop-opacity=".16"/><stop offset="1" stop-color="#9fb8c8" stop-opacity="0"/></radialGradient>'
+    // tree-body gradients per state (lush → bare) + the beckon halo + the trail glow
    +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>'
-   +'<linearGradient id="vineflow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7b64b"/><stop offset="1" stop-color="#52a061"/></linearGradient>'
-   +'<radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#2f5a44" stop-opacity=".5"/><stop offset="1" stop-color="#2f5a44" stop-opacity="0"/></radialGradient>';
+   +'<radialGradient id="canBloom" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#7fce7f"/><stop offset=".5" stop-color="#3f9a55"/><stop offset="1" stop-color="#276b3c"/></radialGradient>'
+   +'<radialGradient id="canActive" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#6fe3d0"/><stop offset=".5" stop-color="#2ea3a0"/><stop offset="1" stop-color="#1f6e60"/></radialGradient>'
+   +'<radialGradient id="canOpen" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#6bbf72"/><stop offset=".55" stop-color="#2f8f47"/><stop offset="1" stop-color="#1e5c33"/></radialGradient>'
+   +'<linearGradient id="trunkF" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5730"/><stop offset=".5" stop-color="#6e421f"/><stop offset="1" stop-color="#4c2d15"/></linearGradient>'
+   +'<linearGradient id="trailglow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e7b64b"/><stop offset="1" stop-color="#57d3ce"/></linearGradient>';
   return defs;
 }
 
@@ -1998,15 +1974,87 @@ function _fireflies(W,H,n){
   return g;
 }
 
-// Paint the shared backdrop (gradient + dotted parchment + fireflies + Droṇa) sized to
-// the whole DAG canvas. Nodes and vines are layered on top by the caller.
-function _paintBackdrop(svg,W,H){
+// A layered silhouette treeline for a far/mid parallax ridge — soft rounded hills of
+// foliage, drawn as one filled path so it reads as receding depth, not individual nodes.
+// `y` is the ridge baseline, `amp` the hill height, `col` the fill (darker = further).
+function _treeline(W,y,amp,col,op,seed){
+  let d='M-40,'+(y+amp+60);
+  let x=-40, i=seed;
+  while(x<=W+40){
+    // two overlapping sine bands → gentle, irregular rolling canopy (no repeating spikes)
+    const h=amp*(0.42+((Math.sin(i*0.7)+Math.sin(i*1.9)+2)/4)*0.72);
+    const w=90+((Math.sin(i*0.5)+1)/2)*90;
+    d+=' Q'+(x+w*0.5).toFixed(0)+','+(y+amp-h).toFixed(0)+' '+(x+w).toFixed(0)+','+(y+amp-h*0.35).toFixed(0);
+    x+=w; i+=0.9;
+  }
+  d+=' L'+(W+40)+','+(y+amp+60)+' Z';
+  return _svgEl('path',{d:d,fill:col,opacity:op});
+}
+
+// A tiny SILHOUETTE tree for populating the scene between the interactive groves so the
+// wood feels lush and inhabited (not a few nodes on empty ground). Purely decorative.
+function _bgtree(x,y,s,col,op){
+  const g=_svgEl('g',{transform:'translate('+x+','+y+') scale('+s+')','pointer-events':'none'});
+  g.appendChild(_svgEl('path',{d:'M-1.5 20 L-1 0 L1 0 L1.5 20 Z',fill:col,opacity:op}));
+  g.appendChild(_svgEl('ellipse',{cx:0,cy:-6,rx:14,ry:16,fill:col,opacity:op}));
+  g.appendChild(_svgEl('ellipse',{cx:-8,cy:2,rx:9,ry:10,fill:col,opacity:op}));
+  g.appendChild(_svgEl('ellipse',{cx:8,cy:2,rx:9,ry:10,fill:col,opacity:op}));
+  return g;
+}
+
+// Paint the whole FOREST SCENE onto the canvas: night sky, moon + god-rays, receding
+// treeline ridges (far→mid parallax), drifting mist, a warm ground glow, and fireflies.
+// `land` is report.forest_map()'s landscape layout (sky/ground bands). The groves,
+// trails and birds are layered on top by the caller.
+function _paintScene(svg,W,H,land){
   svg.textContent='';
   svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mdot)'}));
-  svg.appendChild(_fireflies(W,H,Math.min(46,Math.round(W*H/26000))));
-  svg.appendChild(_statue(Math.min(W-120,W*0.9),70));
+  const sky=(land&&land.sky)||150, ground=(land&&land.ground)||(H*0.62);
+  // 1) night sky + faint horizon warmth
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#skyF)'}));
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#horizF)'}));
+  // 2) the moon, top-right, with haze + a slow breath of god-rays fanning down
+  const mx=W-150, my=88;
+  svg.appendChild(_svgEl('circle',{cx:mx,cy:my,r:120,fill:'url(#moonhaze)','pointer-events':'none'}));
+  {
+    const rays=_svgEl('g',{'pointer-events':'none',opacity:.7});
+    for(let k=-2;k<=2;k++){
+      const spread=k*70, w=30;
+      const p=_svgEl('path',{d:'M'+(mx-w/2)+','+my+' L'+(mx+spread-120)+','+ground+' L'+(mx+spread+120)+','+ground+' L'+(mx+w/2)+','+my+' Z','class':'godray'});
+      p.style.animationDelay=(k*1.1)+'s'; rays.appendChild(p);
+    }
+    svg.appendChild(rays);
+  }
+  svg.appendChild(_svgEl('circle',{cx:mx,cy:my,r:34,fill:'url(#moonF)','pointer-events':'none'}));
+  svg.appendChild(_svgEl('circle',{cx:mx-11,cy:my-6,r:6,fill:'#e7cf94',opacity:.5,'pointer-events':'none'}));  // faint crater
+  // 3) far → mid treeline ridges: darker & higher behind, warmer & lower in front (parallax)
+  svg.appendChild(_treeline(W,sky+10,86,'#0b1120',.96,0.5));
+  svg.appendChild(_treeline(W,sky+64,112,'#0f1728',.96,4.1));
+  svg.appendChild(_treeline(W,sky+128,140,'#141f34',.94,7.7));
+  // 4) scattered BACKGROUND trees on the ridges → the wood feels populated, not empty.
+  //    Deterministic pseudo-random (seeded) so the fillers don't jump between renders.
+  let s=91;
+  const rnd=()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; };
+  for(let i=0;i<34;i++){
+    const t=rnd(); const bx=40+rnd()*(W-80);
+    const by=sky+150+t*(ground-sky-160);
+    const sc=0.5+t*1.1, op=0.28+t*0.34;
+    const col=t<.5?'#16233a':'#1c3050';
+    svg.appendChild(_bgtree(bx,by,sc,col,op));
+  }
+  // 5) drifting mist over the mid-ground
+  const mist=_svgEl('g',{'class':_reduced()?'':'mistband','pointer-events':'none'});
+  for(let i=0;i<3;i++){
+    mist.appendChild(_svgEl('ellipse',{cx:W*(0.2+i*0.3),cy:ground-90+i*22,rx:320,ry:56,fill:'url(#mistF)'}));
+  }
+  svg.appendChild(mist);
+  // 6) a warm ground glow where the near groves sit
+  svg.appendChild(_svgEl('ellipse',{cx:W/2,cy:ground+30,rx:W*0.64,ry:200,fill:'url(#groundF)','pointer-events':'none'}));
+  // 7) FOREGROUND foliage silhouettes framing the lower edge (depth in front of the groves)
+  const fg=[[70,H-6,2.4],[W-90,H-2,2.7],[W*0.34,H+8,2.2],[W*0.66,H+4,2.5]];
+  fg.forEach(([x,y,sc])=>svg.appendChild(_bgtree(x,y,sc,'#0a1120',.9)));
+  // 8) fireflies over the whole scene
+  svg.appendChild(_fireflies(W,H,Math.min(38,Math.round(W*H/40000))));
 }
 
 function _legend(svg,W,H,items){
@@ -2092,6 +2140,98 @@ function _wireForestGestures(){
   s.addEventListener('click',hideNodePop);   // click empty canvas → dismiss popover
 }
 
+// ===== landscape forest art: lush trees, ground trails, gliding birds =====
+
+// A soft clustered CANOPY: several overlapping leaf-blobs so a grove reads as a full
+// crown of foliage rather than a lollipop. Colours come from a per-status gradient.
+function _canopy(fill,r,cls){
+  const g=_svgEl('g',{'class':_reduced()?'':('canopy '+(cls||''))});
+  const blobs=[[0,-0.9,1.0],[-0.7,-0.2,0.72],[0.7,-0.2,0.72],[-0.35,-1.15,0.6],[0.4,-1.1,0.62],[0,-0.35,0.85]];
+  blobs.forEach(([dx,dy,s])=>g.appendChild(_svgEl('ellipse',{cx:(dx*r).toFixed(1),cy:(dy*r).toFixed(1),
+    rx:(r*s).toFixed(1),ry:(r*s*0.86).toFixed(1),fill:fill})));
+  return g;
+}
+
+// One GROVE as a lush stylised tree, scaled by its depth band (`scale`: near≈1.15, far≈0.7)
+// so the forest recedes. Status drives lushness: blossoming→golden bloom, active→teal-lit
+// heart, unlocked→green sapling-in-leaf, locked→bare dim. Interactive via opts.onClick.
+// Drop-in replacement for _groveNode's callers (same opts contract).
+function _groveTree(g,pt,scale,opts){
+  opts=opts||{};
+  scale=scale||1;
+  const st=g.status;
+  const label=opts.label!=null?opts.label:g.pillar;
+  const meta=opts.meta!=null?opts.meta:(st==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
+    :st==='active'?'○ ACTIVE · '+g.done+'/'+g.total
+    :st==='locked'?'— LOCKED':(g.done+'/'+g.total));
+  const cls=(opts.cls?opts.cls+' ':'');
+  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+') scale('+scale.toFixed(3)+')','class':'grove '+cls+st});
+  // ground shadow anchors the tree to the earth
+  grp.appendChild(_svgEl('ellipse',{cx:0,cy:38,rx:34,ry:9,fill:'#000',opacity:.28}));
+  // beckon halo behind active/available trees
+  if(st==='active'||st==='blossoming'||cls.indexOf('avail')>=0)
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-24,r:54,fill:'url(#glampM)',opacity:.32,'class':'halo'}));
+  if(st==='active')  // the "you are here" heart of the forest gets a dashed aura ring
+    grp.appendChild(_svgEl('circle',{cx:0,cy:-24,r:60,fill:'none',stroke:'#57d3ce','stroke-width':1.6,'stroke-dasharray':'3 8',opacity:.7}));
+  if(st==='locked'){
+    grp.setAttribute('opacity',.55);
+    grp.appendChild(_svgEl('path',{d:'M0 36 C-3 12 -3 2 0 -12 M0 8 l-11 -9 M0 8 l11 -9 M0 -2 l-8 -8 M0 -2 l8 -8',
+      fill:'none',stroke:'#5a4a34','stroke-width':3,'stroke-linecap':'round'}));  // bare limbs
+  }else{
+    // curved painterly trunk
+    grp.appendChild(_svgEl('path',{d:'M-4 38 C-6 14 -5 0 -2 -14 L2 -14 C5 0 6 14 4 38 Z',fill:'url(#trunkF)'}));
+    const canFill=st==='blossoming'?'url(#canBloom)':st==='active'?'url(#canActive)':'url(#canOpen)';
+    grp.appendChild(_canopy(canFill,26,''));                              // main crown
+    grp.appendChild(_canopy(st==='active'?'#8ff0e0':'#8ed49a',12,'s2'));  // inner highlight tuft
+    if(st==='blossoming'){                                                // golden blossoms + fruit
+      [[-16,-30],[14,-32],[0,-46],[-22,-14],[20,-16],[6,-24]].forEach(([x,y],i)=>
+        grp.appendChild(_svgEl('circle',{cx:x,cy:y,r:i%2?2.4:3.2,fill:i%3?'#f7d98a':'#f3b3a0'})));
+      grp.appendChild(_svgEl('circle',{cx:-9,cy:-8,r:2.2,fill:'#d63b2a'}));
+      grp.appendChild(_svgEl('circle',{cx:11,cy:-6,r:2.2,fill:'#e7b64b'}));
+    }else if(st==='active'){
+      [[-14,-30],[12,-32],[0,-44]].forEach(([x,y])=>grp.appendChild(_svgEl('circle',{cx:x,cy:y,r:2.6,fill:'#bff6ec'})));
+    }
+  }
+  // labels — scale-compensated so distant trees still read (divide by scale so text stays legible)
+  const inv=(1/scale).toFixed(3);
+  const lc=(st==='blossoming')?'#f4e8cc':(st==='active')?'#dcefe6':(st==='locked')?'#a89670':'#eadfc4';
+  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='locked')?'#8f8064':'#7fc98a';
+  const tg=_svgEl('g',{transform:'translate(0,'+(st==='locked'?54:60)+') scale('+inv+')'});
+  const t1=_svgEl('text',{x:0,y:0,'text-anchor':'middle','font-family':'Marcellus','font-size':opts.fs||14,fill:lc});
+  t1.textContent=_short(label,opts.labN||20); tg.appendChild(t1);
+  const t2=_svgEl('text',{x:0,y:16,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc,'letter-spacing':'.04em'});
+  t2.textContent=meta; tg.appendChild(t2);
+  grp.appendChild(tg);
+  const tt=_svgEl('title'); tt.textContent=(opts.title||g.pillar); grp.appendChild(tt);
+  if(opts.onClick){ grp.style.cursor='pointer'; grp.addEventListener('click',(e)=>{e.stopPropagation();opts.onClick(e);}); }
+  grp.dataset.node=(opts.key!=null?opts.key:label);   // so hover can light this tree's trails
+  return grp;
+}
+
+// A gentle GROUND TRAIL between two groves (prereq → dependent): a low, sagging arc that
+// hugs the earth rather than a straight edge. `lit` when the prereq is mastered.
+function _trailPath(a,b){
+  const mx=(a.x+b.x)/2, my=Math.max(a.y,b.y)+Math.min(70,Math.abs(b.x-a.x)*0.18+22);
+  return 'M'+a.x+','+(a.y+30)+' Q'+mx.toFixed(1)+','+my.toFixed(1)+' '+b.x+','+(b.y+30);
+}
+
+// A little BIRD that glides along a trail from the mastered grove toward the grove it
+// unlocks — the prerequisite shown as life, not wiring. Placed at the start point; a CSS
+// flight (--fx/--fy) carries it to the destination, wings flapping, fading in/out so it's
+// only ever seen mid-glide. Skipped entirely under reduced motion.
+function _bird(a,b,i){
+  if(_reduced()) return null;
+  const g=_svgEl('g',{transform:'translate('+a.x+','+(a.y-14)+')','class':'bird flying','pointer-events':'none'});
+  g.style.setProperty('--fx',(b.x-a.x).toFixed(0)+'px');
+  g.style.setProperty('--fy',((b.y-14)-(a.y-14)).toFixed(0)+'px');
+  g.style.setProperty('--dur',(8.5+i*1.7)+'s');
+  g.style.setProperty('--delay',(i*2.3)+'s');
+  // a simple gull silhouette: two flapping wings
+  g.appendChild(_svgEl('path',{d:'M0 0 Q-6 -5 -12 -1','class':'wing'}));
+  g.appendChild(_svgEl('path',{d:'M0 0 Q6 -5 12 -1','class':'wing'}));
+  return g;
+}
+
 // ===== the node click-to-act popover =====
 function hideNodePop(){const p=document.getElementById('nodepop');if(p)p.hidden=true;}
 // Place the popover near the clicked node (screen coords), clamped inside the frame.
@@ -2140,7 +2280,26 @@ function _openConceptPop(cc,statusOf,evt){
   _showNodePop(html,evt);
 }
 
-// The overview DAG: groves as nodes, cross-pillar prereqs as flowing vines.
+// Depth band → tree scale: far bands smaller (recede), near bands larger (foreground).
+function _bandScale(band,bands){ if(!bands||bands<2) return 1.02;
+  return 0.72 + (band/(bands-1))*0.5; }   // 0.72 (far) … 1.22 (near)
+
+// Wire hover/select highlighting: hovering a grove HOTs the trails that touch it, so the
+// prerequisite structure surfaces on demand without cluttering the resting scene. Each
+// trail path carries data-a/data-b (the two grove keys it links).
+function _wireTrailHover(svg){
+  const trails=svg.querySelectorAll('.trail.dim,.trail.lit');
+  function hot(key,on){ trails.forEach(t=>{ if(t.dataset.a===key||t.dataset.b===key) t.classList.toggle('hot',on); }); }
+  svg.querySelectorAll('.grove[data-node]').forEach(gr=>{
+    const k=gr.dataset.node;
+    gr.addEventListener('pointerenter',()=>hot(k,true));
+    gr.addEventListener('pointerleave',()=>hot(k,false));
+  });
+}
+
+// The forest OVERVIEW as a landscape: groves as lush trees laid across a woodland, with
+// prerequisites shown gently — faint ground trails (bright on hover) and birds gliding
+// from a mastered grove toward the one it unlocks.
 async function showForest(){
   const svg=document.getElementById('forestsvg');
   _forestView='overview';
@@ -2155,25 +2314,34 @@ async function showForest(){
     document.getElementById('tabTrack').disabled=!_curFocus;
     const nMast=c.groves.filter(g=>g.status==='blossoming').length;
     document.getElementById('treesub').textContent=
-      c.groves.length+' groves · '+nMast+' mastered · follow the vines, tap a grove to enter';
-    const dag=c.dag, pos=dag.pos, W=dag.viewbox[2], H=dag.viewbox[3];
-    _paintBackdrop(svg,W,H);
-    // dependency vines first (behind the trees): lit when the prereq grove is mastered
+      c.groves.length+' groves · '+nMast+' mastered · wander the wood, tap a grove to enter';
+    const land=c.land, pos=land.pos, W=land.viewbox[2], H=land.viewbox[3];
+    _paintScene(svg,W,H,land);
     const gByName={}; c.groves.forEach(g=>gByName[g.pillar]=g);
+    // 1) ground TRAILS behind the trees — dim by default, lit when the prereq is mastered
+    let birdN=0;
     (c.edges||[]).forEach(e=>{
       const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
       const lit=gByName[e.src] && gByName[e.src].status==='blossoming';
-      svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine '+(lit?'lit':'dim')}));
-      if(lit) svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine flow'}));
+      const tp=_trailPath(a,b);
+      const tr=_svgEl('path',{d:tp,'class':'trail '+(lit?'lit':'dim')});
+      tr.dataset.a=e.src; tr.dataset.b=e.dst; svg.appendChild(tr);
+      if(lit){ svg.appendChild(_svgEl('path',{d:tp,'class':'trail flow'}));
+        // birds glide only along satisfied links (mastered → unlocked); cap the flock.
+        if(birdN<7){ const bd=_bird(a,b,birdN); if(bd){ svg.appendChild(bd); birdN++; } }
+      }
     });
-    // the groves themselves
-    c.groves.forEach(g=>{ const p=pos[g.pillar]; if(!p) return;
-      svg.appendChild(_groveNode(g,p,{title:g.pillar+' — '+g.done+'/'+g.total+' concepts',
+    // 2) the groves as lush trees — nearest bands drawn last so they overlap correctly (paint back→front)
+    const order=c.groves.slice().sort((x,y)=>(pos[x.pillar]?pos[x.pillar].y:0)-(pos[y.pillar]?pos[y.pillar].y:0));
+    order.forEach(g=>{ const p=pos[g.pillar]; if(!p) return;
+      const sc=_bandScale(land.band[g.pillar]||0, land.bands);
+      svg.appendChild(_groveTree(g,p,sc,{key:g.pillar,title:g.pillar+' — '+g.done+'/'+g.total+' concepts',
         onClick:(e)=>_openGrovePop(g,e)}));
     });
-    // "you are here" beacon on the active grove
+    // 3) "you are here" beacon on the active grove
     if(pos[c.active]) svg.appendChild(_youHere(pos[c.active]));
     _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
+    _wireTrailHover(svg);
     _fitVb(W,H); if(pos[c.active]) _centerOn(pos[c.active]); _wireForestGestures();
     _questBanner(c.active?('Current grove'):'Your forest',
       c.active||'—', c.active?('Tap it to explore its concepts, or dive straight in.'):'Tap any grove to explore.');
@@ -2191,7 +2359,9 @@ function _openGrovePop(g,evt){
   _showNodePop(html,evt);
 }
 
-// Drill-in: one grove's concepts as an interconnected sub-DAG (concept→prereq vines).
+// Drill-in: one grove's concepts as its own little SUB-FOREST — the same landscape,
+// scaled down. Each concept is a tree; prerequisites are gentle ground trails (lit when
+// satisfied) with birds gliding along them; external prereqs sit as pale groves at the back.
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
@@ -2206,45 +2376,51 @@ async function showGrove(pillar){
     _forestData=c;
     if(c.empty){ _emptyMap(svg); return; }
     document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
-    const dag=c.dag, pos={...dag.pos}, W=dag.viewbox[2];
-    // place external context nodes just ABOVE their first dependent (a row up, offset).
-    const ctxByName={}; (c.context||[]).forEach((cx,i)=>{ ctxByName[cx.name]=cx; });
+    const land=c.land, pos={...land.pos}, W=land.viewbox[2]; let H=land.viewbox[3];
+    // place external context nodes up in the FAR band, above their first dependent.
+    const ctxNames=(c.context||[]).map(cx=>cx.name);
     (c.edges||[]).forEach(e=>{ if(e.external && !pos[e.src] && pos[e.dst]){
-      pos[e.src]={x:pos[e.dst].x+((Object.keys(ctxByName).indexOf(e.src)%2)?70:-70), y:pos[e.dst].y-120}; }});
-    let H=dag.viewbox[3];
-    Object.values(pos).forEach(p=>{ if(p.y-40<0){/* keep in-frame */} H=Math.max(H,p.y+90); });
-    _paintBackdrop(svg,W,H);
+      pos[e.src]={x:pos[e.dst].x+((ctxNames.indexOf(e.src)%2)?90:-90), y:Math.max(60,(land.sky||120))}; }});
+    Object.values(pos).forEach(p=>{ H=Math.max(H,p.y+90); });
+    _paintScene(svg,W,H,land);
     const stMap={}; c.concepts.forEach(cc=>stMap[cc.name]=cc.status); (c.context||[]).forEach(cx=>stMap[cx.name]=cx.status);
     const statusOf=(n)=>stMap[n]||'lock';
-    // concept→prereq vines (lit when the prereq is mastered)
+    // concept→prereq TRAILS (lit when the prereq is mastered); birds along satisfied links
+    let birdN=0;
     (c.edges||[]).forEach(e=>{ const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
       const lit=statusOf(e.src)==='done';
-      svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine '+(lit?'lit':'dim')+(e.external?' ext':'')}));
-      if(lit&&!e.external) svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine flow'}));
+      const tp=_trailPath(a,b);
+      const tr=_svgEl('path',{d:tp,'class':'trail '+(lit?'lit':'dim')+(e.external?' ext':'')});
+      tr.dataset.a=e.src; tr.dataset.b=e.dst; svg.appendChild(tr);
+      if(lit&&!e.external){ svg.appendChild(_svgEl('path',{d:tp,'class':'trail flow'}));
+        if(birdN<6){ const bd=_bird(a,b,birdN); if(bd){ svg.appendChild(bd); birdN++; } } }
     });
-    // external context nodes (dimmed, non-interactive, labelled with their home pillar)
+    // external context groves (pale, non-interactive, labelled with their home pillar)
     const S={done:'blossoming',avail:'active',lock:'locked'};
     (c.context||[]).forEach(cx=>{ const p=pos[cx.name]; if(!p) return;
       const g={pillar:cx.name,status:cx.status==='done'?'blossoming':'locked',done:0,total:1};
-      const n=_groveNode(g,p,{label:cx.name,fs:12,labN:22,meta:'↑ '+_short(cx.pillar,16),
+      const n=_groveTree(g,p,0.7,{key:cx.name,label:cx.name,fs:12,labN:22,meta:'↑ '+_short(cx.pillar,16),
         title:cx.name+' — prerequisite from '+cx.pillar});
       n.setAttribute('opacity',.6); svg.appendChild(n);
     });
-    // this grove's concepts (interactive: click → detail popover)
+    // this grove's concepts as trees (interactive: click → detail popover), painted back→front
     let active=null;
-    c.concepts.forEach(cc=>{ const p=pos[cc.name]; if(!p) return;
+    const order=c.concepts.slice().sort((x,y)=>(pos[x.name]?pos[x.name].y:0)-(pos[y.name]?pos[y.name].y:0));
+    order.forEach(cc=>{ const p=pos[cc.name]; if(!p) return;
       const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
       const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
       const cls=cc.status==='avail'?'avail':'';
-      svg.appendChild(_groveNode(g,p,{label:cc.name,meta:meta,fs:13,labN:24,cls:cls,
+      const sc=_bandScale(land.band[cc.name]||0, land.bands);
+      svg.appendChild(_groveTree(g,p,sc,{key:cc.name,label:cc.name,meta:meta,fs:13,labN:24,cls:cls,
         title:cc.name, onClick:(e)=>_openConceptPop(cc,statusOf,e)}));
       if(!active && cc.status==='avail') active=p;   // first available = "you are here" in the grove
     });
     if(active) svg.appendChild(_youHere(active));
     _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked'],['#a89670','from another grove']]);
+    _wireTrailHover(svg);
     _fitVb(W,H); if(active) _centerOn(active); _wireForestGestures();
     _questBanner('Inside '+_short(pillar,22), c.grove.done+' / '+c.grove.total+' mastered',
-      'Vines run prerequisite → dependent. Tap a lit tree to dive in.');
+      'Trails run prerequisite → dependent. Tap a leafed tree to dive in.');
   }catch(e){ _emptyMap(svg,'could not load this grove.'); }
 }
 
@@ -2272,7 +2448,7 @@ function _emptyMap(svg,msg){
   const W=900,H=560; _base={x:0,y:0,w:W,h:H}; _vb={..._base};
   svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.textContent='';
   svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#skyF)'}));
   const t=_svgEl('text',{x:W/2,y:H/2,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
   t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
   svg.appendChild(t);
