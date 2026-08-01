@@ -584,6 +584,59 @@ def save_artifact(title: str, kind: str, content: str) -> str:
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 
+def assessment_items(n: int = 8) -> str:
+    """Draw a fresh rotating set of ~n items from the FROZEN benchmark for an assessment.
+
+    Tier-1 only (the `eklavya assess` loop). Returns the items to administer AI-off — each
+    with its id, difficulty (1..5), the prompt to pose, and the private `answer` KEY you
+    grade against. The key is for YOUR grading ONLY — never reveal, hint at, or teach it
+    during the sitting. Items are spread across difficulty and pillar and avoid ones seen in
+    the last couple of sittings. Pose them one at a time, record correctness with
+    `record_assessment` at the end.
+    """
+    import json
+
+    from . import benchmark
+
+    conn = connect()
+    try:
+        items = benchmark.select_items(conn, n=n)
+    finally:
+        conn.close()
+    if not items:
+        return "no benchmark items available"
+    return json.dumps([
+        {"item_id": it["id"], "difficulty": it["difficulty"],
+         "pillar": it["pillar"], "prompt": it["prompt"], "answer": it["answer"]}
+        for it in items
+    ])
+
+
+def record_assessment(outcomes: list, context: str = "") -> str:
+    """Persist a completed frozen assessment and compute the ability score θ (Tier-1).
+
+    Call this ONCE, at the very end of an `assess` sitting, after every item has been posed
+    and objectively judged. `outcomes` is a list of dicts, one per administered item:
+    {"item_id": <int>, "difficulty": <1..5>, "correct": <true|false>, "seconds": <float>}.
+    `context` is an optional short note ("baseline", "week 4"). Returns the θ estimate and
+    the score. Never teach or hint during the sitting — this only records what happened.
+    """
+    from . import benchmark
+
+    norm = [
+        {"item_id": int(o["item_id"]), "difficulty": int(o["difficulty"]),
+         "correct": bool(o["correct"]), "seconds": o.get("seconds")}
+        for o in outcomes
+    ]
+    if not norm:
+        return "no outcomes to record"
+    res = benchmark.record_assessment(norm, context=context)
+    theta = res["theta"]
+    theta_txt = f"{theta:+.2f}" if theta is not None else "—"
+    return (f"assessment #{res['assessment_id']} recorded: θ = {theta_txt} "
+            f"({res['n_correct']}/{res['n_items']} correct on the frozen benchmark)")
+
+
 from .assist import record_bug_verdict, review_ai_usage  # noqa: E402
 from .github import read_github  # noqa: E402
 from .resume import read_resume  # noqa: E402
@@ -620,3 +673,8 @@ AGENT_TOOLS = [
 ONBOARDING_TOOLS = AGENT_TOOLS
 SESSION_TOOLS = AGENT_TOOLS
 AIINTERVIEW_TOOLS = AGENT_TOOLS
+
+# Tier-1 assessment: a DELIBERATELY MINIMAL toolset — pull frozen items, grade code if
+# needed, record the sitting. No suggest_focus, no teaching aids: the assessment must not
+# adapt to or teach the learner (that's what keeps the benchmark a non-circular ruler).
+ASSESSMENT_TOOLS = [assessment_items, grade_and_record, record_assessment]

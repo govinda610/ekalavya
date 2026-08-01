@@ -303,6 +303,34 @@ def takehome(
         progress.end_session()
 
 
+@app.command()
+def assess(
+    provider: str = typer.Option(None, help="glm or minimax (default: glm)"),
+    context: str = typer.Option("", help="a short label for this sitting, e.g. 'baseline'"),
+) -> None:
+    """A FROZEN benchmark assessment — AI-off, no teaching, yields a stable ability score θ.
+
+    The non-circular ruler (docs/EFFECTIVENESS_MEASUREMENT.md §3): items drawn from a walled
+    bank the tutor never teaches from, administered periodically, objectively scored. Run it
+    at baseline and every few weeks; watch θ on the Effectiveness screen. Not a lesson.
+    """
+    from . import prompts
+    from .agent import build_agent
+    from .chat import chat_loop
+    from .tools import ASSESSMENT_TOOLS
+
+    init_db()
+    p = _configured_provider(provider)
+
+    banner.render(console)
+    console.print(f"\n[dim]📏 benchmark assessment: {p.label} · {p.default_model} · AI-off, no hints[/]\n")
+    agent = build_agent(prompts.ASSESSMENT, ASSESSMENT_TOOLS, provider=p.key)
+    label = f" Context: {context}." if context else ""
+    chat_loop(agent,
+              kickoff=f"Begin my frozen benchmark assessment now.{label}",
+              console=console, mode="assess")
+
+
 def _mode_agent(mode: str):
     """(prompt, tools) for a chat's mode, used to rebuild the agent when resuming.
     (Temporary duplication with webapp; #40 unifies the agent across interfaces.)"""

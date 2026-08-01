@@ -262,6 +262,8 @@ def summary() -> dict:
     calibration (reused from ``progress``), retention, and dose — everything the
     effectiveness view and offline analysis need in one read.
     """
+    from . import benchmark
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "unaided": unaided(),
@@ -269,6 +271,8 @@ def summary() -> dict:
         "calibration": progress.calibration(),
         "retention": retention(),
         "dose": dose(),
+        # Tier-1: the frozen, non-circular ability score θ over time (the trustworthy anchor).
+        "benchmark": benchmark.history(),
     }
 
 
@@ -287,6 +291,7 @@ def render() -> str:
 
     s = summary()
     u, el, cal, ret, ds = s["unaided"], s["elo"], s["calibration"], s["retention"], s["dose"]
+    bm = s["benchmark"]
 
     # --- verdict banner: the guardrail (does unaided ability rise?) ---
     if u["unaided_n"] and u["unaided_slope"] is not None:
@@ -320,6 +325,34 @@ def render() -> str:
 
     unaided_spark = _spark([t["rate"] for t in u["trend"]], "#57d3ce")
     elo_spark = _spark([e["rating"] for e in el["series"]], "#e7b64b")
+
+    # --- Tier-1 benchmark ability (θ): the frozen, non-circular ruler over time ---
+    if bm["n_assessments"] >= 1 and bm["current_theta"] is not None:
+        theta_spark = _spark([p["theta"] for p in bm["series"]], "#c9a24b")
+        delta = None
+        if bm["baseline_theta"] is not None and bm["n_assessments"] >= 2:
+            delta = bm["current_theta"] - bm["baseline_theta"]
+        slope_txt = (f"{bm['slope']:+.2f}/sitting" if bm["slope"] is not None
+                     else "one sitting so far")
+        delta_txt = (f' · Δ {delta:+.2f} vs baseline' if delta is not None else "")
+        bm_html = (
+            f'{theta_spark}'
+            f'<div class="efrow" style="margin-top:8px">'
+            f'  <div class="efstat"><b>{bm["current_theta"]:+.2f}</b><span>θ ability</span></div>'
+            f'  <div class="efstat"><b>{bm["n_assessments"]}</b><span>sittings</span></div>'
+            f'  <div class="efstat"><b>{bm["bank_size"]}</b><span>frozen items</span></div>'
+            f'</div>'
+            f'<div class="muted" style="font-size:11px;margin-top:6px">'
+            f'Rasch θ on a frozen, AI-off benchmark · {slope_txt}{delta_txt} · '
+            f'the ruler the tutor never teaches from</div>'
+        )
+    else:
+        bm_html = (
+            '<div class="efbig">—</div>'
+            '<div class="muted">No benchmark sittings yet. Run <code>eklavya assess</code> '
+            f'(AI-off, {bm["bank_size"]} frozen items) to fix a baseline θ — the honest, '
+            'non-circular measure of whether your skill is really rising.</div>'
+        )
 
     # --- gap card (AI-off ↔ AI-on, and whether it's closing) ---
     if u["gap"] is not None:
@@ -396,6 +429,10 @@ def render() -> str:
   </section>
 
   <div class="efgrid">
+    <section class="card ef-bench">
+      <h2>{_icon("trend")} Benchmark ability (θ)</h2>
+      {bm_html}
+    </section>
     <section class="card ef-unaided">
       <h2>{_icon("trend")} Unaided accuracy over time</h2>
       {unaided_spark}
@@ -461,15 +498,17 @@ _EFCSS = """
 
 .efgrid{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
   grid-template-areas:
+    "bench bench bench bench bench bench"
     "unaided unaided unaided gap gap gap"
     "elo elo elo elo elo elo"
     "strong strong strong weak weak weak"
     "ret ret cal cal dose dose";}
+.ef-bench{grid-area:bench;border-left:3px solid var(--gold)}
 .ef-unaided{grid-area:unaided}.ef-gap{grid-area:gap}.ef-elo{grid-area:elo}
 .ef-strong{grid-area:strong}.ef-weak{grid-area:weak}
 .ef-ret{grid-area:ret}.ef-cal{grid-area:cal}.ef-dose{grid-area:dose}
 @media(max-width:820px){
-  .efgrid{grid-template-columns:1fr;grid-template-areas:"unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose"}
+  .efgrid{grid-template-columns:1fr;grid-template-areas:"bench" "unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose"}
 }
 .efspark{width:100%;height:64px}
 .efrow{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap}

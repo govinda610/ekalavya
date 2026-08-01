@@ -75,6 +75,35 @@ def _migrate(conn: sqlite3.Connection) -> None:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_updated ON artifacts(updated_at DESC)")
 
+    # Tier-1 effectiveness: the FROZEN benchmark tables (see schema.sql). Additive — create
+    # them on databases made by a version that predates the benchmark, then seed the starter
+    # item bank idempotently. `init_db` also runs these CREATEs from schema.sql, so this is a
+    # belt-and-braces guard that keeps _migrate self-contained. seed_items() is imported here
+    # (not at module top) to avoid a circular import: benchmark imports from this package's db.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS benchmark_items ("
+        "id INTEGER PRIMARY KEY, pillar TEXT NOT NULL, difficulty INTEGER NOT NULL, "
+        "prompt TEXT NOT NULL, answer TEXT NOT NULL, "
+        "grader TEXT NOT NULL DEFAULT 'output_match', "
+        "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_benchmark_items_prompt ON benchmark_items(prompt)")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS assessments ("
+        "id INTEGER PRIMARY KEY, started_at TEXT NOT NULL DEFAULT (datetime('now')), "
+        "ended_at TEXT, theta REAL, n_items INTEGER NOT NULL DEFAULT 0, context TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS assessment_responses ("
+        "id INTEGER PRIMARY KEY, assessment_id INTEGER NOT NULL REFERENCES assessments(id), "
+        "item_id INTEGER NOT NULL REFERENCES benchmark_items(id), "
+        "correct INTEGER NOT NULL DEFAULT 0, seconds REAL, "
+        "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_assessment_responses_a ON assessment_responses(assessment_id)")
+    from .. import benchmark
+    benchmark.seed_items(conn)
+
 
 def init_db(path: Path | None = None) -> Path:
     """Create the schema if needed. Idempotent — safe to call every launch."""

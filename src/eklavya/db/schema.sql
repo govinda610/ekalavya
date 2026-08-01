@@ -224,6 +224,46 @@ CREATE TABLE IF NOT EXISTS artifacts (
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_updated ON artifacts(updated_at DESC);
 
+-- === Tier-1 effectiveness: a FROZEN benchmark the tutor never teaches from ===
+-- (docs/EFFECTIVENESS_MEASUREMENT.md §3). A walled item bank + periodic AI-off
+-- sittings yield a stable ability score θ — the non-circular "am I really improving?"
+-- ruler. The tutor's teaching loops NEVER draw drills from benchmark_items; only
+-- benchmark.py reads it. Seeded idempotently by benchmark.seed_items from _migrate.
+
+-- The frozen item bank. difficulty is authored on a 1..5 scale; answer is the objective
+-- key the assessment agent grades against (never shown as a hint). Frozen once seeded.
+CREATE TABLE IF NOT EXISTS benchmark_items (
+    id          INTEGER PRIMARY KEY,
+    pillar      TEXT NOT NULL,
+    difficulty  INTEGER NOT NULL,          -- 1 (easy) .. 5 (hard)
+    prompt      TEXT NOT NULL,
+    answer      TEXT NOT NULL,             -- objective key / reference (private)
+    grader      TEXT NOT NULL DEFAULT 'output_match',  -- output_match | hidden_tests | rubric
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_benchmark_items_prompt ON benchmark_items(prompt);
+
+-- One completed sitting: θ estimated (Rasch/1PL) from the items' difficulties + outcomes.
+CREATE TABLE IF NOT EXISTS assessments (
+    id          INTEGER PRIMARY KEY,
+    started_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    ended_at    TEXT,
+    theta       REAL,                      -- latent ability on the logit scale
+    n_items     INTEGER NOT NULL DEFAULT 0,
+    context     TEXT                        -- free note, e.g. "baseline", "week 4"
+);
+
+-- Per-item response within a sitting — objectively scored, timed.
+CREATE TABLE IF NOT EXISTS assessment_responses (
+    id             INTEGER PRIMARY KEY,
+    assessment_id  INTEGER NOT NULL REFERENCES assessments(id),
+    item_id        INTEGER NOT NULL REFERENCES benchmark_items(id),
+    correct        INTEGER NOT NULL DEFAULT 0,
+    seconds        REAL,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_assessment_responses_a ON assessment_responses(assessment_id);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
