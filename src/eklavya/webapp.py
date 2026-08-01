@@ -719,13 +719,18 @@ body{margin:0;font-family:var(--f-body);color:var(--parch);-webkit-font-smoothin
 background-color:var(--indigo-night);
 background-image:radial-gradient(1200px 700px at 78% 2%,rgba(46,163,160,.08),transparent 60%),radial-gradient(900px 600px at 12% 6%,rgba(231,182,75,.07),transparent 55%);
 background-attachment:fixed;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-header{display:flex;align-items:center;gap:14px;padding:12px 20px;border-bottom:1px solid var(--line-soft);
-background:linear-gradient(120deg,rgba(35,29,24,.6),rgba(12,10,20,.7))}
-.logo{font-family:var(--f-display);font-weight:800;font-size:19px;letter-spacing:.1em;display:flex;align-items:center;gap:8px}
+/* cinematic app-bar — warm indigo with a hairline-gold underline + faint top glow,
+   so the chrome reads as the same crafted world as /welcome (not a flat toolbar). */
+header{display:flex;align-items:center;gap:12px;padding:13px 22px;position:relative;
+background:linear-gradient(120deg,rgba(35,29,24,.66),rgba(12,10,20,.78));
+box-shadow:inset 0 1px 0 rgba(231,182,75,.08),0 10px 30px -22px #000}
+header::after{content:"";position:absolute;left:0;right:0;bottom:0;height:1px;
+background:linear-gradient(90deg,transparent,var(--line-gold) 22%,var(--line-gold) 78%,transparent)}
+.brand{display:flex;flex-direction:column;gap:2px}
+.logo{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:.12em;display:flex;align-items:center;gap:9px}
 .logo .bowmark{filter:drop-shadow(0 2px 8px rgba(231,182,75,.4))}
 .logo .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
-.creed{font-family:var(--f-deva);color:var(--gold-bright);font-size:12px;letter-spacing:.02em;opacity:.9}
-.tabs{display:flex;gap:4px;margin-left:10px}
+.creed{font-family:var(--f-deva);color:var(--gold-bright);font-size:12px;letter-spacing:.02em;opacity:.85}
 .tab{font-family:var(--f-mono);letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:var(--parch-dim);
 background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;cursor:pointer;transition:.16s}
 .tab:hover{color:var(--gold-bright)}
@@ -737,16 +742,29 @@ background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;
  white-space:nowrap;flex:none;cursor:default}
 .who:empty{display:none}
 main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
-/* ashram left rail (template D): Practice/Progress/Forest Map/Library/Settings + mini-HUD title */
-#prail{width:168px;border-right:1px solid var(--line-soft);padding:16px 12px;display:flex;flex-direction:column;gap:4px;background:rgba(6,9,20,.4)}
-#prail .rail-item{display:flex;align-items:center;gap:10px;font-family:var(--f-title);font-size:14px;color:var(--parch-dim);
- padding:9px 11px;border-radius:6px;cursor:pointer;border:1px solid transparent;transition:.14s}
-#prail .rail-item:hover{color:var(--gold-bright);background:rgba(6,9,20,.4)}
-#prail .rail-item.on{color:var(--gold-bright);background:rgba(231,182,75,.08);border-color:var(--line-gold)}
+/* ashram left rail — the SINGLE desktop nav (top tabs removed). Warm indigo panel with a
+   hairline-gold right edge + faint atmospheric glow, grouped Practice / Progress. */
+#prail{width:190px;padding:20px 14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;
+ background:linear-gradient(175deg,rgba(35,29,24,.34),rgba(8,11,26,.5));
+ box-shadow:inset -1px 0 0 var(--line-soft),inset 0 20px 60px -50px rgba(231,182,75,.5)}
+#prail::after{content:"";position:absolute;top:0;bottom:0;right:0;width:1px;
+ background:linear-gradient(180deg,transparent,var(--line-gold) 30%,var(--line-gold) 70%,transparent)}
+#prail .rail-group{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.24em;text-transform:uppercase;
+ color:var(--gold);opacity:.7;margin:14px 12px 7px;display:flex;align-items:center;gap:8px}
+#prail .rail-group:first-child{margin-top:2px}
+#prail .rail-group::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-soft),transparent)}
+#prail .rail-item{display:flex;align-items:center;gap:11px;font-family:var(--f-title);font-size:14.5px;color:var(--parch-dim);
+ padding:10px 12px;border-radius:7px;cursor:pointer;border:1px solid transparent;transition:.16s;position:relative}
+#prail .rail-item:hover{color:var(--gold-bright);background:rgba(231,182,75,.05)}
+#prail .rail-item.on{color:var(--gold-bright);background:linear-gradient(90deg,rgba(231,182,75,.14),rgba(231,182,75,.02));border-color:var(--line-gold)}
+#prail .rail-item.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;
+ background:linear-gradient(180deg,var(--gold-bright),var(--gold-deep));box-shadow:0 0 8px rgba(231,182,75,.5)}
 #prail .rail-item svg{flex:none}
-#prail .rail-mini-hud{margin-top:auto;padding:12px 11px 4px;border-top:1px solid var(--line-soft)}
-#prail .rmh-name{font-family:var(--f-title);font-size:13px;color:var(--parch)}
-#prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);letter-spacing:.1em;text-transform:uppercase;margin-top:2px}
+#prail .rail-mini-hud{margin-top:auto;padding:14px 12px 4px;position:relative}
+#prail .rail-mini-hud::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;
+ background:linear-gradient(90deg,transparent,var(--line-gold),transparent)}
+#prail .rmh-name{font-family:var(--f-title);font-size:14px;color:var(--parch)}
+#prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
 #content{min-height:0;min-width:0;position:relative}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
@@ -1154,17 +1172,10 @@ body.reduce-motion *{animation:none !important}
 #mnav .ni.center{margin-top:-24px}
 #mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
  display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -6px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,255,255,.5);border:2px solid rgba(255,246,223,.3)}
-/* mobile: header wraps, tabs scroll, creed hides so the HUD + tabs fit */
+/* mobile: header stays a single compact bar; the bottom radial nav is the primary nav */
 @media(max-width:900px){
  header{flex-wrap:wrap;gap:10px;padding:10px 14px}
  .creed{display:none}
- /* tab bar scrolls horizontally with a right-edge fade so hidden tabs are discoverable */
- .tabsrail{position:relative;margin-left:0;flex:1 1 100%;min-width:0}
- .tabsrail::after{content:"";position:absolute;top:0;right:0;bottom:0;width:26px;pointer-events:none;
-  background:linear-gradient(90deg,transparent,rgba(12,10,20,.9))}
- .tabsrail::before{content:"›";position:absolute;top:50%;right:5px;transform:translateY(-50%);pointer-events:none;
-  color:var(--gold-bright);font-size:16px;opacity:.7;z-index:1}
- .tabs{margin-left:0;overflow-x:auto;scrollbar-width:none;padding-right:22px}.tabs::-webkit-scrollbar{display:none}
  .tab{padding:14px 13px}                 /* >=44px hit area */
  .hud{font-size:11px;gap:8px}
  #prail{display:none}                 /* the rail is desktop-only; mobile uses the radial nav */
@@ -1182,29 +1193,26 @@ body.reduce-motion *{animation:none !important}
 }
 </style></head><body>
 <header>
-  <div><div class="logo"><span class="bowmark"><svg width="17" height="22" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
-  <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
-  <div class="tabsrail"><div class="tabs">
-    <button class="tab on" data-view="practice">Practice</button>
-    <button class="tab" data-view="dash">Progress</button>
-    <button class="tab" data-view="journey">Journey</button>
-    <button class="tab" data-view="effect">Effectiveness</button>
-    <button class="tab" data-view="profile">Profile</button>
-    <button class="tab" data-view="tree">Skill Tree</button>
-  </div></div>
-  <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
+  <div class="brand"><div class="logo"><span class="bowmark"><svg width="18" height="23" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
   <div class="spacer"></div>
+  <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
+  <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
   <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
 </header>
 <main>
   <nav id="prail" aria-label="Sections">
-    <div class="rail-item on" data-rail="practice" onclick="railGo('practice')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.6"/></svg> Practice</div>
-    <div class="rail-item" data-rail="dash" onclick="railGo('dash')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Progress</div>
+    <div class="rail-group">Practice</div>
+    <div class="rail-item on" data-rail="practice" onclick="railGo('practice')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="currentColor" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="currentColor" stroke-width="1.6"/></svg> Arena</div>
     <div class="rail-item" data-rail="tree" onclick="railGo('tree')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg> Forest Map</div>
     <div class="rail-item" data-rail="library" onclick="railGo('library')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg> Library</div>
-    <div class="rail-item" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
+    <div class="rail-group">Progress</div>
+    <div class="rail-item" data-rail="dash" onclick="railGo('dash')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Dashboard</div>
+    <div class="rail-item" data-rail="journey" onclick="railGo('journey')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 20 C8 8 16 8 20 4 M4 20 h4 M4 20 v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Journey</div>
+    <div class="rail-item" data-rail="effect" onclick="railGo('effect')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12 h4 l3 7 4-14 3 7 h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Effectiveness</div>
+    <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
+    <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
     <div class="rail-mini-hud"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title">Vana-Dhanurdhara</div></div>
   </nav>
   <div id="content">

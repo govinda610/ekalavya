@@ -387,10 +387,14 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:9999;
 .muted{color:var(--parch-dim)}
 code{font-family:var(--f-mono);color:var(--gold-bright);background:rgba(6,9,20,.6);
   padding:1px 6px;border-radius:4px;border:1px solid var(--line-soft)}
-h2{font-family:var(--f-mono);font-size:11px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--parch-mute);margin:0 0 14px;font-weight:500;display:flex;align-items:center;gap:8px}
+/* section headings — cinematic serif (matches /welcome), not tiny mono all-caps.
+   A short gold tick precedes each, echoing the landing's gold-arc motif. */
+h2{font-family:var(--f-title);font-size:17px;letter-spacing:.015em;text-transform:none;
+  color:var(--parch);margin:0 0 15px;font-weight:600;display:flex;align-items:center;gap:10px;line-height:1.2}
+h2::before{content:"";flex:none;width:16px;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
 .ic{flex:none;color:var(--gold-bright)}
-h2 .ic{width:15px;height:15px}
+h2 .ic{width:16px;height:16px}
 
 /* hero / character */
 .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
