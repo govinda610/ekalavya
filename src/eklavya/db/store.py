@@ -111,6 +111,17 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "text TEXT, concept TEXT, mode TEXT, thread TEXT, "
         "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
+    # Effectiveness Tier 2 (§4): n=1 self-experiment tables. Additive; create-table only.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS intervention_starts ("
+        "id INTEGER PRIMARY KEY, pillar TEXT NOT NULL UNIQUE, "
+        "started_at TEXT NOT NULL DEFAULT (datetime('now')), note TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS preregistrations ("
+        "id INTEGER PRIMARY KEY, metric TEXT NOT NULL, hypothesis TEXT NOT NULL, "
+        "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
     from .. import benchmark
     benchmark.seed_items(conn)
 

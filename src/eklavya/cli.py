@@ -391,6 +391,44 @@ def export(
 
 
 @app.command()
+def intervention(
+    pillar: str = typer.Argument(..., help="the pillar you're deliberately starting to work"),
+    note: str = typer.Option("", "--note", help="optional note"),
+) -> None:
+    """Log the day you START deliberate practice on a pillar (multiple-baseline self-experiment)."""
+    from . import experiments
+    init_db()
+    experiments.log_intervention_start(pillar, note)
+    console.print(f"[green]✓[/green] intervention start logged for [bold]{pillar}[/].")
+    for s in experiments.intervention_starts():
+        console.print(f"  · {s['pillar']} — {s['started_at'][:10]}" + (f" ({s['note']})" if s['note'] else ""))
+
+
+@app.command()
+def prereg(
+    metric: str = typer.Argument(..., help="the outcome metric you'll judge on"),
+    hypothesis: str = typer.Argument(..., help="the effect you expect (committed BEFORE results)"),
+) -> None:
+    """Pre-register a metric + expected effect before seeing results (honest self-experiment)."""
+    from . import experiments
+    init_db()
+    experiments.prereg(metric, hypothesis)
+    console.print(f"[green]✓[/green] pre-registered: [bold]{metric}[/] → {hypothesis}")
+
+
+@app.command()
+def consent(
+    on: bool = typer.Option(None, "--on/--off", help="opt in/out of research data use"),
+) -> None:
+    """Show or set research-data consent (off by default; your data stays private unless on)."""
+    from . import experiments
+    init_db()
+    if on is not None:
+        experiments.set_consent(on)
+    console.print(f"research consent: [bold]{'ON' if experiments.is_consented() else 'OFF'}[/]")
+
+
+@app.command()
 def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `eklavya chats`)")) -> None:
     """Resume a past chat and continue it (most recent by default)."""
     from .agent import build_agent

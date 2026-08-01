@@ -17,6 +17,7 @@ _DEFAULTS = {
     "reduced_motion": False,
     "guru_voice": True,
     "provider": None,
+    "research_consent": False,   # opt-in: use my data for effectiveness research (Tier 2)
 }
 
 
@@ -63,6 +64,16 @@ def get_death_on_cheat() -> bool:
 def set_death_on_cheat(on: bool) -> None:
     data = _load()
     data["death_on_cheat"] = bool(on)
+    _save(data)
+
+
+def get_research_consent() -> bool:
+    return bool(_load().get("research_consent", False))
+
+
+def set_research_consent(on: bool) -> None:
+    data = _load()
+    data["research_consent"] = bool(on)
     _save(data)
 
 

@@ -279,6 +279,22 @@ CREATE TABLE IF NOT EXISTS feedback (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Effectiveness Tier 2 (§4): n=1 single-case (multiple-baseline) self-experiment support.
+-- One intervention-start per pillar = the baseline→intervention boundary for that skill.
+CREATE TABLE IF NOT EXISTS intervention_starts (
+    id          INTEGER PRIMARY KEY,
+    pillar      TEXT NOT NULL UNIQUE,
+    started_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    note        TEXT
+);
+-- Pre-registrations: commit to a metric + expected effect before seeing the result.
+CREATE TABLE IF NOT EXISTS preregistrations (
+    id          INTEGER PRIMARY KEY,
+    metric      TEXT NOT NULL,
+    hypothesis  TEXT NOT NULL,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
