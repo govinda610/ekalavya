@@ -39,7 +39,9 @@ def _seed():
 
 def test_summary_shape_empty_db():
     s = effectiveness.summary()
-    assert set(s) == {"generated_at", "unaided", "elo", "calibration", "retention", "dose", "benchmark"}
+    assert set(s) == {"generated_at", "unaided", "elo", "calibration", "retention", "dose",
+                      "benchmark", "outcomes"}
+    assert s["outcomes"] == []
     assert s["unaided"]["unaided_n"] == 0
     assert s["elo"]["n_pillars"] == 0 and s["elo"]["overall_rating"] is None
     assert s["retention"]["n"] == 0 and s["retention"]["rate"] is None

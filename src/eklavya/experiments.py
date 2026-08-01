@@ -95,3 +95,44 @@ def preregistrations() -> list[dict]:
     finally:
         conn.close()
     return [dict(r) for r in rows]
+
+
+# --- Tier 3: real-world outcomes (ecological validity) ----------------------
+
+OUTCOME_KINDS = ("interview", "offer", "assessment", "solved_unaided", "confidence", "other")
+
+
+def record_outcome(kind: str, label: str, value: str = "", occurred_at: str = "",
+                   note: str = "") -> str:
+    """Log a real-world outcome — the proof the tutoring matters beyond the app's own metrics.
+
+    kind: interview | offer | assessment | solved_unaided | confidence | other (unknown → other).
+    value/occurred_at/note are optional (e.g. a score, a date, context).
+    """
+    kind = kind.strip().lower()
+    if kind not in OUTCOME_KINDS:
+        kind = "other"
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO external_outcomes(kind, label, value, occurred_at, note) VALUES(?,?,?,?,?)",
+            (kind, label.strip(), value.strip() or None, occurred_at.strip() or None,
+             note.strip() or None),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return f"outcome recorded ({kind})"
+
+
+def outcomes() -> list[dict]:
+    """Every recorded real-world outcome, most recent first (by when it happened, else logged)."""
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT kind, label, value, occurred_at, note, created_at FROM external_outcomes "
+            "ORDER BY COALESCE(occurred_at, created_at) DESC, id DESC"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]

@@ -262,7 +262,7 @@ def summary() -> dict:
     calibration (reused from ``progress``), retention, and dose — everything the
     effectiveness view and offline analysis need in one read.
     """
-    from . import benchmark
+    from . import benchmark, experiments
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
@@ -273,6 +273,8 @@ def summary() -> dict:
         "dose": dose(),
         # Tier-1: the frozen, non-circular ability score θ over time (the trustworthy anchor).
         "benchmark": benchmark.history(),
+        # Tier-3: real-world outcomes — does it matter beyond the app's own metrics?
+        "outcomes": experiments.outcomes()[:8],
     }
 
 
@@ -415,6 +417,24 @@ def render() -> str:
         for ic, lbl, val in dose_cells
     )
 
+    # --- Tier-3: real-world outcomes (does it matter beyond the app's own metrics?) ---
+    outs = s["outcomes"]
+    if outs:
+        outcomes_html = "".join(
+            f'<div class="ocrow"><span class="ockind">{_html.escape(o["kind"])}</span>'
+            f'<span class="oclabel">{_html.escape(o["label"])}'
+            + (f' · {_html.escape(o["value"])}' if o.get("value") else "")
+            + '</span>'
+            + (f'<span class="ocwhen">{_html.escape((o.get("occurred_at") or o["created_at"])[:10])}</span>')
+            + '</div>'
+            for o in outs
+        )
+    else:
+        outcomes_html = ('<div class="efempty"><span class="efdash">—</span>'
+                         '<span>Log real wins as they happen — an interview passed, an offer, a '
+                         'problem you solved unaided at work — with <code>eklavya outcome</code>. '
+                         'This is the proof it mattered beyond the app.</span></div>')
+
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Effectiveness</title>
 <link rel="stylesheet" href="/static/fonts.css">
@@ -469,6 +489,10 @@ def render() -> str:
       <h2>{_icon("flame")} Effort so far</h2>
       <div class="drow">{dose_html}</div>
     </section>
+    <section class="card ef-out">
+      <h2>{_icon("medal")} Real-world outcomes</h2>
+      {outcomes_html}
+    </section>
   </div>
 </div></body></html>"""
 
@@ -504,13 +528,21 @@ _EFCSS = """
     "unaided unaided unaided gap gap gap"
     "elo elo elo elo elo elo"
     "strong strong strong weak weak weak"
-    "ret ret cal cal dose dose";}
+    "ret ret cal cal dose dose"
+    "out out out out out out";}
 .ef-bench{grid-area:bench;border-left:3px solid var(--gold);
   background:var(--hero-aura),var(--card-surface);border-color:rgba(231,182,75,.3);
   box-shadow:var(--card-lift),0 0 60px -30px rgba(231,182,75,.4)}
 .ef-unaided{grid-area:unaided}.ef-gap{grid-area:gap}.ef-elo{grid-area:elo}
 .ef-strong{grid-area:strong}.ef-weak{grid-area:weak}
-.ef-ret{grid-area:ret}.ef-cal{grid-area:cal}.ef-dose{grid-area:dose}
+.ef-ret{grid-area:ret}.ef-cal{grid-area:cal}.ef-dose{grid-area:dose}.ef-out{grid-area:out}
+/* real-world outcomes: one crafted row per outcome */
+.ocrow{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;
+  background:var(--panel-inner);box-shadow:var(--panel-inner-lift);margin-top:8px}
+.ockind{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--gold-bright);border:1px solid var(--line-gold);border-radius:20px;padding:3px 10px;flex:none}
+.oclabel{font-family:var(--f-body);font-size:14px;color:var(--parch);flex:1}
+.ocwhen{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute);flex:none}
 /* every card fills its grid row so paired cards share a bottom baseline (no ragged rows) */
 .efgrid .card{display:flex;flex-direction:column;min-height:180px}
 .efgrid .card>h2{flex:none}
@@ -521,7 +553,7 @@ _EFCSS = """
 .efempty>span:last-child{font-family:var(--f-body);font-size:13px;line-height:1.45;color:var(--parch-dim)}
 .efspark-empty{display:flex;align-items:center;min-height:64px;font-family:var(--f-mono);font-size:12px}
 @media(max-width:820px){
-  .efgrid{grid-template-columns:1fr;grid-template-areas:"bench" "unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose"}
+  .efgrid{grid-template-columns:1fr;grid-template-areas:"bench" "unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose" "out"}
   .efgrid .card{min-height:0}
 }
 .efspark{width:100%;height:64px}

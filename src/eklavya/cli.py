@@ -429,6 +429,21 @@ def consent(
 
 
 @app.command()
+def outcome(
+    kind: str = typer.Argument(..., help="interview|offer|assessment|solved_unaided|confidence|other"),
+    label: str = typer.Argument(..., help="short description, e.g. 'Anthropic phone screen — passed'"),
+    value: str = typer.Option("", "--value", help="optional score / pass|fail / number"),
+    when: str = typer.Option("", "--when", help="when it happened, e.g. 2026-08-01"),
+    note: str = typer.Option("", "--note", help="optional context"),
+) -> None:
+    """Log a real-world OUTCOME (Tier 3) — interviews, offers, external assessments, unaided wins."""
+    from . import experiments
+    init_db()
+    experiments.record_outcome(kind, label, value, when, note)
+    console.print(f"[green]✓[/green] outcome recorded: [bold]{kind}[/] — {label}")
+
+
+@app.command()
 def resume(n: int = typer.Argument(1, help="which chat (1 = most recent; see `eklavya chats`)")) -> None:
     """Resume a past chat and continue it (most recent by default)."""
     from .agent import build_agent

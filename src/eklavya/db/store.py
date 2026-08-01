@@ -122,6 +122,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "id INTEGER PRIMARY KEY, metric TEXT NOT NULL, hypothesis TEXT NOT NULL, "
         "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
+    # Effectiveness Tier 3 (§5): real-world outcomes. Additive; create-table only.
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS external_outcomes ("
+        "id INTEGER PRIMARY KEY, kind TEXT NOT NULL, label TEXT NOT NULL, value TEXT, "
+        "occurred_at TEXT, note TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
     from .. import benchmark
     benchmark.seed_items(conn)
 

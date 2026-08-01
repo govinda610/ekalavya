@@ -61,3 +61,14 @@ def test_init_db_idempotent_with_tier2_tables():
     init_db(); init_db()  # must not raise or duplicate
     ex.log_intervention_start("X")
     assert len(ex.intervention_starts()) == 1
+
+
+def test_external_outcomes_record_and_list():
+    ex.record_outcome("interview", "Anthropic phone screen", value="passed", occurred_at="2026-08-01")
+    ex.record_outcome("weird_kind", "solved a gnarly bug at work", note="unaided")  # unknown → other
+    outs = ex.outcomes()
+    assert len(outs) == 2
+    kinds = {o["kind"] for o in outs}
+    assert "interview" in kinds and "other" in kinds
+    interview = next(o for o in outs if o["kind"] == "interview")
+    assert interview["value"] == "passed" and interview["occurred_at"] == "2026-08-01"

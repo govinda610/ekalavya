@@ -295,6 +295,20 @@ CREATE TABLE IF NOT EXISTS preregistrations (
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Effectiveness Tier 3 (§5): real-world OUTCOMES — the ecological-validity proof that the
+-- tutoring matters beyond the app's own metrics (interviews, offers, external assessments,
+-- problems solved unaided at work, confidence, ...). kind categorizes it; value is optional
+-- (a score/pass etc.); occurred_at is when it happened (may differ from logging time).
+CREATE TABLE IF NOT EXISTS external_outcomes (
+    id          INTEGER PRIMARY KEY,
+    kind        TEXT NOT NULL,        -- interview | offer | assessment | solved_unaided | confidence | other
+    label       TEXT NOT NULL,
+    value       TEXT,                 -- optional: score / pass|fail / number
+    occurred_at TEXT,
+    note        TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
