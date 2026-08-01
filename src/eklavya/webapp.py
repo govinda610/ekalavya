@@ -1163,6 +1163,21 @@ body.reduce-motion *{animation:none !important}
 #penaltybtn{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-gold);
  border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
 #penaltybtn:hover{border-color:var(--gold-deep)}
+.timerwrap{position:relative;display:inline-flex}
+#timerbtn,#wrapbtn{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-gold);border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
+#timerbtn:hover,#wrapbtn:hover{color:var(--gold-bright);border-color:var(--gold-deep)}
+#timerbtn.on{color:var(--gold-bright);border-color:var(--gold)}
+.tmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:80;min-width:186px;padding:11px;border-radius:10px;
+ background:linear-gradient(160deg,rgba(30,24,18,.98),rgba(16,12,7,.98));border:1px solid var(--line-gold);box-shadow:0 16px 40px -12px rgba(0,0,0,.75)}
+.tmenu[hidden]{display:none}
+.tmenu .tm-h{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--parch-dim);margin-bottom:8px}
+.tmenu .tm-row{display:flex;gap:6px;margin-bottom:8px}
+.tmenu .tm-row button{flex:1;font-family:var(--f-mono);font-size:12px;color:var(--parch);background:rgba(231,182,75,.08);border:1px solid var(--line-soft);border-radius:6px;padding:7px 0;cursor:pointer}
+.tmenu .tm-row button:hover{background:rgba(231,182,75,.2);border-color:var(--gold-deep)}
+.tmenu .tm-custom{width:100%;font-family:var(--f-body);font-size:12px;color:var(--parch-dim);background:none;border:1px dashed var(--line-soft);border-radius:6px;padding:7px;cursor:pointer;margin-bottom:6px}
+.tmenu .tm-custom:hover{color:var(--parch);border-color:var(--gold-deep)}
+.tmenu .tm-stop{width:100%;font-family:var(--f-mono);font-size:11px;color:var(--vermilion-glow);background:rgba(214,59,42,.1);border:1px solid rgba(214,59,42,.4);border-radius:6px;padding:7px;cursor:pointer}
+.sysline{align-self:center;font-family:var(--f-mono);font-size:11.5px;color:var(--gold-ember);background:rgba(231,182,75,.06);border:1px solid var(--line-soft);border-radius:20px;padding:6px 16px;margin:4px 0}
 #penaltybtn.off{color:var(--vermilion-glow);border-color:rgba(214,59,42,.5)}
 #drawerscrim{position:fixed;inset:0;z-index:900;background:rgba(2,6,12,.62);opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(1.5px)}
 #drawerscrim.open{opacity:1;pointer-events:auto}
@@ -1329,6 +1344,16 @@ body.reduce-motion *{animation:none !important}
   <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
+  <span class="timerwrap">
+    <button id="timerbtn" onclick="toggleTimerMenu(event)" title="Optional focus timer — never ends the session on its own">⏱ Timer</button>
+    <div id="timermenu" class="tmenu" hidden>
+      <div class="tm-h">Focus timer · optional</div>
+      <div class="tm-row"><button onclick="startTimer(15)">15m</button><button onclick="startTimer(25)">25m</button><button onclick="startTimer(45)">45m</button><button onclick="startTimer(60)">60m</button></div>
+      <button class="tm-custom" onclick="customTimer()">Custom…</button>
+      <button class="tm-stop" onclick="stopTimer()">Stop timer</button>
+    </div>
+  </span>
+  <button id="wrapbtn" onclick="endSession()" title="Finish this session — the guru summarizes and saves your progress">⏹ Wrap up</button>
   <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
 </header>
@@ -2569,6 +2594,39 @@ function setWho(c){
 function toggleAcct(e){ if(e) e.stopPropagation(); const m=document.getElementById('acctmenu'); if(m) m.hidden=!m.hidden; }
 document.addEventListener('click', function(e){ const m=document.getElementById('acctmenu'), b=document.getElementById('acctbtn');
   if(m && !m.hidden && b && !b.contains(e.target) && !m.contains(e.target)) m.hidden=true; });
+
+// ===== optional focus timer (cosmetic — a self-discipline aid; NEVER auto-ends the session) =====
+let _timerLeft=0, _timerId=null;
+function _fmtT(s){ const m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+function toggleTimerMenu(e){ if(e) e.stopPropagation(); const m=document.getElementById('timermenu'); if(m) m.hidden=!m.hidden; }
+function _updTimer(){ document.getElementById('timerbtn').innerHTML='⏱ '+_fmtT(Math.max(0,_timerLeft)); }
+function startTimer(mins){
+  document.getElementById('timermenu').hidden=true;
+  clearInterval(_timerId); _timerLeft=Math.round(mins*60); _updTimer();
+  document.getElementById('timerbtn').classList.add('on');
+  _timerId=setInterval(function(){ _timerLeft--; _updTimer();
+    if(_timerLeft<=0){ clearInterval(_timerId); _timerId=null; _timerDone(); } }, 1000);
+}
+function stopTimer(){ clearInterval(_timerId); _timerId=null; _timerLeft=0;
+  const b=document.getElementById('timerbtn'); b.innerHTML='⏱ Timer'; b.classList.remove('on');
+  document.getElementById('timermenu').hidden=true; }
+function customTimer(){ const v=prompt('Focus timer — how many minutes?','25'); const m=parseInt(v,10);
+  if(m>0 && m<=240) startTimer(m); }
+function _timerDone(){
+  const b=document.getElementById('timerbtn'); b.innerHTML='⏱ time’s up'; b.classList.remove('on');
+  clearWelcome(); const n=el('sysline');
+  n.textContent='⏱ Your focus timer is up — keep going, or hit ⏹ Wrap up (or say “I’m done”) whenever you’re ready.';
+  document.getElementById('log').appendChild(n); scroll();
+}
+document.addEventListener('click', function(e){ const m=document.getElementById('timermenu'), w=document.querySelector('.timerwrap');
+  if(m && !m.hidden && w && !w.contains(e.target)) m.hidden=true; });
+// ⏹ Wrap up — let the learner end the session on demand; the guru summarizes + saves for next time
+function endSession(){
+  if(streaming){ return; }
+  clearWelcome();
+  stream("I'm done for today. Please wrap up the session: summarize what we covered and what I "
+    +"learned, note where I struggled, save my progress and a hook for next time, then sign off warmly.");
+}
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   setWho(c);
