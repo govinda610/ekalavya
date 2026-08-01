@@ -142,7 +142,18 @@ def _calibration(cal: dict) -> str:
     else:
         lean, leancls = "underconfident", "cool"
     ring = f"conic-gradient(var(--gold) {clarity*3.6:.0f}deg, rgba(231,182,75,.12) 0)"
+    # the guru's one-sentence read of the verdict (mentor voice, not just a number)
+    if cw >= 2:
+        guru = ("You were sure, and still wrong, more than once — that is the illusion of knowing. "
+                "Slow down and prove each answer before you trust it.")
+    elif lean == "overconfident":
+        guru = "You trust yourself more than the evidence does. Draw the string fully before you loose."
+    elif lean == "underconfident":
+        guru = "You know more than you let yourself believe — back your judgment; hesitation is its own error."
+    else:
+        guru = "Your instinct and the evidence agree. That honest self-reading is rare — keep testing the edges."
     return (
+        f'<div class="cal-guru">“{guru}” <b>— the stone guru</b></div>'
         f'<div class="cal-row">'
         f'  <div class="cal-ring" style="background:{ring}"><div class="cal-ring-in">'
         f'    <div class="cal-score">{clarity}</div><div class="cal-score-k">clarity</div></div></div>'
@@ -491,6 +502,9 @@ h2 .ic{width:16px;height:16px}
 .cal-fact b.warn{color:var(--vermilion-glow)}
 .cal-fact .muted{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.03em;max-width:20ch}
 .cal-caption{margin-top:14px;font-family:var(--f-body);font-size:13px;line-height:1.5}
+.cal-guru{font-family:var(--f-serif);font-style:italic;font-size:15px;line-height:1.5;color:var(--parch);
+  margin:0 0 16px;padding:11px 16px;border-left:2px solid var(--gold);background:var(--panel-inner);border-radius:0 8px 8px 0}
+.cal-guru b{font-style:normal;color:var(--gold-bright);font-size:12px}
 /* empty states read as composed panels (a gold tick + a lit inner surface), not bare text */
 .cal-empty{font-family:var(--f-body);font-size:14px;line-height:1.55;padding:14px 16px 14px 18px;position:relative;
   background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:9px}

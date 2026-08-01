@@ -884,6 +884,33 @@ button.rewind:disabled{opacity:.4;cursor:default}
 .edtoolbar{display:flex;gap:8px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line-soft);background:rgba(6,9,20,.5)}
 .edtoolbar select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:6px 9px;font-family:var(--f-mono);font-size:11px}
 .edtoolbar .grow{flex:1}
+/* ===== visual game-mode chooser ===== */
+.modelaunch{background:linear-gradient(180deg,rgba(231,182,75,.14),rgba(20,15,10,.5));color:var(--gold-bright);
+  border:1px solid var(--line-gold);border-radius:6px;padding:7px 12px;font-family:var(--f-title);font-size:12px;
+  cursor:pointer;display:flex;align-items:center;gap:7px;transition:.15s;min-height:34px}
+.modelaunch:hover{border-color:var(--gold);background:linear-gradient(180deg,rgba(231,182,75,.22),rgba(20,15,10,.5))}
+.modelaunch .ml-g{font-size:13px}.modelaunch .ml-caret{opacity:.6;font-size:10px}
+.modes-ov{position:fixed;inset:0;z-index:1200;display:none;align-items:center;justify-content:center;
+  background:rgba(6,8,18,.72);backdrop-filter:blur(4px);padding:24px}
+.modes-ov.on{display:flex}
+.modes-card{width:100%;max-width:720px;max-height:88vh;overflow:auto;background:var(--card-surface);
+  border:var(--card-edge);border-radius:14px;box-shadow:var(--card-lift),0 40px 90px -30px rgba(0,0,0,.8);padding:26px}
+.modes-h{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 18px;text-align:center;letter-spacing:.02em}
+.modes-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modetile{display:flex;gap:13px;align-items:flex-start;text-align:left;padding:15px 16px;border-radius:11px;cursor:pointer;
+  background:var(--panel-inner);border:1px solid var(--line-soft);box-shadow:var(--panel-inner-lift);transition:.15s;color:var(--parch)}
+.modetile:hover{border-color:var(--gold);transform:translateY(-2px)}
+.modetile.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.modetile .mt-g{font-size:26px;line-height:1;flex:none}
+.mt-body{display:flex;flex-direction:column;gap:3px}
+.mt-t{font-family:var(--f-title);font-size:14px;color:var(--parch)}
+.mt-d{font-family:var(--f-body);font-size:12px;color:var(--parch-dim);line-height:1.4}
+.modetile.red .mt-g{color:var(--vermilion-glow)} .modetile.red:hover{border-color:var(--vermilion-glow)}
+.modetile.gold .mt-g{color:var(--gold-bright)}
+.modetile.dragon .mt-g{color:#e7b64b;text-shadow:0 0 10px rgba(231,182,75,.55)} .modetile.dragon:hover{border-color:#e7b64b}
+.modetile.teal .mt-g,.modetile.peacock .mt-g{color:var(--peacock-bright)}
+.modetile.forest .mt-g{color:var(--forest-lit)}
+@media(max-width:600px){.modes-grid{grid-template-columns:1fr}}
 button.submit{font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);border:1px solid var(--gold-deep);
 border-radius:4px;padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
 button.submit:hover{background:rgba(231,182,75,.16)}
@@ -1273,7 +1300,8 @@ body.reduce-motion *{animation:none !important}
     </div>
     <div class="col">
       <div class="edtoolbar">
-        <select id="mode" onchange="newSession()">
+        <button class="modelaunch" onclick="openModes()" title="Choose a mode"><span class="ml-g">◈</span> <span id="modelabel">Daily practice</span> <span class="ml-caret">▾</span></button>
+        <select id="mode" onchange="newSession()" style="display:none">
           <option value="practice">Daily practice</option>
           <option value="mock">Mock interview</option>
           <option value="aiinterview">AI-enabled interview</option>
@@ -1291,6 +1319,12 @@ body.reduce-motion *{animation:none !important}
         <button class="ghost" onclick="newSession()">↻ New</button>
         <button class="ghost run" onclick="runCode()">▶ Run</button>
         <button class="submit" onclick="submitCode()">✓ Submit code</button>
+      </div>
+      <div id="modes" class="modes-ov" onclick="if(event.target===this)closeModes()">
+        <div class="modes-card">
+          <div class="modes-h">Choose your trial</div>
+          <div class="modes-grid" id="modesgrid"></div>
+        </div>
       </div>
       <div id="assistpanel" class="hidden">
         <div class="asshead">🤖 AI Assistant <span class="asshint">— allowed here, but it's imperfect. Verify it.</span></div>
@@ -2261,9 +2295,31 @@ function newSession(){
   if(editor) editor.setValue(STUB);
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   showPane('editor');  // a fresh session starts on the editor, not a stale canvas
-  applyMode();
+  applyMode(); syncModeLabel();
   fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
+
+// ===== visual game-mode chooser (the modes were buried in a 30px dropdown) =====
+const MODES=[
+ {v:'practice',   g:'◑', t:'Daily practice',       d:'Gated drills tuned to your weakest spots.',                 c:'teal'},
+ {v:'gauntlet',   g:'⚔', t:'The Gauntlet',          d:'Endless, escalating. It hunts your weaknesses and uses them against you. Die, learn, rematch.', c:'red'},
+ {v:'blitz',      g:'⚡', t:'Blitz',                 d:'Rapid-fire recall against the clock — fluency under pressure.', c:'gold'},
+ {v:'boss',       g:'🐉', t:'Boss fight',            d:'One brutal, multi-part problem. Beat it to conquer a whole pillar.', c:'dragon'},
+ {v:'mock',       g:'◆', t:'Mock interview',        d:'A realistic loop with an honest, specific scorecard.',       c:'peacock'},
+ {v:'aiinterview',g:'◈', t:'AI-enabled interview',  d:'The 2026 format — graded on HOW you wield the AI, not just the answer.', c:'teal'},
+ {v:'takehome',   g:'▤', t:'Take-home',             d:'A longer, build-something assignment on your own time.',      c:'forest'},
+];
+function syncModeLabel(){ const m=MODES.find(x=>x.v===mode); if(m) document.getElementById('modelabel').textContent=m.t; }
+function openModes(){
+  document.getElementById('modesgrid').innerHTML = MODES.map(m=>
+    `<button class="modetile ${m.c}${m.v===mode?' cur':''}" onclick="pickMode('${m.v}')">`+
+    `<span class="mt-g">${m.g}</span><span class="mt-body"><span class="mt-t">${m.t}</span>`+
+    `<span class="mt-d">${m.d}</span></span></button>`).join('');
+  document.getElementById('modes').classList.add('on');
+}
+function closeModes(){ document.getElementById('modes').classList.remove('on'); }
+function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
