@@ -535,6 +535,14 @@ def create_app():
         rename_chat(thread_id, body.get("title", ""))
         return {"ok": True}
 
+    @app.delete("/api/chats/{thread_id}")
+    def chat_delete(thread_id: str) -> dict:
+        from .chatstore import delete_chat
+
+        _require_owner(thread_id)
+        delete_chat(thread_id)
+        return {"deleted": True}
+
     # --- canvas artifacts (per-user) ---------------------------------------
     # The tutor's durable lessons/code/HTML/visuals. Per-user via the contextvar the auth
     # middleware binds (single-user resolves to the one implicit user). All CRUD.
@@ -1069,6 +1077,7 @@ body.reduce-motion *{animation:none !important}
 .chatitem .cm{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute);margin-top:2px}
 .chatitem .cedit{opacity:0;color:var(--parch-mute);background:none;border:none;cursor:pointer;font-size:12px;flex:none}
 .chatitem:hover .cedit{opacity:1}
+.chatitem .cdel:hover{color:#e05252}
 /* AI-assistant drawer (AI-enabled interview mode) */
 #assistpanel{display:flex;flex-direction:column;height:42%;border-bottom:1px solid var(--line-soft);background:linear-gradient(180deg,rgba(20,28,40,.55),rgba(10,14,26,.7))}
 .asshead{font-family:var(--f-title);font-size:13px;color:var(--peacock-bright);
@@ -2228,9 +2237,11 @@ async function loadChats(){
       ct.textContent=c.title||'(untitled)'; cm.textContent=(c.mode||'')+' · '+rel(c.updated_at);
       ci.appendChild(ct); ci.appendChild(cm);
       const ed=document.createElement('button'); ed.className='cedit'; ed.textContent='✎'; ed.title='rename';
-      it.appendChild(ci); it.appendChild(ed);
+      const del=document.createElement('button'); del.className='cedit cdel'; del.textContent='🗑'; del.title='delete';
+      it.appendChild(ci); it.appendChild(ed); it.appendChild(del);
       ci.onclick=()=>openChat(c.thread_id);
       ed.onclick=(e)=>{ e.stopPropagation(); renameChat(c.thread_id, c.title); };
+      del.onclick=(e)=>{ e.stopPropagation(); deleteChat(c.thread_id, c.title); };
       box.appendChild(it);
     }
   }catch(e){ box.innerHTML='<div class="dim" style="padding:14px">could not load chats.</div>'; }
@@ -2259,6 +2270,10 @@ function renameChat(id, cur){
   const t=prompt('Rename chat:', cur||''); if(t==null) return;
   fetch('/api/chats/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:t})})
    .then(()=>loadChats()).catch(()=>{});
+}
+function deleteChat(id, title){
+  if(!window.confirm('Delete "'+(title||'untitled')+'"? This removes the chat and its history.')) return;
+  fetch('/api/chats/'+id,{method:'DELETE'}).then(()=>loadChats()).catch(()=>{});
 }
 
 // render the provider chip as a compact label (verbose "rotates across N" → tooltip only)

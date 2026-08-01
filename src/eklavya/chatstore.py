@@ -117,6 +117,37 @@ def rename_chat(thread_id: str, title: str) -> None:
         conn.close()
 
 
+def delete_chat(thread_id: str) -> bool:
+    """Delete a chat's sidebar row AND its durable checkpointer state.
+
+    Removes the row from the ``chats`` index in eklavya.db, then purges that thread's
+    rows from the LangGraph checkpointer (the ``checkpoints`` and ``writes`` tables in
+    checkpoints.sqlite) so no resumable state lingers. Returns True if a chat row was
+    deleted. Operates only in the current context's dbs (per-user safe); the checkpoint
+    purge is idempotent and skips tables that don't exist yet (a never-used checkpointer).
+    """
+    conn = connect()
+    try:
+        cur = conn.execute("DELETE FROM chats WHERE thread_id = ?", (thread_id,))
+        conn.commit()
+        deleted = cur.rowcount > 0
+    finally:
+        conn.close()
+
+    cp = connect(config.paths().checkpoints)
+    try:
+        tables = {r["name"] for r in cp.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        for table in ("checkpoints", "writes"):
+            if table in tables:
+                cp.execute(f"DELETE FROM {table} WHERE thread_id = ?", (thread_id,))
+        cp.commit()
+    finally:
+        cp.close()
+
+    return deleted
+
+
 def get_title(thread_id: str) -> str | None:
     conn = connect()
     try:
