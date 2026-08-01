@@ -1061,8 +1061,15 @@ body.reduce-motion *{animation:none !important}
 .ttab:disabled{opacity:.4;cursor:default}
 /* the map fills the pane in a gold-hairline frame; the SVG scales to width (no overflow) */
 .mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
- box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528}
-.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0}
+ box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
+.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
+/* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
+.mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
+.mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
+  background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
+  display:grid;place-items:center;backdrop-filter:blur(3px)}
+.mapzoom button:hover{border-color:var(--gold)}
+@media(max-width:820px){.mapframe{min-height:64vh}}
 .grove{cursor:pointer;transition:.25s}
 .grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
 .grove.locked{cursor:default}.grove.locked:hover{filter:none}
@@ -1185,6 +1192,17 @@ body.reduce-motion *{animation:none !important}
 #reclaim .rc-info .rc-e{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:2px}
 #reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--gold-bright)}
 #reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch-dim)}
+/* win-pulse — a ~1.3s felt moment for every real win (audit: rewards weren't felt) */
+#winpulse{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:95;display:none;
+  flex-direction:column;align-items:center;gap:5px;pointer-events:none;padding:22px 40px;border-radius:18px;
+  background:radial-gradient(circle,rgba(231,182,75,.2),rgba(6,9,20,0) 72%)}
+#winpulse.on{display:flex;animation:winpop 1.3s cubic-bezier(.2,.7,.3,1) both}
+@keyframes winpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}
+  70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-56%) scale(1)}}
+#winpulse .wp-spark{font-size:46px;line-height:1;color:var(--gold-bright);text-shadow:0 0 22px rgba(231,182,75,.75)}
+#winpulse .wp-t{font-family:var(--f-display);font-weight:700;font-size:19px;color:var(--parch)}
+#winpulse .wp-n{font-family:var(--f-mono);font-size:13px;letter-spacing:.05em;color:var(--gold-bright)}
+.reduce-motion #winpulse.on{animation:none;opacity:1}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 /* achievement toast (template §5) — transient, top-centre, gold-leaf sheen */
 #achtoast{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:95;display:none;gap:16px;align-items:center;
@@ -1362,7 +1380,9 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg></div>
+    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg>
+      <div class="mapzoom"><button onclick="forestZoom(1.3)" title="Zoom in">＋</button><button onclick="forestZoom(0.77)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Reset">⟲</button></div>
+    </div>
   </div>
   <div id="library"></div>
   <div id="settings"></div>
@@ -1413,6 +1433,7 @@ body.reduce-motion *{animation:none !important}
 </div></div>
 
 <div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
+<div id="winpulse"><span class="wp-spark">✦</span><span class="wp-t">Struck true</span><span class="wp-n">+0 XP</span></div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
@@ -1851,7 +1872,7 @@ function setHud(s){const pct=(s.xp%100)/100, next=s.level+1;
    "<span class='flame'><svg width='11' height='14' viewBox='0 0 46 58' style='vertical-align:-2px'><path d='M23 4 C31 18 40 22 38 36 C37 49 30 54 23 54 C16 54 8 48 8 36 C8 27 16 24 18 14 C22 20 20 26 24 30 C28 24 24 16 23 4Z' fill='#e7b64b'/></svg> <b>"+s.streak+"</b>d</span>"+
    "<span class='rank'>"+rank(s.level)+"</span>"+
    "<span class='prog'>Lv <b>"+s.level+"</b> · <b>"+Math.round(pct*100)+"%</b> → R"+next+"</span>";}
-function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(s=>{ setHud(s); celebrate(s); }).catch(()=>{}); }
+function refreshHud(){ fetch('/api/stats').then(r=>r.json()).then(s=>{ window._lastStats=s; setHud(s); celebrate(s); }).catch(()=>{}); }
 
 /* ===== celebration moments (template §5): level-up ceremony + achievement toast =====
    The app exposes level + streak; we mirror the dashboard's achievement rules client-side
@@ -1891,13 +1912,23 @@ function celebrate(s){
   const prevLvl=parseInt(localStorage.getItem('ek_lvl')||'0',10);
   const prevAch=JSON.parse(localStorage.getItem('ek_ach')||'[]');
   const nowAch=earnedAchievements(s).map(a=>a[0]);
-  if(_celebReady){
-    if(s.level>prevLvl) showCeremony(s.level);
-    const fresh=earnedAchievements(s).find(a=>!prevAch.includes(a[0]));
-    if(fresh && !(s.level>prevLvl)) showAchievement(fresh[0], fresh[1]);   // one moment at a time
+  const prevXp=parseInt(localStorage.getItem('ek_xp')||'0',10);
+  if(_celebReady){   // one moment at a time: level-up > new achievement > an ordinary win
+    if(s.level>prevLvl){ showCeremony(s.level); }
+    else { const fresh=earnedAchievements(s).find(a=>!prevAch.includes(a[0]));
+      if(fresh) showAchievement(fresh[0], fresh[1]);
+      else if(s.xp>prevXp) winPulse(s.xp-prevXp);   // a FELT moment for every real win
+    }
   }
   localStorage.setItem('ek_lvl', s.level); localStorage.setItem('ek_ach', JSON.stringify(nowAch));
+  localStorage.setItem('ek_xp', s.xp);
   _celebReady=true;
+}
+function winPulse(amt){
+  const p=document.getElementById('winpulse'); if(!p) return;
+  p.querySelector('.wp-n').textContent='+'+amt+' XP';
+  p.classList.remove('on'); void p.offsetWidth; p.classList.add('on');
+  setTimeout(()=>p.classList.remove('on'),1400);
 }
 function showReclaim(amt){ const r=document.getElementById('reclaim');
   document.getElementById('reclaimn').textContent="+"+amt+" XP restored"; r.classList.add('on');
@@ -1927,6 +1958,12 @@ const WELCOME_HTML=document.getElementById('arenawelcome') ? document.getElement
 function clearWelcome(){ const w=document.getElementById('arenawelcome'); if(w) w.remove();
   const th=document.getElementById('onbthreshold'); if(th) th.remove(); }  // threshold recedes once teaching begins
 function showWelcome(sub){ const l=document.getElementById('log'); if(!document.getElementById('arenawelcome')) l.insertAdjacentHTML('afterbegin', WELCOME_HTML);
+  const st=window._lastStats;   // returning learner → a warm, personalised greeting
+  if(st && (st.streak>0 || st.level>1)){
+    const t=document.querySelector('#arenawelcome .aw-title'); if(t) t.textContent='Welcome back, devotee';
+    const s2=document.getElementById('awsub');
+    if(s2) s2.textContent=(st.streak>0?('Your '+st.streak+'-day streak is warm — '):'')+'Ekalavya is drawing your next drill…';
+  }
   if(sub){ const s=document.getElementById('awsub'); if(s) s.textContent=sub; } }
 function addMsg(role, html){
   clearWelcome();
@@ -2320,6 +2357,16 @@ function openModes(){
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
+
+// ===== forest-map zoom/pan (it was tiny/unreadable on mobile) =====
+let _fz=1;
+function _applyFz(){
+  const s=document.getElementById('forestsvg'); if(!s) return;
+  s.style.transform='scale('+_fz+')';
+  const f=s.closest('.mapframe'); if(f) f.style.overflow=_fz>1.01?'auto':'hidden';
+}
+function forestZoom(m){ _fz=Math.max(1,Math.min(4,_fz*m)); _applyFz(); }
+function forestZoomReset(){ _fz=1; _applyFz(); }
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
