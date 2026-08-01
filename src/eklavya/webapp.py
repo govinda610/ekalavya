@@ -1143,7 +1143,14 @@ body.reduce-motion *{animation:none !important}
   background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
   display:grid;place-items:center;backdrop-filter:blur(3px)}
 .mapzoom button:hover{border-color:var(--gold)}
-@media(max-width:820px){.mapframe{min-height:64vh}}
+/* mobile: the 3D forest is the star — give it (almost) the full viewport height, and
+   tighten the panel padding / header so the scene isn't a short letterbox. */
+@media(max-width:820px){
+  #tree{padding:10px 10px}
+  .treehead{margin-bottom:8px}
+  .treehead .ttitle{font-size:15px}
+  .mapframe{min-height:78vh}
+}
 /* The forest is now a WebGL <canvas> (static/forest3d.js) — its scene, particles,
    trees, path, birds and "you are here" are drawn in 3D. Only the HUD overlays
    below (quest banner, node popover, zoom/back buttons) remain as DOM. Motion is
