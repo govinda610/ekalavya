@@ -319,7 +319,10 @@ def create_app():
         from langgraph.types import Command
 
         from .agent import is_safe_bash
+        from .config import set_current_thread  # (the `config` param shadows the module here)
         from .verify import selfcheck
+
+        set_current_thread(thread)  # so save_artifact links what it saves to this chat
 
         try:  # the learner's message (a fresh turn) → context for the judge; "" on resume
             user_context = inputs["messages"][0]["content"] if isinstance(inputs, dict) else ""
@@ -1088,6 +1091,12 @@ body.reduce-motion *{animation:none !important}
 .lib-pill:hover{color:var(--gold-bright)} .lib-pill.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
 .lib-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;grid-auto-rows:min-content}
 @media(max-width:900px){.lib-grid{grid-template-columns:1fr}}
+/* artifacts grouped by pillar */
+.lib-groups{display:flex;flex-direction:column;gap:26px}
+.lib-pgroup .lib-grid{margin-top:10px}
+.lib-phead{display:flex;align-items:center;gap:10px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.lib-phead .lp-name{font-family:var(--f-display);font-size:16px;letter-spacing:.01em;color:var(--parch)}
+.lib-phead .lp-n{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);border:1px solid var(--line-gold);border-radius:20px;padding:1px 8px}
 .artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
  border:1px solid rgba(231,182,75,.22);border-radius:10px;
  background:linear-gradient(168deg,rgba(46,38,30,.72) 0%,rgba(28,26,42,.7) 34%,rgba(13,14,28,.82) 100%);
@@ -1701,17 +1710,24 @@ function loadLibrary(){
     const filters=['','markdown','code','viz','html'];
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
     const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
-    let cards;
-    if(!list.length){ cards="<div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div>"; }
-    else { cards=list.map((a,i)=>libCard(a, a.pinned && i===0)).join(''); }
+    let body;
+    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div></div>"; }
+    else {
+      // group by pillar (each artifact files under its pillar; unfiled ones sit under 'General', last)
+      const groups={};
+      list.forEach(a=>{ const p=(a.pillar||'').trim()||'General'; (groups[p]=groups[p]||[]).push(a); });
+      const names=Object.keys(groups).sort((x,y)=> x==='General'?1 : (y==='General'?-1 : x.localeCompare(y)));
+      body="<div class='lib-groups'>"+names.map(p=>
+        "<div class='lib-pgroup'><div class='lib-phead'><span class='lp-name'>"+esc(p)+"</span><span class='lp-n'>"+groups[p].length+"</span></div>"+
+        "<div class='lib-grid'>"+groups[p].map(a=>libCard(a,false)).join('')+"</div></div>").join('')+"</div>";
+    }
     document.getElementById('library').innerHTML=
      "<div class='lib'><div class='lib-top'>"+
-     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — kept for revision.</div></div>"+
+     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by pillar, kept for revision.</div></div>"+
      "<span style='flex:1'></span>"+
      "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
      "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
-     "<div class='lib-filters'>"+pills+"</div>"+
-     "<div class='lib-grid'>"+cards+"</div></div>";
+     "<div class='lib-filters'>"+pills+"</div>"+body+"</div>";
     const si=document.getElementById('libsearch');
     si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
     si.focus(); si.setSelectionRange(si.value.length, si.value.length);

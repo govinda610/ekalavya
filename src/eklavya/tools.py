@@ -566,7 +566,7 @@ def get_questions(topic: str = "", company: str = "", role: str = "",
     return _clip("\n".join(lines))
 
 
-def save_artifact(title: str, kind: str, content: str) -> str:
+def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
     """Save a durable artifact to the learner's Canvas / Scriptorium library.
 
     Use this to keep something the learner will want to revisit: a written lesson, a
@@ -576,11 +576,13 @@ def save_artifact(title: str, kind: str, content: str) -> str:
     kind is one of: 'markdown' (a written lesson), 'code' (a code file/snippet),
     'html' (a self-contained HTML page/widget), or 'viz' (an SVG/interactive visual).
     content is the raw artifact body (markdown text, source code, or HTML/SVG markup).
-    Returns a short confirmation with the artifact's id.
+    pillar is the pillar/topic this belongs to (e.g. "Python Fundamentals", "LLM & Deep
+    Learning Internals") — pass it so the artifact files under the right pillar in the
+    library; it's auto-linked to the current chat either way. Returns a confirmation with the id.
     """
     from . import artifacts
 
-    a = artifacts.create(title, kind, content)
+    a = artifacts.create(title, kind, content, pillar=pillar or None)
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 

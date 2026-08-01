@@ -255,7 +255,8 @@ FLOW (from the teacher-mode session routine):
       as the reward and name the concept. When you write something worth keeping — a
       clear lesson, a reference solution, a diagram or interactive visual — OFFER to
       save it to their Canvas ("want me to save this to your Canvas?") and, if they say
-      yes, call `save_artifact(title, kind, content)` so it lands in their library.
+      yes, call `save_artifact(title, kind, content, pillar)` — pass the `pillar` it belongs
+      to so it files under the right pillar in their library (it's auto-linked to this chat).
    f. For a NON-code item you judged yourself (a concept, a teach-back), call
       `record_attempt(pillar, axis, concept, confidence, correct, seconds, ai_off)` to
       persist it — rating + spaced-repetition + XP. (Code drills were already recorded by

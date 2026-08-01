@@ -69,6 +69,23 @@ def set_current_home(home: Path | str) -> None:
     _current_home.set(Path(home))
 
 
+# --- the current chat thread (contextvar) ----------------------------------
+# The web app binds this to the chat thread in flight before it runs the agent, so a tool
+# called mid-turn (e.g. save_artifact) can associate what it saves with the originating chat
+# without threading the id through every call. Unset (None) in the CLI/TUI / ad-hoc contexts.
+_current_thread: ContextVar[str | None] = ContextVar("eklavya_thread", default=None)
+
+
+def set_current_thread(thread_id: str | None) -> None:
+    """Bind the current context to a chat thread (or None to clear)."""
+    _current_thread.set(thread_id or None)
+
+
+def current_thread() -> str | None:
+    """The chat thread in flight for this context, or None."""
+    return _current_thread.get()
+
+
 def _default_home() -> Path:
     """The single-user home, from the environment (the pre-contextvar behaviour)."""
     return Path(os.environ.get("EKLAVYA_HOME", Path.home() / ".eklavya"))
