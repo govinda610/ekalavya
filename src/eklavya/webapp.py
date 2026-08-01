@@ -679,7 +679,10 @@ def _mount_auth(app) -> None:
 
     def _auth_page(start: str, error: str, notice: str = "") -> str:
         # one themed template serves both tabs; `start` picks which is active on load.
+        # `start_is_signup` lets the client reveal the auth card + jump to it straightaway when
+        # the visitor arrives on /signup (or bounces back with an error), skipping the hero scroll.
         return (_LOGIN.replace("{{start}}", start)
+                .replace("{{start_is_signup}}", "true" if start == "signup" else "false")
                 .replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
                 .replace("{{notice}}", notice and f'<div class="notice">{notice}</div>' or ""))
 
@@ -3040,20 +3043,23 @@ _HERO_JS = r"""<script>
 
 
 # --- login page (multi-user) -----------------------------------------------
-# Apple-style scroll auth: the page OPENS on a full-viewport HERO over a FIXED animated Option E
-# scene (the lone archer looses arrows at a distant target — miss, miss, hit + celebration),
-# which keeps running behind everything; scrolling down floats a GLASSMORPHIC login/signup card
-# CENTERED over the same still-visible scene. Reuses the shared design system (/static/eklavya.css).
-# The form action, field names, autofocus, {{start}}/{{error}} slots and the Log in / Sign up tab
-# toggle are all preserved for the auth flow + tests. The scene JS is injected before </body>.
+# Apple-style scroll auth: the page OPENS on the RICH Option E hero (giant gold wordmark, the
+# poetic outsider tagline, the four chips — identical to /welcome) over a FIXED animated Option E
+# scene (the lone archer looses arrows at a distant target — miss, miss, hit + celebration). The
+# scene keeps running behind everything and NEVER reloads; scrolling down (or clicking ↓ enter the
+# forest / the nav "Log in") slides a GLASSMORPHIC login/signup card UP over the SAME still-visible
+# scene. Reuses the shared design system (/static/eklavya.css) and the Option E hero classes.
+# The form action, field names, {{start}}/{{error}} slots and the Log in / Sign up tab toggle are
+# all preserved for the auth flow + tests. The scene JS is injected before </body>.
 _LOGIN = (r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Sign in</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/eklavya.css">
 <style>
 /* Apple-style scroll: a FIXED full-viewport animated Option E scene, content scrolls above it.
-   The hero opens on the brand; scrolling floats a glassmorphic auth card centered over the SAME
-   still-running scene (visible around/through the frosted glass). */
+   The hero opens on the RICH brand (Option E hero); scrolling slides a glassmorphic auth card UP
+   over the SAME still-running scene (visible around/through the frosted glass). ONE .scene-fixed
+   instance is rendered → the background is byte-identical in both states and never reloads. */
 html{scroll-behavior:smooth}
 body{min-height:100vh;margin:0;padding:0;background:var(--void)}
 /* 1) FIXED background layer — the animated scene fills the viewport and stays put on scroll */
@@ -3064,49 +3070,69 @@ body{min-height:100vh;margin:0;padding:0;background:var(--void)}
   background:linear-gradient(180deg,rgba(10,13,28,.34) 0%,rgba(10,13,28,.20) 42%,rgba(10,13,28,.58) 100%)}
 /* 2) scrolling content above the scene */
 .scroll{position:relative;z-index:1}
-.sec{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+/* a thin brand bar floating over the top of the hero (transparent, never competes with the wordmark) */
+.land-nav{position:absolute;top:0;left:0;right:0;z-index:5;border-bottom:0;background:transparent;padding:20px clamp(26px,6vw,90px)}
+/* HERO — the rich Option E hero, full-viewport, copy pinned to the bottom-left like docs/design/E_merged */
+.auth-hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end}
+.auth-hero .hero-copy{max-width:1000px}
+/* AUTH — a full-viewport section that slides its glassmorphic card UP over the same scene */
+.auth-sec{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:56px 22px;text-align:center}
-/* HERO */
-.hero-brand{display:flex;align-items:center;gap:14px;font-family:var(--f-display);
-  font-size:clamp(30px,6vw,54px);letter-spacing:.14em;color:var(--gold-bright);
-  text-shadow:0 2px 30px rgba(10,13,28,.6)}
-.hero-tagline{margin:22px 0 6px;font-family:var(--f-serif);font-style:italic;
-  font-size:clamp(17px,2.6vw,24px);color:var(--parch);max-width:640px}
-.hero-sub{font-family:var(--f-body);color:var(--parch-dim);max-width:560px;
-  font-size:clamp(14px,1.8vw,17px);line-height:1.55}
-.hero-cta{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:20px}
-.scrollcue{font-family:var(--f-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--parch-mute);text-decoration:none;animation:bob 2.2s ease-in-out infinite}
-@keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(7px);opacity:1}}
-/* AUTH — the glassmorphic card floating over the scene */
 .glass{width:100%;max-width:460px;text-align:left;
-  background:rgba(10,13,28,.55);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+  background:rgba(10,13,28,.55);backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);
   border:1px solid var(--line-gold);border-radius:18px;
   box-shadow:0 24px 70px -20px rgba(0,0,0,.7),0 1px 0 rgba(247,217,138,.08) inset;
-  padding:34px 34px 30px}
+  padding:34px 34px 30px;
+  /* rest state for the slide-up reveal (JS toggles .in when the card scrolls into view) */
+  opacity:0;transform:translateY(38px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.glass.in{opacity:1;transform:none}
 .glass form{display:flex;flex-direction:column}
 .err{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em;color:var(--vermilion-glow);
   border:1px solid rgba(214,59,42,.4);background:rgba(143,35,24,.16);border-radius:4px;
   padding:9px 12px;margin:0 0 16px}
-@media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.sec{padding:44px 16px}}
+/* honour reduced-motion: no slide, no bob — the card is simply present */
+@media(prefers-reduced-motion:reduce){.glass{opacity:1;transform:none;transition:none}}
+@media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.auth-sec{padding:44px 16px}}
 </style></head><body>
 <div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
 <div class="scene-scrim"></div>
 <div class="scroll">
-  <section class="sec" id="hero">
-    <div class="hero-brand">
-      <svg width="30" height="36" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg>
-      EKALAVYA
+  <!-- thin brand bar; "Log in" scrolls to the auth card over the same scene -->
+  <div class="land-nav">
+    <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
+    <div class="links"><a href="/about" style="color:inherit;text-decoration:none">The Method</a><a href="/about" style="color:inherit;text-decoration:none">Manifesto</a></div>
+    <span style="flex:1"></span>
+    <a class="btn btn-ghost" style="padding:9px 18px" href="#auth">Log in</a>
+  </div>
+
+  <!-- ============================================================
+       HERO — the RICH Option E hero (identical to /welcome), over the
+       FIXED animated scene. docs/design/E_merged/index.html · hero-copy.
+       ============================================================ -->
+  <header class="auth-hero" id="hero">
+    <!-- rotating yantra behind (from Option E) -->
+    <svg class="hero-yantra" viewBox="0 0 400 400" aria-hidden="true">
+      <g class="spin" fill="none" stroke="#e7b64b" stroke-width="1">
+        <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="70"/>
+      </g>
+    </svg>
+    <div class="hero-copy">
+      <div class="hero-tag">The Merge — Cinematic Forest</div>
+      <h1 class="eka">EKALAVYA</h1>
+      <div class="eka-deva">एकलव्य · स्वाध्याय</div>
+      <p class="hero-sub">The <b>hall was closed</b> to him — so he walked into the forest, raised a statue of the guru who refused him, and taught himself to outshoot the princes. An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b></p>
+      <div class="hero-meta">
+        <span>Guru: <b>the statue</b></span>
+        <span>Arena: <b>the forest</b></span>
+        <span>Path: <b>svādhyāya</b> · self-study</span>
+        <span>Dakshinā: <b>the thumb</b></span>
+      </div>
     </div>
-    <div class="hero-tagline">the archer who taught himself</div>
-    <div class="hero-sub">The hall was closed to him — so he taught himself to outshoot the princes.</div>
-    <div class="hero-cta">
-      <a class="btn btn-gold" href="#auth" style="padding:12px 26px">Log in / Sign up</a>
-      <a class="scrollcue" href="#auth">↓ enter</a>
-    </div>
-  </section>
-  <section class="sec" id="auth">
-    <div class="glass">
+    <!-- ↓ scrolls the auth card UP over the same scene (no page/scene reload) -->
+    <a class="scrollcue" href="#auth" style="text-decoration:none">↓ enter the forest</a>
+  </header>
+  <section class="auth-sec" id="auth">
+    <div class="glass auth-form">
       <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
         <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
         <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
@@ -3159,6 +3185,26 @@ document.getElementById('authform').addEventListener('submit',function(e){
     if(msg){ e.preventDefault(); const el=document.getElementById('client-err'); el.textContent=msg; el.style.display='block'; }
   }
 });
+// Slide-up reveal: the glass card fades + rises the first time it scrolls into view — the
+// FIXED scene behind it never moves or reloads. If the page should open ON the auth card
+// (arriving on /signup, an explicit #auth link, or a bounced-back error/notice), reveal it
+// straightaway, scroll it into view over the same scene, and focus the first field.
+(function(){
+  const card=document.querySelector('.glass');
+  const auth=document.getElementById('auth');
+  const hasMsg=!!card.querySelector('.err, .notice');
+  const openOnAuth = location.hash==='#auth' || {{start_is_signup}} || hasMsg;
+  if(openOnAuth){
+    card.classList.add('in');
+    auth.scrollIntoView({block:'center'});   // over the SAME fixed scene — no reload
+    document.getElementById('email').focus({preventScroll:true});
+  } else if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(function(es){
+      es.forEach(function(en){ if(en.isIntersecting){ card.classList.add('in'); io.disconnect(); } });
+    },{threshold:.35});
+    io.observe(card);
+  } else { card.classList.add('in'); }  // no-IO fallback: just show it
+})();
 authMode('{{start}}');
 </script>
 """ + _HERO_JS + r"""
