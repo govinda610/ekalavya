@@ -1130,9 +1130,74 @@ body.reduce-motion *{animation:none !important}
   display:grid;place-items:center;backdrop-filter:blur(3px)}
 .mapzoom button:hover{border-color:var(--gold)}
 @media(max-width:820px){.mapframe{min-height:64vh}}
-.grove{cursor:pointer;transition:.25s}
+.grove{cursor:pointer;transition:filter .2s}
 .grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
 .grove.locked{cursor:default}.grove.locked:hover{filter:none}
+/* ===== enchanted DAG forest — pan/zoom surface, living edges, popover ===== */
+.mapframe.forest{cursor:grab}
+.mapframe.forest.dragging{cursor:grabbing}
+.mapframe svg#forestsvg{transform:none !important}        /* pan/zoom is via viewBox now, not CSS scale */
+/* dependency vines: a dim base for locked prereqs, a lit gold flow for satisfied ones */
+.vine{fill:none;stroke-linecap:round}
+.vine.dim{stroke:#3c5a44;stroke-width:2.4;opacity:.5}
+.vine.lit{stroke:url(#vineflow);stroke-width:3;opacity:.9}
+.vine.ext{stroke-dasharray:3 9;opacity:.7}
+.vine.flow{stroke:#9be6c8;stroke-width:1.4;stroke-dasharray:2 16;opacity:.8;animation:vineflow 3.2s linear infinite}
+/* soft glow-pulse on the nodes that beckon (active + available) */
+.grove.active .halo,.grove.avail .halo{transform-box:fill-box;transform-origin:center;animation:haloPulse 3.4s ease-in-out infinite}
+@keyframes haloPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.14)}}
+@keyframes vineflow{to{stroke-dashoffset:-180}}
+/* "you are here" beacon on the active node */
+.youhere{pointer-events:none}
+.youhere .ring{fill:none;stroke:#7ff2ea;stroke-width:2.2;transform-box:fill-box;transform-origin:center;animation:beacon 2.6s ease-out infinite}
+@keyframes beacon{0%{opacity:.9;transform:scale(.4)}80%,100%{opacity:0;transform:scale(1.5)}}
+/* fireflies / drifting motes drift over the canvas */
+.mote{fill:#ffe9a8}
+@keyframes drift{0%{transform:translate(0,0);opacity:0}10%,80%{opacity:.85}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
+.foliage{transform-box:fill-box;transform-origin:center;animation:sway 6s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.2deg)}50%{transform:rotate(1.2deg)}}
+.reduce-motion .grove .halo,.reduce-motion .youhere .ring,.reduce-motion .vine.flow,
+.reduce-motion .mote,.reduce-motion .foliage{animation:none !important}
+.reduce-motion .grove.active .halo,.reduce-motion .grove.avail .halo{opacity:.55;transform:none}
+/* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
+.mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
+ background:linear-gradient(180deg,rgba(10,16,30,.92),rgba(8,12,22,.9));
+ border:1px solid var(--line-gold);border-radius:9px;padding:9px 12px;backdrop-filter:blur(4px);
+ box-shadow:0 14px 34px -20px rgba(0,0,0,.8)}
+.mapquest .qh{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;color:var(--parch-mute);text-transform:uppercase}
+.mapquest .qt{font-family:var(--f-title);font-size:14px;color:var(--gold-bright);margin-top:2px}
+.mapquest .qd{font-family:var(--f-body);font-size:11.5px;color:var(--parch-dim);margin-top:3px;line-height:1.4}
+/* the click-to-act node popover */
+.nodepop{position:absolute;z-index:9;width:290px;max-width:calc(100% - 24px);
+ background:linear-gradient(180deg,rgba(12,18,32,.97),rgba(9,13,24,.97));
+ border:1px solid var(--line-gold);border-radius:12px;padding:14px 15px 15px;
+ box-shadow:0 26px 60px -22px rgba(0,0,0,.85);animation:popIn .16s ease-out}
+@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+.reduce-motion .nodepop{animation:none}
+.nodepop .npclose{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--parch-mute);
+ font-size:16px;line-height:1;cursor:pointer}
+.nodepop .npclose:hover{color:var(--gold-bright)}
+.nodepop .npstat{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-block;
+ padding:2px 8px;border-radius:20px;border:1px solid var(--line-soft)}
+.nodepop .npstat.done{color:#e7b64b;border-color:rgba(231,182,75,.5)}
+.nodepop .npstat.avail{color:#7ff2ea;border-color:rgba(127,242,234,.5)}
+.nodepop .npstat.lock{color:#a89670}
+.nodepop .nptitle{font-family:var(--f-title);font-size:16px;color:var(--parch);margin:8px 0 2px;line-height:1.25;padding-right:16px}
+.nodepop .npsub{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute)}
+.nodepop .npsec{margin-top:10px}
+.nodepop .npsec .lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--parch-mute)}
+.nodepop .npchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.nodepop .npchip{font-family:var(--f-body);font-size:11px;padding:3px 8px;border-radius:14px;
+ border:1px solid var(--line-soft);color:var(--parch-dim)}
+.nodepop .npchip.done{color:#e7b64b;border-color:rgba(231,182,75,.35)}
+.nodepop .npchip.miss{color:#e79b8a;border-color:rgba(231,155,138,.35)}
+.nodepop .npact{width:100%;margin-top:13px;font-family:var(--f-title);font-size:13px;font-weight:600;
+ border:none;border-radius:7px;padding:10px;cursor:pointer;color:#2a1c07;
+ background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep))}
+.nodepop .npact.revise{background:linear-gradient(180deg,#8fe6df,#57d3ce 55%,#2ea3a0);color:#04201e}
+.nodepop .npact:hover{filter:brightness(1.08)}
+.nodepop .npact.locked{background:rgba(90,74,52,.4);color:var(--parch-mute);cursor:default}
+.nodepop .npact.locked:hover{filter:none}
 .treeempty{margin:auto;padding:50px;text-align:center;max-width:440px;color:var(--parch-dim)}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
@@ -1474,8 +1539,10 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg>
-      <div class="mapzoom"><button onclick="forestZoom(1.3)" title="Zoom in">＋</button><button onclick="forestZoom(0.77)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Reset">⟲</button></div>
+    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Enchanted forest map: learning groves connected as a prerequisite graph."></svg>
+      <div class="mapzoom"><button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Fit to view">⟲</button></div>
+      <div class="mapquest" id="mapquest" hidden></div>
+      <div class="nodepop" id="nodepop" hidden></div>
     </div>
   </div>
   <div id="library"></div>
@@ -1796,72 +1863,80 @@ if(localStorage.getItem('ek_nocode')==='1'){
    pillar's concepts as a smaller sub-forest (same visual language). */
 const SVGNS='http://www.w3.org/2000/svg';
 let _curFocus=null;             // active pillar name, for the drill-in default
+let _forestView='overview';     // 'overview' | pillar-name — remembered for the ⟲ fit + resize
+let _forestData=null;           // the last-loaded /api/forest payload (for the popover)
 function _svgEl(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
+function _reduced(){return document.body.classList.contains('reduce-motion')
+  || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
 
-// A cubic path threading the layout points bottom→top (Catmull-Rom → Bézier), so
-// the trail winds smoothly whatever the point count. `upto` clips it to the first
-// `upto` points (the travelled/gold portion).
-function _pathThrough(pts,upto){
-  const p=(upto==null?pts:pts.slice(0,upto));
-  if(p.length<1) return '';
-  if(p.length<2) return 'M'+p[0].x+','+p[0].y;
-  let d='M'+p[0].x+','+p[0].y;
-  for(let i=0;i<p.length-1;i++){
-    const p0=p[i-1]||p[i], p1=p[i], p2=p[i+1], p3=p[i+2]||p2;
-    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
-    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
-    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2.x+','+p2.y;
-  }
-  return d;
+// An organic VINE between two points (prereq → dependent). It flows mostly downward
+// with an S-curve so the graph reads like roots/branches, not rigid wiring. Returns a
+// cubic-Bézier path string; the vertical control offset scales with the drop so long
+// cross-layer links arc gracefully.
+function _vine(a,b){
+  const dx=b.x-a.x, dy=b.y-a.y;
+  const k=Math.min(90,Math.max(28,Math.abs(dy)*0.45));
+  const c1x=a.x+dx*0.12, c1y=a.y+k;
+  const c2x=b.x-dx*0.12, c2y=b.y-k;
+  return 'M'+a.x+','+a.y+' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '
+        +c2x.toFixed(1)+','+c2y.toFixed(1)+' '+b.x+','+b.y;
 }
 
-// One grove tree (art lifted from Ekalavya-Template-v2 §4), colored by status.
+// One node (grove or concept) as a small tree, colored by status. `opts.r` scales it,
+// `opts.onClick` makes it interactive, and available/active nodes get a pulsing halo so
+// the eye is drawn to what's playable. Art lifted from Ekalavya-Template-v2 §4.
 function _groveNode(g,pt,opts){
   opts=opts||{};
   const label=opts.label!=null?opts.label:g.pillar;
   const meta=opts.meta!=null?opts.meta:(g.status==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
     :g.status==='active'?'○ ACTIVE · '+g.done+'/'+g.total
     :g.status==='locked'?'— LOCKED':(g.done+'/'+g.total));
-  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+g.status});
-  if(!opts.clickable===false && g.status!=='locked' && opts.onClick) grp.style.cursor='pointer';
+  const cls=(opts.cls?opts.cls+' ':'');   // e.g. 'avail' so the halo pulses on available concepts
+  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+cls+g.status});
   const st=g.status;
+  // a soft radial halo that pulses on active/available nodes (glow-pulse, CSS-driven)
+  if(st==='active'||st==='blossoming'||cls.indexOf('avail')>=0){
+    const halo=_svgEl('circle',{r:46,fill:'url(#glampM)',opacity:.42,'class':'halo'});
+    grp.appendChild(halo);
+  }
+  const fol=_svgEl('g',{'class':_reduced()?'':'foliage'});   // the canopy sways gently
   if(st==='blossoming'){
-    grp.appendChild(_svgEl('circle',{r:44,fill:'url(#glampM)',opacity:.75}));
     grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
-    grp.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
-    grp.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
+    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
+    fol.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
+    fol.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
+    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
+    fol.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
+    fol.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
   }else if(st==='active'){
     grp.appendChild(_svgEl('circle',{r:50,fill:'none',stroke:'#57d3ce','stroke-width':2,'stroke-dasharray':'4 6',opacity:.9}));  // ring
     grp.appendChild(_svgEl('circle',{r:44,fill:'#2ea3a0',opacity:.10}));
     grp.appendChild(_svgEl('path',{d:'M0 34V4',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
+    fol.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
+    fol.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
+    fol.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
+    fol.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
   }else if(st==='unlocked'){
     grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
+    fol.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
+    fol.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
+    fol.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
   }else{                                                                          // locked bare sapling
-    grp.setAttribute('opacity',.5);
+    grp.setAttribute('opacity',.55);
     grp.appendChild(_svgEl('path',{d:'M0 30V6',stroke:'#5a4a34','stroke-width':4}));
-    grp.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
+    fol.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
   }
+  grp.appendChild(fol);
   const lc=(st==='blossoming')?'#f0e3c6':(st==='active')?'#dcefe6':(st==='unlocked')?'#f0e3c6':'#a89670';
   const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='unlocked')?'#52a061':'#a89670';
-  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':14,fill:lc});
-  t1.textContent=_short(label,20); grp.appendChild(t1);
+  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':opts.fs||14,fill:lc});
+  t1.textContent=_short(label,opts.labN||20); grp.appendChild(t1);
   const t2=_svgEl('text',{x:0,y:st==='locked'?66:82,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc});
   t2.textContent=meta; grp.appendChild(t2);
-  const tt=_svgEl('title'); tt.textContent=g.pillar+' — '+g.done+'/'+g.total+' · '+st; grp.appendChild(tt);
-  if(opts.onClick && st!=='locked') grp.addEventListener('click',opts.onClick);
+  const tt=_svgEl('title'); tt.textContent=(opts.title||g.pillar); grp.appendChild(tt);
+  if(opts.onClick){ grp.style.cursor='pointer'; grp.addEventListener('click',(e)=>{e.stopPropagation();opts.onClick(e);}); }
   return grp;
 }
 
@@ -1882,109 +1957,308 @@ function _statue(x,y){
 function _mapDefs(){
   const defs=_svgEl('defs',{});
   defs.innerHTML=
-    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".6" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
+    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".55" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
    +'<pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>'
-   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>';
+   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>'
+   +'<linearGradient id="vineflow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e7b64b"/><stop offset="1" stop-color="#52a061"/></linearGradient>'
+   +'<radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#2f5a44" stop-opacity=".5"/><stop offset="1" stop-color="#2f5a44" stop-opacity="0"/></radialGradient>';
   return defs;
 }
 
-function _paintMap(svg,pts,travelledUpto){
-  const vb=svg.viewBox.baseVal, W=vb.width, H=vb.height;
+// Enchantment: a handful of drifting fireflies/motes, each on its own CSS-random drift.
+// Purely decorative (pointer-events:none) and skipped entirely under reduced-motion.
+function _fireflies(W,H,n){
+  const g=_svgEl('g',{'class':'motes','pointer-events':'none'});
+  if(_reduced()) return g;
+  for(let i=0;i<n;i++){
+    const x=Math.random()*W, y=Math.random()*H, r=0.8+Math.random()*1.8;
+    const dx=(Math.random()-0.5)*140, dy=-40-Math.random()*140;
+    const c=_svgEl('circle',{cx:x,cy:y,r:r,'class':'mote'});
+    c.style.setProperty('--dx',dx.toFixed(0)+'px');
+    c.style.setProperty('--dy',dy.toFixed(0)+'px');
+    c.style.animation='drift '+(7+Math.random()*8).toFixed(1)+'s ease-in-out '+(Math.random()*8).toFixed(1)+'s infinite';
+    g.appendChild(c);
+  }
+  return g;
+}
+
+// Paint the shared backdrop (gradient + dotted parchment + fireflies + Droṇa) sized to
+// the whole DAG canvas. Nodes and vines are layered on top by the caller.
+function _paintBackdrop(svg,W,H){
   svg.textContent='';
   svg.appendChild(_mapDefs());
   svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
   svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mdot)'}));
-  // full winding path (dashed clay), then the travelled gold portion up to the active grove
-  const full=_pathThrough(pts,null);
-  if(full) svg.appendChild(_svgEl('path',{d:full,fill:'none',stroke:'#a8482a','stroke-width':6,'stroke-linecap':'round','stroke-dasharray':'2 14',opacity:.55}));
-  if(travelledUpto>=1){
-    const gold=_pathThrough(pts,travelledUpto);
-    if(gold) svg.appendChild(_svgEl('path',{d:gold,fill:'none',stroke:'#e7b64b','stroke-width':4,'stroke-linecap':'round','stroke-dasharray':'2 14'}));
-  }
-  svg.appendChild(_statue(W-140,90));
+  svg.appendChild(_fireflies(W,H,Math.min(46,Math.round(W*H/26000))));
+  svg.appendChild(_statue(Math.min(W-120,W*0.9),70));
 }
 
-function _legend(svg,items){
-  const vb=svg.viewBox.baseVal;
-  const g=_svgEl('g',{transform:'translate(28,'+(vb.height-18)+')','font-family':'JetBrains Mono','font-size':10});
+function _legend(svg,W,H,items){
+  const g=_svgEl('g',{transform:'translate(24,'+(H-16)+')','font-family':'JetBrains Mono','font-size':10});
   let x=0;
   items.forEach(([col,lab])=>{
     g.appendChild(_svgEl('circle',{cx:x+6,cy:-3,r:5,fill:col}));
     const t=_svgEl('text',{x:x+16,y:1,fill:'#c3b291'});t.textContent=lab;g.appendChild(t);
-    x+=16+lab.length*7+34;
+    x+=16+lab.length*7+30;
   });
   svg.appendChild(g);
 }
 
+// ---- pan + zoom over the SVG viewBox (works on desktop wheel/drag AND touch) ----
+let _vb={x:0,y:0,w:900,h:640};   // the current viewBox
+let _base={x:0,y:0,w:900,h:640}; // the fitted 100% viewBox (⟲ resets to this)
+function _setVb(){const s=document.getElementById('forestsvg');if(s)s.setAttribute('viewBox',_vb.x+' '+_vb.y+' '+_vb.w+' '+_vb.h);}
+function _fitVb(W,H){
+  const frame=document.querySelector('.mapframe');
+  const fw=frame?frame.clientWidth:900, fh=frame?frame.clientHeight:640;
+  const ar=fw/Math.max(1,fh);
+  // Prefer WIDTH-fit so nodes stay readable; if the DAG is short enough to fit whole,
+  // show all of it. Tall DAGs anchor at the top and pan/scroll down (base = full width).
+  let w, h;
+  if(W/ar >= H){ w=W; h=W/ar; }         // wide/short → contain fully
+  else { w=W; h=W/ar; }                 // tall → fit width, scroll vertically
+  _base={x:(W-w)/2,y:0,w:w,h:h};
+  _vb={..._base}; _setVb();
+}
+// Pan (without zooming) so a given DAG point sits in the centre of the view — used to
+// bring "you are here" into frame on load for tall graphs. Clamped to the base extent.
+function _centerOn(pt){
+  _vb.x=pt.x-_vb.w/2; _vb.y=pt.y-_vb.h/2;
+  _vb.y=Math.max(_base.y,Math.min(_base.y+_base.h-_vb.h,_vb.y));  // don't scroll past the ends
+  _setVb();
+}
+function forestZoom(m){                       // >1 zoom in, <1 zoom out — around the centre
+  const cx=_vb.x+_vb.w/2, cy=_vb.y+_vb.h/2;
+  let nw=_vb.w/m; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
+  const nh=nw*(_vb.h/_vb.w);
+  _vb={x:cx-nw/2,y:cy-nh/2,w:nw,h:nh}; _setVb();
+}
+function forestZoomReset(){ _vb={..._base}; _setVb(); }
+// wheel to zoom around the cursor; drag to pan; pinch to zoom (two-finger).
+function _svgPt(e){
+  const s=document.getElementById('forestsvg'), r=s.getBoundingClientRect();
+  return {x:_vb.x+(e.clientX-r.left)/r.width*_vb.w, y:_vb.y+(e.clientY-r.top)/r.height*_vb.h};
+}
+let _panStart=null, _pinch=null;
+function _wireForestGestures(){
+  const s=document.getElementById('forestsvg'); if(!s||s._wired) return; s._wired=true;
+  const frame=s.closest('.mapframe'); if(frame) frame.classList.add('forest');
+  s.addEventListener('wheel',(e)=>{
+    e.preventDefault();
+    const p=_svgPt(e), f=e.deltaY<0?1.12:1/1.12;
+    let nw=_vb.w/f; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
+    const nh=nw*(_vb.h/_vb.w);
+    _vb={x:p.x-(p.x-_vb.x)*(nw/_vb.w), y:p.y-(p.y-_vb.y)*(nh/_vb.h), w:nw, h:nh}; _setVb();
+  },{passive:false});
+  s.addEventListener('pointerdown',(e)=>{ if(e.button!==0&&e.pointerType==='mouse')return;
+    _panStart={x:e.clientX,y:e.clientY,vx:_vb.x,vy:_vb.y}; s.setPointerCapture(e.pointerId);
+    if(frame)frame.classList.add('dragging'); hideNodePop(); });
+  s.addEventListener('pointermove',(e)=>{ if(!_panStart)return;
+    const r=s.getBoundingClientRect();
+    _vb.x=_panStart.vx-(e.clientX-_panStart.x)/r.width*_vb.w;
+    _vb.y=_panStart.vy-(e.clientY-_panStart.y)/r.height*_vb.h; _setVb(); });
+  const end=()=>{ _panStart=null; if(frame)frame.classList.remove('dragging'); };
+  s.addEventListener('pointerup',end); s.addEventListener('pointercancel',end); s.addEventListener('pointerleave',end);
+  // pinch-zoom (touch): track two active touches and scale around their midpoint
+  s.addEventListener('touchmove',(e)=>{
+    if(e.touches.length!==2)return; e.preventDefault();
+    const [a,b]=e.touches, dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    const mid={clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2};
+    if(_pinch){ const p=_svgPt(mid), f=dist/_pinch;
+      let nw=_vb.w/f; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
+      const nh=nw*(_vb.h/_vb.w);
+      _vb={x:p.x-(p.x-_vb.x)*(nw/_vb.w),y:p.y-(p.y-_vb.y)*(nh/_vb.h),w:nw,h:nh}; _setVb(); }
+    _pinch=dist;
+  },{passive:false});
+  s.addEventListener('touchend',()=>{_pinch=null;});
+  s.addEventListener('click',hideNodePop);   // click empty canvas → dismiss popover
+}
+
+// ===== the node click-to-act popover =====
+function hideNodePop(){const p=document.getElementById('nodepop');if(p)p.hidden=true;}
+// Place the popover near the clicked node (screen coords), clamped inside the frame.
+function _showNodePop(html,evt){
+  const pop=document.getElementById('nodepop'), frame=document.querySelector('.mapframe');
+  pop.innerHTML=html; pop.hidden=false;
+  const fr=frame.getBoundingClientRect(), pr=pop.getBoundingClientRect();
+  let x=(evt?evt.clientX-fr.left:fr.width/2)+14, y=(evt?evt.clientY-fr.top:fr.height/2)-10;
+  x=Math.max(10,Math.min(fr.width-pr.width-10,x));
+  y=Math.max(10,Math.min(fr.height-pr.height-10,y));
+  pop.style.left=x+'px'; pop.style.top=y+'px';
+  const cb=pop.querySelector('.npclose'); if(cb) cb.onclick=hideNodePop;
+}
+// Kick off (or revise) practice on a concept → switch to the chat view and stream it.
+function forestDive(name){ hideNodePop(); showView('practice');
+  stream("Let's work on "+name+" now."); }
+function forestRevise(name){ hideNodePop(); showView('practice');
+  stream("I want to revise "+name+" — I've covered it before; quiz me and refresh the key ideas."); }
+window.forestDive=forestDive; window.forestRevise=forestRevise;
+
+function _statPill(s){return s==='done'?'<span class="npstat done">◆ mastered</span>'
+  :s==='avail'?'<span class="npstat avail">○ available</span>':'<span class="npstat lock">— locked</span>';}
+function _chips(names,cls){return (names&&names.length)
+  ? '<div class="npchips">'+names.map(n=>'<span class="npchip '+(cls||'')+'">'+_esc(_short(n,26))+'</span>').join('')+'</div>'
+  : '<div class="npchips"><span class="npchip" style="opacity:.6">—</span></div>';}
+
+// Build the popover for a CONCEPT node (drill-in). statusOf resolves any prereq's status.
+function _openConceptPop(cc,statusOf,evt){
+  const missing=(cc.prereqs||[]).filter(p=>statusOf(p)!=='done');
+  const done=(cc.prereqs||[]).filter(p=>statusOf(p)==='done');
+  let act='';
+  if(cc.status==='done')
+    act='<button class="npact revise" onclick="forestRevise('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">↻ Revise this</button>';
+  else if(cc.status==='avail')
+    act='<button class="npact" onclick="forestDive('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">➤ Dive in</button>';
+  else
+    act='<button class="npact locked" disabled>🔒 Finish its prerequisites first</button>';
+  const html=
+    '<button class="npclose">×</button>'+_statPill(cc.status)+
+    '<div class="nptitle">'+_esc(cc.name)+'</div>'+
+    (cc.status==='lock'
+      ? '<div class="npsec"><div class="lbl">Still needed</div>'+_chips(missing,'miss')+'</div>'
+      : '<div class="npsec"><div class="lbl">Builds on</div>'+_chips(done.length?done:(cc.prereqs||[]),done.length?'done':'')+'</div>')+
+    '<div class="npsec"><div class="lbl">Unlocks next</div>'+_chips(cc.unlocks)+'</div>'+
+    act;
+  _showNodePop(html,evt);
+}
+
+// The overview DAG: groves as nodes, cross-pillar prereqs as flowing vines.
 async function showForest(){
   const svg=document.getElementById('forestsvg');
+  _forestView='overview';
   document.getElementById('tabForest').classList.add('on');
   document.getElementById('tabTrack').classList.remove('on');
-  document.getElementById('treesub').textContent='groves on a winding path · a tap enters a grove';
-  svg.setAttribute('viewBox','0 0 900 640'); svg.textContent='';
+  document.getElementById('mapquest').hidden=true; hideNodePop();
   try{
     const c=await (await fetch('/api/forest')).json();
+    _forestData=c;
     if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
     _curFocus=c.active;
     document.getElementById('tabTrack').disabled=!_curFocus;
     const nMast=c.groves.filter(g=>g.status==='blossoming').length;
     document.getElementById('treesub').textContent=
-      c.groves.length+' groves · '+nMast+' mastered · a tap enters a grove';
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    // travelled = up to and including the active grove along the walk order
-    let upto=c.groves.findIndex(g=>g.status==='active')+1;
-    if(upto<=0) upto=c.groves.filter(g=>g.status==='blossoming').length;
-    _paintMap(svg,pts,upto);
-    c.groves.forEach((g,i)=>{
-      if(!pts[i]) return;
-      svg.appendChild(_groveNode(g,pts[i],{onClick:()=>showGrove(g.pillar)}));
+      c.groves.length+' groves · '+nMast+' mastered · follow the vines, tap a grove to enter';
+    const dag=c.dag, pos=dag.pos, W=dag.viewbox[2], H=dag.viewbox[3];
+    _paintBackdrop(svg,W,H);
+    // dependency vines first (behind the trees): lit when the prereq grove is mastered
+    const gByName={}; c.groves.forEach(g=>gByName[g.pillar]=g);
+    (c.edges||[]).forEach(e=>{
+      const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
+      const lit=gByName[e.src] && gByName[e.src].status==='blossoming';
+      svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine '+(lit?'lit':'dim')}));
+      if(lit) svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine flow'}));
     });
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
+    // the groves themselves
+    c.groves.forEach(g=>{ const p=pos[g.pillar]; if(!p) return;
+      svg.appendChild(_groveNode(g,p,{title:g.pillar+' — '+g.done+'/'+g.total+' concepts',
+        onClick:(e)=>_openGrovePop(g,e)}));
+    });
+    // "you are here" beacon on the active grove
+    if(pos[c.active]) svg.appendChild(_youHere(pos[c.active]));
+    _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
+    _fitVb(W,H); if(pos[c.active]) _centerOn(pos[c.active]); _wireForestGestures();
+    _questBanner(c.active?('Current grove'):'Your forest',
+      c.active||'—', c.active?('Tap it to explore its concepts, or dive straight in.'):'Tap any grove to explore.');
   }catch(e){ _emptyMap(svg,'could not load the forest map.'); }
 }
 
-// Drill-in: one grove's concepts as a smaller sub-forest (same visual language).
+// Overview grove popover: summary + "enter grove" (drill-in).
+function _openGrovePop(g,evt){
+  const act='<button class="npact" onclick="showGrove('+JSON.stringify(g.pillar).replace(/"/g,'&quot;')+');hideNodePop()">▶ Enter grove</button>';
+  const st=g.status==='blossoming'?'done':g.status==='locked'?'lock':'avail';
+  const html='<button class="npclose">×</button>'+_statPill(st)+
+    '<div class="nptitle">'+_esc(g.pillar)+'</div>'+
+    '<div class="npsub">'+g.done+' / '+g.total+' concepts mastered</div>'+
+    '<div class="npsec"><div class="lbl">'+(g.status==='blossoming'?'A blossoming grove':g.status==='active'?'Your current focus':g.status==='locked'?'Locked — grow its roots first':'Open to explore')+'</div></div>'+act;
+  _showNodePop(html,evt);
+}
+
+// Drill-in: one grove's concepts as an interconnected sub-DAG (concept→prereq vines).
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
   const svg=document.getElementById('forestsvg');
+  _forestView=pillar;
   document.getElementById('tabForest').classList.remove('on');
   document.getElementById('tabTrack').classList.add('on');
   document.getElementById('tabTrack').disabled=false;
-  svg.textContent='';
+  hideNodePop();
   try{
     const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
+    _forestData=c;
     if(c.empty){ _emptyMap(svg); return; }
     document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    const done=c.concepts.filter(x=>x.status==='done').length;
-    _paintMap(svg,pts,done);
-    // map a concept's status onto a grove-status so the same tree art applies
+    const dag=c.dag, pos={...dag.pos}, W=dag.viewbox[2];
+    // place external context nodes just ABOVE their first dependent (a row up, offset).
+    const ctxByName={}; (c.context||[]).forEach((cx,i)=>{ ctxByName[cx.name]=cx; });
+    (c.edges||[]).forEach(e=>{ if(e.external && !pos[e.src] && pos[e.dst]){
+      pos[e.src]={x:pos[e.dst].x+((Object.keys(ctxByName).indexOf(e.src)%2)?70:-70), y:pos[e.dst].y-120}; }});
+    let H=dag.viewbox[3];
+    Object.values(pos).forEach(p=>{ if(p.y-40<0){/* keep in-frame */} H=Math.max(H,p.y+90); });
+    _paintBackdrop(svg,W,H);
+    const stMap={}; c.concepts.forEach(cc=>stMap[cc.name]=cc.status); (c.context||[]).forEach(cx=>stMap[cx.name]=cx.status);
+    const statusOf=(n)=>stMap[n]||'lock';
+    // concept→prereq vines (lit when the prereq is mastered)
+    (c.edges||[]).forEach(e=>{ const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
+      const lit=statusOf(e.src)==='done';
+      svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine '+(lit?'lit':'dim')+(e.external?' ext':'')}));
+      if(lit&&!e.external) svg.appendChild(_svgEl('path',{d:_vine(a,b),'class':'vine flow'}));
+    });
+    // external context nodes (dimmed, non-interactive, labelled with their home pillar)
     const S={done:'blossoming',avail:'active',lock:'locked'};
-    c.concepts.forEach((cc,i)=>{
-      if(!pts[i]) return;
+    (c.context||[]).forEach(cx=>{ const p=pos[cx.name]; if(!p) return;
+      const g={pillar:cx.name,status:cx.status==='done'?'blossoming':'locked',done:0,total:1};
+      const n=_groveNode(g,p,{label:cx.name,fs:12,labN:22,meta:'↑ '+_short(cx.pillar,16),
+        title:cx.name+' — prerequisite from '+cx.pillar});
+      n.setAttribute('opacity',.6); svg.appendChild(n);
+    });
+    // this grove's concepts (interactive: click → detail popover)
+    let active=null;
+    c.concepts.forEach(cc=>{ const p=pos[cc.name]; if(!p) return;
       const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
       const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
-      svg.appendChild(_groveNode(g,pts[i],{label:cc.name,meta:meta}));
+      const cls=cc.status==='avail'?'avail':'';
+      svg.appendChild(_groveNode(g,p,{label:cc.name,meta:meta,fs:13,labN:24,cls:cls,
+        title:cc.name, onClick:(e)=>_openConceptPop(cc,statusOf,e)}));
+      if(!active && cc.status==='avail') active=p;   // first available = "you are here" in the grove
     });
-    // a back-to-overview control drawn in-canvas (also on the ◆ tab)
-    const back=_svgEl('g',{transform:'translate(70,40)','class':'grove',style:'cursor:pointer'});
-    back.addEventListener('click',showForest);
-    const bt=_svgEl('text',{x:0,y:0,'font-family':'JetBrains Mono','font-size':12,fill:'#e7b64b'});
-    bt.textContent='← overview'; back.appendChild(bt); svg.appendChild(back);
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked']]);
+    if(active) svg.appendChild(_youHere(active));
+    _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked'],['#a89670','from another grove']]);
+    _fitVb(W,H); if(active) _centerOn(active); _wireForestGestures();
+    _questBanner('Inside '+_short(pillar,22), c.grove.done+' / '+c.grove.total+' mastered',
+      'Vines run prerequisite → dependent. Tap a lit tree to dive in.');
   }catch(e){ _emptyMap(svg,'could not load this grove.'); }
 }
 
+// "You are here" beacon — an expanding ring + a fixed marker over the active node.
+function _youHere(p){
+  const g=_svgEl('g',{transform:'translate('+p.x+','+(p.y-4)+')','class':'youhere'});
+  g.appendChild(_svgEl('circle',{r:56,'class':'ring'}));
+  const pin=_svgEl('g',{transform:'translate(0,-58)'});
+  pin.appendChild(_svgEl('path',{d:'M0 12 L-7 0 A7 7 0 1 1 7 0 Z',fill:'#7ff2ea'}));
+  pin.appendChild(_svgEl('circle',{cx:0,cy:-6,r:3,fill:'#04201e'}));
+  g.appendChild(pin);
+  const t=_svgEl('text',{x:0,y:-70,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9,fill:'#7ff2ea','letter-spacing':'.1em'});
+  t.textContent='YOU ARE HERE'; g.appendChild(t);
+  return g;
+}
+
+// A small "where you are" banner over the canvas (top-left).
+function _questBanner(head,title,desc){
+  const q=document.getElementById('mapquest');
+  q.innerHTML='<div class="qh">'+_esc(head)+'</div><div class="qt">'+_esc(title)+'</div><div class="qd">'+_esc(desc)+'</div>';
+  q.hidden=false;
+}
+
 function _emptyMap(svg,msg){
-  svg.setAttribute('viewBox','0 0 900 560'); svg.textContent='';
+  const W=900,H=560; _base={x:0,y:0,w:W,h:H}; _vb={..._base};
+  svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.textContent='';
   svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:900,height:560,fill:'url(#mapbg)'}));
-  const t=_svgEl('text',{x:450,y:270,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
+  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
+  const t=_svgEl('text',{x:W/2,y:H/2,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
   t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
   svg.appendChild(t);
+  document.getElementById('mapquest').hidden=true;
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
@@ -2528,15 +2802,7 @@ function closeModes(){ document.getElementById('modes').classList.remove('on'); 
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
-// ===== forest-map zoom/pan (it was tiny/unreadable on mobile) =====
-let _fz=1;
-function _applyFz(){
-  const s=document.getElementById('forestsvg'); if(!s) return;
-  s.style.transform='scale('+_fz+')';
-  const f=s.closest('.mapframe'); if(f) f.style.overflow=_fz>1.01?'auto':'hidden';
-}
-function forestZoom(m){ _fz=Math.max(1,Math.min(4,_fz*m)); _applyFz(); }
-function forestZoomReset(){ _fz=1; _applyFz(); }
+// (forest pan/zoom now rides the SVG viewBox — see forestZoom/_wireForestGestures above.)
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
