@@ -2908,10 +2908,14 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
-  stream(c.kickoff[mode]);
+  stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
+  // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
+  // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname];
+  if(_deep) showView(_deep);
+  else if(!c.first_run && location.pathname==='/') showView('tree');
 });
-// deep-link: if the URL points at a client-only view, open it (matches the /forest,/library,/settings routes)
-{const _dl={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname]; if(_dl) showView(_dl);}
+// deep-link handling for client-only routes now runs inside the /api/config callback above.
 </script></body></html>"""
 
 
