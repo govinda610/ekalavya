@@ -396,8 +396,8 @@ def _dag_layout(names: list[str], edges: list[dict]) -> dict:
     W = 1200
     margin_x, margin_top = 120, 90
     col_w = 210                     # horizontal spacing between nodes in a layer
-    sub_h = 120                     # vertical spacing between wrapped sub-rows
-    layer_gap = 40                  # extra breathing room between layers
+    sub_h = 98                      # vertical spacing between wrapped sub-rows (denser)
+    layer_gap = 16                  # extra breathing room between layers (tightened)
     max_per_row = max(1, (W - 2 * margin_x) // col_w + 1)
 
     pos: dict[str, dict] = {}

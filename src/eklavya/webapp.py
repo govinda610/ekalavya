@@ -2028,13 +2028,15 @@ function _fitVb(W,H){
   const frame=document.querySelector('.mapframe');
   const fw=frame?frame.clientWidth:900, fh=frame?frame.clientHeight:640;
   const ar=fw/Math.max(1,fh);
-  // Prefer WIDTH-fit so nodes stay readable; if the DAG is short enough to fit whole,
-  // show all of it. Tall DAGs anchor at the top and pan/scroll down (base = full width).
-  let w, h;
-  if(W/ar >= H){ w=W; h=W/ar; }         // wide/short → contain fully
-  else { w=W; h=W/ar; }                 // tall → fit width, scroll vertically
+  // Base = full-width fit (the whole DAG); tall graphs pan/scroll down from the top, and ⟲
+  // always reframes everything.
+  const w=W, h=W/ar;
   _base={x:(W-w)/2,y:0,w:w,h:h};
-  _vb={..._base}; _setVb();
+  _vb={..._base};
+  // Narrow screens: fitting the full width crams nodes tiny, so START zoomed in (readable)
+  // and let the learner pan / ⟲ to reveal the rest. _centerOn (called next) frames "you are here".
+  if(fw < 640){ const z=2.0; _vb={x:_base.x,y:_base.y,w:_base.w/z,h:_base.h/z}; }
+  _setVb();
 }
 // Pan (without zooming) so a given DAG point sits in the centre of the view — used to
 // bring "you are here" into frame on load for tall graphs. Clamped to the base extent.
