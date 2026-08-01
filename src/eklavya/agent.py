@@ -7,6 +7,8 @@ a checkpointer so a conversation persists across turns on one thread_id.
 
 from __future__ import annotations
 
+import re
+
 from .fallback import build_fallback_chat_model
 
 # A teaching turn can be long (explanations, code); give it room.
@@ -53,9 +55,7 @@ _SAFE_BASH_CMDS = frozenset({
 })
 # Reject the whole command if it contains any shell metacharacter that could chain, redirect,
 # substitute, or escape into something unsafe (so "ls; rm -rf" or "cat $(…)" is never auto-run).
-import re as _re
-
-_UNSAFE_BASH = _re.compile(r"[;&|<>`$\\]|\n|--?exec|-delete|-fdelete")
+_UNSAFE_BASH = re.compile(r"[;&|<>`$\\]|\n|--?exec|-delete|-fdelete")
 
 
 def is_safe_bash(command: str) -> bool:

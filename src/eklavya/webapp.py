@@ -150,7 +150,18 @@ def create_app():
     # Shared design-system stylesheet (Option E cinematic-forest) — one served file that
     # every screen (SPA, dashboard, journey, profile in their iframes, login) links to.
     _STATIC_DIR = Path(__file__).parent / "static"
-    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+    class _CorsStatic(StaticFiles):
+        """Serve /static with `Access-Control-Allow-Origin: *`. These are public assets, and the
+        sandboxed viz iframe (an opaque 'null' origin) must be able to load them — fonts in
+        particular are CORS-checked, so KaTeX's webfonts fail there without this header."""
+
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            response.headers.setdefault("Access-Control-Allow-Origin", "*")
+            return response
+
+    app.mount("/static", _CorsStatic(directory=str(_STATIC_DIR)), name="static")
 
     def _require_owner(thread_id: str) -> None:
         """404 if the current user doesn't own this thread (no-op in single-user mode).
@@ -291,6 +302,8 @@ def create_app():
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
         stream the reply, and pause for run_bash approval (auto-approving safe read-only ones)."""
+        from langgraph.types import Command
+
         from .agent import is_safe_bash
         from .verify import selfcheck
 
@@ -335,7 +348,6 @@ def create_app():
                 break
             if is_safe_bash(approval.get("command", "")):  # safe read-only → run without asking
                 yield json.dumps({"autorun": approval}) + "\n"  # trace shows it ran, no prompt
-                from langgraph.types import Command
                 current = Command(resume={"decisions": [{"type": "approve"}]})
                 continue
             yield json.dumps({"approval": approval}) + "\n"
