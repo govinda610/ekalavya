@@ -80,8 +80,8 @@ def render() -> str:
     <div id="psaved" class="saved hidden">saved ✓</div>
   </section>
 
-  <div class="grid2">
-    <section class="card"><h2>{_icon("target")} Goals</h2><div class="quests">{goal_html}</div></section>
+  <div class="pstack">
+    <section class="card"><h2>{_icon("target")} Goals</h2><div class="quests pquests">{goal_html}</div></section>
     <section class="card"><h2>{_icon("grid")} Mastery map</h2>
       <table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table>
       <div class="legend">
@@ -162,6 +162,10 @@ async function saveProfile(){{
 
 
 _PCSS = """
+/* Goals + Mastery stack FULL-WIDTH (they had wildly uneven heights side by side). Goals'
+   cards flow in a responsive row so the card fills its width instead of sitting half-empty. */
+.pstack{display:flex;flex-direction:column;gap:18px}
+.pquests{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
 h2 .grow{flex:1}
 .pbtn{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-soft);
   border-radius:6px;padding:6px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0}
