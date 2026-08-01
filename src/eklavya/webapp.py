@@ -166,6 +166,15 @@ def create_app():
     def index() -> str:
         return _INDEX
 
+    # Client-only SPA views (Forest / Library / Settings have no server render) used to 404 on a
+    # direct URL or refresh. Serve the SPA for them too; a small on-load hook reads the path and
+    # opens the matching view. (Dashboard/Journey/Effectiveness/Profile already have real routes.)
+    @app.get("/forest", response_class=HTMLResponse)
+    @app.get("/library", response_class=HTMLResponse)
+    @app.get("/settings", response_class=HTMLResponse)
+    def spa_view() -> str:
+        return _INDEX
+
     @app.get("/favicon.ico")
     def favicon():
         from starlette.responses import Response
@@ -980,9 +989,6 @@ button:disabled{opacity:.42;cursor:default}
 .selpop.on{display:inline-flex;animation:pop .18s ease}
 .selpop::after{content:"";position:absolute;bottom:-6px;left:26px;width:10px;height:10px;background:var(--stone-dark);border-right:1px solid var(--gold);border-bottom:1px solid var(--gold);transform:rotate(45deg)}
 .art-code{font-family:var(--f-mono);font-size:13px;line-height:1.7;background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:16px;white-space:pre-wrap;overflow:auto;color:var(--parch)}
-.art-html{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;background:#fff}
-.art-htmlbar{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);padding:6px 12px;background:rgba(6,9,20,.7);border-bottom:1px solid var(--line-soft)}
-.art-htmlprev{padding:20px;background:linear-gradient(160deg,#fbf6ea,#efe4c9);color:#2a2010;font-family:var(--f-serif)}
 .art-vizframe{width:100%;min-height:74vh;border:1px solid var(--line-soft);border-radius:8px;background:#0b0f17;display:block}
 .canvas-empty{color:var(--parch-dim);font-family:var(--f-body);text-align:center;padding:50px 20px}
 /* highlight-to-ask echo in chat (template D's .art-echo) */
@@ -1558,7 +1564,18 @@ function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{
 function openArtifact(id){ showView('practice'); openCanvas(id); }
 
 /* ===== Canvas — the Editor↔Canvas tab (template E) ===== */
-let _artifacts=[], _curArt=null, _selText='';
+let _artifacts=[], _curArt=null, _selText='', _maxArtId=0;
+// When the guru saves a NEW artifact during a turn, surface it: swap the right pane from the
+// editor to the Canvas and open it. The learner can toggle back to the editor any time (the
+// ▤ Editor / ✦ Canvas control is unchanged). Baseline _maxArtId at load so pre-existing
+// artifacts don't trigger a switch; only something created after this point does.
+function pingCanvas(){
+  fetch('/api/artifacts').then(r=>r.json()).then(list=>{
+    const top=list.length?Math.max.apply(null,list.map(a=>a.id)):0;
+    if(top>_maxArtId){ _maxArtId=top; _artifacts=list; _curArt=top; showPane('canvas'); }
+  }).catch(()=>{});
+}
+fetch('/api/artifacts').then(r=>r.json()).then(l=>{ _maxArtId=l.length?Math.max.apply(null,l.map(a=>a.id)):0; }).catch(()=>{});
 function showPane(p){
   const col=document.querySelector('#practice .col:not(.chat)');
   const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
@@ -1612,16 +1629,15 @@ function renderArtifact(a){
   if(!a){ body.innerHTML="<div class='canvas-empty'>—</div>"; return; }
   if(a.kind==='code'){
     body.innerHTML="<div class='art-code' data-selectable='1'>"+esc(a.content)+"</div>";
-  } else if(a.kind==='html'){
-    body.innerHTML="<div class='art-html'><div class='art-htmlbar'>"+esc(a.title)+" · rendered</div>"+
-      "<div class='art-htmlprev'>"+DOMPurify.sanitize(a.content)+"</div></div>";
-  } else if(a.kind==='viz'){
-    // Interactive explorable — render in a LOCKED sandbox iframe: scripts run (Plotly/KaTeX
-    // sliders) but 'allow-scripts' WITHOUT 'allow-same-origin' means an opaque origin, so the
-    // generated JS can't touch the app's cookies, storage, or same-origin API. A full HTML
-    // doc is used as-is; a bare fragment gets wrapped in the shell (which loads the libs).
+  } else if(a.kind==='viz' || a.kind==='html'){
+    // Render in a LOCKED sandbox iframe: scripts run (Chart.js sliders, an HTML page's own JS)
+    // but 'allow-scripts' WITHOUT 'allow-same-origin' means an opaque origin, so the content's
+    // JS can't touch the app's cookies, storage, or same-origin API. A full HTML doc is used
+    // as-is (so 'html' artifacts are real, self-contained HTML files/pages); a bare 'viz'
+    // fragment is wrapped in the Chart.js shell.
     var raw=a.content||'';
-    var doc=/<!doctype|<html[\\s>]/i.test(raw)?raw:vizShell(raw);
+    var full=/<!doctype|<html[\\s>]/i.test(raw);
+    var doc=(a.kind==='viz' && !full) ? vizShell(raw) : raw;
     var f=document.createElement('iframe');
     f.className='art-vizframe'; f.setAttribute('sandbox','allow-scripts');
     f.setAttribute('referrerpolicy','no-referrer'); f.setAttribute('loading','lazy');
@@ -1812,6 +1828,9 @@ async function showForest(){
     if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
     _curFocus=c.active;
     document.getElementById('tabTrack').disabled=!_curFocus;
+    const nMast=c.groves.filter(g=>g.status==='blossoming').length;
+    document.getElementById('treesub').textContent=
+      c.groves.length+' groves · '+nMast+' mastered · a tap enters a grove';
     const pts=c.layout.points, vb=c.viewbox;
     svg.setAttribute('viewBox',vb.join(' '));
     // travelled = up to and including the active grove along the walk order
@@ -2145,6 +2164,7 @@ async function stream(text, code){
     ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
   } else { ui.m.style.display=''; finalizeMsg(ui); }
   refreshHud();
+  pingCanvas();  // if the guru saved a new artifact this turn, surface it in the Canvas
   if(queued){ const q=queued; queued=null;                     // a message typed mid-stream
     turns.push(q); attachEdit(q); renderTurnCtl(); stream(q.text); }
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
@@ -2468,6 +2488,8 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   applyMode();
   stream(c.kickoff[mode]);
 });
+// deep-link: if the URL points at a client-only view, open it (matches the /forest,/library,/settings routes)
+{const _dl={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname]; if(_dl) showView(_dl);}
 </script></body></html>"""
 
 
