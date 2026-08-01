@@ -337,6 +337,28 @@ def forest_map(pillar: str | None = None) -> dict:
             if b and b != a and (b, a) not in seen_edge:
                 seen_edge.add((b, a))
                 grove_edges.append({"src": b, "dst": a})           # B unlocks → A
+
+    # SEQUENTIAL learning ORDER over the groves — the walkable path the 3D forest lays out.
+    # Toposort the coarse grove DAG (foundations first) so a milestone tree only appears
+    # after the groves it builds on. Ties break by grove-depth then name, so the sequence
+    # is deterministic and stable across loads. Purely additive: each grove gets an `order`.
+    grove_order = _toposort_concepts(pillars, {
+        p: [e["src"] for e in grove_edges if e["dst"] == p] for p in pillars
+    })
+    order_of = {p: i for i, p in enumerate(grove_order)}
+    # Saved-artifact count per pillar → a subtle lantern/scroll glint on that grove.
+    from . import artifacts as _artifacts
+    art_counts: dict[str, int] = {}
+    try:
+        for p in pillars:
+            art_counts[p] = len(_artifacts.list_artifacts(pillar=p))
+    except Exception:
+        art_counts = {p: 0 for p in pillars}
+    for g in groves:
+        g["order"] = order_of.get(g["pillar"], 0)
+        g["artifacts"] = art_counts.get(g["pillar"], 0)
+    groves.sort(key=lambda g: g["order"])   # emit in walk order (additive; consumers may re-sort)
+
     layout = _forest_layout(len(groves))
     dag = _dag_layout(pillars, grove_edges)
     land = _landscape_layout(pillars, grove_edges)
