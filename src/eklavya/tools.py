@@ -580,9 +580,12 @@ def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
     Learning Internals") — pass it so the artifact files under the right pillar in the
     library; it's auto-linked to the current chat either way. Returns a confirmation with the id.
     """
-    from . import artifacts
+    from . import artifacts, report
 
-    a = artifacts.create(title, kind, content, pillar=pillar or None)
+    # If the guru didn't name a pillar, fall back to the one currently in focus, so artifacts
+    # still file themselves correctly instead of landing under "General".
+    tag = (pillar or "").strip() or report.active_pillar()
+    a = artifacts.create(title, kind, content, pillar=tag)
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 

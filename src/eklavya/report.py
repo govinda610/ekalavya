@@ -44,6 +44,20 @@ def goals() -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def active_pillar() -> str | None:
+    """The pillar currently in focus — the most-recently-practised one. Used as a fallback
+    to auto-tag an artifact's pillar when the guru saves one without naming it."""
+    conn = connect()
+    try:
+        r = conn.execute(
+            "SELECT p.name AS name FROM ratings r JOIN pillars p ON p.id = r.pillar_id "
+            "WHERE r.last_practiced IS NOT NULL ORDER BY r.last_practiced DESC LIMIT 1"
+        ).fetchone()
+        return r["name"] if r else None
+    finally:
+        conn.close()
+
+
 def recent_sessions(limit: int = 10) -> list[dict]:
     conn = connect()
     try:
