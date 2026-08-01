@@ -314,8 +314,7 @@ def render() -> str:
     # --- unaided trend sparkline (AI-off accuracy over active days) ---
     def _spark(points: list[float], color: str) -> str:
         if len(points) < 2:
-            return ('<div class="muted" style="font-family:var(--f-mono);font-size:12px">'
-                    'not enough points yet</div>')
+            return ('<div class="efspark-empty muted">not enough points yet</div>')
         mx, mn = max(points), min(points)
         rng = (mx - mn) or 1
         pts = " ".join(f"{i/(len(points)-1)*300:.1f},{58-((v-mn)/rng*50):.1f}"
@@ -348,10 +347,11 @@ def render() -> str:
         )
     else:
         bm_html = (
-            '<div class="efbig">—</div>'
-            '<div class="muted">No benchmark sittings yet. Run <code>eklavya assess</code> '
-            f'(AI-off, {bm["bank_size"]} frozen items) to fix a baseline θ — the honest, '
-            'non-circular measure of whether your skill is really rising.</div>'
+            '<div class="efempty">'
+            '<span class="efdash">—</span>'
+            f'<span>No benchmark sittings yet · run <code>eklavya assess</code> '
+            f'({bm["bank_size"]} frozen, AI-off items) to fix a baseline θ.</span>'
+            '</div>'
         )
 
     # --- gap card (AI-off ↔ AI-on, and whether it's closing) ---
@@ -367,8 +367,9 @@ def render() -> str:
             f'</div>'
         )
     else:
-        gap_html = ('<div class="muted">Do an "AI-on check" sometime to measure the gap '
-                    'between your assisted and unaided accuracy.</div>')
+        gap_html = ('<div class="efempty"><span class="efdash">—</span>'
+                    '<span>Do an "AI-on check" to measure the gap between your assisted '
+                    'and unaided accuracy.</span></div>')
 
     # --- strengths vs weaknesses (per-pillar Elo) ---
     def _pill_rows(items: list[dict], cls: str) -> str:
@@ -386,8 +387,8 @@ def render() -> str:
         ret_html = (f'<div class="efbig">{ret["rate"]}%</div>'
                     f'<div class="muted">recalled on due reviews · {ret["recalled"]}/{ret["n"]} graduated cards</div>')
     else:
-        ret_html = ('<div class="efbig">—</div><div class="muted">no cards have survived a review '
-                    'interval yet · keep practising and retention appears here</div>')
+        ret_html = ('<div class="efempty"><span class="efdash">—</span>'
+                    '<span>No cards have survived a review interval yet · keep practising.</span></div>')
 
     # --- calibration (reused signal, shown as the clarity headline) ---
     if cal.get("brier") is not None:
@@ -396,8 +397,9 @@ def render() -> str:
         cal_html = (f'<div class="efbig">{clarity}</div>'
                     f'<div class="muted">clarity · {cw} confidently wrong · Brier {cal["brier"]:.2f}</div>')
     else:
-        cal_html = ('<div class="efbig">—</div><div class="muted">answer drills with a confidence '
-                    'level to see how well you know what you know</div>')
+        cal_html = ('<div class="efempty"><span class="efdash">—</span>'
+                    '<span>Answer drills with a confidence level to see how well you know '
+                    'what you know.</span></div>')
 
     # --- dose / effort ---
     dose_cells = [
@@ -496,7 +498,7 @@ _EFCSS = """
 .vtitle .ic{width:16px;height:16px;color:currentColor}
 .vbody{font-family:var(--f-body);font-size:15px;margin-top:8px;color:var(--parch-dim);line-height:1.55}
 
-.efgrid{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
+.efgrid{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:stretch;
   grid-template-areas:
     "bench bench bench bench bench bench"
     "unaided unaided unaided gap gap gap"
@@ -507,8 +509,17 @@ _EFCSS = """
 .ef-unaided{grid-area:unaided}.ef-gap{grid-area:gap}.ef-elo{grid-area:elo}
 .ef-strong{grid-area:strong}.ef-weak{grid-area:weak}
 .ef-ret{grid-area:ret}.ef-cal{grid-area:cal}.ef-dose{grid-area:dose}
+/* every card fills its grid row so paired cards share a bottom baseline (no ragged rows) */
+.efgrid .card{display:flex;flex-direction:column;min-height:180px}
+.efgrid .card>h2{flex:none}
+/* compact, fixed-height empty state: one dash + one CTA line, never an inflated box */
+.efempty{display:flex;align-items:center;gap:12px;min-height:52px;margin-top:auto}
+.efempty .efdash{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--parch-mute);line-height:1;flex:none}
+.efempty>span:last-child{font-family:var(--f-body);font-size:13px;line-height:1.45;color:var(--parch-dim)}
+.efspark-empty{display:flex;align-items:center;min-height:64px;font-family:var(--f-mono);font-size:12px}
 @media(max-width:820px){
   .efgrid{grid-template-columns:1fr;grid-template-areas:"bench" "unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose"}
+  .efgrid .card{min-height:0}
 }
 .efspark{width:100%;height:64px}
 .efrow{display:flex;gap:22px;align-items:flex-end;flex-wrap:wrap}

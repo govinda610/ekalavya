@@ -433,7 +433,7 @@ h2 .ic{width:15px;height:15px}
 @media(max-width:820px){.grid2{grid-template-columns:1fr}.char{width:100%}}
 
 /* bento — asymmetric, skill map is the hero */
-.bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:start;
+.bento{display:grid;gap:18px;grid-template-columns:repeat(6,1fr);align-items:stretch;
   grid-template-areas:
     "cal cal cal cal cal cal"
     "map map map map axes axes"
@@ -446,8 +446,15 @@ h2 .ic{width:15px;height:15px}
    the shorter right-column cards (axes + AI-gap), which now stack beside it to fill the row */
 .b-map{max-height:620px;overflow:auto}
 .bento .card{margin:0}
+/* right column (axes/gap) stretches to match the tall map so no L-shaped gap remains */
+.b-axes,.b-gap{display:flex;flex-direction:column}
+.b-axes .bars{flex:1;justify-content:center}
+/* bottom trio shares one baseline — no card is left short with dead space under it */
+.b-quests,.b-ach,.b-chron{display:flex;flex-direction:column;min-height:210px}
+.b-quests .quests,.b-ach .badges,.b-chron .chron{flex:1}
 @media(max-width:820px){
   .bento{grid-template-columns:1fr;grid-template-areas:"cal" "map" "axes" "quests" "gap" "ach" "chron"}
+  .b-quests,.b-ach,.b-chron{min-height:0}
 }
 /* the illusion-of-knowing card — the product's headline signal */
 .b-cal{background:linear-gradient(150deg,rgba(35,29,24,.72),rgba(12,10,20,.85));border-color:var(--line-gold)}
