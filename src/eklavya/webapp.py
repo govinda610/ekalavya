@@ -973,14 +973,17 @@ button.ghost.run:hover{color:var(--peacock-bright);border-color:var(--peacock)}
 button:disabled{opacity:.42;cursor:default}
 #editor{flex:1;min-height:0;min-width:0}
 /* run output block (Run button → sandbox stdout/stderr) */
-.runout{align-self:stretch;border:1px solid var(--line-soft);border-radius:10px;background:rgba(6,9,16,.8);overflow:hidden}
-.runout .rohead{font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--parch-dim);
- padding:8px 13px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:7px}
-.runout .rohead .ok{color:var(--peacock-bright)} .runout .rohead .bad{color:var(--vermilion-glow)}
-.runout pre{margin:0;padding:11px 13px;font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
- white-space:pre-wrap;word-break:break-word;overflow-x:auto;color:var(--parch)}
-.runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line-soft)}
-.runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
+/* Run output, shown in the editor pane below the code (NOT the chat) — persists across
+   messages, and the output body scrolls instead of clipping. */
+.ed-run{border-bottom:1px solid var(--line-gold)}
+.ed-run[hidden]{display:none}
+.ed-run .rohead{font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--parch-dim);
+ padding:9px 14px;display:flex;align-items:center;gap:7px}
+.ed-run .rohead .ok{color:var(--peacock-bright)} .ed-run .rohead .bad{color:var(--vermilion-glow)}
+.ed-run pre{margin:0;padding:0 14px 11px;font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
+ white-space:pre-wrap;word-break:break-word;color:var(--parch);max-height:34vh;overflow:auto}
+.ed-run pre.roerr{color:#ff9aa9}
+.ed-run .roempty{padding:0 14px 11px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
 /* themed error card (template §5): "The arrow found no wind" + Retry */
 .errcard{align-self:stretch;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
  border:1px solid rgba(214,59,42,.4);border-radius:12px;background:rgba(20,8,6,.55);padding:20px 18px}
@@ -992,7 +995,7 @@ button:disabled{opacity:.42;cursor:default}
  background:rgba(231,182,75,.08);border:1px solid var(--gold-deep);border-radius:4px;padding:8px 18px;cursor:pointer}
 .errcard button:hover{background:rgba(231,182,75,.16)}
 /* live test-arrow panel (template D's .ed-tests) — per-check pass/fail below the editor */
-.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:38%;overflow-y:auto}
+.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:60%;overflow-y:auto}
 .ed-tests-h{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
  font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-dim)}
 .ed-tests-h .et-count{color:var(--peacock-bright);letter-spacing:.06em}
@@ -1410,6 +1413,7 @@ body.reduce-motion *{animation:none !important}
       </div>
       <div id="editor"></div>
       <div class="ed-tests hidden" id="edtests">
+        <div class="ed-run" id="edrun" hidden></div>
         <div class="ed-tests-h"><span>Test arrows</span><span class="et-count" id="etcount"><b>0</b> / 0 strike</span></div>
         <div class="et-list" id="etlist"></div>
         <div class="ed-tests-f"><span class="et-hint" id="ethint">Run your code — each check becomes an arrow that strikes or misses.</span>
@@ -2313,18 +2317,22 @@ function sendChat(){
   stream(t, attach);
 }
 
-function addRunOut(label){
-  const d=el('runout'); d.innerHTML='<div class="rohead">'+label+'</div>';
-  document.getElementById('log').appendChild(d); scroll(); return d;
-}
 function esc(s){ return (s||'').replace(/</g,'&lt;'); }
-function renderRunOut(box, r){
+// Run output renders in the editor pane (#edrun, below the code) — it persists across chat
+// messages and its body scrolls (max-height) instead of being clipped or lost in the log.
+function showRunPane(headHtml){
+  const box=document.getElementById('edrun');
+  box.innerHTML='<div class="rohead">'+headHtml+'</div>'; box.hidden=false;
+  document.getElementById('edtests').classList.remove('hidden');
+}
+function renderRunPane(r){
   const head = r.ok ? '<span class="ok">▶ ran</span>' : '<span class="bad">▶ exit '+r.exit_code+'</span>';
-  let html = '<div class="rohead">'+head+' · '+r.seconds+'s</div>';
-  if(r.stdout) html += '<pre class="rostd">'+esc(r.stdout)+'</pre>';
-  if(r.stderr) html += '<pre class="roerr">'+esc(r.stderr)+'</pre>';
-  if(!r.stdout && !r.stderr) html += '<div class="roempty">(no output)</div>';
-  box.innerHTML = html; scroll();
+  let html='<div class="rohead">'+head+' · '+(r.seconds||'0')+'s</div>';
+  if(r.stdout) html+='<pre class="rostd">'+esc(r.stdout)+'</pre>';
+  if(r.stderr) html+='<pre class="roerr">'+esc(r.stderr)+'</pre>';
+  if(!r.stdout && !r.stderr) html+='<div class="roempty">(no output)</div>';
+  const box=document.getElementById('edrun'); box.innerHTML=html; box.hidden=false;
+  document.getElementById('edtests').classList.remove('hidden');
 }
 // Parse a run's output into "test arrows" for the .ed-tests panel. Recognises the common
 // self-check shapes learners print: "✓/✗ name", "PASS/FAIL: name", "name ... ok",
@@ -2361,12 +2369,12 @@ function renderTests(r){
 }
 async function runCode(){
   if(!editor) return; const code=editor.getValue(); if(!code.trim()) return;
-  const box=addRunOut('<span class="dim">▶ running…</span>');
+  showRunPane('<span class="dim">▶ running…</span>');
   try{
     const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({code})})).json();
-    renderRunOut(box, r); renderTests(r);
-  }catch(e){ box.remove(); addErrorCard("Couldn't run your code — the sandbox didn't answer. Try again.", runCode); }
+    renderRunPane(r); renderTests(r);
+  }catch(e){ renderRunPane({ok:false, exit_code:'—', seconds:'0', stderr:"Couldn't reach the sandbox — try again."}); }
 }
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
@@ -2456,6 +2464,8 @@ function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   turns=[]; renderTurnCtl();
   if(editor) editor.setValue(STUB);
+  const et=document.getElementById('edtests'); if(et) et.classList.add('hidden');   // drop stale run output
+  const er=document.getElementById('edrun'); if(er){ er.hidden=true; er.innerHTML=''; }
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   showPane('editor');  // a fresh session starts on the editor, not a stale canvas
   applyMode(); syncModeLabel();
