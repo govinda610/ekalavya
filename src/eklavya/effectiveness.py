@@ -475,8 +475,8 @@ def render() -> str:
 
 _EFCSS = """
 /* effectiveness view — reuses jhero/card/ribbon idioms from the design system */
-.jhero{background:linear-gradient(120deg,rgba(35,29,24,.82),rgba(12,10,20,.9));border:1px solid var(--line-gold);
-  border-radius:6px;padding:22px 26px;box-shadow:var(--sh-carve),var(--sh-deep);
+.jhero{background:var(--hero-aura),linear-gradient(120deg,rgba(46,38,30,.82),rgba(12,10,20,.9));border:var(--card-edge);
+  border-radius:10px;padding:22px 26px;box-shadow:var(--card-lift),var(--sh-carve);
   display:flex;flex-direction:column;gap:8px;position:relative}
 .jhero::before,.jhero::after{content:"";position:absolute;width:15px;height:15px;border:1.5px solid var(--gold);opacity:.6}
 .jhero::before{top:8px;left:8px;border-right:0;border-bottom:0}
@@ -484,9 +484,9 @@ _EFCSS = """
 .jhero .brand{display:flex;flex-direction:column;gap:2px}
 
 /* the verdict banner — the guardrail's headline */
-.verdict{border:1px solid var(--line-gold);border-left:3px solid var(--gold);border-radius:6px;
-  padding:18px 24px;box-shadow:var(--sh-carve);
-  background:linear-gradient(100deg,rgba(35,29,24,.7),rgba(12,10,20,.85))}
+.verdict{border:var(--card-edge);border-left:3px solid var(--gold);border-radius:10px;
+  padding:18px 24px;box-shadow:var(--card-lift),var(--sh-carve);
+  background:var(--hero-aura),linear-gradient(100deg,rgba(46,38,30,.74),rgba(12,10,20,.86))}
 .verdict.rising{border-left-color:var(--forest-lit)}
 .verdict.falling{border-left-color:var(--vermilion-glow)}
 .verdict.flat{border-left-color:var(--peacock-bright)}
@@ -505,7 +505,9 @@ _EFCSS = """
     "elo elo elo elo elo elo"
     "strong strong strong weak weak weak"
     "ret ret cal cal dose dose";}
-.ef-bench{grid-area:bench;border-left:3px solid var(--gold)}
+.ef-bench{grid-area:bench;border-left:3px solid var(--gold);
+  background:var(--hero-aura),var(--card-surface);border-color:rgba(231,182,75,.3);
+  box-shadow:var(--card-lift),0 0 60px -30px rgba(231,182,75,.4)}
 .ef-unaided{grid-area:unaided}.ef-gap{grid-area:gap}.ef-elo{grid-area:elo}
 .ef-strong{grid-area:strong}.ef-weak{grid-area:weak}
 .ef-ret{grid-area:ret}.ef-cal{grid-area:cal}.ef-dose{grid-area:dose}
@@ -513,7 +515,8 @@ _EFCSS = """
 .efgrid .card{display:flex;flex-direction:column;min-height:180px}
 .efgrid .card>h2{flex:none}
 /* compact, fixed-height empty state: one dash + one CTA line, never an inflated box */
-.efempty{display:flex;align-items:center;gap:12px;min-height:52px;margin-top:auto}
+.efempty{display:flex;align-items:center;gap:14px;min-height:52px;margin-top:auto;padding:12px 16px;
+  background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:9px}
 .efempty .efdash{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--parch-mute);line-height:1;flex:none}
 .efempty>span:last-child{font-family:var(--f-body);font-size:13px;line-height:1.45;color:var(--parch-dim)}
 .efspark-empty{display:flex;align-items:center;min-height:64px;font-family:var(--f-mono);font-size:12px}
@@ -528,15 +531,15 @@ _EFCSS = """
 .efstat.gap b{color:var(--peacock-bright)}
 .efbig{font-family:var(--f-display);font-weight:800;font-size:40px;color:var(--gold-bright);line-height:1;margin-bottom:4px}
 .efpills{display:flex;flex-direction:column;gap:8px}
-.efpill{display:flex;justify-content:space-between;align-items:center;gap:12px;background:rgba(6,9,20,.4);
-  border:1px solid var(--line-soft);border-radius:8px;padding:9px 13px}
+.efpill{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--panel-inner);
+  box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:8px;padding:9px 13px}
 .efpill.strong{border-color:rgba(231,182,75,.3)}
 .efpill.weak{border-color:rgba(214,59,42,.3)}
 .efpn{font-family:var(--f-title);font-size:14px;color:var(--parch);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .efpr{font-family:var(--f-mono);font-size:14px;font-variant-numeric:tabular-nums;flex:none}
 .efpill.strong .efpr{color:var(--gold-bright)}.efpill.weak .efpr{color:var(--vermilion-glow)}
 .drow{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.dcell{background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:12px;padding:12px 10px;
+.dcell{background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:12px;padding:12px 10px;
   display:flex;flex-direction:column;gap:2px;min-width:0}
 .dico{color:var(--gold-bright)}.dico .ic{color:var(--gold-bright)}
 .dval{font-family:var(--f-display);font-size:20px;font-weight:700;color:var(--parch);font-variant-numeric:tabular-nums}

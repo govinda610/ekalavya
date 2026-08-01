@@ -186,7 +186,7 @@ h2 .grow{flex:1}
 
 /* accordion: each profile section collapses so the page is scannable, not a wall */
 .paccordion{display:flex;flex-direction:column;gap:10px}
-.psec{border:1px solid var(--line-soft);border-radius:10px;background:rgba(6,9,20,.32);overflow:hidden;scroll-margin-top:14px}
+.psec{border:1px solid var(--line-soft);border-radius:10px;background:var(--panel-inner);box-shadow:var(--panel-inner-lift);overflow:hidden;scroll-margin-top:14px}
 .psec>summary{list-style:none;cursor:pointer;padding:13px 16px;font-family:var(--f-title);font-size:15px;
   color:var(--parch);display:flex;align-items:center;gap:10px;user-select:none}
 .psec>summary::-webkit-details-marker{display:none}

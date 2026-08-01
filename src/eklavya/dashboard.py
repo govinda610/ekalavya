@@ -364,6 +364,20 @@ _CSS = """
   --f-mono:'JetBrains Mono',ui-monospace,monospace;
   --sh-deep:0 24px 60px -20px rgba(0,0,0,.8);
   --sh-carve:inset 0 1px 0 rgba(231,182,75,.10), inset 0 -18px 40px -20px rgba(0,0,0,.7);
+  /* --- lit-surface kit (bolder interior pass): cards read as top-lit surfaces, not
+     wireframes. A warm indigo-night gradient with a lighter, gold-tinged crest at top,
+     a gold hairline edge, an inner-top highlight, and a soft outer drop-shadow for
+     elevation over decoration — the same depth the /welcome ground has. */
+  --card-surface:linear-gradient(168deg,rgba(46,38,30,.72) 0%,rgba(28,26,42,.7) 34%,rgba(13,14,28,.82) 100%);
+  --card-edge:1px solid rgba(231,182,75,.22);
+  --card-lift:inset 0 1px 0 rgba(247,217,138,.16), inset 0 20px 42px -34px rgba(247,217,138,.14), 0 22px 46px -28px rgba(0,0,0,.7), 0 3px 12px -6px rgba(0,0,0,.5);
+  --card-lift-hover:inset 0 1px 0 rgba(247,217,138,.22), inset 0 20px 42px -32px rgba(247,217,138,.2), 0 30px 60px -26px rgba(0,0,0,.8), 0 4px 14px -6px rgba(0,0,0,.55);
+  /* inner sub-panels (rows/cells/chips): a subtle top-lit warm fill so nested boxes
+     read as lit facets, not black voids. Warmer than the old flat rgba(6,9,20,.4). */
+  --panel-inner:linear-gradient(165deg,rgba(38,32,26,.42),rgba(10,13,26,.5));
+  --panel-inner-lift:inset 0 1px 0 rgba(231,182,75,.07), 0 4px 12px -8px rgba(0,0,0,.5);
+  /* a faint gold aura placed behind hero cards for page atmosphere */
+  --hero-aura:radial-gradient(120% 90% at 80% -10%, rgba(231,182,75,.11), transparent 62%);
   /* aliases so the existing markup's color intents map to the semantic ramp */
   --acc:var(--gold); --cyan:var(--peacock-bright); --violet:var(--gold-bright);
   --amber:var(--gold-bright); --dim:var(--parch-dim); --ink2:var(--parch);
@@ -398,8 +412,8 @@ h2 .ic{width:16px;height:16px}
 
 /* hero / character */
 .hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;
-  background:linear-gradient(120deg,rgba(35,29,24,.82),rgba(12,10,20,.9));border:1px solid var(--line-gold);
-  border-radius:6px;padding:22px 26px;box-shadow:var(--sh-carve),var(--sh-deep);position:relative}
+  background:var(--hero-aura),linear-gradient(120deg,rgba(46,38,30,.82),rgba(12,10,20,.9));border:var(--card-edge);
+  border-radius:10px;padding:22px 26px;box-shadow:var(--card-lift),var(--sh-carve);position:relative}
 .hero::before,.hero::after{content:"";position:absolute;width:15px;height:15px;border:1.5px solid var(--gold);opacity:.6}
 .hero::before{top:8px;left:8px;border-right:0;border-bottom:0}
 .hero::after{bottom:8px;right:8px;border-left:0;border-top:0}
@@ -419,13 +433,13 @@ h2 .ic{width:16px;height:16px}
 .prog-line b{color:var(--gold-bright)}
 .prog-xp{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);background:rgba(6,9,20,.5);
-  border:1px solid var(--line-soft);border-radius:999px;padding:4px 12px}
+.chip{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);background:var(--panel-inner);
+  box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:999px;padding:4px 12px}
 .chip.flame{color:var(--gold-bright);border-color:var(--gold-deep)}
 
 /* today's quest — the boss objective */
-.quest-banner{background:linear-gradient(100deg,rgba(35,29,24,.7),rgba(12,10,20,.85));border:1px solid var(--line-gold);
-  border-left:3px solid var(--gold);border-radius:6px;padding:18px 24px;box-shadow:var(--sh-carve)}
+.quest-banner{background:var(--hero-aura),linear-gradient(100deg,rgba(46,38,30,.74),rgba(12,10,20,.86));border:var(--card-edge);
+  border-left:3px solid var(--gold);border-radius:10px;padding:18px 24px;box-shadow:var(--card-lift),var(--sh-carve)}
 .qtitle{font-family:var(--f-mono);letter-spacing:.16em;color:var(--vermilion-glow);font-size:12px;font-weight:500;
   text-transform:uppercase;display:flex;align-items:center;gap:8px}
 .qtitle .ic{width:16px;height:16px;color:var(--vermilion-glow)}
@@ -460,8 +474,10 @@ h2 .ic{width:16px;height:16px}
   .bento{grid-template-columns:1fr;grid-template-areas:"cal" "map" "axes" "quests" "gap" "ach" "chron"}
   .b-quests,.b-ach,.b-chron{min-height:0}
 }
-/* the illusion-of-knowing card — the product's headline signal */
-.b-cal{background:linear-gradient(150deg,rgba(35,29,24,.72),rgba(12,10,20,.85));border-color:var(--line-gold)}
+/* the illusion-of-knowing card — the product's headline signal; a faint gold aura
+   behind it gives the page atmosphere (like the landing), not a cold grid */
+.b-cal{background:var(--hero-aura),var(--card-surface);border-color:rgba(231,182,75,.3);
+  box-shadow:var(--card-lift),0 0 60px -30px rgba(231,182,75,.4)}
 .cal-row{display:flex;gap:26px;align-items:center;flex-wrap:wrap}
 .cal-ring{width:104px;height:104px;border-radius:50%;flex:none;display:grid;place-items:center;
   box-shadow:0 0 24px -6px rgba(231,182,75,.4)}
@@ -475,12 +491,16 @@ h2 .ic{width:16px;height:16px}
 .cal-fact b.warn{color:var(--vermilion-glow)}
 .cal-fact .muted{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.03em;max-width:20ch}
 .cal-caption{margin-top:14px;font-family:var(--f-body);font-size:13px;line-height:1.5}
-.cal-empty{font-family:var(--f-body);font-size:14px;line-height:1.55;padding:6px 0}
-.card{background:linear-gradient(160deg,rgba(35,29,24,.6),rgba(12,10,20,.75));border:1px solid var(--line-gold);
-  border-radius:6px;padding:20px 22px;box-shadow:var(--sh-carve),0 18px 50px -34px #000;
+/* empty states read as composed panels (a gold tick + a lit inner surface), not bare text */
+.cal-empty{font-family:var(--f-body);font-size:14px;line-height:1.55;padding:14px 16px 14px 18px;position:relative;
+  background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:9px}
+.cal-empty::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:2px;border-radius:2px;
+  background:linear-gradient(180deg,var(--gold-bright),transparent)}
+.card{background:var(--card-surface);border:var(--card-edge);
+  border-radius:10px;padding:20px 22px;box-shadow:var(--card-lift);position:relative;
   transition:transform .22s cubic-bezier(.22,.7,.25,1),border-color .22s,box-shadow .22s}
-.card:hover{transform:translateY(-2px);border-color:var(--gold-deep);
-  box-shadow:var(--sh-carve),0 22px 54px -30px #000c}
+.card:hover{transform:translateY(-2px);border-color:rgba(231,182,75,.36);
+  box-shadow:var(--card-lift-hover)}
 
 /* skill map */
 table{width:100%;border-collapse:separate;border-spacing:5px}
@@ -505,9 +525,9 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 
 /* quests / goals */
 .quests{display:flex;flex-direction:column;gap:9px}
-.quest{display:flex;align-items:flex-start;gap:10px;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);
-  border-radius:8px;padding:10px 13px;font-size:14px;cursor:pointer;transition:border-color .18s}
-.quest:hover{border-color:var(--gold-deep)}
+.quest{display:flex;align-items:flex-start;gap:10px;background:var(--panel-inner);border:1px solid var(--line-soft);
+  box-shadow:var(--panel-inner-lift);border-radius:8px;padding:10px 13px;font-size:14px;cursor:pointer;transition:border-color .18s,box-shadow .18s}
+.quest:hover{border-color:var(--gold-deep);box-shadow:var(--panel-inner-lift),0 0 0 1px rgba(231,182,75,.12)}
 .quest .hz,.quest .qd{flex:none;margin-top:1px}
 .quest .qtext{flex:1;min-width:0;line-height:1.45;color:var(--parch-dim);
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -521,8 +541,8 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 
 /* achievements */
 .badges{display:flex;flex-wrap:wrap;gap:10px}
-.badge{display:flex;align-items:center;gap:10px;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);
-  border-radius:11px;padding:9px 13px;min-width:150px}
+.badge{display:flex;align-items:center;gap:10px;background:var(--panel-inner);border:1px solid var(--line-soft);
+  box-shadow:var(--panel-inner-lift);border-radius:11px;padding:9px 13px;min-width:150px}
 .badge .bico{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;
   color:var(--gold-bright);background:rgba(231,182,75,.08);border:1px solid var(--gold-deep)}
 .badge .bico .ic{color:var(--gold-bright)}

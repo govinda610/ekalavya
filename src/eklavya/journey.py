@@ -175,17 +175,17 @@ def render() -> str:
 
 _JCSS = """
 /* journey hero + stat ribbon (game HUD) */
-.jhero{background:linear-gradient(120deg,rgba(35,29,24,.82),rgba(12,10,20,.9));border:1px solid var(--line-gold);
-  border-radius:6px;padding:22px 26px;box-shadow:var(--sh-carve),var(--sh-deep);
+.jhero{background:var(--hero-aura),linear-gradient(120deg,rgba(46,38,30,.82),rgba(12,10,20,.9));border:var(--card-edge);
+  border-radius:10px;padding:22px 26px;box-shadow:var(--card-lift),var(--sh-carve);
   display:flex;flex-direction:column;gap:18px;position:relative}
 .jhero::before,.jhero::after{content:"";position:absolute;width:15px;height:15px;border:1.5px solid var(--gold);opacity:.6}
 .jhero::before{top:8px;left:8px;border-right:0;border-bottom:0}
 .jhero::after{bottom:8px;right:8px;border-left:0;border-top:0}
 .jhero .brand{display:flex;flex-direction:column;gap:2px}
 .ribbon{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
-.rcell{background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:12px;padding:13px 15px;
-  display:flex;flex-direction:column;gap:2px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s}
-.rcell:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.rcell{background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:12px;padding:13px 15px;
+  display:flex;flex-direction:column;gap:2px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s,box-shadow .2s}
+.rcell:hover{transform:translateY(-2px);border-color:var(--gold-deep);box-shadow:var(--panel-inner-lift),0 8px 20px -12px rgba(0,0,0,.6)}
 .rico{color:var(--gold-bright);margin-bottom:3px}.rico .ic{color:var(--gold-bright)}
 .rval{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1;color:var(--parch);
   font-variant-numeric:tabular-nums}
@@ -201,9 +201,9 @@ _JCSS = """
 .mdot .ic{color:var(--gold-bright)}
 .mbody b{display:block;font-size:14px;font-family:var(--f-title);color:var(--parch)}.mbody .muted{font-family:var(--f-mono);font-size:11px}
 .achgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
-.ach{display:flex;gap:12px;align-items:center;background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:11px;
-  padding:11px 14px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s}
-.ach:hover{transform:translateY(-2px);border-color:var(--gold-deep)}
+.ach{display:flex;gap:12px;align-items:center;background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:11px;
+  padding:11px 14px;transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s,box-shadow .2s}
+.ach:hover{transform:translateY(-2px);border-color:var(--gold-deep);box-shadow:var(--panel-inner-lift),0 8px 20px -12px rgba(0,0,0,.6)}
 .ach.lock{filter:grayscale(.7);opacity:.75}
 .ach.lock .aico{color:var(--parch-mute)}
 .aico{display:grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;

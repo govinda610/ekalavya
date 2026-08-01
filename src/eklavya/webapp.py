@@ -977,8 +977,10 @@ body.reduce-motion *{animation:none !important}
 .lib-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;grid-auto-rows:min-content}
 @media(max-width:900px){.lib-grid{grid-template-columns:1fr}}
 .artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
- border:1px solid var(--line-gold);border-radius:8px;background:linear-gradient(165deg,rgba(35,29,24,.7),rgba(12,10,20,.85));transition:.16s}
-.artcard:hover{border-color:var(--gold-deep);box-shadow:0 12px 30px -14px rgba(231,182,75,.4)}
+ border:1px solid rgba(231,182,75,.22);border-radius:10px;
+ background:linear-gradient(168deg,rgba(46,38,30,.72) 0%,rgba(28,26,42,.7) 34%,rgba(13,14,28,.82) 100%);
+ box-shadow:inset 0 1px 0 rgba(247,217,138,.14),0 20px 44px -30px rgba(0,0,0,.7),0 3px 10px -6px rgba(0,0,0,.5);transition:.16s}
+.artcard:hover{border-color:rgba(231,182,75,.4);box-shadow:inset 0 1px 0 rgba(247,217,138,.2),0 14px 34px -16px rgba(231,182,75,.4),0 20px 44px -28px rgba(0,0,0,.75)}
 .artcard.feat{grid-row:span 2;background:linear-gradient(165deg,rgba(35,29,24,.92),rgba(12,10,20,.94))}
 .artcard .atype{font-family:var(--f-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;display:inline-flex;gap:6px;align-items:center}
 .artcard .atype.markdown{color:var(--peacock-bright)}.artcard .atype.code{color:var(--gold-bright)}.artcard .atype.html{color:var(--forest-lit)}.artcard .atype.viz{color:var(--vermilion-glow)}
