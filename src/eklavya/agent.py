@@ -42,6 +42,31 @@ def _exclude_execute_tool() -> None:
     _EXECUTE_EXCLUDED = True
 
 
+# Read-only shell commands the tutor may run WITHOUT the human-approval prompt — the trace
+# still shows they ran. Kept deliberately tight: navigation/inspection only, no code execution
+# (python), no state mutation (sqlite3 can write), no env dump (could leak keys). Anything not
+# on this list still requires the learner's explicit approval, so the default is always "ask".
+_SAFE_BASH_CMDS = frozenset({
+    "pwd", "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "tree", "stat",
+    "file", "du", "df", "date", "echo", "printf", "which", "basename", "dirname", "realpath",
+    "sort", "uniq", "cut", "nl", "diff", "cmp",
+})
+# Reject the whole command if it contains any shell metacharacter that could chain, redirect,
+# substitute, or escape into something unsafe (so "ls; rm -rf" or "cat $(…)" is never auto-run).
+import re as _re
+
+_UNSAFE_BASH = _re.compile(r"[;&|<>`$\\]|\n|--?exec|-delete|-fdelete")
+
+
+def is_safe_bash(command: str) -> bool:
+    """True only for a single, simple, read-only command whose first token is whitelisted and
+    which has no chaining/redirection/substitution — safe to run without asking the learner."""
+    cmd = (command or "").strip()
+    if not cmd or _UNSAFE_BASH.search(cmd):
+        return False
+    return cmd.split()[0] in _SAFE_BASH_CMDS
+
+
 def pending_bash_approval(agent, config) -> dict | None:
     """If the agent paused for run_bash approval, return {tool, command, explanation}; else None."""
     try:

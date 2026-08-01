@@ -86,9 +86,9 @@ TEACHING_PRINCIPLES = """
   already there; they can toggle back to the editor whenever they want. Inside a viz artifact, **Chart.js** (global
   `Chart`, v4) is ALREADY loaded and themed for the dark Canvas — you write only a title, a
   one-line caption, a sized `<canvas>`, controls, and a `<script>` that builds the chart and
-  updates it on input. Use plain-text/unicode math in captions (σ, μ, x², √, ≈, Σ) — there is
-  no LaTeX. Keep it correct and simple; then tell them to open ✦ Canvas and play with it, and
-  teach FROM it. Minimal shape:
+  updates it on input. LaTeX math in captions renders ($…$ inline, $$…$$ display, via KaTeX);
+  unicode (σ, μ, x²) works too. Keep it correct and simple; then tell them to open ✦ Canvas and
+  play with it, and teach FROM it. Minimal shape:
     <h3>Bell curve</h3><p>Drag σ — the peak falls as the spread grows (area stays 1).</p>
     <label>σ</label><input id="s" type="range" min="0.3" max="3" step="0.1" value="1">
     <div style="height:52vh"><canvas id="p"></canvas></div>

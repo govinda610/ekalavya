@@ -290,7 +290,8 @@ def create_app():
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
-        stream the reply, and pause for run_bash approval."""
+        stream the reply, and pause for run_bash approval (auto-approving safe read-only ones)."""
+        from .agent import is_safe_bash
         from .verify import selfcheck
 
         try:  # the learner's message (a fresh turn) → context for the judge; "" on resume
@@ -300,32 +301,43 @@ def create_app():
         buf = []
         run_outputs = []  # actual sandbox/run tool results this turn → context for the judge
         _RUN_TOOLS = {"run_bash", "grade_and_record"}  # tools whose output is real execution
-        try:
-            for chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
-                # deepagents' documented routing: tool result / tool call → trace;
-                # the assistant's own text (an AI chunk with no tool call) → the bubble.
-                if getattr(chunk, "type", None) == "tool":
-                    name = getattr(chunk, "name", "") or ""
-                    content = str(chunk.content)
-                    if name in _RUN_TOOLS:  # capture what the code actually printed/returned
-                        run_outputs.append(f"[{name}] {content[:1000]}")
-                    yield json.dumps({"result": {"name": name,
-                                                 "content": content[:400]}}) + "\n"
-                elif getattr(chunk, "tool_call_chunks", None):
-                    for tc in chunk.tool_call_chunks:
-                        if tc.get("name"):
-                            yield json.dumps({"tool": tc["name"]}) + "\n"
-                else:
-                    tok = _chunk_text(chunk)
-                    if tok:
-                        buf.append(tok)
-                        yield json.dumps({"t": tok}) + "\n"
-        except Exception:  # surface a generic error to the UI; log detail server-side
-            _log.exception("stream error")
-            yield json.dumps({"t": "\n\n_(something went wrong — please try again.)_"}) + "\n"
+        # Loop the run so a run_bash that pauses for approval can be AUTO-APPROVED when it's a
+        # safe, read-only command (whitelist) — resume in place and keep streaming — while any
+        # other command still stops for the learner's explicit yes/no.
+        current = inputs
+        while True:
+            try:
+                for chunk, _meta in agent.stream(current, config=config, stream_mode="messages"):
+                    # deepagents' documented routing: tool result / tool call → trace;
+                    # the assistant's own text (an AI chunk with no tool call) → the bubble.
+                    if getattr(chunk, "type", None) == "tool":
+                        name = getattr(chunk, "name", "") or ""
+                        content = str(chunk.content)
+                        if name in _RUN_TOOLS:  # capture what the code actually printed/returned
+                            run_outputs.append(f"[{name}] {content[:1000]}")
+                        yield json.dumps({"result": {"name": name,
+                                                     "content": content[:400]}}) + "\n"
+                    elif getattr(chunk, "tool_call_chunks", None):
+                        for tc in chunk.tool_call_chunks:
+                            if tc.get("name"):
+                                yield json.dumps({"tool": tc["name"]}) + "\n"
+                    else:
+                        tok = _chunk_text(chunk)
+                        if tok:
+                            buf.append(tok)
+                            yield json.dumps({"t": tok}) + "\n"
+            except Exception:  # surface a generic error to the UI; log detail server-side
+                _log.exception("stream error")
+                yield json.dumps({"t": "\n\n_(something went wrong — please try again.)_"}) + "\n"
 
-        approval = _pending_approval(agent, config)  # paused for run_bash?
-        if approval:
+            approval = _pending_approval(agent, config)  # paused for run_bash?
+            if not approval:
+                break
+            if is_safe_bash(approval.get("command", "")):  # safe read-only → run without asking
+                yield json.dumps({"autorun": approval}) + "\n"  # trace shows it ran, no prompt
+                from langgraph.types import Command
+                current = Command(resume={"decisions": [{"type": "approve"}]})
+                continue
             yield json.dumps({"approval": approval}) + "\n"
             yield json.dumps({"done": True, "paused": True}) + "\n"
             return
@@ -727,6 +739,7 @@ def _mount_auth(app) -> None:
 _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
 <link rel="stylesheet" href="/static/fonts.css">
+<link rel="stylesheet" href="/static/katex/katex.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 <style>
 /* ===== Option E · cinematic-forest practice arena (product mode) =====
@@ -1444,6 +1457,10 @@ body.reduce-motion *{animation:none !important}
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
+     AMD module instead of setting window.katex — so: no defer, and above the loader. -->
+<script src="/static/katex/katex.min.js"></script>
+<script src="/static/katex/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
@@ -1608,10 +1625,13 @@ function vizShell(bodyHtml){
   var origin=location.origin;
   return "<!doctype html><html><head><meta charset='utf-8'>"
    +"<meta name='viewport' content='width=device-width,initial-scale=1'>"
+   +"<link rel='stylesheet' href='"+origin+"/static/katex/katex.min.css'>"
    +"<script src='"+origin+"/static/chart.umd.min.js'><\/script>"
+   +"<script defer src='"+origin+"/static/katex/katex.min.js'><\/script>"
+   +"<script defer src='"+origin+"/static/katex/contrib/auto-render.min.js'><\/script>"
    +"<script>try{Chart.defaults.color='#cfc9ba';Chart.defaults.borderColor='rgba(255,255,255,.09)';"
    +"Chart.defaults.maintainAspectRatio=false;Chart.defaults.animation=false;}catch(e){}<\/script>"
-   +"<style>:root{color-scheme:dark}*{box-sizing:border-box}"
+   +"<style>:root{color-scheme:dark}*{box-sizing:border-box}.katex{color:#f2ede0}"
    +"body{margin:0;padding:16px 18px;background:#0b0f17;color:#e8e6df;"
    +"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}"
    +"h1,h2,h3{font-weight:700;color:#f2ede0;margin:.1em 0 .5em;letter-spacing:-.01em}"
@@ -1622,6 +1642,8 @@ function vizShell(bodyHtml){
    +"border-radius:7px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;margin:4px 6px 4px 0}"
    +"button:hover{background:rgba(231,182,75,.24)}a{color:#7fd7c4}"
    +"</style></head><body>"+bodyHtml
+   +"<script>window.addEventListener('load',function(){try{renderMathInElement(document.body,"
+   +"{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});}catch(e){}});<\/script>"
    +"</body></html>";
 }
 function renderArtifact(a){
@@ -1646,6 +1668,7 @@ function renderArtifact(a){
   } else {  // markdown lesson
     body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
     body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+    typesetMath(body);  // render LaTeX in a saved lesson
   }
   body.appendChild(document.getElementById('selpop'));  // keep the popover inside the scroll box
 }
@@ -2023,6 +2046,16 @@ function addMsg(role, html){
   document.getElementById('log').appendChild(m); scroll(); return body;
 }
 function scroll(){const l=document.getElementById('log'); l.scrollTop=l.scrollHeight;}
+// Typeset LaTeX math ($…$ inline, $$…$$ / \[…\] display) with KaTeX — the tutor teaches
+// math/stats/ML, so equations must render, not show as raw source. Skips code/pre so a '$'
+// in code isn't mangled. Works on a detached element (KaTeX walks text nodes).
+function typesetMath(el){
+  if(!el || !window.renderMathInElement) return;
+  try{ renderMathInElement(el, {delimiters:[
+    {left:'$$',right:'$$',display:true}, {left:'\\[',right:'\\]',display:true},
+    {left:'\\(',right:'\\)',display:false}, {left:'$',right:'$',display:false}
+  ], throwOnError:false, ignoredTags:['script','noscript','style','textarea','pre','code']}); }catch(e){}
+}
 function renderMd(text){
   const html = DOMPurify.sanitize(marked.parse(text));  // never trust model output in the DOM
   const tmp=document.createElement('div'); tmp.innerHTML=html;
@@ -2031,6 +2064,7 @@ function renderMd(text){
       const d=el('mermaid'); d.textContent=c.textContent; c.closest('pre').replaceWith(d);
     } else { try{hljs.highlightElement(c);}catch(e){} }
   });
+  typesetMath(tmp);  // render any LaTeX before returning the HTML
   return tmp.innerHTML;
 }
 
@@ -2119,6 +2153,8 @@ async function consume(res, ui){
       else if(o.tool){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
       else if(o.result){ traceLine(ui.tb,'res','✓ '+prettyTool(o.result.name)); }
+      else if(o.autorun){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
+        traceLine(ui.tb,'call','⚡ ran (auto) · '+((o.autorun.command||'command').slice(0,80))); ui.sum.textContent='ran a safe command…'; scroll(); }
       else if(o.approval){ await askApproval(ui, o.approval); }
     }
   }
