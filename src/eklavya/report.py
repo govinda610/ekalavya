@@ -274,25 +274,138 @@ def forest_map(pillar: str | None = None) -> dict:
         }
 
     if pillar:
-        # Drill-in: one grove's ordered concepts (+ direct-prereq context concepts
-        # that live in other pillars, so the sub-path shows what unlocked it).
+        # Drill-in: one grove's ordered concepts + the prerequisite EDGES between them.
+        # Direct prereqs that live in OTHER pillars are surfaced as read-only CONTEXT
+        # nodes so the sub-graph shows what unlocked this grove (and where it came from).
         if pillar not in concepts_by_pillar:
             return {"empty": True, "groves": [], "pillars": pillars, "viewbox": [0, 0, 900, 640]}
         cs = concepts_by_pillar[pillar]
-        nodes = [{"name": c, "status": concept_status[c]} for c in cs]
+        own = set(cs)
+        nodes = [{"name": c, "status": concept_status[c],
+                  "prereqs": list(prereqs[c]),
+                  "unlocks": [d for d in concepts if c in prereqs.get(d, ()) and d in own]}
+                 for c in cs]
+        # concept→prereq edges within the grove, and external prereqs → context nodes.
+        edges: list[dict] = []
+        context: list[dict] = []
+        seen_ctx: set[str] = set()
+        for c in cs:
+            for p_ in prereqs[c]:
+                if p_ in own:
+                    edges.append({"src": p_, "dst": c})            # both live here
+                elif p_ in pillar_of:                              # external prereq → context node
+                    if p_ not in seen_ctx:
+                        seen_ctx.add(p_)
+                        context.append({"name": p_, "status": concept_status[p_],
+                                        "pillar": pillar_of[p_]})
+                    edges.append({"src": p_, "dst": c, "external": True})
         layout = _forest_layout(len(nodes))
+        dag = _dag_layout(cs, edges)
         return {
             "empty": False, "pillar": pillar, "pillars": pillars,
             "grove": grove(pillar), "concepts": nodes,
+            "edges": edges, "context": context,
             "layout": layout, "viewbox": layout["viewbox"],
+            "dag": dag,
         }
 
     groves = [grove(p) for p in pillars]
+    # Cross-pillar grove→grove dependency EDGES: pillar A depends on pillar B when any
+    # concept in A has a prereq that lives in B (self-loops excluded). De-duplicated,
+    # so the overview reads as a true (coarse) DAG over the groves.
+    grove_edges: list[dict] = []
+    seen_edge: set[tuple] = set()
+    for c in concepts:
+        a = pillar_of[c]
+        for p_ in prereqs.get(c, ()):
+            b = pillar_of.get(p_)
+            if b and b != a and (b, a) not in seen_edge:
+                seen_edge.add((b, a))
+                grove_edges.append({"src": b, "dst": a})           # B unlocks → A
     layout = _forest_layout(len(groves))
+    dag = _dag_layout(pillars, grove_edges)
     return {
         "empty": False, "pillars": pillars, "active": active,
-        "groves": groves, "layout": layout, "viewbox": layout["viewbox"],
+        "groves": groves, "edges": grove_edges,
+        "layout": layout, "viewbox": layout["viewbox"],
+        "dag": dag,
     }
+
+
+def _dag_layout(names: list[str], edges: list[dict]) -> dict:
+    """Layered ('Sugiyama-lite') coordinates for a prerequisite DAG.
+
+    Every node lands in a LAYER equal to its longest prerequisite chain depth (so
+    foundations sit at the top and advanced work flows downward), then nodes spread
+    evenly across their layer. Wide layers wrap onto stacked sub-rows so a 43-node
+    grove still fits without clipping. Returns {viewbox, pos:{name:{x,y}}, layers:N}
+    — the render threads organic branch/vine paths through these points.
+
+    Only edges whose endpoints are both in `names` constrain the layering; unknown
+    endpoints (external context) are ignored here and placed by the caller.
+    """
+    known = set(names)
+    deps: dict[str, list[str]] = {n: [] for n in names}   # n depends on deps[n]
+    for e in edges:
+        s, d = e.get("src"), e.get("dst")
+        if s in known and d in known and s != d:
+            deps[d].append(s)
+
+    # longest-path depth = layer (memoised; cycle-safe via a visiting guard).
+    depth: dict[str, int] = {}
+    visiting: set[str] = set()
+
+    def layer_of(n: str) -> int:
+        if n in depth:
+            return depth[n]
+        if n in visiting:          # a cycle — break it so we never recurse forever
+            return 0
+        visiting.add(n)
+        d = 0
+        for p in deps[n]:
+            d = max(d, layer_of(p) + 1)
+        visiting.discard(n)
+        depth[n] = d
+        return d
+
+    for n in names:
+        layer_of(n)
+
+    # group by layer, preserving the input (topo) order within each layer
+    by_layer: dict[int, list[str]] = {}
+    for n in names:
+        by_layer.setdefault(depth[n], []).append(n)
+    n_layers = (max(by_layer) + 1) if by_layer else 0
+
+    import math
+
+    W = 1200
+    margin_x, margin_top = 120, 90
+    col_w = 210                     # horizontal spacing between nodes in a layer
+    sub_h = 120                     # vertical spacing between wrapped sub-rows
+    layer_gap = 40                  # extra breathing room between layers
+    max_per_row = max(1, (W - 2 * margin_x) // col_w + 1)
+
+    pos: dict[str, dict] = {}
+    y = margin_top
+    for li in range(n_layers):
+        nodes = by_layer.get(li, [])
+        if not nodes:
+            continue
+        sub_rows = math.ceil(len(nodes) / max_per_row)
+        idx = 0
+        for sr in range(sub_rows):
+            row = nodes[sr * max_per_row:(sr + 1) * max_per_row]
+            span = (len(row) - 1) * col_w
+            x0 = (W - span) / 2                       # centre each sub-row
+            for j, name in enumerate(row):
+                pos[name] = {"x": round(x0 + j * col_w, 1), "y": round(y, 1)}
+                idx += 1
+            y += sub_h
+        y += layer_gap
+
+    H = max(560, round(y + 60))
+    return {"viewbox": [0, 0, W, H], "pos": pos, "layers": n_layers}
 
 
 def _forest_layout(n: int) -> dict:
