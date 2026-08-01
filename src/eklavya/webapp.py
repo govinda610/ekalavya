@@ -983,8 +983,7 @@ button:disabled{opacity:.42;cursor:default}
 .art-html{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;background:#fff}
 .art-htmlbar{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);padding:6px 12px;background:rgba(6,9,20,.7);border-bottom:1px solid var(--line-soft)}
 .art-htmlprev{padding:20px;background:linear-gradient(160deg,#fbf6ea,#efe4c9);color:#2a2010;font-family:var(--f-serif)}
-.art-viz{border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5);padding:14px}
-.art-viz svg{width:100%;height:auto}
+.art-vizframe{width:100%;min-height:74vh;border:1px solid var(--line-soft);border-radius:8px;background:#0b0f17;display:block}
 .canvas-empty{color:var(--parch-dim);font-family:var(--f-body);text-align:center;padding:50px 20px}
 /* highlight-to-ask echo in chat (template D's .art-echo) */
 .art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
@@ -1585,6 +1584,29 @@ function selectArtifact(id){ _curArt=id;
   document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
   const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
 }
+// vizShell — wrap a bare viz fragment in a self-contained doc that preloads Chart.js (from
+// our OWN /static, so it works offline and inside the opaque-origin sandbox — a same-origin
+// subresource load is allowed even without allow-same-origin) and themes it to the Canvas.
+function vizShell(bodyHtml){
+  var origin=location.origin;
+  return "<!doctype html><html><head><meta charset='utf-8'>"
+   +"<meta name='viewport' content='width=device-width,initial-scale=1'>"
+   +"<script src='"+origin+"/static/chart.umd.min.js'><\/script>"
+   +"<script>try{Chart.defaults.color='#cfc9ba';Chart.defaults.borderColor='rgba(255,255,255,.09)';"
+   +"Chart.defaults.maintainAspectRatio=false;Chart.defaults.animation=false;}catch(e){}<\/script>"
+   +"<style>:root{color-scheme:dark}*{box-sizing:border-box}"
+   +"body{margin:0;padding:16px 18px;background:#0b0f17;color:#e8e6df;"
+   +"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}"
+   +"h1,h2,h3{font-weight:700;color:#f2ede0;margin:.1em 0 .5em;letter-spacing:-.01em}"
+   +"p{color:#b9b3a3;margin:6px 0 14px;line-height:1.6}p em,p b{color:#e8e6df}"
+   +"label{color:#e7b64b;font-size:12px;letter-spacing:.03em;margin-right:8px}"
+   +"input[type=range]{accent-color:#e7b64b;max-width:340px;height:20px;vertical-align:middle}"
+   +"button{background:rgba(231,182,75,.14);color:#f2ede0;border:1px solid rgba(231,182,75,.4);"
+   +"border-radius:7px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;margin:4px 6px 4px 0}"
+   +"button:hover{background:rgba(231,182,75,.24)}a{color:#7fd7c4}"
+   +"</style></head><body>"+bodyHtml
+   +"</body></html>";
+}
 function renderArtifact(a){
   const body=document.getElementById('canvasbody');
   if(!a){ body.innerHTML="<div class='canvas-empty'>—</div>"; return; }
@@ -1594,7 +1616,17 @@ function renderArtifact(a){
     body.innerHTML="<div class='art-html'><div class='art-htmlbar'>"+esc(a.title)+" · rendered</div>"+
       "<div class='art-htmlprev'>"+DOMPurify.sanitize(a.content)+"</div></div>";
   } else if(a.kind==='viz'){
-    body.innerHTML="<div class='art-viz'>"+DOMPurify.sanitize(a.content,{USE_PROFILES:{svg:true,svgFilters:true,html:true}})+"</div>";
+    // Interactive explorable — render in a LOCKED sandbox iframe: scripts run (Plotly/KaTeX
+    // sliders) but 'allow-scripts' WITHOUT 'allow-same-origin' means an opaque origin, so the
+    // generated JS can't touch the app's cookies, storage, or same-origin API. A full HTML
+    // doc is used as-is; a bare fragment gets wrapped in the shell (which loads the libs).
+    var raw=a.content||'';
+    var doc=/<!doctype|<html[\\s>]/i.test(raw)?raw:vizShell(raw);
+    var f=document.createElement('iframe');
+    f.className='art-vizframe'; f.setAttribute('sandbox','allow-scripts');
+    f.setAttribute('referrerpolicy','no-referrer'); f.setAttribute('loading','lazy');
+    body.innerHTML=''; body.appendChild(f); f.srcdoc=doc;
+    return;  // no highlight-to-ask inside the cross-origin frame; keep the popover out
   } else {  // markdown lesson
     body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
     body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});

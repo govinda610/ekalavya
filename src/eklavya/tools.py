@@ -662,7 +662,9 @@ from .resume import read_resume  # noqa: E402
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 #   • save_artifact — keep a durable lesson/code/HTML/visual in the learner's Canvas
-#     library (the Scriptorium) so a good explanation the guru writes isn't lost.
+#     library (the Scriptorium) so a good explanation the guru writes isn't lost. For
+#     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
+#     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
 AGENT_TOOLS = [
     grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
     record_attempt, save_baseline, suggest_focus,
