@@ -26,16 +26,18 @@
   var T = window.THREE;
 
   // ---- palette -------------------------------------------------------------
+  // Warm, glowing night — a violet-indigo sky (not cold navy) that lifts to a warm
+  // gold-lilac horizon behind the temple, matching the reference art's mood.
   var COL = {
-    nightTop: 0x080a18, nightMid: 0x0c1226, nightLow: 0x141024,
-    fog: 0x0d1224,
-    ground: 0x131a2e, groundLit: 0x1b2540,
+    nightTop: 0x141026, nightMid: 0x241e3e, nightLow: 0x3a2e4e,   // indigo → warm lilac horizon
+    fog: 0x2a2440,
+    ground: 0x24263a, groundLit: 0x3a3448,
     gold: 0xe7b64b, goldBright: 0xf7d98a, goldDeep: 0xb8862f,
-    teal: 0x57d3ce, tealBright: 0x8ff0e0,
-    green: 0x52a061, greenLit: 0x7fce7f,
-    ember: 0xff9b45, moon: 0xfff6df,
-    trunk: 0x6e421f, trunkDark: 0x4c2d15,
-    locked: 0x3a4258, lockedLeaf: 0x2b3450,
+    teal: 0x57d3ce, tealBright: 0x9ff2ea,
+    green: 0x6fbf6a, greenLit: 0x9fe08a,       // warmer, more saturated foliage green
+    ember: 0xffab52, moon: 0xfff2d8,
+    trunk: 0x7a4a26, trunkDark: 0x543018,
+    locked: 0x4a4460, lockedLeaf: 0x35304a,
   };
   // status → a small style descriptor the tree/particle builders read.
   function styleFor(status) {
@@ -319,50 +321,63 @@
     return g;
   }
 
-  // The golden TEMPLE — the composition's ANCHOR on the far hill. An ornate stepped
-  // shikhara (central tower + tapering tiers + spire) on a wide platform, flanked by two
-  // smaller towers, all emissive gold so it glows like the reference Sunset-Peak temple.
+  // The golden TEMPLE — the composition's ANCHOR. A large ornate temple complex: a tall
+  // central shikhara + tapering tiers, flanked by two mid towers + two small corner spires,
+  // on a wide tiered platform, with a glowing DOORWAY. Emissive gold, fog-free, so it blazes
+  // on the horizon like the reference Sunset-Peak temple.
   function buildTemple() {
     var g = new T.Group();
     var mat = new T.MeshStandardMaterial({
-      color: COL.goldBright, emissive: COL.gold, emissiveIntensity: 1.15,
-      roughness: 0.3, metalness: 0.4, flatShading: true, fog: false,
+      color: COL.goldBright, emissive: COL.gold, emissiveIntensity: 1.6,
+      roughness: 0.28, metalness: 0.45, flatShading: true, fog: false,
     });
-    // wide base platform
-    var plat = new T.Mesh(new T.BoxGeometry(30, 3, 20), mat); plat.position.y = 1.5; g.add(plat);
-    // a central stepped tower (shikhara)
+    var brightMat = new T.MeshBasicMaterial({ color: 0xfff0c0, fog: false });   // doorway/finials glow
+    // tiered base platform (two steps)
+    var p1 = new T.Mesh(new T.BoxGeometry(46, 3, 30), mat); p1.position.y = 1.5; g.add(p1);
+    var p2 = new T.Mesh(new T.BoxGeometry(38, 3, 24), mat); p2.position.y = 4.5; g.add(p2);
+    // a stepped tower (shikhara) with a finial
     function tower(cx, cz, tiers, top) {
-      var y = 3;
+      var y = 6;
       for (var i = 0; i < tiers.length; i++) {
         var w = tiers[i][0], h = tiers[i][1];
-        var box = new T.Mesh(new T.BoxGeometry(w, h, w * 0.72), mat);
+        var box = new T.Mesh(new T.BoxGeometry(w, h, w * 0.74), mat);
         box.position.set(cx, y + h / 2, cz); g.add(box);
         y += h * 0.84;
       }
-      var spire = new T.Mesh(new T.ConeGeometry(top || 2.4, 9, 6), mat);
-      spire.position.set(cx, y + 4, cz); g.add(spire);
-      return y + 8;
+      var spire = new T.Mesh(new T.ConeGeometry(top || 2.4, 11, 6), mat);
+      spire.position.set(cx, y + 5, cz); g.add(spire);
+      var finial = new T.Mesh(new T.SphereGeometry(top ? top * 0.5 : 1.2, 8, 8), brightMat);
+      finial.position.set(cx, y + 11, cz); g.add(finial);
+      return y + 11;
     }
-    var topY = tower(0, 0, [[15, 7], [12, 6], [9, 6], [6, 6], [4, 5]], 2.6);
-    tower(-11, -1, [[8, 5], [6, 4.5], [4, 4]], 1.6);
-    tower(11, -1, [[8, 5], [6, 4.5], [4, 4]], 1.6);
-    // a modest warm point-light + a small halo so the temple reads as a beacon (not a nuke)
-    var glow = new T.PointLight(0xffd98a, 1.4, 140, 2.0); glow.position.y = topY * 0.5; g.add(glow);
-    var halo = glowSprite(COL.goldBright, 60, 0.4, true); halo.position.y = topY * 0.5; g.add(halo);
-    g.userData.mats = [mat]; g.userData.topY = topY;
+    var topY = tower(0, 0, [[19, 8], [15, 7], [11, 7], [8, 7], [5, 6]], 3.0);
+    tower(-15, -1, [[10, 6], [7, 5.5], [5, 5]], 2.0);
+    tower(15, -1, [[10, 6], [7, 5.5], [5, 5]], 2.0);
+    tower(-24, -2, [[6, 5], [4, 4]], 1.4);
+    tower(24, -2, [[6, 5], [4, 4]], 1.4);
+    // a glowing arched DOORWAY at the base of the central tower (the destination beckons)
+    var door = new T.Mesh(new T.PlaneGeometry(6, 9), brightMat);
+    door.position.set(0, 10, 11.2); g.add(door);
+    var doorGlow = glowSprite(0xfff0c8, 22, 0.7, true); doorGlow.position.set(0, 10, 12); g.add(doorGlow);
+    // a strong warm beacon light + a layered halo so the temple blazes on the horizon
+    var glow = new T.PointLight(0xffd98a, 2.2, 200, 2.0); glow.position.y = topY * 0.5; g.add(glow);
+    g.userData.mats = [mat, brightMat]; g.userData.topY = topY;
     return g;
   }
 
-  // Warm upward LIGHT SHAFTS rising behind the temple (its aura on the horizon) — a few
-  // tall additive planes fanning up, like the glow behind the temple in both refs.
+  // Warm GOD-RAYS + halo radiating behind the temple (its glow on the horizon) — fanning
+  // additive planes plus a big soft halo, like the luminous glow behind both refs' temples.
   function buildTempleRays(topY) {
     var g = new T.Group();
-    var mat = new T.MeshBasicMaterial({ color: 0xffe6a8, transparent: true, opacity: 0.045,
+    var mat = new T.MeshBasicMaterial({ color: 0xffe6a8, transparent: true, opacity: 0.07,
       blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide, fog: false });
-    for (var i = -3; i <= 3; i++) {
-      var pl = new T.Mesh(new T.PlaneGeometry(6, 120), mat);
-      pl.position.set(i * 9, topY + 26, -4); pl.rotation.z = i * 0.05; g.add(pl);
+    for (var i = -4; i <= 4; i++) {
+      var pl = new T.Mesh(new T.PlaneGeometry(7, 150), mat);
+      pl.position.set(i * 10, topY + 30, -6); pl.rotation.z = i * 0.06; g.add(pl);
     }
+    // a big soft warm halo that spills up into the sky/forest behind the temple
+    var halo = glowSprite(0xffdc9a, 200, 0.34, true); halo.position.set(0, topY * 0.6, -4); g.add(halo);
+    var halo2 = glowSprite(0xffefc4, 100, 0.4, true); halo2.position.set(0, topY * 0.55, -2); g.add(halo2);
     g.userData = { mat: mat };
     return g;
   }
@@ -410,31 +425,37 @@
     var travT = (activeIndex + 2) / curvePts.length;   // +1 for prepended start, +1 to include active
     travT = Math.max(0.12, Math.min(1, travT));
 
-    // The path is a WIDE flat glowing RIBBON hugging the ground (a flattened tube), so it
-    // reads clearly as a luminous trail from the high camera (like both refs) rather than a
-    // thin pipe hidden by foliage. Fog-free emissive keeps it glowing into the distance.
-    function ribbon(t0, t1, color, emissive, width, op) {
-      var n = Math.max(6, Math.round((t1 - t0) * 140));
+    // The HERO PATH — a BOLD, wide, bright glowing RIBBON that is the spine of the whole
+    // composition (like forest_bg's teal-white trail). A bright core ribbon + a bright inner
+    // stripe + a broad soft under-glow, raised just above the ground so it never hides under
+    // foliage. Fog-free so it glows all the way to the temple.
+    function ribbon(t0, t1, core, coreE, edge, width, op) {
+      var n = Math.max(8, Math.round((t1 - t0) * 160));
       var sub = [];
       for (var i = 0; i <= n; i++) sub.push(curve.getPoint(t0 + (t1 - t0) * i / n));
       var c2 = new T.CatmullRomCurve3(sub);
-      var geo = new T.TubeGeometry(c2, n, width, 8, false);
-      geo.scale(1, 0.28, 1);   // flatten → a ribbon on the ground, not a pipe
-      var mat = new T.MeshStandardMaterial({ color: color, emissive: color, emissiveIntensity: emissive,
-        roughness: 0.4, transparent: true, opacity: op, fog: false });
-      var m = new T.Mesh(geo, mat);
-      g.add(m); g.userData.disposables = (g.userData.disposables || []).concat([geo, mat]);
-      // a soft glow strip just under it so the trail bleeds light onto the ground
-      var gmat = new T.MeshBasicMaterial({ color: color, transparent: true, opacity: op * 0.35,
+      // broad soft under-glow (bleeds light onto the ground either side)
+      var gmat = new T.MeshBasicMaterial({ color: edge, transparent: true, opacity: op * 0.26,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
-      var geo2 = new T.TubeGeometry(c2, n, width * 2.1, 8, false); geo2.scale(1, 0.06, 1);
-      var m2 = new T.Mesh(geo2, gmat); m2.position.y -= 0.2; g.add(m2);
-      g.userData.disposables = g.userData.disposables.concat([geo2, gmat]);
+      var geo0 = new T.TubeGeometry(c2, n, width * 2.2, 10, false); geo0.scale(1, 0.05, 1);
+      var m0 = new T.Mesh(geo0, gmat); m0.position.y += 0.15; g.add(m0);
+      // main ribbon body
+      var geo = new T.TubeGeometry(c2, n, width, 10, false); geo.scale(1, 0.22, 1);
+      var mat = new T.MeshStandardMaterial({ color: core, emissive: core, emissiveIntensity: coreE,
+        roughness: 0.35, transparent: true, opacity: op, fog: false });
+      var m = new T.Mesh(geo, mat); m.position.y += 0.4; g.add(m);
+      // a bright inner stripe running down the middle (the flowing-energy core) — kept
+      // slimmer + gentler so it reads as a glow, not a blown-out white streak up close.
+      var smat = new T.MeshBasicMaterial({ color: 0xfff6e0, transparent: true, opacity: op * 0.55,
+        blending: T.AdditiveBlending, depthWrite: false, fog: false });
+      var geoS = new T.TubeGeometry(c2, n, width * 0.24, 8, false); geoS.scale(1, 0.22, 1);
+      var mS = new T.Mesh(geoS, smat); mS.position.y += 0.55; g.add(mS);
+      g.userData.disposables = (g.userData.disposables || []).concat([geo0, gmat, geo, mat, geoS, smat]);
       return m;
     }
-    // traveled (warm gold, bright HDR → blooms) → then ahead (cool teal, dimmer)
-    ribbon(0, travT, COL.gold, 2.4, 2.2, 0.98);
-    if (travT < 1) ribbon(travT, 1, COL.teal, 1.0, 1.7, 0.7);
+    // traveled (warm gold, bright HDR → blooms) → ahead (luminous teal toward the temple)
+    ribbon(0, travT, COL.gold, 1.7, 0xffd98a, 3.4, 0.96);
+    if (travT < 1) ribbon(travT, 1, COL.teal, 1.5, COL.tealBright, 3.0, 0.88);
     g.userData.curve = curve;
     return g;
   }
@@ -477,6 +498,29 @@
       blending: T.AdditiveBlending, depthWrite: false });
     var pts = new T.Points(geo, mat);
     pts.userData = { base: base, phase: phase, geo: geo, mat: mat };
+    return pts;
+  }
+
+  // Warm EMBER/gold motes that hug the PATH — sampled along the curve so they rise from the
+  // trail like drifting sparks (the warm particle life the refs have right along the path).
+  function buildEmbers(curve, count) {
+    if (!curve) return null;
+    var geo = new T.BufferGeometry();
+    var pos = new Float32Array(count * 3), phase = new Float32Array(count), base = [];
+    for (var i = 0; i < count; i++) {
+      var p = curve.getPoint(Math.random());
+      var x = p.x + (Math.random() - 0.5) * 10;
+      var z = p.z + (Math.random() - 0.5) * 8;
+      var y = groundY(x, z) + 1 + Math.pow(Math.random(), 2) * 14;
+      pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z;
+      phase[i] = Math.random() * 6.28; base.push({ x: x, y: y, z: z });
+    }
+    geo.setAttribute("position", new T.BufferAttribute(pos, 3));
+    var mat = new T.PointsMaterial({ color: 0xffb05a, size: 2.6, map: dotTexture(),
+      sizeAttenuation: true, transparent: true, opacity: 0.9,
+      blending: T.AdditiveBlending, depthWrite: false });
+    var pts = new T.Points(geo, mat);
+    pts.userData = { base: base, phase: phase, geo: geo, mat: mat, rise: true };
     return pts;
   }
 
@@ -538,15 +582,16 @@
   // point-light for local warm/cool contrast (used sparingly — lights are capped).
   function buildLantern(x, y, z, seed, light) {
     var g = new T.Group();
-    var body = new T.Mesh(new T.SphereGeometry(0.7, 8, 8),
-      new T.MeshBasicMaterial({ color: 0xffcf7a }));
+    var body = new T.Mesh(new T.SphereGeometry(0.8, 8, 8),
+      new T.MeshBasicMaterial({ color: 0xffd98a }));
     body.position.set(x, y, z); g.add(body);
-    var glow = glowSprite(COL.ember, 8, 0.9); glow.position.set(x, y, z); g.add(glow);
+    // a larger, warmer glow pool so lanterns read as pools of firelight (priority 1)
+    var glow = glowSprite(0xffb867, 13, 0.95); glow.position.set(x, y, z); g.add(glow);
     var thread = new T.Mesh(new T.CylinderGeometry(0.03, 0.03, 4, 4),
       new T.MeshBasicMaterial({ color: 0x3a2c14 }));
     thread.position.set(x, y + 2.2, z); g.add(thread);
     var pl = null;
-    if (light) { pl = new T.PointLight(0xffb15a, 1.1, 42, 2.0); pl.position.set(x, y, z); g.add(pl); }
+    if (light) { pl = new T.PointLight(0xffb15a, 1.4, 52, 2.0); pl.position.set(x, y, z); g.add(pl); }
     g.userData = { glow: glow, light: pl, phase: (seed % 100) / 16 };
     return g;
   }
@@ -575,24 +620,26 @@
   function buildFraming(cam) {
     var g = new T.Group();
     var lanterns = [];
-    var bark = new T.MeshStandardMaterial({ color: 0x090b14, roughness: 1, flatShading: true });
-    var leaf = new T.MeshStandardMaterial({ color: 0x0b1220, roughness: 1, flatShading: true,
-      emissive: 0x0a1428, emissiveIntensity: 0.12 });
+    // deep mossy-warm silhouette (not pure black) so the framing has a touch of life like the
+    // refs' overhanging trees, while still reading as a dark vignette.
+    var bark = new T.MeshStandardMaterial({ color: 0x1a1220, roughness: 1, flatShading: true });
+    var leaf = new T.MeshStandardMaterial({ color: 0x16221c, roughness: 1, flatShading: true,
+      emissive: 0x141a22, emissiveIntensity: 0.16 });
     var r = rng(777);
 
-    // --- two BIG corner trees close to camera, trunks arching inward, dense crowns up the
-    //     side edges — the ornate proscenium that frames the vista in both refs. ----------
-    [[-40, 52, 1], [42, 56, -1]].forEach(function (a) {
+    // --- two BIG corner trees at the far LEFT/RIGHT edges, trunks arching in, crowns climbing
+    //     the side + top edges — the ornate proscenium (kept to the edges, not the centre). --
+    [[-62, 46, 1], [64, 50, -1]].forEach(function (a) {
       var x = a[0], z = a[1], dir = a[2], gy = groundY(x, z);
-      // a massive gnarled trunk sweeping up and inward across the side of frame
+      // a massive gnarled trunk sweeping up the side of frame
       var trunk = _limb(new T.Vector3(x, gy - 8, z),
-        new T.Vector3(x - dir * 16, gy + 60, z - 8),
-        new T.Vector3(x - dir * 3, gy + 28, z - 3), 6.5, 3.0, bark);
+        new T.Vector3(x - dir * 14, gy + 62, z - 8),
+        new T.Vector3(x - dir * 2, gy + 28, z - 3), 6.5, 3.0, bark);
       g.add(trunk);
-      // a thick wall of dark crowns climbing + arching over the side edge
-      for (var b = 0; b < 13; b++) {
-        var cy = gy + 10 + b * 5.2;
-        var cx = x - dir * (1 + b * 1.7);
+      // a thick wall of crowns climbing + arching over the side edge (stays near the edge)
+      for (var b = 0; b < 14; b++) {
+        var cy = gy + 8 + b * 5.0;
+        var cx = x - dir * (0 + b * 1.5);
         var cr = 11 + r() * 7;
         var m = new T.Mesh(new T.IcosahedronGeometry(cr, 0), leaf);
         m.position.set(cx, cy, z - 4 + (r() - 0.5) * 10); g.add(m);
@@ -633,40 +680,58 @@
   function buildGroundFoliage(curve) {
     var g = new T.Group();
     var r = rng(4242);
-    var shrubMat = toonMat({ color: 0x1e3a2c });
-    var shrubMat2 = toonMat({ color: 0x24402e });
-    var count = reduced() ? 45 : 85;   // capped: keeps draw-calls modest on lean hardware
+    // warmer, lighter shrubs so the understory reads as living green, not dark navy
+    var shrubMat = toonMat({ color: 0x3a6a44 });
+    var shrubMat2 = toonMat({ color: 0x4a7a4e });
+    var count = reduced() ? 55 : 110;
+    // magical accent colours for glowing flowers/mushrooms (teal, violet, magenta, gold)
+    var accents = [0x57d3ce, 0xb07bd6, 0xe86ab0, 0xffcf6a, 0x8fd66a];
     for (var i = 0; i < count; i++) {
-      // bias placement near the path curve so the trail feels planted-in, not floating
+      // hug the path curve tightly so the trail is richly planted-in (the refs are lush
+      // right along the trail), with some spread into the wood.
       var t = r();
       var cp = curve ? curve.getPoint(t) : new T.Vector3((r() - 0.5) * 120, 0, -40 + r() * 120);
-      var off = 6 + r() * 40, side = r() < 0.5 ? -1 : 1;
-      var x = cp.x + side * off + (r() - 0.5) * 10;
-      var z = cp.z + (r() - 0.5) * 24;
-      if (Math.abs(x) > 150 || z > 90 || z < -150) continue;
+      var off = 4 + r() * r() * 44, side = r() < 0.5 ? -1 : 1;
+      var x = cp.x + side * off + (r() - 0.5) * 8;
+      var z = cp.z + (r() - 0.5) * 22;
+      if (Math.abs(x) > 150 || z > 60 || z < -150) continue;
       var gy = groundY(x, z);
       var kind = r();
-      if (kind < 0.5) {
-        // a shrub: a squashed leaf blob
-        var sh = new T.Mesh(new T.IcosahedronGeometry(1.2 + r() * 1.4, 0), r() < 0.5 ? shrubMat : shrubMat2);
-        sh.position.set(x, gy + 0.8, z); sh.scale.y = 0.7; g.add(sh);
-      } else if (kind < 0.8) {
-        // a fern: a few thin cones fanning up
+      if (kind < 0.42) {
+        // a shrub: a squashed leaf blob (a little cluster of 1–2)
+        for (var sc0 = 0; sc0 < (r() < 0.5 ? 1 : 2); sc0++) {
+          var sh = new T.Mesh(new T.IcosahedronGeometry(1.1 + r() * 1.5, 0), r() < 0.5 ? shrubMat : shrubMat2);
+          sh.position.set(x + (r() - 0.5) * 2, gy + 0.8, z + (r() - 0.5) * 2); sh.scale.y = 0.7; g.add(sh);
+        }
+      } else if (kind < 0.66) {
+        // a fern: thin cones fanning up
         for (var f = 0; f < 4; f++) {
-          var blade = new T.Mesh(new T.ConeGeometry(0.22, 2.4 + r(), 4), shrubMat2);
-          blade.position.set(x + (r() - 0.5) * 1.2, gy + 1.2, z + (r() - 0.5) * 1.2);
+          var blade = new T.Mesh(new T.ConeGeometry(0.22, 2.6 + r(), 4), shrubMat2);
+          blade.position.set(x + (r() - 0.5) * 1.2, gy + 1.3, z + (r() - 0.5) * 1.2);
           blade.rotation.z = (r() - 0.5) * 0.9; g.add(blade);
         }
+      } else if (kind < 0.86) {
+        // a glowing FLOWER cluster — a few bright emissive petball blooms on short stems
+        var fcol = accents[(r() * accents.length) | 0];
+        var fmat = new T.MeshBasicMaterial({ color: fcol });
+        for (var fl = 0; fl < 3; fl++) {
+          var stem2 = new T.Mesh(new T.CylinderGeometry(0.06, 0.08, 1.4, 4), shrubMat2);
+          var fx = x + (r() - 0.5) * 2.4, fz = z + (r() - 0.5) * 2.4;
+          stem2.position.set(fx, gy + 0.7, fz); g.add(stem2);
+          var bloom = new T.Mesh(new T.IcosahedronGeometry(0.3 + r() * 0.2, 0), fmat);
+          bloom.position.set(fx, gy + 1.5, fz); g.add(bloom);
+        }
+        var fg = glowSprite(fcol, 4, 0.5); fg.position.set(x, gy + 1.4, z); g.add(fg);
       } else {
-        // a glowing mushroom (teal or violet accent) — the magical understory
-        var mcol = r() < 0.5 ? 0x57d3ce : 0xb07bd6;
+        // a glowing mushroom (accent-lit) — the magical understory
+        var mcol = accents[(r() * accents.length) | 0];
         var cap = new T.Mesh(new T.SphereGeometry(0.5 + r() * 0.3, 8, 6, 0, 6.28, 0, 1.7),
           new T.MeshBasicMaterial({ color: mcol }));
         cap.position.set(x, gy + 1.1, z); g.add(cap);
         var stem = new T.Mesh(new T.CylinderGeometry(0.1, 0.14, 1, 5),
-          new T.MeshStandardMaterial({ color: 0xdfe6ea }));
+          new T.MeshStandardMaterial({ color: 0xe6ddd0 }));
         stem.position.set(x, gy + 0.5, z); g.add(stem);
-        var mg = glowSprite(mcol, 3, 0.6); mg.position.set(x, gy + 1.2, z); g.add(mg);
+        var mg = glowSprite(mcol, 4, 0.6); mg.position.set(x, gy + 1.2, z); g.add(mg);
       }
     }
     return g;
@@ -775,14 +840,13 @@
   function buildScene(data, mode) {
     _windUniforms = [];   // fresh wind-uniform collector for this scene's toon materials
     var scene = new T.Scene();
-    // fog color matched to the sky horizon so distant trees melt into the night, not
-    // pop as flat silhouettes (the brief's depth/atmosphere lever).
-    // lighter fog so the temple + far tree-wall stay readable (not swallowed); still enough
-    // to melt the deepest trees into night and give depth layering.
-    scene.fog = new T.FogExp2(0x111a30, reduced() ? 0.004 : 0.0052);
+    // warm-toned fog so distant trees melt into a warm haze (not cold navy), matching the
+    // temple-glow atmosphere of the refs.
+    scene.fog = new T.FogExp2(0x2a2444, reduced() ? 0.0038 : 0.005);
     scene.background = new T.Color(COL.nightMid);
 
-    // --- sky dome: a big inverted sphere with a vertical indigo gradient -----
+    // --- sky dome: indigo zenith → warm lilac-gold horizon, with a bright WARM GLOW low
+    //     over the temple direction (−Z) so the sky itself blooms behind the temple. ------
     var skyGeo = new T.SphereGeometry(400, 24, 16);
     var skyMat = new T.ShaderMaterial({
       side: T.BackSide, depthWrite: false,
@@ -790,22 +854,30 @@
         top: { value: new T.Color(COL.nightTop) },
         mid: { value: new T.Color(COL.nightMid) },
         low: { value: new T.Color(COL.nightLow) },
+        warm: { value: new T.Color(0xf3c878) },      // temple-glow horizon
       },
       vertexShader: "varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }",
       fragmentShader:
-        "varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 low;" +
-        "void main(){ float h = normalize(vP).y*0.5+0.5;" +
+        "varying vec3 vP; uniform vec3 top; uniform vec3 mid; uniform vec3 low; uniform vec3 warm;" +
+        "void main(){ vec3 n = normalize(vP); float h = n.y*0.5+0.5;" +
         " vec3 c = mix(low, mid, smoothstep(0.0,0.5,h)); c = mix(c, top, smoothstep(0.5,1.0,h));" +
+        // warm bloom low on the horizon toward the temple (−Z), fading up and to the sides
+        " float toward = smoothstep(0.2, 1.0, -n.z);" +
+        " float lowBand = smoothstep(0.55, 0.0, h);" +
+        " c = mix(c, warm, toward * lowBand * 0.7);" +
         " gl_FragColor = vec4(c,1.0);}",
     });
     scene.add(new T.Mesh(skyGeo, skyMat));
 
-    // --- lights: cool sky fill + a brighter moon key + a warm horizon fill ----
-    scene.add(new T.HemisphereLight(0x9fb6e0, 0x0e1526, 0.95));  // cool sky / dark ground
-    var moon = new T.DirectionalLight(0xe6ecff, 1.0);            // pale moonlight key
-    moon.position.set(70, 120, 40); scene.add(moon);
-    var warm = new T.DirectionalLight(0xffdca0, 0.35);          // warm bounce from the temple side
-    warm.position.set(0, 30, -120); scene.add(warm);
+    // --- lights: warm ambient + a moon key ABOVE-FRONT (lights tree fronts) + a warm rim
+    //     from the temple side. The front key is the fix for trees reading as dark cutouts. -
+    scene.add(new T.HemisphereLight(0xd0bce0, 0x40364e, 1.35));  // bright warm-violet ambient
+    var moon = new T.DirectionalLight(0xf4f0ff, 1.5);            // strong key, high + toward camera
+    moon.position.set(40, 120, 150); scene.add(moon);           // +Z → lights the camera-facing foliage
+    var warmRim = new T.DirectionalLight(0xffca80, 1.0);         // warm rim from the temple/horizon
+    warmRim.position.set(0, 50, -140); scene.add(warmRim);
+    var coolFill = new T.DirectionalLight(0x9fb8e0, 0.4);        // gentle cool side fill for form
+    coolFill.position.set(-90, 40, 40); scene.add(coolFill);
 
     // --- moon disc + haze, high over the far ridge (up-right of the temple) ----
     var moonGroup = new T.Group();
@@ -842,25 +914,22 @@
     // FIXED END bookend: the TEMPLE — the composition anchor — beyond the last grove, high
     // on the hill, straight ahead on the path's centre axis so the eye is led to it.
     var lastZ = laid.length ? laid[laid.length - 1].z : 0;
-    var templeZ = Math.min(-150, lastZ - 60);         // further back → reads as a distant anchor
+    var templeZ = Math.min(-140, lastZ - 54);         // a substantial anchor on the far hill
     var templeTopY = 0;
     if (mode === "overview") {
       var temple = buildTemple();
       var tgy = groundY(0, templeZ);
       temple.position.set(0, tgy + 2, templeZ);
-      temple.scale.set(1.3, 1.3, 1.3);
+      temple.scale.set(1.5, 1.5, 1.5);
       scene.add(temple);
-      templeTopY = tgy + temple.userData.topY * 1.4;
-      scene.add(buildTempleRays(templeTopY));
-      // a soft warm halo behind the temple (small + gentle so the temple stays a defined
-      // glowing structure, not a white sunburst) — fog-free so it reads on the horizon.
-      var tbloom = glowSprite(0xffdc94, 100, 0.28, true);
-      tbloom.position.set(0, tgy + 26, templeZ - 8); scene.add(tbloom);
+      templeTopY = tgy + temple.userData.topY * 1.5;
+      var rays = buildTempleRays(temple.userData.topY);   // rays/halo positioned in temple-local Y
+      rays.position.set(0, tgy, templeZ); rays.scale.set(1.5, 1.5, 1.5); scene.add(rays);
     }
 
     // --- DENSE background tree walls (both modes) ----------------------------
     var bgGroup = buildInstancedForest();
-    scene.add(bgGroup.mesh); scene.add(bgGroup.mesh2);
+    scene.add(bgGroup.mesh); scene.add(bgGroup.mesh2); scene.add(bgGroup.mesh3);
 
     // --- the glowing winding PATH (traveled glow runs start→active) ----------
     var path = buildPath(laid, activeIndex, templeZ, mode === "overview");
@@ -945,11 +1014,13 @@
       }
     }
 
-    // --- fireflies + birds ---------------------------------------------------
-    var fireflies = null, birds = [];
+    // --- fireflies + warm path embers + birds --------------------------------
+    var fireflies = null, embers = null, birds = [];
     if (!reduced()) {
-      fireflies = buildFireflies(Math.min(240, 120 + laid.length * 12), 220);
+      fireflies = buildFireflies(Math.min(240, 120 + laid.length * 12), 230);
       scene.add(fireflies);
+      embers = buildEmbers(path.userData.curve, 70);
+      if (embers) scene.add(embers);
       var nBirds = Math.min(5, Math.max(3, Math.floor(laid.length / 2)));
       for (var bk = 0; bk < nBirds; bk++) {
         var bird = buildBird();
@@ -962,7 +1033,7 @@
 
     return {
       scene: scene, pickables: pickables, auras: auras, youHere: youHere,
-      fireflies: fireflies, birds: birds, path: path, moonHaze: moonHaze,
+      fireflies: fireflies, embers: embers, birds: birds, path: path, moonHaze: moonHaze,
       lanterns: lanterns, pond: pond, godrays: godrays, mist: mist,
       laid: laid, activeIndex: activeIndex, templeZ: templeZ, templeTopY: templeTopY,
       mode: mode,
@@ -1022,53 +1093,81 @@
     return g;
   }
 
-  // Instanced BACKGROUND trees — a lush, cheap woodland filling the scene with
-  // depth. Two instanced meshes (trunks + crowns) so the whole wood is a handful
-  // of draw calls regardless of tree count.
+  // Instanced BACKGROUND wood — a dense, LUSH woodland that reads as lit foliage, not flat
+  // black cutouts. Three instanced layers (trunk + a main crown lobe + a top lobe) give each
+  // tree a fuller, rounder, two-tier silhouette; higher-facet icosahedra + toon-ish shading
+  // catch the moonlight so they read as volumes. Warmer, lighter, more varied greens/teals
+  // so the wood glows instead of going navy-black. A handful of draw calls for the whole wood.
   function buildInstancedForest() {
-    var COUNT = reduced() ? 260 : 520;               // a DENSE wood — you can't see through it
-    var trunkGeo = new T.CylinderGeometry(0.3, 0.55, 6, 5);
-    var trunkMat = new T.MeshStandardMaterial({ color: 0x0e1524, roughness: 1, flatShading: true });
-    // two crown layers so the canopy has variety + a fuller silhouette
-    var crownGeo = new T.IcosahedronGeometry(2.4, 0);
-    var crownMat = new T.MeshStandardMaterial({ roughness: 0.9, flatShading: true,
-      emissive: 0x0a1220, emissiveIntensity: 0.2, vertexColors: true });
+    var COUNT = reduced() ? 240 : 460;
+    var trunkGeo = new T.CylinderGeometry(0.28, 0.5, 6, 5);
+    var trunkMat = new T.MeshStandardMaterial({ color: 0x3a2c22, roughness: 1, flatShading: true });
+    // crowns: detail-1 icosahedra (more facets → they catch light as rounded volumes)
+    var crownGeo = new T.IcosahedronGeometry(2.4, 1);
+    var crownMat = new T.MeshStandardMaterial({ roughness: 0.75, flatShading: true,
+      emissive: 0x24361f, emissiveIntensity: 0.4, vertexColors: true });
+    var topGeo = new T.IcosahedronGeometry(1.5, 1);
+    var topMat = crownMat.clone();
     var trunks = new T.InstancedMesh(trunkGeo, trunkMat, COUNT);
     var crowns = new T.InstancedMesh(crownGeo, crownMat, COUNT);
+    var tops = new T.InstancedMesh(topGeo, topMat, COUNT);
     var m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), pos = new T.Vector3();
     var r = rng(20240802);
-    // painterly canopy palette: deep indigos, forest teals, emerald, a violet whisper +
-    // an occasional warm glint — the colour VARIETY the refs have (not a monochrome navy).
-    var palette = [0x16243c, 0x14304a, 0x1a3a40, 0x244a34, 0x2f4a28, 0x2a2440, 0x3a3320, 0x1d2a44];
-    var col = new T.Color();
-    var placed = 0;
+    // a LUSH, warm-leaning palette: sunlit greens, emerald, teal, olive, a warm-gold canopy
+    // and a violet whisper — lifted well above black so the wood reads as living foliage.
+    var palette = [0x5a9a5e, 0x6aa858, 0x4a9a78, 0x429090, 0x7a9a4e, 0x8a9a52,
+                   0x5a8a9a, 0x9a8a4e, 0x6a5a80, 0x4e8a6e];
+    var col = new T.Color(), fogC = new T.Color(0x38304e);
+    var placed = 0, lastX = 0, lastZ = 0;
     for (var i = 0; i < COUNT && placed < COUNT; i++) {
-      // DEPTH BANDS: denser and further-spread toward the back so far trees form a wall
-      // that fades into fog; nearer bands sparser so the mid-ground stays readable.
-      var band = r();                        // 0 near … 1 far
-      var z = 60 - band * 210;               // near (+z) → far (−z)
-      var spreadX = 40 + band * 120;
-      var x = (r() - 0.5) * 2 * spreadX;
-      // keep the central walking corridor + the temple footprint clear
-      if (Math.abs(x) < 14 && z > -40) continue;
-      if (Math.abs(x) < 24 && z < -120) continue;
-      var s = (0.7 + r() * 1.2) * (1 + band * 0.5);   // far trees a bit bigger (they're a wall)
+      var band, z, x;
+      // ~45% of trees CLUSTER near the previous one (loose clumps → a wild wood, not an
+      // orchard grid); the rest scatter freshly across the depth bands.
+      if (r() < 0.45 && placed > 0) {
+        x = lastX + (r() - 0.5) * 26; z = lastZ + (r() - 0.5) * 22;
+        band = Math.max(0, Math.min(1, (62 - z) / 205));
+      } else {
+        band = r();                          // 0 near … 1 far
+        z = 48 - band * 195;                 // start behind the immediate foreground opening
+        var spreadX = 44 + band * 120;
+        x = (r() - 0.5) * 2 * spreadX;
+      }
+      // keep the walking corridor clear; widen the clearing near the camera so the path +
+      // foreground groves read (the refs open up in front, trees frame the sides/back).
+      var corridor = 14 + Math.max(0, (z - 10)) * 0.7;
+      if (Math.abs(x) < corridor) continue;
+      if (Math.abs(x) < 26 && z < -120) continue;     // keep the temple footprint clear
+      if (Math.abs(x) > 180 || z > 55 || z < -150) continue;
+      lastX = x; lastZ = z;
+      // MID-ground trees are bigger + fuller (heroes of the wall); far ones smaller, fading.
+      // Wider size variety (some tall, some squat) for a natural silhouette.
+      var s = (0.7 + r() * r() * 2.2) * (1.0 + (1 - band) * 0.4);
       var gy = groundY(x, z);
-      pos.set(x, gy + 3 * s, z); sc.set(s, s * (0.9 + r() * 0.5), s);
+      q.setFromAxisAngle(new T.Vector3(0, 1, 0), r() * 6.28);
+      // main crown
+      pos.set(x, gy + 3.2 * s, z); sc.set(s, s * (0.92 + r() * 0.4), s);
       m.compose(pos, q, sc); crowns.setMatrixAt(placed, m);
-      col.setHex(palette[(r() * palette.length) | 0]);
-      // fade far crowns toward the fog/sky colour so the wall dissolves into night
-      col.lerp(new T.Color(COL.nightMid), band * 0.4);
-      crowns.setColorAt(placed, col);
-      pos.set(x, gy + 2.6 * s, z);
+      // top lobe (offset up + sideways for a two-tier, non-spherical silhouette)
+      pos.set(x + (r() - 0.5) * s, gy + 5.2 * s, z + (r() - 0.5) * s); sc.set(s * 0.9, s, s * 0.9);
+      m.compose(pos, q, sc); tops.setMatrixAt(placed, m);
+      // trunk
+      pos.set(x, gy + 2.6 * s, z); sc.set(s, s, s);
       m.compose(pos, q, sc); trunks.setMatrixAt(placed, m);
+      // colour: pick a lush hue, vary lightness a touch, fade FAR trees into the warm fog
+      col.setHex(palette[(r() * palette.length) | 0]);
+      col.offsetHSL(0, 0, (r() - 0.5) * 0.08);
+      col.lerp(fogC, band * band * 0.55);
+      crowns.setColorAt(placed, col); tops.setColorAt(placed, col);
       placed++;
     }
-    trunks.count = placed; crowns.count = placed;
+    trunks.count = placed; crowns.count = placed; tops.count = placed;
     trunks.instanceMatrix.needsUpdate = true; crowns.instanceMatrix.needsUpdate = true;
+    tops.instanceMatrix.needsUpdate = true;
     if (crowns.instanceColor) crowns.instanceColor.needsUpdate = true;
-    return { mesh: trunks, mesh2: crowns,
-      dispose: function () { trunkGeo.dispose(); trunkMat.dispose(); crownGeo.dispose(); crownMat.dispose(); } };
+    if (tops.instanceColor) tops.instanceColor.needsUpdate = true;
+    return { mesh: trunks, mesh2: crowns, mesh3: tops,
+      dispose: function () { trunkGeo.dispose(); trunkMat.dispose(); crownGeo.dispose();
+        crownMat.dispose(); topGeo.dispose(); topMat.dispose(); } };
   }
 
   // =========================================================================
@@ -1082,7 +1181,7 @@
     // ACES filmic tone mapping — the single biggest flat→cinematic upgrade. Exposure
     // tuned against the rendered scene (a touch under 1 keeps the night moody).
     r.toneMapping = T.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.05;
+    r.toneMappingExposure = 1.12;
     if (T.sRGBEncoding != null) r.outputEncoding = T.sRGBEncoding;
     return r;
   }
@@ -1094,23 +1193,27 @@
     uniforms: {
       tDiffuse: { value: null },
       uVignette: { value: 1.15 },
-      uShadow: { value: new T.Color(0x0b1230) },   // indigo lift in the darks
-      uHi: { value: new T.Color(0xffe6b0) },        // warm gold in the brights
+      uShadow: { value: new T.Color(0x14183a) },   // only the DEEPEST darks stay indigo
+      uMid: { value: new T.Color(0xffd9a0) },       // warm amber wash through the midtones
+      uHi: { value: new T.Color(0xfff0d0) },        // warm gold in the brights
     },
     vertexShader: "varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }",
     fragmentShader:
       "varying vec2 vUv; uniform sampler2D tDiffuse; uniform float uVignette;" +
-      "uniform vec3 uShadow; uniform vec3 uHi;" +
+      "uniform vec3 uShadow; uniform vec3 uMid; uniform vec3 uHi;" +
       "void main(){ vec4 c = texture2D(tDiffuse, vUv);" +
       " float l = dot(c.rgb, vec3(0.299,0.587,0.114));" +
-      // split-tone: indigo into shadows, warm gold into highlights (a touch stronger warmth)
-      " vec3 tinted = c.rgb + uShadow*(1.0-l)*0.22 + (uHi-vec3(1.0))*l*0.16;" +
-      // a gentle overall saturation lift so the emerald/teal/gold read (not washed navy)
+      // WARM the whole image: indigo only in the darkest darks, amber through the mids, gold
+      // in the highs — so the forest GLOWS warm instead of reading cold navy.
+      " float shadowW = smoothstep(0.35, 0.0, l);" +   // only very dark pixels
+      " float midW = smoothstep(0.0, 0.5, l) * smoothstep(1.0, 0.5, l);" +
+      " vec3 tinted = c.rgb + uShadow*shadowW*0.16 + (uMid-vec3(1.0))*midW*0.26 + (uHi-vec3(1.0))*l*0.18;" +
+      // saturation + a touch of warm exposure lift so emerald/teal/gold sing
       " float g = dot(tinted, vec3(0.299,0.587,0.114));" +
-      " tinted = mix(vec3(g), tinted, 1.18);" +
-      // vignette: darken toward the corners to hold the eye on the glowing path/temple
-      " float d = distance(vUv, vec2(0.5)); float vig = smoothstep(0.9, 0.35*uVignette, d);" +
-      " tinted *= mix(0.6, 1.0, vig);" +
+      " tinted = mix(vec3(g), tinted, 1.22) * 1.04;" +
+      // vignette: darken corners to hold the eye on the glowing path/temple
+      " float d = distance(vUv, vec2(0.5)); float vig = smoothstep(0.92, 0.34*uVignette, d);" +
+      " tinted *= mix(0.62, 1.0, vig);" +
       " gl_FragColor = vec4(tinted, c.a); }",
   };
 
@@ -1122,7 +1225,7 @@
     // strength moderate, radius soft, threshold HIGH so only the truly bright emitters
     // (path, lanterns, temple, fireflies, rings) bloom — the lit tree crowns keep their
     // silhouette instead of washing to a white blob.
-    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.5, 0.65, 1.0);
+    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.42, 0.7, 1.0);
     composer.addPass(bloom);
     var grade = new T.ShaderPass(GradeShader);
     grade.renderToScreen = true;
@@ -1211,22 +1314,28 @@
       if (!this.ok()) return;
       this.data = data; this.mode = "overview"; this.curPillar = null;
       this._install(buildScene(data, "overview"));
-      // frame foreground → path → temple, from a high vantage behind the active grove
+      // frame foreground → path → temple, from a high vantage behind the active grove. On a
+      // NARROW (portrait/mobile) frame, pull back + up so the temple stays in the upper third.
+      var narrow = (this.canvas.clientWidth || 800) < 560;
+      var h = narrow ? 42 : 34, d = narrow ? 66 : 52;
       var ai = this.state.activeIndex, L = this.state.laid[ai];
-      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, 34, 52, true);
-      else restNear(this.state, { x: 0, y: 0, z: 34 }, 38, 60, true);
+      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, h, d, true);
+      else restNear(this.state, { x: 0, y: 0, z: 34 }, h + 4, d + 8, true);
     },
 
     // Build the drill-in CONCEPT sub-forest for a pillar (same lush assembly as overview).
-    // No temple here, so we frame TIGHTER on the active concept (a closer, lower eye) so
-    // the concept trees are the heroes rather than a distant emptiness.
+    // No temple here — frame from a bit further back + higher so the concept trees fill the
+    // frame (not a washed-out close-up of the active concept's glow), aiming into the wood
+    // so the upper frame holds trees rather than empty sky.
     renderGrove: function (data, pillar) {
       if (!this.ok()) return;
       this.data = data; this.mode = "grove"; this.curPillar = pillar;
       this._install(buildScene(data, "grove"));
-      this.state.templeZ = null;   // no anchor → restNear frames locally, not toward a temple
+      // aim a modest distance ahead so the sub-forest recedes into the wood, not a void
+      var far = this.state.laid.length ? this.state.laid[this.state.laid.length - 1].z - 30 : -60;
+      this.state.templeZ = far;
       var ai = this.state.activeIndex, L = this.state.laid[ai];
-      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, 24, 44, true);
+      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, 32, 56, true);
     },
 
     _install: function (state) {
@@ -1360,6 +1469,19 @@
           }
           ff.geo.attributes.position.needsUpdate = true;
           ff.mat.opacity = 0.7 + Math.sin(t * 2) * 0.25;
+        }
+        // warm path embers rise slowly + drift, looping back down (sparks off the trail)
+        if (st.embers) {
+          var em = st.embers.userData, ea = em.geo.attributes.position.array;
+          for (var e2 = 0; e2 < em.base.length; e2++) {
+            var eb = em.base[e2], eph = em.phase[e2];
+            var rise = ((t * 2 + eph * 3) % 16);
+            ea[e2 * 3] = eb.x + Math.sin(t * 0.6 + eph) * 2;
+            ea[e2 * 3 + 1] = eb.y + rise;
+            ea[e2 * 3 + 2] = eb.z + Math.cos(t * 0.5 + eph) * 2;
+          }
+          em.geo.attributes.position.needsUpdate = true;
+          em.mat.opacity = 0.75 + Math.sin(t * 3) * 0.2;
         }
         // birds glide along the path curve, wings flapping
         for (var bd = 0; bd < st.birds.length; bd++) {
