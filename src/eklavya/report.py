@@ -315,12 +315,13 @@ def forest_map(pillar: str | None = None) -> dict:
                     edges.append({"src": p_, "dst": c, "external": True})
         layout = _forest_layout(len(nodes))
         dag = _dag_layout(cs, edges)
+        land = _landscape_layout(cs, edges)
         return {
             "empty": False, "pillar": pillar, "pillars": pillars,
             "grove": grove(pillar), "concepts": nodes,
             "edges": edges, "context": context,
             "layout": layout, "viewbox": layout["viewbox"],
-            "dag": dag,
+            "dag": dag, "land": land,
         }
 
     groves = [grove(p) for p in pillars]
@@ -338,11 +339,12 @@ def forest_map(pillar: str | None = None) -> dict:
                 grove_edges.append({"src": b, "dst": a})           # B unlocks → A
     layout = _forest_layout(len(groves))
     dag = _dag_layout(pillars, grove_edges)
+    land = _landscape_layout(pillars, grove_edges)
     return {
         "empty": False, "pillars": pillars, "active": active,
         "groves": groves, "edges": grove_edges,
         "layout": layout, "viewbox": layout["viewbox"],
-        "dag": dag,
+        "dag": dag, "land": land,
     }
 
 
@@ -458,6 +460,106 @@ def _forest_layout(n: int) -> dict:
             x = W / 2
         points.append({"x": round(x, 1), "y": round(y, 1)})
     return {"viewbox": [0, 0, W, round(H)], "points": points, "rows": rows, "cols": cols}
+
+
+def _landscape_layout(names: list[str], edges: list[dict]) -> dict:
+    """Place nodes as an ORGANIC WOODLAND, not a grid — a wide landscape the render
+    paints groves onto with real depth.
+
+    We still respect prerequisite order (roots at the back, dependents flowing toward
+    the viewer) so the map stays truthful, but the placement is deliberately un-gridlike:
+
+      • DEPTH BAND — a node's longest prereq-chain length maps to a back→front band.
+        Fewer bands than raw layers (so a deep tree still reads as far / mid / near),
+        which drives parallax and how big/lush a tree is drawn.
+      • ROW = band → a horizontal ribbon of the scene, back bands higher & shorter,
+        near bands lower & wider (a receding ground plane).
+      • X within a band spreads the band's nodes across the ribbon, then each node gets
+        a SMALL DETERMINISTIC jitter (seeded by name) in x and y so the treeline waves
+        and never lines up in columns. Same input → same scene every load.
+
+    Returns {viewbox, pos:{name:{x,y}}, band:{name:0..B-1}, bands:B, ground:y} — purely
+    additive alongside the existing `dag`/`layout` payloads; the render chooses this one.
+    """
+    import hashlib
+    import math
+
+    known = set(names)
+    deps: dict[str, list[str]] = {n: [] for n in names}
+    for e in edges:
+        s, d = e.get("src"), e.get("dst")
+        if s in known and d in known and s != d:
+            deps[d].append(s)
+
+    # longest-path depth (cycle-safe), exactly as the dag layering does.
+    depth: dict[str, int] = {}
+    visiting: set[str] = set()
+
+    def depth_of(n: str) -> int:
+        if n in depth:
+            return depth[n]
+        if n in visiting:
+            return 0
+        visiting.add(n)
+        d = 0
+        for p in deps[n]:
+            d = max(d, depth_of(p) + 1)
+        visiting.discard(n)
+        depth[n] = d
+        return d
+
+    for n in names:
+        depth_of(n)
+    max_depth = max(depth.values()) if depth else 0
+
+    # Collapse raw layers into a handful of depth BANDS (far → near). A single-layer
+    # forest still gets one nice mid band; a deep one gets up to 5 receding ribbons.
+    n_bands = max(1, min(5, max_depth + 1))
+    band: dict[str, int] = {}
+    for n in names:
+        band[n] = 0 if max_depth == 0 else min(n_bands - 1, round(depth[n] / max_depth * (n_bands - 1)))
+
+    by_band: dict[int, list[str]] = {}
+    for n in names:
+        by_band.setdefault(band[n], []).append(n)
+
+    # A wide, cinematic canvas — landscape, not portrait: width dominates so the whole
+    # vista reads as a horizon, not a column. Height stays close to a 16:10 frame so a
+    # width-fit shows the full scene (far treeline → near foreground) without cropping.
+    W = 1680
+    sky = 140                       # sky / horizon band above the treeline
+    band_gap = 150                  # vertical spacing between depth ribbons (kept tight)
+    ground = 300 + (n_bands - 1) * band_gap   # near-band baseline
+    H = ground + 170
+    margin_x = 150
+
+    def jitter(name: str, salt: str, span: float) -> float:
+        # deterministic per-name jitter in [-span, +span]
+        h = int(hashlib.md5((name + salt).encode()).hexdigest()[:8], 16)
+        return (h / 0xFFFFFFFF - 0.5) * 2 * span
+
+    pos: dict[str, dict] = {}
+    for b in range(n_bands):
+        nodes = by_band.get(b, [])
+        if not nodes:
+            continue
+        # back bands sit high (just under the treeline) & narrower; near bands sit low & wide.
+        t = b / max(1, n_bands - 1)                 # 0 far … 1 near
+        top = sky + 130                              # first grove ribbon rests below the horizon
+        row_y = top + t * (ground - top)
+        inset = (1 - t) * 120                        # far ribbons are inset (perspective)
+        x0, x1 = margin_x + inset, W - margin_x - inset
+        # order nodes within a band by x-jitter so neighbours don't always share prereqs
+        nodes = sorted(nodes, key=lambda nm: jitter(nm, "order", 1.0))
+        span = x1 - x0
+        for i, nm in enumerate(nodes):
+            frac = (i + 0.5) / len(nodes) if len(nodes) > 1 else 0.5
+            x = x0 + frac * span + jitter(nm, "x", span / max(3, len(nodes) * 2))
+            y = row_y + jitter(nm, "y", 46)          # wave the treeline
+            pos[nm] = {"x": round(max(60, min(W - 60, x)), 1), "y": round(y, 1)}
+
+    return {"viewbox": [0, 0, W, round(H)], "pos": pos, "band": band,
+            "bands": n_bands, "ground": round(ground), "sky": sky}
 
 
 def _gap_phrase(days: float) -> str:
