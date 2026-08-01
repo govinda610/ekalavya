@@ -1132,6 +1132,11 @@ body.reduce-motion *{animation:none !important}
 .mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
  box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
 .mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
+/* the 3D forest canvas fills the frame; WebGL owns the pixels, HUD floats over it */
+.mapframe canvas#forest3d{display:block;width:100%;height:100%;flex:1;min-height:0;touch-action:none;cursor:grab}
+.mapframe canvas#forest3d:active{cursor:grabbing}
+.forest3d-fallback{margin:auto;padding:40px 30px;max-width:460px;text-align:center;
+ font-family:var(--f-body);font-size:14px;line-height:1.6;color:var(--parch-dim)}
 /* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
 .mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
 .mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
@@ -1139,68 +1144,11 @@ body.reduce-motion *{animation:none !important}
   display:grid;place-items:center;backdrop-filter:blur(3px)}
 .mapzoom button:hover{border-color:var(--gold)}
 @media(max-width:820px){.mapframe{min-height:64vh}}
-.grove{cursor:pointer;transition:filter .2s}
-.grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
-.grove.locked{cursor:default}.grove.locked:hover{filter:none}
-/* ===== enchanted DAG forest — pan/zoom surface, living edges, popover ===== */
-.mapframe.forest{cursor:grab}
-.mapframe.forest.dragging{cursor:grabbing}
-.mapframe svg#forestsvg{transform:none !important}        /* pan/zoom is via viewBox now, not CSS scale */
-/* soft glow-pulse on the nodes that beckon (active + available) */
-.grove.active .halo,.grove.avail .halo{transform-box:fill-box;transform-origin:center;animation:haloPulse 3.4s ease-in-out infinite}
-@keyframes haloPulse{0%,100%{opacity:.35;transform:scale(1)}50%{opacity:.7;transform:scale(1.14)}}
-/* "you are here" beacon on the active node */
-.youhere{pointer-events:none}
-.youhere .ring{fill:none;stroke:#7ff2ea;stroke-width:2.2;transform-box:fill-box;transform-origin:center;animation:beacon 2.6s ease-out infinite}
-@keyframes beacon{0%{opacity:.9;transform:scale(.4)}80%,100%{opacity:0;transform:scale(1.5)}}
-/* fireflies / drifting motes drift over the canvas */
-.mote{fill:#ffe9a8}
-@keyframes drift{0%{transform:translate(0,0);opacity:0}10%,80%{opacity:.85}100%{transform:translate(var(--dx),var(--dy));opacity:0}}
-/* gentle canopy sway (used by the lush grove trees + background parallax) */
-@keyframes sway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.6deg)}}
-/* ===== enchanted LANDSCAPE forest ===== */
-/* ambient prerequisite TRAILS on the ground — a faint luminous thread from a mastered
-   grove to the one it unlocks. Barely there by default; they BRIGHTEN only on hover/
-   select so the structure is discoverable but never clutters the scene. */
-.trail{fill:none;stroke-linecap:round}
-.trail.dim{stroke:#2c4a3a;stroke-width:2;opacity:.20}
-.trail.lit{stroke:url(#trailglow);stroke-width:2.4;opacity:.34}
-.trail.hot{opacity:.95 !important;stroke-width:3.2 !important;filter:drop-shadow(0 0 6px rgba(155,230,200,.6))}
-/* a slow travelling glimmer runs along LIT trails (prereq mastered) — like light seeping
-   from grove to grove. Sparse dashes so it reads as motes, not a marching-ants edge. */
-.trail.flow{stroke:#bff0d6;stroke-width:1.3;stroke-dasharray:1.5 26;opacity:.55;
-  animation:trailflow 6s linear infinite}
-@keyframes trailflow{to{stroke-dashoffset:-220}}
-/* BIRDS gliding from a mastered grove toward the grove it unlocks — the connections,
-   shown as life rather than wiring. Each rides its own path via offset-path + rAF is
-   overkill, so we translate along a CSS custom flight and flap the wings. */
-.bird{fill:none;stroke:#e9dcbf;stroke-width:2;stroke-linecap:round;opacity:0}
-.bird.flying{animation:birdglide var(--dur,9s) ease-in-out var(--delay,0s) infinite}
-.bird .wing{transform-box:fill-box;transform-origin:center;animation:flap 1.1s ease-in-out infinite}
-@keyframes flap{0%,100%{transform:rotate(0)}50%{transform:rotate(-16deg)}}
-/* the bird is placed at the trail start and glides to the end via translate; opacity
-   fades in/out so it appears mid-flight, never popping at the endpoints. */
-@keyframes birdglide{
-  0%{opacity:0;transform:translate(0,0) scale(.7)}
-  12%{opacity:.85}
-  50%{transform:translate(var(--fx),var(--fy)) scale(1)}
-  88%{opacity:.85}
-  100%{opacity:0;transform:translate(calc(var(--fx)*2),calc(var(--fy)*2)) scale(.7)}
-}
-/* soft god-rays sweeping from the moon; low mist drifting across the mid-ground */
-.godray{fill:url(#rayfade);opacity:.0;transform-box:fill-box;transform-origin:top center;
-  animation:raybreath 11s ease-in-out infinite}
-@keyframes raybreath{0%,100%{opacity:.05}50%{opacity:.16}}
-.mistband{transform-box:fill-box;animation:mist 26s ease-in-out infinite}
-@keyframes mist{0%,100%{transform:translateX(-24px)}50%{transform:translateX(24px)}}
-.canopy{transform-box:fill-box;transform-origin:bottom center;animation:sway 6s ease-in-out infinite}
-.canopy.s2{animation-duration:7.6s;animation-delay:-1.4s}
-.canopy.s3{animation-duration:5.2s;animation-delay:-.6s}
-.reduce-motion .trail.flow,.reduce-motion .bird.flying,.reduce-motion .bird .wing,
-.reduce-motion .godray,.reduce-motion .mistband,.reduce-motion .canopy{animation:none !important}
-.reduce-motion .godray{opacity:.10}
-.reduce-motion .grove .halo,.reduce-motion .youhere .ring,.reduce-motion .mote{animation:none !important}
-.reduce-motion .grove.active .halo,.reduce-motion .grove.avail .halo{opacity:.55;transform:none}
+/* The forest is now a WebGL <canvas> (static/forest3d.js) — its scene, particles,
+   trees, path, birds and "you are here" are drawn in 3D. Only the HUD overlays
+   below (quest banner, node popover, zoom/back buttons) remain as DOM. Motion is
+   gated inside the scene by _reduced(); the body.reduce-motion class still drives
+   the rest of the app. */
 /* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
 .mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
  background:linear-gradient(180deg,rgba(10,16,30,.92),rgba(8,12,22,.9));
@@ -1581,8 +1529,10 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Enchanted forest map: learning groves connected as a prerequisite graph."></svg>
-      <div class="mapzoom"><button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Fit to view">⟲</button></div>
+    <div class="mapframe"><canvas id="forest3d" role="img" aria-label="Enchanted 3D forest of mastery: milestone groves on a glowing winding path toward a golden temple."></canvas>
+      <div class="mapzoom">
+        <button id="mapback" onclick="forestBack()" title="Back to the forest" hidden>←</button>
+        <button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Recenter on you">⟲</button></div>
       <div class="mapquest" id="mapquest" hidden></div>
       <div class="nodepop" id="nodepop" hidden></div>
     </div>
@@ -1642,6 +1592,17 @@ body.reduce-motion *{animation:none !important}
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- Three.js + post-processing (vendored locally, works offline) drive the 3D Forest.
+     Load order matters: core → shader chunks → composer/passes → controls → scene. -->
+<script src="/static/three.min.js"></script>
+<script src="/static/CopyShader.js"></script>
+<script src="/static/LuminosityHighPassShader.js"></script>
+<script src="/static/EffectComposer.js"></script>
+<script src="/static/RenderPass.js"></script>
+<script src="/static/ShaderPass.js"></script>
+<script src="/static/UnrealBloomPass.js"></script>
+<script src="/static/OrbitControls.js"></script>
+<script src="/static/forest3d.js"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
@@ -1679,6 +1640,7 @@ function showView(v){
   if(v==='effect') document.getElementById('effectframe').src='/effectiveness';  // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
+  else if(window.forestSetVisible) forestSetVisible(false);   // pause rAF + free the GPU when the forest is hidden
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
 }
@@ -1905,332 +1867,40 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-/* ===== Data-driven FOREST MAP (replaces the Mermaid skill tree) =====
-   Renders the /api/forest data as the template's forest map: groves as trees on a
-   winding path, styled by mastery, with a gold 'travelled' path up to the active
-   grove and the clay statue of Droṇa overseeing. Clicking a grove drills into that
-   pillar's concepts as a smaller sub-forest (same visual language). */
-const SVGNS='http://www.w3.org/2000/svg';
+/* ===== Data-driven 3D FOREST OF MASTERY (real-time WebGL, Three.js) =====
+   The forest is a live 3D scene (src/eklavya/static/forest3d.js): a night woodland
+   under a warm moon, a glowing winding path past ornate milestone-trees (one per
+   curriculum PILLAR, in learning order) climbing toward a golden temple. Status
+   drives each grove's look; the active grove wears a teal "YOU ARE HERE" ring and
+   the camera rests near it. Clicking a grove reuses the popover below; flying into
+   a grove reveals its concepts as a short sub-forest. Everything is generated from
+   /api/forest each load, so the scene grows with the curriculum. This file keeps
+   the DATA fetch + the shared popover; forest3d.js owns all the geometry. */
+const SVGNS='http://www.w3.org/2000/svg';   // still used by the ceremony rays below
 let _curFocus=null;             // active pillar name, for the drill-in default
-let _forestView='overview';     // 'overview' | pillar-name — remembered for the ⟲ fit + resize
+let _forestView='overview';     // 'overview' | pillar-name — remembered for the ⟲ + resize
 let _forestData=null;           // the last-loaded /api/forest payload (for the popover)
-function _svgEl(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
 function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
 function _reduced(){return document.body.classList.contains('reduce-motion')
   || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
 
 
-// Statue of Droṇa (upper-right ridge) — lifted verbatim.
-function _statue(x,y){
-  const g=_svgEl('g',{transform:'translate('+x+','+y+')',opacity:.85});
-  g.appendChild(_svgEl('rect',{x:-26,y:86,width:52,height:14,rx:3,fill:'#7a4a2c'}));
-  g.appendChild(_svgEl('path',{d:'M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z',fill:'#a8482a'}));
-  g.appendChild(_svgEl('circle',{cx:0,cy:-6,r:13,fill:'#b9764a'}));
-  const dots=_svgEl('g',{fill:'#f2e7cc',opacity:.7});
-  [[-8,34],[8,34],[0,52],[-9,66],[9,66]].forEach(([cx,cy])=>dots.appendChild(_svgEl('circle',{cx,cy,r:1.3})));
-  g.appendChild(dots);
-  const t=_svgEl('text',{x:0,y:112,'text-anchor':'middle','font-family':'Tiro Devanagari Hindi','font-size':13,fill:'#e7b64b'});
-  t.textContent='गुरु द्रोण'; g.appendChild(t);
-  return g;
-}
-
-function _mapDefs(){
-  const defs=_svgEl('defs',{});
-  defs.innerHTML=
-    // deep indigo night → a whisper of warm horizon at the ground (matches the hero sky)
-    '<linearGradient id="skyF" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#080a18"/><stop offset=".34" stop-color="#0c1226"/><stop offset=".66" stop-color="#101528"/><stop offset="1" stop-color="#141326"/></linearGradient>'
-   +'<radialGradient id="horizF" cx="50%" cy="100%" r="90%"><stop offset="0" stop-color="#2a2340" stop-opacity=".5"/><stop offset=".55" stop-color="#1a1a34" stop-opacity=".18"/><stop offset="1" stop-color="#101528" stop-opacity="0"/></radialGradient>'
-   +'<radialGradient id="groundF" cx="50%" cy="18%" r="80%"><stop offset="0" stop-color="rgba(231,182,75,.14)"/><stop offset=".6" stop-color="rgba(87,160,97,.06)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>'
-    // the moon: a pale-gold disc with a soft haze
-   +'<radialGradient id="moonF" cx="42%" cy="40%" r="60%"><stop offset="0" stop-color="#fff6df"/><stop offset=".6" stop-color="#f7d98a"/><stop offset="1" stop-color="#caa24e"/></radialGradient>'
-   +'<radialGradient id="moonhaze" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f7d98a" stop-opacity=".5"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>'
-   +'<linearGradient id="rayfade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a8" stop-opacity=".5"/><stop offset="1" stop-color="#ffe9a8" stop-opacity="0"/></linearGradient>'
-   +'<radialGradient id="mistF" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#9fb8c8" stop-opacity=".16"/><stop offset="1" stop-color="#9fb8c8" stop-opacity="0"/></radialGradient>'
-    // tree-body gradients per state (lush → bare) + the beckon halo + the trail glow
-   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>'
-   +'<radialGradient id="canBloom" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#7fce7f"/><stop offset=".5" stop-color="#3f9a55"/><stop offset="1" stop-color="#276b3c"/></radialGradient>'
-   +'<radialGradient id="canActive" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#6fe3d0"/><stop offset=".5" stop-color="#2ea3a0"/><stop offset="1" stop-color="#1f6e60"/></radialGradient>'
-   +'<radialGradient id="canOpen" cx="42%" cy="34%" r="70%"><stop offset="0" stop-color="#6bbf72"/><stop offset=".55" stop-color="#2f8f47"/><stop offset="1" stop-color="#1e5c33"/></radialGradient>'
-   +'<linearGradient id="trunkF" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8a5730"/><stop offset=".5" stop-color="#6e421f"/><stop offset="1" stop-color="#4c2d15"/></linearGradient>'
-   +'<linearGradient id="trailglow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e7b64b"/><stop offset="1" stop-color="#57d3ce"/></linearGradient>';
-  return defs;
-}
-
-// Enchantment: a handful of drifting fireflies/motes, each on its own CSS-random drift.
-// Purely decorative (pointer-events:none) and skipped entirely under reduced-motion.
-function _fireflies(W,H,n){
-  const g=_svgEl('g',{'class':'motes','pointer-events':'none'});
-  if(_reduced()) return g;
-  for(let i=0;i<n;i++){
-    const x=Math.random()*W, y=Math.random()*H, r=0.8+Math.random()*1.8;
-    const dx=(Math.random()-0.5)*140, dy=-40-Math.random()*140;
-    const c=_svgEl('circle',{cx:x,cy:y,r:r,'class':'mote'});
-    c.style.setProperty('--dx',dx.toFixed(0)+'px');
-    c.style.setProperty('--dy',dy.toFixed(0)+'px');
-    c.style.animation='drift '+(7+Math.random()*8).toFixed(1)+'s ease-in-out '+(Math.random()*8).toFixed(1)+'s infinite';
-    g.appendChild(c);
-  }
-  return g;
-}
-
-// A layered silhouette treeline for a far/mid parallax ridge — soft rounded hills of
-// foliage, drawn as one filled path so it reads as receding depth, not individual nodes.
-// `y` is the ridge baseline, `amp` the hill height, `col` the fill (darker = further).
-function _treeline(W,y,amp,col,op,seed){
-  let d='M-40,'+(y+amp+60);
-  let x=-40, i=seed;
-  while(x<=W+40){
-    // two overlapping sine bands → gentle, irregular rolling canopy (no repeating spikes)
-    const h=amp*(0.42+((Math.sin(i*0.7)+Math.sin(i*1.9)+2)/4)*0.72);
-    const w=90+((Math.sin(i*0.5)+1)/2)*90;
-    d+=' Q'+(x+w*0.5).toFixed(0)+','+(y+amp-h).toFixed(0)+' '+(x+w).toFixed(0)+','+(y+amp-h*0.35).toFixed(0);
-    x+=w; i+=0.9;
-  }
-  d+=' L'+(W+40)+','+(y+amp+60)+' Z';
-  return _svgEl('path',{d:d,fill:col,opacity:op});
-}
-
-// A tiny SILHOUETTE tree for populating the scene between the interactive groves so the
-// wood feels lush and inhabited (not a few nodes on empty ground). Purely decorative.
-function _bgtree(x,y,s,col,op){
-  const g=_svgEl('g',{transform:'translate('+x+','+y+') scale('+s+')','pointer-events':'none'});
-  g.appendChild(_svgEl('path',{d:'M-1.5 20 L-1 0 L1 0 L1.5 20 Z',fill:col,opacity:op}));
-  g.appendChild(_svgEl('ellipse',{cx:0,cy:-6,rx:14,ry:16,fill:col,opacity:op}));
-  g.appendChild(_svgEl('ellipse',{cx:-8,cy:2,rx:9,ry:10,fill:col,opacity:op}));
-  g.appendChild(_svgEl('ellipse',{cx:8,cy:2,rx:9,ry:10,fill:col,opacity:op}));
-  return g;
-}
-
-// Paint the whole FOREST SCENE onto the canvas: night sky, moon + god-rays, receding
-// treeline ridges (far→mid parallax), drifting mist, a warm ground glow, and fireflies.
-// `land` is report.forest_map()'s landscape layout (sky/ground bands). The groves,
-// trails and birds are layered on top by the caller.
-function _paintScene(svg,W,H,land){
-  svg.textContent='';
-  svg.appendChild(_mapDefs());
-  const sky=(land&&land.sky)||150, ground=(land&&land.ground)||(H*0.62);
-  // 1) night sky + faint horizon warmth
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#skyF)'}));
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#horizF)'}));
-  // 2) the moon, top-right, with haze + a slow breath of god-rays fanning down
-  const mx=W-150, my=88;
-  svg.appendChild(_svgEl('circle',{cx:mx,cy:my,r:120,fill:'url(#moonhaze)','pointer-events':'none'}));
-  {
-    const rays=_svgEl('g',{'pointer-events':'none',opacity:.7});
-    for(let k=-2;k<=2;k++){
-      const spread=k*70, w=30;
-      const p=_svgEl('path',{d:'M'+(mx-w/2)+','+my+' L'+(mx+spread-120)+','+ground+' L'+(mx+spread+120)+','+ground+' L'+(mx+w/2)+','+my+' Z','class':'godray'});
-      p.style.animationDelay=(k*1.1)+'s'; rays.appendChild(p);
-    }
-    svg.appendChild(rays);
-  }
-  svg.appendChild(_svgEl('circle',{cx:mx,cy:my,r:34,fill:'url(#moonF)','pointer-events':'none'}));
-  svg.appendChild(_svgEl('circle',{cx:mx-11,cy:my-6,r:6,fill:'#e7cf94',opacity:.5,'pointer-events':'none'}));  // faint crater
-  // 3) far → mid treeline ridges: darker & higher behind, warmer & lower in front (parallax)
-  svg.appendChild(_treeline(W,sky+10,86,'#0b1120',.96,0.5));
-  svg.appendChild(_treeline(W,sky+64,112,'#0f1728',.96,4.1));
-  svg.appendChild(_treeline(W,sky+128,140,'#141f34',.94,7.7));
-  // 4) scattered BACKGROUND trees on the ridges → the wood feels populated, not empty.
-  //    Deterministic pseudo-random (seeded) so the fillers don't jump between renders.
-  let s=91;
-  const rnd=()=>{ s=(s*1103515245+12345)&0x7fffffff; return s/0x7fffffff; };
-  for(let i=0;i<34;i++){
-    const t=rnd(); const bx=40+rnd()*(W-80);
-    const by=sky+150+t*(ground-sky-160);
-    const sc=0.5+t*1.1, op=0.28+t*0.34;
-    const col=t<.5?'#16233a':'#1c3050';
-    svg.appendChild(_bgtree(bx,by,sc,col,op));
-  }
-  // 5) drifting mist over the mid-ground
-  const mist=_svgEl('g',{'class':_reduced()?'':'mistband','pointer-events':'none'});
-  for(let i=0;i<3;i++){
-    mist.appendChild(_svgEl('ellipse',{cx:W*(0.2+i*0.3),cy:ground-90+i*22,rx:320,ry:56,fill:'url(#mistF)'}));
-  }
-  svg.appendChild(mist);
-  // 6) a warm ground glow where the near groves sit
-  svg.appendChild(_svgEl('ellipse',{cx:W/2,cy:ground+30,rx:W*0.64,ry:200,fill:'url(#groundF)','pointer-events':'none'}));
-  // 7) FOREGROUND foliage silhouettes framing the lower edge (depth in front of the groves)
-  const fg=[[70,H-6,2.4],[W-90,H-2,2.7],[W*0.34,H+8,2.2],[W*0.66,H+4,2.5]];
-  fg.forEach(([x,y,sc])=>svg.appendChild(_bgtree(x,y,sc,'#0a1120',.9)));
-  // 8) fireflies over the whole scene
-  svg.appendChild(_fireflies(W,H,Math.min(38,Math.round(W*H/40000))));
-}
-
-function _legend(svg,W,H,items){
-  const g=_svgEl('g',{transform:'translate(24,'+(H-16)+')','font-family':'JetBrains Mono','font-size':10});
-  let x=0;
-  items.forEach(([col,lab])=>{
-    g.appendChild(_svgEl('circle',{cx:x+6,cy:-3,r:5,fill:col}));
-    const t=_svgEl('text',{x:x+16,y:1,fill:'#c3b291'});t.textContent=lab;g.appendChild(t);
-    x+=16+lab.length*7+30;
-  });
-  svg.appendChild(g);
-}
-
-// ---- pan + zoom over the SVG viewBox (works on desktop wheel/drag AND touch) ----
-let _vb={x:0,y:0,w:900,h:640};   // the current viewBox
-let _base={x:0,y:0,w:900,h:640}; // the fitted 100% viewBox (⟲ resets to this)
-function _setVb(){const s=document.getElementById('forestsvg');if(s)s.setAttribute('viewBox',_vb.x+' '+_vb.y+' '+_vb.w+' '+_vb.h);}
-function _fitVb(W,H){
+// ===== 3D forest lifecycle: mount the WebGL scene + drive it from /api/forest =====
+// The heavy lifting (geometry, lights, particles, camera, raycast) lives in
+// static/forest3d.js as window.Forest3D. Here we just fetch data, hand it over,
+// and keep the canvas visible only while the Forest tab is showing (rAF paused +
+// GL disposed otherwise, per the perf contract).
+function _forestMount(){
+  const cv=document.getElementById('forest3d');
   const frame=document.querySelector('.mapframe');
-  const fw=frame?frame.clientWidth:900, fh=frame?frame.clientHeight:640;
-  const ar=fw/Math.max(1,fh);
-  // Base = full-width fit (the whole DAG); tall graphs pan/scroll down from the top, and ⟲
-  // always reframes everything.
-  const w=W, h=W/ar;
-  _base={x:(W-w)/2,y:0,w:w,h:h};
-  _vb={..._base};
-  // Narrow screens: fitting the full width crams nodes tiny, so START zoomed in (readable)
-  // and let the learner pan / ⟲ to reveal the rest. _centerOn (called next) frames "you are here".
-  if(fw < 640){ const z=2.0; _vb={x:_base.x,y:_base.y,w:_base.w/z,h:_base.h/z}; }
-  _setVb();
+  if(!cv||!window.Forest3D) return false;
+  if(!Forest3D.mounted){ Forest3D.mount(cv,frame); }
+  return Forest3D.ok();
 }
-// Pan (without zooming) so a given DAG point sits in the centre of the view — used to
-// bring "you are here" into frame on load for tall graphs. Clamped to the base extent.
-function _centerOn(pt){
-  _vb.x=pt.x-_vb.w/2; _vb.y=pt.y-_vb.h/2;
-  _vb.y=Math.max(_base.y,Math.min(_base.y+_base.h-_vb.h,_vb.y));  // don't scroll past the ends
-  _setVb();
-}
-function forestZoom(m){                       // >1 zoom in, <1 zoom out — around the centre
-  const cx=_vb.x+_vb.w/2, cy=_vb.y+_vb.h/2;
-  let nw=_vb.w/m; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
-  const nh=nw*(_vb.h/_vb.w);
-  _vb={x:cx-nw/2,y:cy-nh/2,w:nw,h:nh}; _setVb();
-}
-function forestZoomReset(){ _vb={..._base}; _setVb(); }
-// wheel to zoom around the cursor; drag to pan; pinch to zoom (two-finger).
-function _svgPt(e){
-  const s=document.getElementById('forestsvg'), r=s.getBoundingClientRect();
-  return {x:_vb.x+(e.clientX-r.left)/r.width*_vb.w, y:_vb.y+(e.clientY-r.top)/r.height*_vb.h};
-}
-let _panStart=null, _pinch=null;
-function _wireForestGestures(){
-  const s=document.getElementById('forestsvg'); if(!s||s._wired) return; s._wired=true;
-  const frame=s.closest('.mapframe'); if(frame) frame.classList.add('forest');
-  s.addEventListener('wheel',(e)=>{
-    e.preventDefault();
-    const p=_svgPt(e), f=e.deltaY<0?1.12:1/1.12;
-    let nw=_vb.w/f; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
-    const nh=nw*(_vb.h/_vb.w);
-    _vb={x:p.x-(p.x-_vb.x)*(nw/_vb.w), y:p.y-(p.y-_vb.y)*(nh/_vb.h), w:nw, h:nh}; _setVb();
-  },{passive:false});
-  s.addEventListener('pointerdown',(e)=>{ if(e.button!==0&&e.pointerType==='mouse')return;
-    _panStart={x:e.clientX,y:e.clientY,vx:_vb.x,vy:_vb.y}; s.setPointerCapture(e.pointerId);
-    if(frame)frame.classList.add('dragging'); hideNodePop(); });
-  s.addEventListener('pointermove',(e)=>{ if(!_panStart)return;
-    const r=s.getBoundingClientRect();
-    _vb.x=_panStart.vx-(e.clientX-_panStart.x)/r.width*_vb.w;
-    _vb.y=_panStart.vy-(e.clientY-_panStart.y)/r.height*_vb.h; _setVb(); });
-  const end=()=>{ _panStart=null; if(frame)frame.classList.remove('dragging'); };
-  s.addEventListener('pointerup',end); s.addEventListener('pointercancel',end); s.addEventListener('pointerleave',end);
-  // pinch-zoom (touch): track two active touches and scale around their midpoint
-  s.addEventListener('touchmove',(e)=>{
-    if(e.touches.length!==2)return; e.preventDefault();
-    const [a,b]=e.touches, dist=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
-    const mid={clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2};
-    if(_pinch){ const p=_svgPt(mid), f=dist/_pinch;
-      let nw=_vb.w/f; nw=Math.max(_base.w*0.18,Math.min(_base.w*1.15,nw));
-      const nh=nw*(_vb.h/_vb.w);
-      _vb={x:p.x-(p.x-_vb.x)*(nw/_vb.w),y:p.y-(p.y-_vb.y)*(nh/_vb.h),w:nw,h:nh}; _setVb(); }
-    _pinch=dist;
-  },{passive:false});
-  s.addEventListener('touchend',()=>{_pinch=null;});
-  s.addEventListener('click',hideNodePop);   // click empty canvas → dismiss popover
-}
+// Pause/dispose when leaving the Forest view; resume when it returns. Called by showView.
+function forestSetVisible(on){ if(window.Forest3D&&Forest3D.mounted) Forest3D.setVisible(on); }
 
-// ===== landscape forest art: lush trees, ground trails, gliding birds =====
-
-// A soft clustered CANOPY: several overlapping leaf-blobs so a grove reads as a full
-// crown of foliage rather than a lollipop. Colours come from a per-status gradient.
-function _canopy(fill,r,cls){
-  const g=_svgEl('g',{'class':_reduced()?'':('canopy '+(cls||''))});
-  const blobs=[[0,-0.9,1.0],[-0.7,-0.2,0.72],[0.7,-0.2,0.72],[-0.35,-1.15,0.6],[0.4,-1.1,0.62],[0,-0.35,0.85]];
-  blobs.forEach(([dx,dy,s])=>g.appendChild(_svgEl('ellipse',{cx:(dx*r).toFixed(1),cy:(dy*r).toFixed(1),
-    rx:(r*s).toFixed(1),ry:(r*s*0.86).toFixed(1),fill:fill})));
-  return g;
-}
-
-// One GROVE as a lush stylised tree, scaled by its depth band (`scale`: near≈1.15, far≈0.7)
-// so the forest recedes. Status drives lushness: blossoming→golden bloom, active→teal-lit
-// heart, unlocked→green sapling-in-leaf, locked→bare dim. Interactive via opts.onClick.
-// Drop-in replacement for _groveNode's callers (same opts contract).
-function _groveTree(g,pt,scale,opts){
-  opts=opts||{};
-  scale=scale||1;
-  const st=g.status;
-  const label=opts.label!=null?opts.label:g.pillar;
-  const meta=opts.meta!=null?opts.meta:(st==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
-    :st==='active'?'○ ACTIVE · '+g.done+'/'+g.total
-    :st==='locked'?'— LOCKED':(g.done+'/'+g.total));
-  const cls=(opts.cls?opts.cls+' ':'');
-  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+') scale('+scale.toFixed(3)+')','class':'grove '+cls+st});
-  // ground shadow anchors the tree to the earth
-  grp.appendChild(_svgEl('ellipse',{cx:0,cy:38,rx:34,ry:9,fill:'#000',opacity:.28}));
-  // beckon halo behind active/available trees
-  if(st==='active'||st==='blossoming'||cls.indexOf('avail')>=0)
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-24,r:54,fill:'url(#glampM)',opacity:.32,'class':'halo'}));
-  if(st==='active')  // the "you are here" heart of the forest gets a dashed aura ring
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-24,r:60,fill:'none',stroke:'#57d3ce','stroke-width':1.6,'stroke-dasharray':'3 8',opacity:.7}));
-  if(st==='locked'){
-    grp.setAttribute('opacity',.55);
-    grp.appendChild(_svgEl('path',{d:'M0 36 C-3 12 -3 2 0 -12 M0 8 l-11 -9 M0 8 l11 -9 M0 -2 l-8 -8 M0 -2 l8 -8',
-      fill:'none',stroke:'#5a4a34','stroke-width':3,'stroke-linecap':'round'}));  // bare limbs
-  }else{
-    // curved painterly trunk
-    grp.appendChild(_svgEl('path',{d:'M-4 38 C-6 14 -5 0 -2 -14 L2 -14 C5 0 6 14 4 38 Z',fill:'url(#trunkF)'}));
-    const canFill=st==='blossoming'?'url(#canBloom)':st==='active'?'url(#canActive)':'url(#canOpen)';
-    grp.appendChild(_canopy(canFill,26,''));                              // main crown
-    grp.appendChild(_canopy(st==='active'?'#8ff0e0':'#8ed49a',12,'s2'));  // inner highlight tuft
-    if(st==='blossoming'){                                                // golden blossoms + fruit
-      [[-16,-30],[14,-32],[0,-46],[-22,-14],[20,-16],[6,-24]].forEach(([x,y],i)=>
-        grp.appendChild(_svgEl('circle',{cx:x,cy:y,r:i%2?2.4:3.2,fill:i%3?'#f7d98a':'#f3b3a0'})));
-      grp.appendChild(_svgEl('circle',{cx:-9,cy:-8,r:2.2,fill:'#d63b2a'}));
-      grp.appendChild(_svgEl('circle',{cx:11,cy:-6,r:2.2,fill:'#e7b64b'}));
-    }else if(st==='active'){
-      [[-14,-30],[12,-32],[0,-44]].forEach(([x,y])=>grp.appendChild(_svgEl('circle',{cx:x,cy:y,r:2.6,fill:'#bff6ec'})));
-    }
-  }
-  // labels — scale-compensated so distant trees still read (divide by scale so text stays legible)
-  const inv=(1/scale).toFixed(3);
-  const lc=(st==='blossoming')?'#f4e8cc':(st==='active')?'#dcefe6':(st==='locked')?'#a89670':'#eadfc4';
-  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='locked')?'#8f8064':'#7fc98a';
-  const tg=_svgEl('g',{transform:'translate(0,'+(st==='locked'?54:60)+') scale('+inv+')'});
-  const t1=_svgEl('text',{x:0,y:0,'text-anchor':'middle','font-family':'Marcellus','font-size':opts.fs||14,fill:lc});
-  t1.textContent=_short(label,opts.labN||20); tg.appendChild(t1);
-  const t2=_svgEl('text',{x:0,y:16,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc,'letter-spacing':'.04em'});
-  t2.textContent=meta; tg.appendChild(t2);
-  grp.appendChild(tg);
-  const tt=_svgEl('title'); tt.textContent=(opts.title||g.pillar); grp.appendChild(tt);
-  if(opts.onClick){ grp.style.cursor='pointer'; grp.addEventListener('click',(e)=>{e.stopPropagation();opts.onClick(e);}); }
-  grp.dataset.node=(opts.key!=null?opts.key:label);   // so hover can light this tree's trails
-  return grp;
-}
-
-// A gentle GROUND TRAIL between two groves (prereq → dependent): a low, sagging arc that
-// hugs the earth rather than a straight edge. `lit` when the prereq is mastered.
-function _trailPath(a,b){
-  const mx=(a.x+b.x)/2, my=Math.max(a.y,b.y)+Math.min(70,Math.abs(b.x-a.x)*0.18+22);
-  return 'M'+a.x+','+(a.y+30)+' Q'+mx.toFixed(1)+','+my.toFixed(1)+' '+b.x+','+(b.y+30);
-}
-
-// A little BIRD that glides along a trail from the mastered grove toward the grove it
-// unlocks — the prerequisite shown as life, not wiring. Placed at the start point; a CSS
-// flight (--fx/--fy) carries it to the destination, wings flapping, fading in/out so it's
-// only ever seen mid-glide. Skipped entirely under reduced motion.
-function _bird(a,b,i){
-  if(_reduced()) return null;
-  const g=_svgEl('g',{transform:'translate('+a.x+','+(a.y-14)+')','class':'bird flying','pointer-events':'none'});
-  g.style.setProperty('--fx',(b.x-a.x).toFixed(0)+'px');
-  g.style.setProperty('--fy',((b.y-14)-(a.y-14)).toFixed(0)+'px');
-  g.style.setProperty('--dur',(8.5+i*1.7)+'s');
-  g.style.setProperty('--delay',(i*2.3)+'s');
-  // a simple gull silhouette: two flapping wings
-  g.appendChild(_svgEl('path',{d:'M0 0 Q-6 -5 -12 -1','class':'wing'}));
-  g.appendChild(_svgEl('path',{d:'M0 0 Q6 -5 12 -1','class':'wing'}));
-  return g;
-}
 
 // ===== the node click-to-act popover =====
 function hideNodePop(){const p=document.getElementById('nodepop');if(p)p.hidden=true;}
@@ -2280,75 +1950,37 @@ function _openConceptPop(cc,statusOf,evt){
   _showNodePop(html,evt);
 }
 
-// Depth band → tree scale: far bands smaller (recede), near bands larger (foreground).
-function _bandScale(band,bands){ if(!bands||bands<2) return 1.02;
-  return 0.72 + (band/(bands-1))*0.5; }   // 0.72 (far) … 1.22 (near)
+// ===== drive the 3D forest from /api/forest =====
+// showForest / showGrove fetch the data-driven map and hand it to window.Forest3D,
+// which builds the WebGL scene. The tabs, sub-line and quest banner mirror the
+// current view; the popover + Dive-in/Revise wiring is unchanged (shared helpers).
 
-// Wire hover/select highlighting: hovering a grove HOTs the trails that touch it, so the
-// prerequisite structure surfaces on demand without cluttering the resting scene. Each
-// trail path carries data-a/data-b (the two grove keys it links).
-function _wireTrailHover(svg){
-  const trails=svg.querySelectorAll('.trail.dim,.trail.lit');
-  function hot(key,on){ trails.forEach(t=>{ if(t.dataset.a===key||t.dataset.b===key) t.classList.toggle('hot',on); }); }
-  svg.querySelectorAll('.grove[data-node]').forEach(gr=>{
-    const k=gr.dataset.node;
-    gr.addEventListener('pointerenter',()=>hot(k,true));
-    gr.addEventListener('pointerleave',()=>hot(k,false));
-  });
-}
-
-// The forest OVERVIEW as a landscape: groves as lush trees laid across a woodland, with
-// prerequisites shown gently — faint ground trails (bright on hover) and birds gliding
-// from a mastered grove toward the one it unlocks.
 async function showForest(){
-  const svg=document.getElementById('forestsvg');
   _forestView='overview';
   document.getElementById('tabForest').classList.add('on');
   document.getElementById('tabTrack').classList.remove('on');
+  const mb=document.getElementById('mapback'); if(mb) mb.hidden=true;
   document.getElementById('mapquest').hidden=true; hideNodePop();
+  if(!_forestMount()){ return; }               // WebGL fallback handled inside mount()
+  Forest3D.setVisible(true);
   try{
     const c=await (await fetch('/api/forest')).json();
     _forestData=c;
-    if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
+    if(c.empty){ _forestEmpty(); document.getElementById('tabTrack').disabled=true; return; }
     _curFocus=c.active;
     document.getElementById('tabTrack').disabled=!_curFocus;
     const nMast=c.groves.filter(g=>g.status==='blossoming').length;
     document.getElementById('treesub').textContent=
       c.groves.length+' groves · '+nMast+' mastered · wander the wood, tap a grove to enter';
-    const land=c.land, pos=land.pos, W=land.viewbox[2], H=land.viewbox[3];
-    _paintScene(svg,W,H,land);
-    const gByName={}; c.groves.forEach(g=>gByName[g.pillar]=g);
-    // 1) ground TRAILS behind the trees — dim by default, lit when the prereq is mastered
-    let birdN=0;
-    (c.edges||[]).forEach(e=>{
-      const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
-      const lit=gByName[e.src] && gByName[e.src].status==='blossoming';
-      const tp=_trailPath(a,b);
-      const tr=_svgEl('path',{d:tp,'class':'trail '+(lit?'lit':'dim')});
-      tr.dataset.a=e.src; tr.dataset.b=e.dst; svg.appendChild(tr);
-      if(lit){ svg.appendChild(_svgEl('path',{d:tp,'class':'trail flow'}));
-        // birds glide only along satisfied links (mastered → unlocked); cap the flock.
-        if(birdN<7){ const bd=_bird(a,b,birdN); if(bd){ svg.appendChild(bd); birdN++; } }
-      }
-    });
-    // 2) the groves as lush trees — nearest bands drawn last so they overlap correctly (paint back→front)
-    const order=c.groves.slice().sort((x,y)=>(pos[x.pillar]?pos[x.pillar].y:0)-(pos[y.pillar]?pos[y.pillar].y:0));
-    order.forEach(g=>{ const p=pos[g.pillar]; if(!p) return;
-      const sc=_bandScale(land.band[g.pillar]||0, land.bands);
-      svg.appendChild(_groveTree(g,p,sc,{key:g.pillar,title:g.pillar+' — '+g.done+'/'+g.total+' concepts',
-        onClick:(e)=>_openGrovePop(g,e)}));
-    });
-    // 3) "you are here" beacon on the active grove
-    if(pos[c.active]) svg.appendChild(_youHere(pos[c.active]));
-    _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
-    _wireTrailHover(svg);
-    _fitVb(W,H); if(pos[c.active]) _centerOn(pos[c.active]); _wireForestGestures();
-    _questBanner(c.active?('Current grove'):'Your forest',
-      c.active||'—', c.active?('Tap it to explore its concepts, or dive straight in.'):'Tap any grove to explore.');
-  }catch(e){ _emptyMap(svg,'could not load the forest map.'); }
+    // tag the active grove so the 3D scene can place the "YOU ARE HERE" ring + rest the camera
+    c.groves.forEach(g=>{ g._active = (g.pillar===c.active); });
+    Forest3D.renderOverview(c);
+    _questBanner(c.active?'Current grove':'Your forest',
+      c.active||'—', c.active?'Tap it to explore its concepts, or dive straight in.':'Tap any grove to explore.');
+  }catch(e){ _forestEmpty('could not load the forest map.'); }
 }
 
-// Overview grove popover: summary + "enter grove" (drill-in).
+// Overview grove popover: summary + "enter grove" (drill-in). Unchanged behaviour.
 function _openGrovePop(g,evt){
   const act='<button class="npact" onclick="showGrove('+JSON.stringify(g.pillar).replace(/"/g,'&quot;')+');hideNodePop()">▶ Enter grove</button>';
   const st=g.status==='blossoming'?'done':g.status==='locked'?'lock':'avail';
@@ -2358,84 +1990,35 @@ function _openGrovePop(g,evt){
     '<div class="npsec"><div class="lbl">'+(g.status==='blossoming'?'A blossoming grove':g.status==='active'?'Your current focus':g.status==='locked'?'Locked — grow its roots first':'Open to explore')+'</div></div>'+act;
   _showNodePop(html,evt);
 }
+window._openGrovePop=_openGrovePop; window._openConceptPop=_openConceptPop;
 
-// Drill-in: one grove's concepts as its own little SUB-FOREST — the same landscape,
-// scaled down. Each concept is a tree; prerequisites are gentle ground trails (lit when
-// satisfied) with birds gliding along them; external prereqs sit as pale groves at the back.
+// Drill-in: one grove's concepts as its own little SUB-FOREST in 3D. Each concept is a
+// tree along a short sub-path; clicking one opens the concept popover (Dive-in/Revise).
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
-  const svg=document.getElementById('forestsvg');
   _forestView=pillar;
   document.getElementById('tabForest').classList.remove('on');
   document.getElementById('tabTrack').classList.add('on');
   document.getElementById('tabTrack').disabled=false;
+  const mb=document.getElementById('mapback'); if(mb) mb.hidden=false;
   hideNodePop();
+  if(!_forestMount()){ return; }
+  Forest3D.setVisible(true);
   try{
     const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
     _forestData=c;
-    if(c.empty){ _emptyMap(svg); return; }
-    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
-    const land=c.land, pos={...land.pos}, W=land.viewbox[2]; let H=land.viewbox[3];
-    // place external context nodes up in the FAR band, above their first dependent.
-    const ctxNames=(c.context||[]).map(cx=>cx.name);
-    (c.edges||[]).forEach(e=>{ if(e.external && !pos[e.src] && pos[e.dst]){
-      pos[e.src]={x:pos[e.dst].x+((ctxNames.indexOf(e.src)%2)?90:-90), y:Math.max(60,(land.sky||120))}; }});
-    Object.values(pos).forEach(p=>{ H=Math.max(H,p.y+90); });
-    _paintScene(svg,W,H,land);
-    const stMap={}; c.concepts.forEach(cc=>stMap[cc.name]=cc.status); (c.context||[]).forEach(cx=>stMap[cx.name]=cx.status);
-    const statusOf=(n)=>stMap[n]||'lock';
-    // concept→prereq TRAILS (lit when the prereq is mastered); birds along satisfied links
-    let birdN=0;
-    (c.edges||[]).forEach(e=>{ const a=pos[e.src], b=pos[e.dst]; if(!a||!b) return;
-      const lit=statusOf(e.src)==='done';
-      const tp=_trailPath(a,b);
-      const tr=_svgEl('path',{d:tp,'class':'trail '+(lit?'lit':'dim')+(e.external?' ext':'')});
-      tr.dataset.a=e.src; tr.dataset.b=e.dst; svg.appendChild(tr);
-      if(lit&&!e.external){ svg.appendChild(_svgEl('path',{d:tp,'class':'trail flow'}));
-        if(birdN<6){ const bd=_bird(a,b,birdN); if(bd){ svg.appendChild(bd); birdN++; } } }
-    });
-    // external context groves (pale, non-interactive, labelled with their home pillar)
-    const S={done:'blossoming',avail:'active',lock:'locked'};
-    (c.context||[]).forEach(cx=>{ const p=pos[cx.name]; if(!p) return;
-      const g={pillar:cx.name,status:cx.status==='done'?'blossoming':'locked',done:0,total:1};
-      const n=_groveTree(g,p,0.7,{key:cx.name,label:cx.name,fs:12,labN:22,meta:'↑ '+_short(cx.pillar,16),
-        title:cx.name+' — prerequisite from '+cx.pillar});
-      n.setAttribute('opacity',.6); svg.appendChild(n);
-    });
-    // this grove's concepts as trees (interactive: click → detail popover), painted back→front
-    let active=null;
-    const order=c.concepts.slice().sort((x,y)=>(pos[x.name]?pos[x.name].y:0)-(pos[y.name]?pos[y.name].y:0));
-    order.forEach(cc=>{ const p=pos[cc.name]; if(!p) return;
-      const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
-      const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
-      const cls=cc.status==='avail'?'avail':'';
-      const sc=_bandScale(land.band[cc.name]||0, land.bands);
-      svg.appendChild(_groveTree(g,p,sc,{key:cc.name,label:cc.name,meta:meta,fs:13,labN:24,cls:cls,
-        title:cc.name, onClick:(e)=>_openConceptPop(cc,statusOf,e)}));
-      if(!active && cc.status==='avail') active=p;   // first available = "you are here" in the grove
-    });
-    if(active) svg.appendChild(_youHere(active));
-    _legend(svg,W,H,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked'],['#a89670','from another grove']]);
-    _wireTrailHover(svg);
-    _fitVb(W,H); if(active) _centerOn(active); _wireForestGestures();
+    if(c.empty){ _forestEmpty(); return; }
+    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← back to the forest';
+    Forest3D.renderGrove(c, pillar);
     _questBanner('Inside '+_short(pillar,22), c.grove.done+' / '+c.grove.total+' mastered',
-      'Trails run prerequisite → dependent. Tap a leafed tree to dive in.');
-  }catch(e){ _emptyMap(svg,'could not load this grove.'); }
+      'A path through this grove\'s concepts. Tap a leafed tree to dive in.');
+  }catch(e){ _forestEmpty('could not load this grove.'); }
 }
 
-// "You are here" beacon — an expanding ring + a fixed marker over the active node.
-function _youHere(p){
-  const g=_svgEl('g',{transform:'translate('+p.x+','+(p.y-4)+')','class':'youhere'});
-  g.appendChild(_svgEl('circle',{r:56,'class':'ring'}));
-  const pin=_svgEl('g',{transform:'translate(0,-58)'});
-  pin.appendChild(_svgEl('path',{d:'M0 12 L-7 0 A7 7 0 1 1 7 0 Z',fill:'#7ff2ea'}));
-  pin.appendChild(_svgEl('circle',{cx:0,cy:-6,r:3,fill:'#04201e'}));
-  g.appendChild(pin);
-  const t=_svgEl('text',{x:0,y:-70,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9,fill:'#7ff2ea','letter-spacing':'.1em'});
-  t.textContent='YOU ARE HERE'; g.appendChild(t);
-  return g;
-}
+// The ← HUD button: from a drilled-in grove back to the whole forest.
+function forestBack(){ showForest(); }
+window.forestBack=forestBack;
 
 // A small "where you are" banner over the canvas (top-left).
 function _questBanner(head,title,desc){
@@ -2444,15 +2027,16 @@ function _questBanner(head,title,desc){
   q.hidden=false;
 }
 
-function _emptyMap(svg,msg){
-  const W=900,H=560; _base={x:0,y:0,w:W,h:H}; _vb={..._base};
-  svg.setAttribute('viewBox','0 0 '+W+' '+H); svg.textContent='';
-  svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#skyF)'}));
-  const t=_svgEl('text',{x:W/2,y:H/2,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
-  t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
-  svg.appendChild(t);
+// HUD zoom buttons → the 3D camera (constrained dolly toward/away from the target).
+function forestZoom(m){ if(window.Forest3D) Forest3D.zoom(m); }
+function forestZoomReset(){ if(window.Forest3D) Forest3D.zoomReset(); }
+window.forestZoom=forestZoom; window.forestZoomReset=forestZoomReset;
+
+// Empty / error state — a quiet message in the frame (no scene to build).
+function _forestEmpty(msg){
   document.getElementById('mapquest').hidden=true;
+  _questBanner('The forest', 'Not planted yet',
+    msg||'Finish onboarding and Ekalavya will plant your groves.');
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
@@ -2996,7 +2580,7 @@ function closeModes(){ document.getElementById('modes').classList.remove('on'); 
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
-// (forest pan/zoom now rides the SVG viewBox — see forestZoom/_wireForestGestures above.)
+// (forest pan/zoom/orbit is handled by the 3D scene — see forestZoom/Forest3D above.)
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
