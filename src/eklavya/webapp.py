@@ -3178,55 +3178,56 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — the archer who taught himself</title>
 """ + _HEAD + r"""
 <style>body{padding:0;min-height:100vh}
-/* fixed animated Option E scene behind the whole landing — the brand entry matches the auth hero */
-.scene-fixed{position:fixed;inset:0;z-index:0;overflow:hidden}
-.scene-fixed svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.scene-scrim{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(10,13,28,.5) 0%,rgba(10,13,28,.4) 40%,rgba(10,13,28,.74) 100%)}
-/* landing content floats above the scene; drop its own opaque ground so the scene shows through */
-.landing{min-height:100vh;position:relative;z-index:1;background:none!important}
+/* the landing sits ON the hero itself — the animated Option E scene fills the hero band,
+   the copy is pinned to the bottom, exactly as in docs/design/E_merged/index.html. The
+   shared .landing indigo ground carries the section below the hero (feature cards). */
+/* a fixed brand bar floats over the top of the full-bleed hero (Option E has no nav; we add a
+   thin one for auth entry, kept transparent so it never competes with the giant wordmark) */
+.land-nav{position:absolute;top:0;left:0;right:0;z-index:5;border-bottom:0;background:transparent;padding:20px clamp(26px,6vw,90px)}
 </style></head><body>
-<div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
-<div class="scene-scrim"></div>
 <div class="landing">
   <div class="land-nav">
     <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
-    <div class="links"><span>The Method</span><span>Skill Forest</span><span>Manifesto</span></div>
+    <div class="links"><a href="#method" style="color:inherit;text-decoration:none">The Method</a><a href="#method" style="color:inherit;text-decoration:none">Skill Forest</a><a href="#method" style="color:inherit;text-decoration:none">Manifesto</a></div>
     <span style="flex:1"></span>
     <a class="btn btn-ghost" style="padding:9px 18px" href="/login">Log in</a>
     <a class="btn btn-stone" style="padding:9px 20px" href="/signup">Begin your svādhyāya</a>
   </div>
-  <div class="land-hero">
-    <div>
-      <div class="hero-tag" style="margin-bottom:16px">एकलव्य · the archer who taught himself</div>
-      <h1 class="land-h1">The hall was closed to him.<br><span class="em">So he taught himself to outshoot the princes.</span></h1>
-      <p class="land-lead">An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b> It grades what you can do <i>unaided</i> — no hints you didn't earn, no pasted answers, just the string drawn until the arrow flies true.</p>
-      <div class="btn-row">
-        <a class="btn btn-gold" href="/">Enter the forest — free</a>
-        <a class="btn btn-stone" href="/welcome#method">See the method</a>
-      </div>
-      <div class="land-proof">
-        <div class="pp"><div class="v">197</div><div class="k">skill nodes</div></div>
-        <div class="pp"><div class="v">unaided</div><div class="k">honest grading</div></div>
-        <div class="pp"><div class="v">17</div><div class="k">learning groves</div></div>
+
+  <!-- ============================================================
+       HERO — FULL-BLEED · DYNAMIC (Option E, ported verbatim)
+       docs/design/E_merged/index.html · <header class="hero"> …
+       ============================================================ -->
+  <header class="hero">
+    <!-- rotating yantra behind (from Option E) -->
+    <svg class="hero-yantra" viewBox="0 0 400 400" aria-hidden="true">
+      <g class="spin" fill="none" stroke="#e7b64b" stroke-width="1">
+        <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="70"/>
+      </g>
+    </svg>
+
+    <!-- the full-bleed cinematic scene: lone Bhil archer + clay Droṇa + spinning sun + flying
+         arrow + target. Top-anchored (xMidYMin slice) so more of the scene reads, like Option E. -->
+    <div class="hero-scene">""" + _hero_scene("xMidYMin slice") + r"""</div>
+
+    <!-- feathers the scene into the copy ground (Option E's hero-scrim) -->
+    <div class="hero-scrim"></div>
+
+    <div class="hero-copy">
+      <div class="hero-tag">The Merge — Cinematic Forest</div>
+      <h1 class="eka">EKALAVYA</h1>
+      <div class="eka-deva">एकलव्य · स्वाध्याय</div>
+      <p class="hero-sub">The <b>hall was closed</b> to him — so he walked into the forest, raised a statue of the guru who refused him, and taught himself to outshoot the princes. An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b></p>
+      <div class="hero-meta">
+        <span>Guru: <b>the statue</b></span>
+        <span>Arena: <b>the forest</b></span>
+        <span>Path: <b>svādhyāya</b> · self-study</span>
+        <span>Dakshinā: <b>the thumb</b></span>
       </div>
     </div>
-    <div class="land-art">
-      <svg viewBox="0 0 460 340" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block" aria-label="A lone archer before a stone idol under a spinning sun.">
-        <defs><linearGradient id="lskyA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101528"/><stop offset="1" stop-color="#0a0d1c"/></linearGradient>
-          <radialGradient id="lsunA" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c8"/><stop offset=".6" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></radialGradient>
-          <radialGradient id="groundglow" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="rgba(231,182,75,.28)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>
-          <linearGradient id="goldStroke" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".5" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient></defs>
-        <rect width="460" height="340" fill="url(#lskyA)"/>
-        <circle cx="380" cy="72" r="40" fill="url(#lsunA)"/>
-        <g stroke="#f7d98a" stroke-width="1.6" opacity=".7"><path d="M380 18 v14 M380 112 v14 M326 72 h14 M420 72 h14 M342 34 l10 10 M408 100 l10 10 M418 34 l-10 10 M352 100 l-10 10"/></g>
-        <ellipse cx="230" cy="272" rx="230" ry="42" fill="url(#groundglow)" opacity=".8"/>
-        <g transform="translate(96,150)"><rect x="-22" y="76" width="44" height="14" rx="2" fill="#4a3f36"/><path d="M0,4 C-13,4 -18,20 -16,38 L-14,74 L14,74 L16,38 C18,20 13,4 0,4Z" fill="#7e6a5a"/><circle cx="0" cy="-8" r="12" fill="#9a8574"/></g>
-        <g transform="translate(210,170)"><path d="M-1,0 C-11,0 -13,12 -11,24 L-9,58 L13,58 L13,24 C14,12 9,0 -1,0Z" fill="#2f6b3c"/><path d="M-7,-9 C-8,-16 -3,-19 3,-19 C9,-19 11,-14 11,-9 C11,-4 7,0 1,0 C-4,0 -7,-4 -7,-9Z" fill="#b9764a"/><circle cx="6" cy="-10" r="1.3" fill="#241a0e"/><path d="M-4,-17 C-11,-22 -16,-25 -20,-28" stroke="#d63b2a" stroke-width="2.4" stroke-linecap="round"/><path d="M40,-28 C66,-5 66,33 40,50" fill="none" stroke="url(#goldStroke)" stroke-width="3"/><line x1="40" y1="-28" x2="40" y2="50" stroke="#f2e7cc" stroke-width="1"/><path d="M2,14 C22,10 34,10 40,12" stroke="#2f6b3c" stroke-width="5.5" stroke-linecap="round"/></g>
-        <g transform="translate(410,190)"><line x1="0" y1="10" x2="0" y2="90" stroke="#b8862f" stroke-width="2.4"/><circle r="24" fill="#151b0f" stroke="#e7b64b" stroke-width="1.6"/><circle r="16" fill="none" stroke="#f2e7cc" stroke-width="1.4"/><circle r="7" fill="#d63b2a"/><g><line x1="-52" y1="0" x2="-2" y2="0" stroke="#e8dcc0" stroke-width="1.8"/><path d="M2 0 l-8 -4 l2 4 l-2 4z" fill="#f7d98a"/><path d="M-52 0 l-7 -4 l3 4 l-3 4z" fill="#57d3ce"/></g></g>
-      </svg>
-    </div>
-  </div>
+    <!-- the CTA: "enter the forest" leads into the app (multi-user → /login) -->
+    <a class="scrollcue" href="/" style="text-decoration:none">↓ enter the forest</a>
+  </header>
   <div class="land-feats" id="method">
     <div class="frame feat big"><div class="corner-tr"></div><div class="corner-bl"></div>
       <div class="fi"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#f7d98a" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="#f7d98a" stroke-width="1.6"/><path d="M20 12 l-5 -3 M20 12 l-5 3" stroke="#f7d98a" stroke-width="1.6"/></svg></div>
