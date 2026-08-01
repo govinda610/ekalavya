@@ -146,6 +146,37 @@ def _parse_prereqs_factory(concepts: list[str]):
     return parse
 
 
+def _toposort_concepts(concepts: list[str], prereqs: dict[str, list[str]]) -> list[str]:
+    """Order concepts so every prerequisite comes BEFORE what depends on it (Kahn's
+    algorithm). Stable in the original order among independents; if the curriculum has a
+    prereq cycle, its leftovers keep the original order at the end. Only prereqs that are
+    known concept names constrain the order. This is what makes the forest read in true
+    learning order (foundations → advanced) instead of raw insertion order."""
+    from collections import deque
+
+    known = set(concepts)
+    indeg = {c: 0 for c in concepts}
+    dependents: dict[str, list[str]] = {c: [] for c in concepts}
+    for c in concepts:
+        for p in prereqs.get(c, ()):  # p must be learned before c
+            if p in known:
+                dependents[p].append(c)
+                indeg[c] += 1
+    ready = deque(c for c in concepts if indeg[c] == 0)  # seed in original order → stable
+    order: list[str] = []
+    while ready:
+        c = ready.popleft()
+        order.append(c)
+        for d in dependents[c]:
+            indeg[d] -= 1
+            if indeg[d] == 0:
+                ready.append(d)
+    if len(order) < len(concepts):  # a cycle left some out — append them as-is
+        seen = set(order)
+        order += [c for c in concepts if c not in seen]
+    return order
+
+
 def forest_map(pillar: str | None = None) -> dict:
     """The curriculum as a DATA-DRIVEN forest map, derived live from the db.
 
@@ -204,8 +235,9 @@ def forest_map(pillar: str | None = None) -> dict:
         return "avail" if all(_norm_concept(p) in mastered for p in prereqs[c]) else "lock"
 
     concept_status = {c: status(c) for c in concepts}
+    ordered = _toposort_concepts(concepts, prereqs)  # prereqs before dependents → true order
     concepts_by_pillar: dict[str, list[str]] = {p: [] for p in pillars}
-    for c in concepts:
+    for c in ordered:
         concepts_by_pillar[pillar_of[c]].append(c)
 
     def grove_status(p: str) -> str:
