@@ -466,6 +466,23 @@ def create_app():
         reply = await run_in_threadpool(respond, thread, prompt)
         return {"reply": reply}
 
+    @app.post("/api/feedback")
+    async def feedback_submit(request: Request):
+        """Record one learner-feedback tap (rating and/or text). Writes to the current
+        user's own db via the contextvar, so there is no cross-user risk."""
+        from . import feedback
+
+        body = await request.json()
+        feedback.record(
+            kind=body.get("kind") or "freeform",
+            rating=body.get("rating"),
+            text=body.get("text"),
+            concept=body.get("concept"),
+            mode=body.get("mode"),
+            thread=body.get("thread"),
+        )
+        return {"ok": True}
+
     @app.get("/api/stats")
     def stats() -> dict:
         return progress.stats()
@@ -1037,6 +1054,13 @@ body.reduce-motion *{animation:none !important}
 .trace .tbody{padding:8px 13px;display:flex;flex-direction:column;gap:4px}
 .tline{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tline.call{color:var(--gold-bright)} .tline.res{color:var(--peacock-bright)}
+/* 1-tap learner feedback ("did that land?") — unobtrusive, after the guru's reply */
+.fbrow{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-family:var(--f-mono);font-size:11px;color:var(--parch-mute)}
+.fbrow .fblbl{letter-spacing:.04em}
+.fbrow button{cursor:pointer;background:rgba(6,9,20,.5);border:1px solid var(--line-soft);border-radius:7px;
+ padding:2px 8px;font-size:13px;line-height:1;color:var(--parch-dim);transition:border-color .12s,transform .08s}
+.fbrow button:hover{border-color:var(--gold);transform:translateY(-1px)}
+.fbrow.done{color:var(--forest-lit)}
 /* bash approval card */
 .approve{margin:2px 0 8px;border:1px solid var(--gold);border-radius:11px;background:linear-gradient(160deg,rgba(35,29,24,.9),rgba(20,15,8,.92));padding:14px 16px;box-shadow:0 10px 30px -12px rgba(231,182,75,.4)}
 .approve .ah{font-family:var(--f-title);letter-spacing:.02em;color:var(--gold-bright);font-size:13px;margin-bottom:8px}
@@ -1915,7 +1939,25 @@ function finalizeMsg(ui){
   try{ mermaid.run({nodes:ui.reply.querySelectorAll('.mermaid')}); }catch(e){}
   if(ui.steps>0){ ui.sum.textContent=ui.steps+' step'+(ui.steps>1?'s':'')+' · tap to view'; }
   else { ui.trace.style.display='none'; }
+  attachFeedback(ui);
   scroll();
+}
+function attachFeedback(ui){
+  if(ui.m.querySelector('.fbrow')) return;                 // one prompt per reply
+  const row=el('fbrow');
+  row.innerHTML='<span class="fblbl">Did that land?</span>'+
+    '<button data-r="5" title="yes, helpful" aria-label="helpful">\uD83D\uDC4D</button>'+
+    '<button data-r="1" title="not really" aria-label="not helpful">\uD83D\uDC4E</button>';
+  row.querySelectorAll('button').forEach(b=>{
+    b.onclick=()=>{
+      fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({kind:'drill',rating:+b.dataset.r,mode,thread})});
+      row.innerHTML='<span class="fblbl">thanks \u2726</span>'; row.classList.add('done');
+      setTimeout(()=>{ row.style.transition='opacity .5s'; row.style.opacity='0';
+        setTimeout(()=>row.remove(), 520); }, 900);
+    };
+  });
+  ui.m.appendChild(row); scroll();
 }
 function askApproval(ui, req){
   return new Promise(resolve=>{

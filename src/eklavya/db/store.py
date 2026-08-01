@@ -101,6 +101,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_assessment_responses_a ON assessment_responses(assessment_id)")
+    # Learner feedback capture (docs/EFFECTIVENESS_MEASUREMENT.md §7). Additive: create
+    # the table on databases made by a version that predates feedback. `init_db` also runs
+    # the CREATE from schema.sql, so this is a belt-and-braces guard that keeps _migrate
+    # self-contained (create-table only; no cross-module import here).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS feedback ("
+        "id INTEGER PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'freeform', rating INTEGER, "
+        "text TEXT, concept TEXT, mode TEXT, thread TEXT, "
+        "created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
     from .. import benchmark
     benchmark.seed_items(conn)
 

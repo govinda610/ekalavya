@@ -264,6 +264,21 @@ CREATE TABLE IF NOT EXISTS assessment_responses (
 );
 CREATE INDEX IF NOT EXISTS idx_assessment_responses_a ON assessment_responses(assessment_id);
 
+-- Learner feedback (docs/EFFECTIVENESS_MEASUREMENT.md §7): a 1-tap post-drill
+-- rating (1..5) and/or free text, tied to the concept/mode so it's attributable —
+-- not a global mood. Doubles as future fine-tuning / training data. kind is one of
+-- drill | session | freeform; rating/text/concept/mode/thread are all optional.
+CREATE TABLE IF NOT EXISTS feedback (
+    id          INTEGER PRIMARY KEY,
+    kind        TEXT NOT NULL DEFAULT 'freeform',   -- drill | session | freeform
+    rating      INTEGER,            -- 1..5, nullable (a text-only note is valid)
+    text        TEXT,
+    concept     TEXT,
+    mode        TEXT,
+    thread      TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Single-row key/value for app metadata (schema version, streak counters, ...).
 CREATE TABLE IF NOT EXISTS meta (
     key   TEXT PRIMARY KEY,
