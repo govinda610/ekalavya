@@ -28,12 +28,21 @@ CREATE TABLE IF NOT EXISTS axes (
 );
 
 -- Topic pillars (default + agent-created custom ones from onboarding/repo study).
+-- `seq` is the tutor's intended tackle-order HINT (foundational first); it's a
+-- deterministic tie-break, NOT a forced total order — the real journey order is a
+-- topological sort of the pillar dependency DAG (see `prereq_pillars`). `prereq_pillars`
+-- is a PIPE-delimited (|) list of EXACT pillar names that must be tackled before this one;
+-- empty means the pillar is independent and can be pursued in parallel (incl. across
+-- subjects). Both are additive + backfilled on existing databases (seq from the legacy
+-- structural order, prereq_pillars to '' so nothing is falsely blocked).
 CREATE TABLE IF NOT EXISTS pillars (
-    id          INTEGER PRIMARY KEY,
-    name        TEXT NOT NULL UNIQUE,
-    is_custom   INTEGER NOT NULL DEFAULT 0,
-    subject     TEXT NOT NULL DEFAULT 'coding',  -- which subject this pillar belongs to
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    id             INTEGER PRIMARY KEY,
+    name           TEXT NOT NULL UNIQUE,
+    is_custom      INTEGER NOT NULL DEFAULT 0,
+    subject        TEXT NOT NULL DEFAULT 'coding',  -- which subject this pillar belongs to
+    seq            INTEGER,                          -- tutor's tackle-order hint (tie-break only)
+    prereq_pillars TEXT NOT NULL DEFAULT '',         -- '|'-list of pillar names that block this one
+    created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Elo-style rating per (subject, pillar, axis) cell — the mastery grid.

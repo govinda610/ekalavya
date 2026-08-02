@@ -166,7 +166,10 @@ profile and database live there.
 - PROFILE — `/workspace/profile.md`: read with `read_file`, update with `write_file` /
   `edit_file`. It holds background, mastery map, learning style, and goals.
 - SAVE STATE — `save_baseline(pillars=[...], ratings=[...], goals=[...], curriculum=[...])`:
-  one call upserts any subset. ratings items are {"pillar","axis","level"} (axis:
+  one call upserts any subset. pillars go in TACKLE ORDER (foundational first — the list order
+  is stored as the map order hint); a pillar may be a dict {"name","prereq_pillars":[...]} to
+  mark the pillars that must come before it (leave empty for an independent/parallel pillar).
+  ratings items are {"pillar","axis","level"} (axis:
   syntax_recall|debugging|code_reading|api_memory|decomposition; level:
   unknown|gap|familiar|strong); goals are {"horizon","text","deadline"} (horizon:
   long|medium|short|adhoc); curriculum are {"concept","prereqs","pillar"}.
@@ -662,7 +665,18 @@ assessment.
 
 Then PERSIST everything in ONE `save_baseline(...)` call:
 - pillars: each relevant topic area, INCLUDING custom pillars you infer from their
-  goals and work (e.g. 'LangGraph', 'Graph RAG', 'time-series').
+  goals and work (e.g. 'LangGraph', 'Graph RAG', 'time-series'). ORDER the list
+  foundational→advanced — the sequence the learner will actually TACKLE them — because
+  the list order is stored as each pillar's order hint and the map is drawn from it. Also
+  define the pillar DEPENDENCY GRAPH: pass each pillar as a dict
+  {"name", "prereq_pillars": [...]} where `prereq_pillars` lists the pillars that must be
+  learned BEFORE it (e.g. OOP after "Python Fundamentals"). Leave `prereq_pillars` out/empty
+  for an INDEPENDENT pillar that can be pursued in PARALLEL — including across subjects
+  (e.g. Statistics and Python can progress at once); do NOT invent a false prerequisite just
+  to make a straight line. The map orders pillars by a topological sort of this DAG (the hint
+  only breaks ties), and it keeps whatever the learner is studying FIRST as the entrance, so
+  mark only real prerequisites. You can re-order later (send `save_baseline` again with the
+  pillars re-listed / deps changed) as goals evolve.
 - ratings: {"pillar","axis","level"} for the cells you assessed (axes: syntax_recall,
   debugging, code_reading, api_memory, decomposition; levels: unknown/gap/familiar/strong).
 - goals: the long / medium / short goals they committed to.

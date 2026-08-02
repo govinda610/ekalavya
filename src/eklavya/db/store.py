@@ -251,6 +251,43 @@ def _migrate_subject_framework(conn: sqlite3.Connection) -> None:
     _rebuild_ratings_with_subject(conn)
     # Seed the registry (subjects + axes catalog) from the authoritative in-code definition.
     _seed_registry(conn)
+    # Agent-defined pillar order + dependency DAG (task #89). Additive + guarded + backfilled.
+    _migrate_pillar_order(conn)
+
+
+def _migrate_pillar_order(conn: sqlite3.Connection) -> None:
+    """Additive pillar-ordering columns (task #89): `seq` (tutor's tackle-order hint) and
+    `prereq_pillars` (a '|'-list of pillar names that block this one → the dependency DAG).
+
+    Guarded + reversible: ADD COLUMN only when absent, then BACKFILL existing rows so
+    today's behaviour is preserved until the tutor sets an order —
+      • prereq_pillars → '' (no pillar is falsely blocked);
+      • seq → the rank each pillar has under the CURRENT structural ordering
+        (report._grove_order over the curriculum-derived DAG), so the legacy map order
+        is reproduced exactly on databases created before this migration.
+    Backfill only touches rows whose seq is still NULL, so it never clobbers an order the
+    tutor has since set."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(pillars)")}
+    if not cols:
+        return
+    if "seq" not in cols:
+        conn.execute("ALTER TABLE pillars ADD COLUMN seq INTEGER")
+    if "prereq_pillars" not in cols:
+        conn.execute("ALTER TABLE pillars ADD COLUMN prereq_pillars TEXT NOT NULL DEFAULT ''")
+    # Backfill seq for legacy rows from the current structural order (deterministic).
+    unset = [r["name"] for r in conn.execute(
+        "SELECT name FROM pillars WHERE seq IS NULL")]
+    if unset:
+        from ..report import legacy_grove_order
+        order = legacy_grove_order(conn)  # every pillar, in the pre-#89 structural order
+        rank = {name: i for i, name in enumerate(order)}
+        # Any pillar the structural order didn't cover (e.g. no curriculum rows) trails,
+        # ranked after the covered ones by name so the backfill is fully deterministic.
+        for name in sorted(n for n in unset if n not in rank):
+            rank[name] = len(rank)
+        for name in unset:
+            conn.execute("UPDATE pillars SET seq = ? WHERE name = ? AND seq IS NULL",
+                         (rank[name], name))
 
 
 def _remap_legacy_axes(conn: sqlite3.Connection) -> None:

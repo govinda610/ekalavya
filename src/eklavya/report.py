@@ -265,6 +265,10 @@ def forest_map(pillar: str | None = None) -> dict:
         ):
             if r["ts"]:
                 recency[(r["pillar"] or "").strip()] = r["ts"]
+        # The tutor-defined pillar order (task #89): per-pillar seq hint + the explicit
+        # dependency DAG (prereq_pillars). Read here so forest_map can order by the real
+        # DAG (topological), not the sparse concept-derived heuristic.
+        pillar_seq, pillar_deps = _pillar_order_state(conn)
     finally:
         conn.close()
 
@@ -298,9 +302,33 @@ def forest_map(pillar: str | None = None) -> dict:
 
     statuses = {p: grove_status(p) for p in pillars}
 
-    # The single ACTIVE grove = the most-recently-practised grove that isn't fully
-    # mastered. If nothing's been practised, the first non-locked grove leads the way.
-    non_mastered = [p for p in pillars if statuses[p] != "blossoming"]
+    # The pillar dependency DAG (task #89): a pillar depends on another when the tutor marked
+    # it a prereq (explicit `prereq_pillars`) OR when a concept in it lists a prereq that lives
+    # in the other pillar (the legacy concept-derived edge). Explicit deps draw the branches the
+    # tutor intends; concept-derived ones keep older curricula working. Independent pillars
+    # (incl. across subjects) depend on nothing → free to sit on parallel branches.
+    dep: dict[str, set[str]] = {p: set() for p in pillars}
+    for c in concepts:
+        pa = pillar_of[c]
+        for pr in prereqs[c]:
+            pb = pillar_of.get(pr)
+            if pb and pb != pa:
+                dep[pa].add(pb)                 # A depends on B
+    for p in pillars:
+        for pb in pillar_deps.get(p, ()):       # explicit tutor-marked prereq pillars
+            if pb in dep and pb != p:
+                dep[p].add(pb)
+
+    # Deterministic tie-break key for the DAG order: (seq hint, legacy structural depth, name).
+    structural_rank = {p: i for i, p in enumerate(
+        _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of))}
+    # Base journey order with NO active anchoring — used to pick the fallback-active grove so
+    # "where the learner should start" follows the tutor's order, not raw alphabetical.
+    base_order = _pillar_dag_order(pillars, dep, pillar_seq, structural_rank, active=None)
+
+    # The single ACTIVE grove = the most-recently-practised grove that isn't fully mastered.
+    # If nothing's been practised, the FIRST non-locked grove in journey order leads the way.
+    non_mastered = [p for p in base_order if statuses[p] != "blossoming"]
     active = None
     practised = [p for p in non_mastered if p in recency]
     if practised:
@@ -341,22 +369,16 @@ def forest_map(pillar: str | None = None) -> dict:
             "layout": layout, "viewbox": layout["viewbox"],
         }
 
-    # Sequential walk order along the winding path — foundations (fewest prereqs into
-    # the pillar) first, frontier last — so the 2D map can thread a start→temple spine
-    # and the minimap can list groves in journey order. Deterministic: we order by
-    # (grove depth in the cross-pillar prereq DAG, then name) so it's stable.
-    ordered_pillars = _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of)
+    # Journey order: a TOPOLOGICAL sort of the pillar DAG (a pillar comes after all its
+    # prereqs), with the ACTIVE pillar anchored at the entrance (index 0) and ties broken
+    # deterministically by (seq hint, structural depth, name). Independent pillars are NOT
+    # forced into a false linear order. forest2d.js renders groves in this array order.
+    ordered_pillars = _pillar_dag_order(pillars, dep, pillar_seq, structural_rank, active)
     index_of = {p: i for i, p in enumerate(ordered_pillars)}
 
-    # Prerequisite EDGES between groves: pillar A depends on pillar B when some concept
-    # in A lists a prereq that lives in B. State-styled downstream by the renderer.
-    edge_set: set[tuple[str, str]] = set()
-    for c in concepts:
-        pa = pillar_of[c]
-        for pr in prereqs[c]:
-            pb = pillar_of.get(pr)
-            if pb and pb != pa:
-                edge_set.add((pb, pa))          # B → A  (prereq → dependent)
+    # Prerequisite EDGES between groves (B → A: prereq → dependent) so the renderer can draw
+    # branches for parallel tracks. Combines the concept-derived and explicit tutor deps.
+    edge_set = {(b, a) for a in pillars for b in dep[a]}
     edges = [{"from": b, "to": a} for (b, a) in sorted(edge_set, key=lambda e: (index_of.get(e[0], 0), index_of.get(e[1], 0)))]
 
     groves = [grove(p) for p in ordered_pillars]
@@ -399,6 +421,87 @@ def _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of) -> list[str]:
     for p in pillars:
         d(p, frozenset())
     return sorted(pillars, key=lambda p: (depth[p], -len(concepts_by_pillar[p]), p))
+
+
+def _pillar_order_state(conn) -> tuple[dict[str, int], dict[str, list[str]]]:
+    """Read the tutor-defined pillar ordering (task #89) from the pillars table:
+    {name: seq} (the tackle-order HINT; missing when unset) and {name: [prereq pillar names]}
+    (the explicit dependency DAG). Guarded — tolerates databases that predate these columns."""
+    seq: dict[str, int] = {}
+    deps: dict[str, list[str]] = {}
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(pillars)")}
+    has_seq = "seq" in cols
+    has_deps = "prereq_pillars" in cols
+    if not (has_seq or has_deps):
+        return seq, deps
+    sel = "name" + (", seq" if has_seq else "") + (", prereq_pillars" if has_deps else "")
+    for r in conn.execute(f"SELECT {sel} FROM pillars"):
+        name = (r["name"] or "").strip()
+        if has_seq and r["seq"] is not None:
+            seq[name] = r["seq"]
+        if has_deps and r["prereq_pillars"]:
+            deps[name] = [p.strip() for p in r["prereq_pillars"].split("|")
+                          if p.strip() and p.strip() != name]
+    return seq, deps
+
+
+def _pillar_dag_order(pillars, dep, pillar_seq, structural_rank, active) -> list[str]:
+    """Topological order of the pillar dependency DAG, anchored so the ACTIVE pillar is the
+    entrance (index 0). A pillar is emitted only after all its (in-set) prereq pillars; among
+    the pillars whose prereqs are all satisfied we pick deterministically by
+    (NOT-active, seq hint, structural depth, name) — so the active pillar wins the very first
+    pick, and independents keep a stable order without being forced into a false line.
+
+    Kahn's algorithm with a sorted 'ready' frontier. Cycles (shouldn't happen) are broken by
+    dropping the offending back-edges: any pillar left unemitted is appended in the same
+    deterministic key order, so the function is total and never loses a pillar."""
+    _BIG = len(pillars) + 1
+
+    def key(p: str) -> tuple:
+        return (0 if p == active else 1,
+                pillar_seq.get(p, _BIG),
+                structural_rank.get(p, _BIG),
+                p)
+
+    remaining = set(pillars)
+    indeg = {p: len({b for b in dep[p] if b in remaining}) for p in pillars}
+    order: list[str] = []
+    while remaining:
+        ready = [p for p in remaining if indeg[p] == 0]
+        if not ready:                              # cycle: force the best-keyed one through
+            ready = list(remaining)
+        nxt = min(ready, key=key)
+        order.append(nxt)
+        remaining.discard(nxt)
+        for p in remaining:
+            if nxt in dep[p]:
+                indeg[p] -= 1
+    return order
+
+
+def legacy_grove_order(conn) -> list[str]:
+    """The PRE-#89 structural journey order over EVERY pillar — used once, by the migration,
+    to backfill `seq` so a database created before task #89 reproduces its old map order until
+    the tutor sets an explicit one. Derives the concept DAG from the curriculum, orders the
+    pillars that have concepts via `_grove_order`, then appends any pillar with no curriculum
+    rows (ordered by name) so the result covers the whole pillars table deterministically."""
+    rows = conn.execute("SELECT concept, prereqs, pillar FROM curriculum ORDER BY id").fetchall()
+    all_pillars = [(r["name"] or "").strip() for r in
+                   conn.execute("SELECT name FROM pillars ORDER BY id")]
+    curric_pillars = sorted({(r["pillar"] or "").strip() for r in rows} - {""})
+    concepts = [r["concept"] for r in rows]
+    pillar_of = {r["concept"]: (r["pillar"] or "").strip() for r in rows}
+    parse = _parse_prereqs_factory(concepts)
+    prereqs = {r["concept"]: parse(r["prereqs"], r["concept"]) for r in rows}
+    concepts_by_pillar: dict[str, list[str]] = {p: [] for p in curric_pillars}
+    for c in concepts:
+        p = pillar_of[c]
+        if p in concepts_by_pillar:
+            concepts_by_pillar[p].append(c)
+    ordered = _grove_order(curric_pillars, concepts_by_pillar, prereqs, pillar_of)
+    seen = set(ordered)
+    ordered += sorted(p for p in all_pillars if p and p not in seen)
+    return ordered
 
 
 def _topo_order(items: list[str], prereqs: dict[str, list[str]]) -> list[str]:

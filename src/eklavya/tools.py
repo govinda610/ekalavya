@@ -55,21 +55,37 @@ def save_profile(markdown: str) -> str:
     return f"saved profile ({len(markdown)} chars) to {profile}"
 
 
-def add_pillar(name: str, is_custom: bool = True, subject: str = DEFAULT_SUBJECT) -> str:
+def add_pillar(name: str, is_custom: bool = True, subject: str = DEFAULT_SUBJECT,
+               seq: int | None = None, prereq_pillars: list | str | None = None) -> str:
     """Create a topic pillar such as 'Python idioms' or 'LangGraph'.
 
     Set is_custom=True for pillars derived from the learner's own goals or repos.
     subject is the registry key this pillar belongs to (defaults to coding).
+    seq is the tackle-order HINT (foundational first); it's a deterministic tie-break, NOT a
+    forced total order — the real journey order is a topological sort of the dependency DAG.
+    prereq_pillars are the pillars that must be tackled BEFORE this one (a list of exact pillar
+    names, or a pipe-delimited string); leave it empty for an independent pillar that can be
+    pursued in parallel (incl. across subjects). Re-runnable — updates seq/prereqs when given.
     """
     subject = (subject or DEFAULT_SUBJECT).strip()
     if not subjects.exists(subject):
         subject = DEFAULT_SUBJECT
+    if isinstance(prereq_pillars, (list, tuple)):
+        deps = "|".join(str(p).strip() for p in prereq_pillars if str(p).strip())
+    else:
+        deps = (prereq_pillars or "").strip()
     conn = connect()
     try:
         conn.execute(
             "INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, ?, ?)",
             (name.strip(), int(is_custom), subject),
         )
+        # Re-runnable order/dep update: set seq / prereq_pillars only when the caller passed
+        # them, so a bare add_pillar() never wipes an order the tutor already set.
+        if seq is not None:
+            conn.execute("UPDATE pillars SET seq = ? WHERE name = ?", (int(seq), name.strip()))
+        if prereq_pillars is not None:
+            conn.execute("UPDATE pillars SET prereq_pillars = ? WHERE name = ?", (deps, name.strip()))
         conn.commit()
     finally:
         conn.close()
@@ -254,7 +270,13 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
                   replace_curriculum: bool = False) -> str:
     """Persist onboarding results (or later edits) in ONE call — upserts any subset.
 
-    - pillars:    list of pillar names, e.g. ["Python Fundamentals", "DS&A"]
+    - pillars:    the pillars in the intended TACKLE ORDER (foundational first). The LIST ORDER
+                  is stored as each pillar's `seq` hint, so pass them ordered. Each item is a
+                  name string, or a dict {"name","subject"?,"prereq_pillars"?} where
+                  `prereq_pillars` is a list of exact pillar names that must come first (leave it
+                  out / empty for an independent pillar that can be pursued in parallel, incl.
+                  across subjects). The real journey order is a topological sort of these
+                  dependencies; `seq` only breaks ties. Re-runnable — resend the list to re-order.
     - ratings:    list of {"pillar","axis","level"} — axis in syntax_recall/debugging/
                   code_reading/api_memory/decomposition; level in unknown/gap/familiar/strong
     - goals:      list of {"horizon","text","deadline"?} — horizon in long/medium/short/adhoc
@@ -262,11 +284,12 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
     - replace_curriculum: True to clear the existing curriculum tree before adding
     """
     n = {"pillars": 0, "ratings": 0, "goals": 0, "curriculum": 0}
-    for p in pillars or []:
+    for i, p in enumerate(pillars or []):
         if isinstance(p, dict):
-            add_pillar(p["name"], subject=p.get("subject", DEFAULT_SUBJECT))
+            add_pillar(p["name"], subject=p.get("subject", DEFAULT_SUBJECT), seq=i,
+                       prereq_pillars=p.get("prereq_pillars"))
         else:
-            add_pillar(p)
+            add_pillar(p, seq=i)
         n["pillars"] += 1
     for r in ratings or []:
         set_baseline_rating(r["pillar"], r["axis"], r["level"], r.get("subject", DEFAULT_SUBJECT))
