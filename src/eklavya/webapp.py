@@ -1717,10 +1717,11 @@ function loadLibrary(){
      "<div class='lib'><div class='lib-top'>"+
      "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by "+(_libGroup==='chat'?'chat':'pillar')+", kept for revision.</div></div>"+
      "<span style='flex:1'></span>"+
-     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
+     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…'>"+
      "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
      "<div class='lib-filters'>"+pills+"<span style='flex:1'></span>"+groupToggle+"</div>"+body+"</div>";
     const si=document.getElementById('libsearch');
+    si.value=_libQuery;  // set via property (not an interpolated attribute) so quotes/apostrophes survive
     si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
     si.focus(); si.setSelectionRange(si.value.length, si.value.length);
   }).catch(()=>{ document.getElementById('library').innerHTML="<div class='lib'><div class='lib-empty'>could not load the library.</div></div>"; });
