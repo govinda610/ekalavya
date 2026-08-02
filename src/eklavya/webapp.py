@@ -8,6 +8,7 @@ the TUI, so state stays in one place.
 Backend is a thin FastAPI layer; the agent streams tokens over a POST stream.
 """
 
+import html
 import json
 import logging
 import uuid
@@ -729,10 +730,13 @@ def _mount_auth(app) -> None:
         # one themed template serves both tabs; `start` picks which is active on load.
         # `start_is_signup` lets the client reveal the auth card + jump to it straightaway when
         # the visitor arrives on /signup (or bounces back with an error), skipping the hero scroll.
+        # error/notice come from the query string (pre-auth) — HTML-escape before injecting.
+        esc_error = html.escape(error)
+        esc_notice = html.escape(notice)
         return (_LOGIN.replace("{{start}}", start)
                 .replace("{{start_is_signup}}", "true" if start == "signup" else "false")
-                .replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
-                .replace("{{notice}}", notice and f'<div class="notice">{notice}</div>' or ""))
+                .replace("{{error}}", esc_error and f'<div class="err">{esc_error}</div>' or "")
+                .replace("{{notice}}", esc_notice and f'<div class="notice">{esc_notice}</div>' or ""))
 
     def _begin_session(uid: str):
         """Create the user's home/db on first entry and hand back a logged-in redirect."""
