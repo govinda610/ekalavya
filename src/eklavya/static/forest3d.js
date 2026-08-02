@@ -1113,6 +1113,25 @@
     });
     scene.add(new T.Mesh(skyGeo, skyMat));
 
+    // --- STARS: a sprinkle of soft points on a high dome, biased to the upper sky band so
+    //     the night world reads (spec §6). Cheap; a few hundred points, one draw call. ------
+    var starGeo = new T.BufferGeometry();
+    var nStars = reduced() ? 180 : 320;
+    var starPos = new Float32Array(nStars * 3);
+    for (var si = 0; si < nStars; si++) {
+      // random direction on the upper hemisphere, placed on a far dome
+      var th = Math.random() * Math.PI * 2, ph = Math.acos(0.15 + Math.random() * 0.8);
+      var R = 360;
+      starPos[si * 3] = Math.sin(ph) * Math.cos(th) * R;
+      starPos[si * 3 + 1] = Math.cos(ph) * R * 0.7 + 40;
+      starPos[si * 3 + 2] = Math.sin(ph) * Math.sin(th) * R;
+    }
+    starGeo.setAttribute("position", new T.BufferAttribute(starPos, 3));
+    var starMat = new T.PointsMaterial({ color: 0xdfe6ff, size: 1.6, map: dotTexture(),
+      sizeAttenuation: false, transparent: true, opacity: 0.85, depthWrite: false,
+      blending: T.AdditiveBlending, fog: false });
+    var stars = new T.Points(starGeo, starMat); scene.add(stars);
+
     // --- lights: warm ambient + a moon key ABOVE-FRONT (lights tree fronts) + a warm rim
     //     from the temple side. The front key is the fix for trees reading as dark cutouts. -
     // SKY FILL (spec §2): a HemisphereLight puts COLOUR in the shadows instead of grey —
@@ -1143,14 +1162,20 @@
     var wrapFill = new T.DirectionalLight(0xffcaa0, 0.35);
     wrapFill.position.set(0, 14, 90); scene.add(wrapFill);
 
-    // --- moon disc + haze, high over the far ridge (up-right of the temple) ----
+    // --- moon disc + haze, high in the upper sky band, offset from the temple so both read.
+    //     Faces the camera-side so it presents as a full disc in the map framing. ------------
     var moonGroup = new T.Group();
-    var moonDisc = new T.Mesh(new T.CircleGeometry(13, 32),
+    var moonDisc = new T.Mesh(new T.CircleGeometry(11, 32),
       new T.MeshBasicMaterial({ color: COL.moon, fog: false }));
-    var moonHaze = glowSprite(0xdfe8ff, 90, 0.6);
-    moonGroup.add(moonHaze); moonGroup.add(moonDisc);
-    moonGroup.position.set(140, 150, -230);
-    moonGroup.lookAt(0, 20, 40);
+    // a subtle crescent shadow (a dark disc offset over the bright one)
+    var moonShadow = new T.Mesh(new T.CircleGeometry(9.5, 32),
+      new T.MeshBasicMaterial({ color: COL.nightMid, fog: false }));
+    moonShadow.position.set(4.5, 1.5, 0.1);
+    var moonHaze = glowSprite(0xdfe8ff, 74, 0.55, true);
+    moonGroup.add(moonHaze); moonGroup.add(moonDisc); moonGroup.add(moonShadow);
+    // up-left in the sky band, in front of the far dome so it's clearly in-frame above the wood.
+    moonGroup.position.set(-150, 175, -150);
+    moonGroup.lookAt(-40, 30, 120);
     scene.add(moonGroup);
 
     // --- terrain -------------------------------------------------------------
@@ -1646,8 +1671,13 @@
       p.applyMatrix4(viewM);
       vMaxX = Math.max(vMaxX, Math.abs(p.x)); vMaxY = Math.max(vMaxY, Math.abs(p.y));
     }
-    var halfH = Math.max(vMaxY, vMaxX / Math.max(0.4, aspect)) * 1.02;   // 2% padding — fill the frame
+    // add sky HEADROOM above the map (spec §6: a thin sky band with moon/stars) — grow halfH a
+    // touch and nudge the look-target UP-world (down-screen) so a slice of night sky shows.
+    var halfH = Math.max(vMaxY, vMaxX / Math.max(0.4, aspect)) * 1.12;
     halfH = Math.max(38, halfH);
+    // shift the framing so the map centre sits a little below frame-centre, revealing sky above.
+    look.z += halfH * 0.18 * Math.sin(MAP_PITCH);   // push look toward the camera → map drops
+    eye = look.clone().add(dir.clone().multiplyScalar(300));
     state._fitHalfH = halfH; state._fitAspect = aspect;
     if (instant || reduced() || !cam.position.lengthSq()) {
       cam.position.copy(eye); ctl.target.copy(look);
