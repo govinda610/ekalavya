@@ -127,6 +127,52 @@ def set_baseline_rating(pillar: str, axis: str, level: str, subject: str = DEFAU
     return f"{subject} / {pillar} / {axis} = {level}"
 
 
+def remember_preference(key: str, value: str) -> str:
+    """Persist ONE durable learning preference so every future session honours it.
+
+    Use this for stable facts about HOW the learner wants to be taught — not per-drill state.
+    Examples: key "teaching_style" value "teach by typing code in, not pasting"; key "examples"
+    value "examples-first"; key "spoilers" value "no spoilers — let me struggle"; key "pace"
+    value "fast, one drill after another". Upserts on `key` (re-remembering a key updates it),
+    so the set of preferences stays small and current. These are resurfaced to you automatically
+    at the top of every session's context — so save the durable ones here rather than hoping
+    they survive in the transcript.
+    """
+    key = (key or "").strip()
+    if not key:
+        return "remember_preference: empty key ignored"
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO learning_prefs(key, value, updated_at) VALUES(?, ?, ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            (key, (value or "").strip(), _now()),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    return f"remembered preference: {key} = {value}"
+
+
+def recall_preferences() -> str:
+    """Return every saved learning preference (key = value), or a note if none are set yet.
+
+    These are the durable teaching preferences the learner has stated (style, pace, spoilers,
+    examples-first, …). Honour them. They're also injected into your session context each turn,
+    so this tool is for an explicit re-read when you want the full current list.
+    """
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT key, value FROM learning_prefs ORDER BY key"
+        ).fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return "(no learning preferences saved yet)"
+    return "\n".join(f"- {r['key']}: {r['value']}" for r in rows)
+
+
 def add_goal(horizon: str, text: str, deadline: str = "") -> str:
     """Record a goal the learner stated. horizon: long, medium, short, or adhoc.
 
@@ -921,6 +967,7 @@ AGENT_TOOLS = [
     grade_and_record, grade_and_record_subject, grade_rubric, web_search, read_github,
     read_resume, get_questions, add_question, record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, save_artifact, run_bash,
+    remember_preference, recall_preferences,
 ]
 
 # Same tools in every mode; the prompt decides how to use them.

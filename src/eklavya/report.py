@@ -649,17 +649,41 @@ def session_context_line() -> str:
     return "[session context — " + " · ".join(parts) + "]"
 
 
-def with_session_context(text: str) -> str:
-    """Prepend the fresh private session-context briefing to a user turn (no-op on error).
+def preferences_block() -> str:
+    """A compact 'Learner preferences:' block of the durable teaching preferences the learner
+    has saved (via remember_preference), so every session honours them — just as the profile is
+    loaded. Empty string when none are set, so it adds nothing to the turn."""
+    conn = connect()
+    try:
+        rows = conn.execute("SELECT key, value FROM learning_prefs ORDER BY key").fetchall()
+    finally:
+        conn.close()
+    if not rows:
+        return ""
+    items = "; ".join(f"{r['key']}: {r['value']}" for r in rows if (r["value"] or "").strip())
+    if not items:
+        return ""
+    return "[Learner preferences — " + items + "]"
 
-    Shared by every surface (web/CLI/TUI) so temporal awareness is uniform — the same
-    `[session context — …]` line the web injects also reaches CLI and TUI turns.
+
+def with_session_context(text: str) -> str:
+    """Prepend the fresh private session-context briefing (and any saved learner preferences)
+    to a user turn (no-op on error).
+
+    Shared by every surface (web/CLI/TUI) so temporal awareness AND durable preferences are
+    uniform — the same `[session context — …]` line the web injects, plus a compact
+    `[Learner preferences — …]` block, also reach CLI and TUI turns.
     """
     try:
         line = session_context_line()
     except Exception:
         return text
-    return f"{line}\n\n{text}" if (text and text.strip()) else line
+    try:
+        prefs = preferences_block()
+    except Exception:
+        prefs = ""
+    head = f"{line}\n{prefs}" if prefs else line
+    return f"{head}\n\n{text}" if (text and text.strip()) else head
 
 
 def overview() -> dict:
