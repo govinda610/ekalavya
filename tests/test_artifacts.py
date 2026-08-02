@@ -16,10 +16,16 @@ from eklavya.db import init_db  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def fresh_db():
+    import shutil
+
     from eklavya import config as _cfg
     db = _cfg.DB_PATH
     if db.exists():
         db.unlink()
+    # Clear the file-based artifacts drop-folder too, so file-import tests are isolated.
+    art_root = _cfg.paths().workspace / "artifacts"
+    if art_root.exists():
+        shutil.rmtree(art_root)
     init_db()
     yield
 
@@ -96,11 +102,70 @@ def test_delete():
     assert artifacts.delete(a["id"]) is False  # already gone
 
 
-def test_save_artifact_tool_creates_and_is_registered():
+def test_save_artifact_tool_is_gone():
+    # The explicit save tool is replaced by automatic, file-based persistence.
     from eklavya import tools
 
-    out = tools.save_artifact("Recursion", "markdown", "# the return upon itself")
-    assert "saved artifact" in out
+    assert not hasattr(tools, "save_artifact")
+    assert not any(getattr(t, "__name__", "") == "save_artifact" for t in tools.AGENT_TOOLS)
+
+
+def _artifacts_root():
+    from eklavya import config
+
+    root = config.paths().workspace / "artifacts"
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
+def test_import_bridge_imports_file_with_title_kind_pillar():
+    from eklavya import artifact_import
+
+    root = _artifacts_root()
+    (root / "python-fundamentals").mkdir(parents=True, exist_ok=True)
+    (root / "python-fundamentals" / "copy-vs-deepcopy.html").write_text(
+        "<!doctype html><html><head><title>Copy vs Deepcopy</title></head>"
+        "<body><h1>hi</h1></body></html>", encoding="utf-8")
+
+    n = artifact_import.import_new()
+    assert n == 1
     rows = artifacts.list_artifacts()
-    assert any(r["title"] == "Recursion" and r["kind"] == "markdown" for r in rows)
-    assert tools.save_artifact in tools.AGENT_TOOLS
+    a = next(r for r in rows if r["rel_path"] == "artifacts/python-fundamentals/copy-vs-deepcopy.html")
+    assert a["title"] == "Copy vs Deepcopy"          # from <title>
+    assert a["kind"] == "html"                        # from extension
+    assert a["pillar"] == "Python Fundamentals"       # from folder slug
+
+
+def test_import_bridge_dedupes_unchanged_and_updates_changed():
+    from eklavya import artifact_import
+
+    root = _artifacts_root()
+    f = root / "note.md"
+    f.write_text("# First heading\nbody", encoding="utf-8")
+
+    assert artifact_import.import_new() == 1       # imported
+    assert artifact_import.import_new() == 0       # unchanged → skipped (no duplicate)
+    rows = artifacts.list_artifacts(query="First heading")
+    assert len(rows) == 1
+    a = rows[0]
+    assert a["title"] == "First heading"           # markdown first heading
+    assert a["kind"] == "markdown"
+    assert a["pillar"] is None                     # dropped at the root → no pillar
+
+    f.write_text("# Second heading\nnew body", encoding="utf-8")
+    assert artifact_import.import_new() == 1        # changed → updated (still one row)
+    same = artifacts.get(a["id"])
+    assert same["title"] == "Second heading"
+    assert same["content"] == "# Second heading\nnew body"
+
+
+def test_import_bridge_title_from_filename_for_code():
+    from eklavya import artifact_import
+
+    root = _artifacts_root()
+    (root / "two_sum_solution.py").write_text("def two_sum(): pass\n", encoding="utf-8")
+    artifact_import.import_new()
+    rows = artifacts.list_artifacts(kind="code")
+    a = next(r for r in rows if r["rel_path"] == "artifacts/two_sum_solution.py")
+    assert a["title"] == "Two Sum Solution"        # prettified filename
+    assert a["kind"] == "code"

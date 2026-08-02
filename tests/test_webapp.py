@@ -17,10 +17,17 @@ from eklavya.webapp import create_app  # noqa: E402
 
 @pytest.fixture(autouse=True)
 def seeded():
+    import shutil
+
     from eklavya import config as _cfg  # reset the REAL db (shared across test files)
     db = _cfg.DB_PATH
     if db.exists():
         db.unlink()
+    # Clear the file-based artifacts drop-folder (shared workspace across test files) so the
+    # /api/artifacts scan-and-import doesn't pick up files another module left on disk.
+    art_root = _cfg.paths().workspace / "artifacts"
+    if art_root.exists():
+        shutil.rmtree(art_root)
     init_db()
     tools.set_baseline_rating("FastAPI", "debugging", "gap")
     yield
