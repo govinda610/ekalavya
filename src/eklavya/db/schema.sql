@@ -5,24 +5,48 @@
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
+-- The subject registry: one row per subject, declaring its axes, answer types, and
+-- benchmark tag. Seeded idempotently from subjects.py (the authoritative in-code
+-- definition). See docs/UNIFIED_SUBJECT_FRAMEWORK_PLAN.md §6.
+CREATE TABLE IF NOT EXISTS subjects (
+    id           INTEGER PRIMARY KEY,
+    key          TEXT NOT NULL UNIQUE,     -- 'coding' | 'maths' | 'stats' | 'ml' | 'cs_theory' | ...
+    name         TEXT NOT NULL,
+    core_axes    TEXT NOT NULL,            -- pipe-list of universal-core axes this subject uses
+    ext_axes     TEXT,                     -- pipe-list of subject-specific extension axes
+    answer_types TEXT,                     -- pipe-list of allowed answer types (code|numeric|...)
+    is_custom    INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- The axis catalog (label → kind core|ext) for UI/validation. Seeded from subjects.py.
+CREATE TABLE IF NOT EXISTS axes (
+    id      INTEGER PRIMARY KEY,
+    key     TEXT NOT NULL UNIQUE,          -- 'recall' | 'derivation_proof' | 'debugging' | ...
+    kind    TEXT NOT NULL DEFAULT 'core',  -- core | ext
+    label   TEXT
+);
+
 -- Topic pillars (default + agent-created custom ones from onboarding/repo study).
 CREATE TABLE IF NOT EXISTS pillars (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
     is_custom   INTEGER NOT NULL DEFAULT 0,
+    subject     TEXT NOT NULL DEFAULT 'coding',  -- which subject this pillar belongs to
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Elo-style rating per (pillar, axis) cell — the mastery grid.
+-- Elo-style rating per (subject, pillar, axis) cell — the mastery grid.
 CREATE TABLE IF NOT EXISTS ratings (
     id            INTEGER PRIMARY KEY,
     pillar_id     INTEGER NOT NULL REFERENCES pillars(id),
-    axis          TEXT NOT NULL,   -- syntax_recall | debugging | code_reading | api_memory | decomposition
+    axis          TEXT NOT NULL,   -- recall | application | derivation_proof | ... | debugging | ...
+    subject       TEXT NOT NULL DEFAULT 'coding',
     rating        REAL NOT NULL DEFAULT 1000,
     confidence    REAL NOT NULL DEFAULT 0,  -- band width; shrinks with evidence
     first_seen    TEXT,
     last_practiced TEXT,
-    UNIQUE (pillar_id, axis)
+    UNIQUE (pillar_id, axis, subject)
 );
 
 -- Spaced-repetition cards (concept or problem) with FSRS scheduling state.
@@ -34,7 +58,8 @@ CREATE TABLE IF NOT EXISTS cards (
     difficulty  REAL,
     due         TEXT,
     lapses      INTEGER NOT NULL DEFAULT 0,
-    state_json  TEXT
+    state_json  TEXT,
+    subject     TEXT NOT NULL DEFAULT 'coding'
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_ref ON cards(ref);
 
@@ -62,6 +87,9 @@ CREATE TABLE IF NOT EXISTS attempts (
     hints_used  INTEGER NOT NULL DEFAULT 0,
     cheat_flag  INTEGER NOT NULL DEFAULT 0,
     detail      TEXT,
+    subject     TEXT NOT NULL DEFAULT 'coding',
+    answer_type TEXT NOT NULL DEFAULT 'code',
+    score       REAL,            -- partial-credit fraction ∈ [0,1]; correct = score ≥ τ
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -138,6 +166,7 @@ CREATE TABLE IF NOT EXISTS curriculum (
     concept     TEXT NOT NULL UNIQUE,
     prereqs     TEXT,
     pillar      TEXT,
+    subject     TEXT NOT NULL DEFAULT 'coding',
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -146,6 +175,7 @@ CREATE TABLE IF NOT EXISTS rating_history (
     id          INTEGER PRIMARY KEY,
     pillar      TEXT NOT NULL,
     axis        TEXT NOT NULL,
+    subject     TEXT NOT NULL DEFAULT 'coding',
     old_rating  REAL,
     new_rating  REAL NOT NULL,
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
@@ -241,6 +271,10 @@ CREATE TABLE IF NOT EXISTS benchmark_items (
     prompt      TEXT NOT NULL,
     answer      TEXT NOT NULL,             -- objective key / reference (private)
     grader      TEXT NOT NULL DEFAULT 'output_match',  -- output_match | hidden_tests | rubric
+    subject     TEXT NOT NULL DEFAULT 'coding',        -- which subject's ruler this item is on
+    answer_type TEXT NOT NULL DEFAULT 'code',          -- code | numeric | symbolic | ... (grader dispatch)
+    tolerance   TEXT,                       -- JSON for numeric graders: {"abs":..,"rel":..,"unit":..}
+    rubric      TEXT,                       -- JSON rubric for judged items (criteria + axis tags)
     created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_benchmark_items_prompt ON benchmark_items(prompt);
@@ -252,6 +286,7 @@ CREATE TABLE IF NOT EXISTS assessments (
     ended_at    TEXT,
     theta       REAL,                      -- latent ability on the logit scale
     n_items     INTEGER NOT NULL DEFAULT 0,
+    subject     TEXT NOT NULL DEFAULT 'coding',  -- θ is per-subject (one ruler per subject)
     context     TEXT                        -- free note, e.g. "baseline", "week 4"
 );
 
@@ -261,6 +296,8 @@ CREATE TABLE IF NOT EXISTS assessment_responses (
     assessment_id  INTEGER NOT NULL REFERENCES assessments(id),
     item_id        INTEGER NOT NULL REFERENCES benchmark_items(id),
     correct        INTEGER NOT NULL DEFAULT 0,
+    score          REAL,               -- partial-credit fraction ∈ [0,1] (judge/rubric items)
+    criteria_json  TEXT,               -- per-criterion judge verdict, for human spot-audit
     seconds        REAL,
     created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );

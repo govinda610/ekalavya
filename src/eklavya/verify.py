@@ -195,6 +195,107 @@ def format_note(issues: list[dict]) -> str:
     )
 
 
+_RUBRIC_JUDGE_PROMPT = """You are a STRICT, reference-bound grader for a {subject} answer. \
+You do NOT decide truth from your own memory — you grade the learner's answer ONLY against \
+the REFERENCE solution and the RUBRIC below. If the reference and the answer disagree, the \
+reference wins.
+
+QUESTION:
+\"\"\"
+{prompt}
+\"\"\"
+
+REFERENCE SOLUTION (the ground truth you grade against):
+\"\"\"
+{reference}
+\"\"\"
+
+AUTHORITATIVE DOCUMENTATION (retrieved for any library/method mentioned — trust this over \
+your own memory; may be empty):
+\"\"\"
+{docs}
+\"\"\"
+
+LEARNER'S ANSWER (what you are grading):
+\"\"\"
+{answer}
+\"\"\"
+
+RUBRIC — score EACH criterion independently as pass (full points), partial (half), or fail \
+(zero), judging ONLY against the reference + docs:
+{rubric}
+
+Rules:
+- Grade against the REFERENCE, not your own opinion. A correct-but-different valid approach \
+that the reference's criteria still cover earns the points; a confident restatement of the \
+reference WITHOUT the required reasoning does NOT.
+- Be strict and consistent. When a criterion is not clearly met, score it fail or partial.
+- Reply with ONLY a JSON object and nothing else:
+{{"criteria": [{{"id": "<criterion id>", "verdict": "pass|partial|fail", "note": "<one short reason>"}}, ...]}}"""
+
+
+def _verdict_fraction(verdict: str) -> float:
+    return {"pass": 1.0, "partial": 0.5, "fail": 0.0}.get((verdict or "").strip().lower(), 0.0)
+
+
+def rubric_judge(prompt: str, answer: str, reference: str, rubric: list[dict],
+                 subject: str = "general", context: str = "") -> dict:
+    """The constrained LLM-judge for genuinely non-deterministic answers (proofs,
+    interpretation, explanations) — plan §5.2. Reference-bound, rubric-driven, doc-grounded,
+    on a provider DIFFERENT from the tutor, k=1 (single pass — locked decision; verdicts are
+    logged for optional human audit). Returns a structured, auditable result:
+
+        {"score": <weighted fraction ∈ [0,1]>, "criteria": [{id, weight, axis, verdict,
+         fraction, note}], "model": <provider key>, "raw": <judge output>, "ok": <bool>}
+
+    Each rubric criterion is {id, weight?, axis?, description}. The per-criterion verdicts
+    (pass/partial/fail → 1/0.5/0) are weight-averaged into the score. Fail-open: any judge or
+    tool error returns ok=False with score=None so the caller can fall back / withhold.
+    """
+    provider_key = _judge_provider_key()
+    weights = [float(c.get("weight", 1) or 1) for c in rubric]
+    total_w = sum(weights) or 1.0
+    if provider_key is None or not rubric:
+        return {"score": None, "criteria": [], "model": provider_key, "raw": "",
+                "ok": False, "reason": "no judge provider" if provider_key is None else "empty rubric"}
+
+    rubric_txt = "\n".join(
+        f'- id="{c.get("id", f"c{i}")}" (weight {c.get("weight", 1)}): {c.get("description", "")}'
+        for i, c in enumerate(rubric)
+    )
+    docs = ground_docs(answer + "\n" + reference)
+    judge_prompt = _RUBRIC_JUDGE_PROMPT.format(
+        subject=subject, prompt=(prompt or "").strip()[:1500],
+        reference=(reference or "").strip()[:3000], docs=docs or "(no documentation retrieved)",
+        answer=(answer or "").strip()[:3000], rubric=rubric_txt,
+    )
+    try:
+        from .providers import build_chat_model
+
+        model = build_chat_model(provider_key, max_tokens=900)
+        raw = model.invoke(judge_prompt).text
+    except Exception as e:
+        return {"score": None, "criteria": [], "model": provider_key, "raw": "",
+                "ok": False, "reason": f"judge error: {e}"}
+
+    parsed = parse_verdict(raw)
+    by_id = {str(c.get("id", "")): c for c in (parsed.get("criteria") or [])}
+    out_criteria: list[dict] = []
+    weighted = 0.0
+    for i, c in enumerate(rubric):
+        cid = str(c.get("id", f"c{i}"))
+        w = float(c.get("weight", 1) or 1)
+        j = by_id.get(cid, {})
+        frac = _verdict_fraction(j.get("verdict", "fail"))
+        weighted += w * frac
+        out_criteria.append({
+            "id": cid, "weight": w, "axis": c.get("axis"),
+            "verdict": j.get("verdict", "fail"), "fraction": frac, "note": j.get("note", ""),
+        })
+    return {"score": round(weighted / total_w, 3), "criteria": out_criteria,
+            "model": provider_key, "raw": raw, "ok": True}
+
+
 def selfcheck(reply: str, context: str = "") -> str | None:
     """Return a self-check note if the judge finds clear technical errors, else None.
 

@@ -15,11 +15,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config
+from . import subjects
 from .config import ensure_home
 from .db import connect
 
-# Atrophy's five cross-cutting skill axes, measured within every pillar.
+# Legacy coding axes — kept as the module-level name many callers/tests still import.
+# The subject-aware axis sets now live in the registry (subjects.py); coding's current
+# axis set is recall/application/transfer + debugging/code_reading/api_memory. This tuple
+# is retained for back-compat (the old grid/prompts/tests reference it).
 AXES = ("syntax_recall", "debugging", "code_reading", "api_memory", "decomposition")
+
+DEFAULT_SUBJECT = subjects.DEFAULT_SUBJECT
 
 # Baseline mastery levels map to starting Elo-style ratings.
 LEVELS = {"unknown": 800.0, "gap": 950.0, "familiar": 1150.0, "strong": 1400.0}
@@ -49,16 +55,20 @@ def save_profile(markdown: str) -> str:
     return f"saved profile ({len(markdown)} chars) to {profile}"
 
 
-def add_pillar(name: str, is_custom: bool = True) -> str:
+def add_pillar(name: str, is_custom: bool = True, subject: str = DEFAULT_SUBJECT) -> str:
     """Create a topic pillar such as 'Python idioms' or 'LangGraph'.
 
     Set is_custom=True for pillars derived from the learner's own goals or repos.
+    subject is the registry key this pillar belongs to (defaults to coding).
     """
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        subject = DEFAULT_SUBJECT
     conn = connect()
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, ?)",
-            (name.strip(), int(is_custom)),
+            "INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, ?, ?)",
+            (name.strip(), int(is_custom), subject),
         )
         conn.commit()
     finally:
@@ -66,32 +76,39 @@ def add_pillar(name: str, is_custom: bool = True) -> str:
     return f"pillar '{name}' ready"
 
 
-def set_baseline_rating(pillar: str, axis: str, level: str) -> str:
-    """Record a baseline mastery level for one (pillar, axis) cell of the grid.
+def set_baseline_rating(pillar: str, axis: str, level: str, subject: str = DEFAULT_SUBJECT) -> str:
+    """Record a baseline mastery level for one (subject, pillar, axis) cell of the grid.
 
-    axis:  one of syntax_recall, debugging, code_reading, api_memory, decomposition.
-    level: one of unknown, gap, familiar, strong.
-    Creates the pillar if it doesn't exist yet.
+    subject: one of the registry keys (coding, maths, stats, ml, cs_theory). Defaults to coding.
+    axis:    a CORE axis (recall/application/derivation_proof/interpretation/synthesis/transfer)
+             or one of the subject's extensions. Legacy coding names (syntax_recall,
+             decomposition) are accepted and remapped losslessly.
+    level:   one of unknown, gap, familiar, strong. Creates the pillar if it doesn't exist yet.
     """
-    if axis not in AXES:
-        return f"unknown axis '{axis}'; use one of: {', '.join(AXES)}"
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'; use one of: {', '.join(s.key for s in subjects.all_subjects())}"
+    axis = subjects.remap_axis(axis)  # legacy syntax_recall→recall / decomposition→synthesis
+    if not subjects.valid_axis(subject, axis):
+        return f"unknown axis '{axis}' for {subject}; use one of: {', '.join(subjects.axes_for(subject))}"
     if level not in LEVELS:
         return f"unknown level '{level}'; use one of: {', '.join(LEVELS)}"
     conn = connect()
     try:
-        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, 1)", (pillar.strip(),))
+        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, 1, ?)",
+                     (pillar.strip(), subject))
         pid = conn.execute("SELECT id FROM pillars WHERE name = ?", (pillar.strip(),)).fetchone()["id"]
         conn.execute(
-            """INSERT INTO ratings(pillar_id, axis, rating, confidence, first_seen, last_practiced)
-               VALUES(?, ?, ?, ?, ?, ?)
-               ON CONFLICT(pillar_id, axis)
+            """INSERT INTO ratings(pillar_id, axis, subject, rating, confidence, first_seen, last_practiced)
+               VALUES(?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(pillar_id, axis, subject)
                DO UPDATE SET rating = excluded.rating, last_practiced = excluded.last_practiced""",
-            (pid, axis, LEVELS[level], 0.3, _now(), _now()),
+            (pid, axis, subject, LEVELS[level], 0.3, _now(), _now()),
         )
         conn.commit()
     finally:
         conn.close()
-    return f"{pillar} / {axis} = {level}"
+    return f"{subject} / {pillar} / {axis} = {level}"
 
 
 def add_goal(horizon: str, text: str, deadline: str = "") -> str:
@@ -150,17 +167,23 @@ def list_goals() -> str:
     )
 
 
-def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
+def add_curriculum(concept: str, prereqs: str = "", pillar: str = "",
+                   subject: str = DEFAULT_SUBJECT) -> str:
     """Add a concept to the learner's curriculum graph (a skill tree). `prereqs` is a
     PIPE-delimited (|) list of EXACT concept names to master first — concept names can
-    contain commas, so never comma-join. Empty for a starting concept.
+    contain commas, so never comma-join. Empty for a starting concept. `subject` is the
+    registry key this concept belongs to (defaults to coding).
     """
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        subject = DEFAULT_SUBJECT
     conn = connect()
     try:
         conn.execute(
-            "INSERT INTO curriculum(concept, prereqs, pillar) VALUES(?, ?, ?) "
-            "ON CONFLICT(concept) DO UPDATE SET prereqs=excluded.prereqs, pillar=excluded.pillar",
-            (concept.strip(), prereqs.strip(), pillar.strip()),
+            "INSERT INTO curriculum(concept, prereqs, pillar, subject) VALUES(?, ?, ?, ?) "
+            "ON CONFLICT(concept) DO UPDATE SET prereqs=excluded.prereqs, pillar=excluded.pillar, "
+            "subject=excluded.subject",
+            (concept.strip(), prereqs.strip(), pillar.strip(), subject),
         )
         conn.commit()
     finally:
@@ -240,10 +263,13 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
     """
     n = {"pillars": 0, "ratings": 0, "goals": 0, "curriculum": 0}
     for p in pillars or []:
-        add_pillar(p)
+        if isinstance(p, dict):
+            add_pillar(p["name"], subject=p.get("subject", DEFAULT_SUBJECT))
+        else:
+            add_pillar(p)
         n["pillars"] += 1
     for r in ratings or []:
-        set_baseline_rating(r["pillar"], r["axis"], r["level"])
+        set_baseline_rating(r["pillar"], r["axis"], r["level"], r.get("subject", DEFAULT_SUBJECT))
         n["ratings"] += 1
     for g in goals or []:
         add_goal(g["horizon"], g["text"], g.get("deadline", ""))
@@ -252,7 +278,8 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
         if replace_curriculum:
             clear_curriculum()
         for c in curriculum:
-            add_curriculum(c["concept"], c.get("prereqs", ""), c.get("pillar", ""))
+            add_curriculum(c["concept"], c.get("prereqs", ""), c.get("pillar", ""),
+                           c.get("subject", DEFAULT_SUBJECT))
             n["curriculum"] += 1
     return (f"saved: {n['pillars']} pillars, {n['ratings']} ratings, "
             f"{n['goals']} goals, {n['curriculum']} curriculum nodes")
@@ -342,6 +369,11 @@ def run_bash(command: str, explanation: str) -> str:
     return _clip(out or f"(exit {r.returncode}, no output)")
 
 
+# Partial-credit pass threshold: a fractional score ≥ τ counts as `correct` (binary
+# back-compat + Tier-1). Global (locked decision), plan §5.3.
+PASS_THRESHOLD = 0.5
+
+
 def record_attempt(
     pillar: str,
     axis: str,
@@ -350,52 +382,75 @@ def record_attempt(
     correct: bool,
     seconds: float = 0.0,
     ai_off: bool = True,
+    subject: str = DEFAULT_SUBJECT,
+    score: float | None = None,
+    answer_type: str = "code",
 ) -> str:
     """Record one graded attempt: updates the rating, schedules the review, logs
     it, awards XP, and extends the streak. Call this after each drill is judged.
 
-    axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
+    subject: registry key (coding/maths/stats/ml/cs_theory); defaults to coding.
+    axis: a CORE axis or a subject extension (legacy coding names remapped losslessly).
     confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
+    score: optional partial-credit fraction ∈ [0,1]. When given, Elo consumes the fraction
+           and `correct` is derived as score ≥ τ (0.5); otherwise the passed `correct` is used
+           and score is stored as its 0/1 equivalent.
     """
     from . import progress
     from .scheduling import schedule
     from .scoring import level_of, tighten, update_elo
 
-    if axis not in AXES:
-        return f"unknown axis '{axis}'; use one of: {', '.join(AXES)}"
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'; use one of: {', '.join(s.key for s in subjects.all_subjects())}"
+    axis = subjects.remap_axis(axis)
+    if not subjects.valid_axis(subject, axis):
+        return f"unknown axis '{axis}' for {subject}; use one of: {', '.join(subjects.axes_for(subject))}"
+
+    # Resolve the score fraction + the binary correct (thresholded at τ) coherently.
+    if score is not None:
+        frac = max(0.0, min(1.0, float(score)))
+        correct_bool = frac >= PASS_THRESHOLD
+    else:
+        correct_bool = bool(correct)
+        frac = 1.0 if correct_bool else 0.0
 
     conn = connect()
     try:
-        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, 1)", (pillar.strip(),))
+        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, 1, ?)",
+                     (pillar.strip(), subject))
         pid = conn.execute("SELECT id FROM pillars WHERE name = ?", (pillar.strip(),)).fetchone()["id"]
         row = conn.execute(
-            "SELECT rating, confidence FROM ratings WHERE pillar_id = ? AND axis = ?", (pid, axis)
+            "SELECT rating, confidence FROM ratings WHERE pillar_id = ? AND axis = ? AND subject = ?",
+            (pid, axis, subject),
         ).fetchone()
         current = row["rating"] if row else 1000.0
         band = row["confidence"] if row else 0.0
-        new_rating = update_elo(current, bool(correct), int(confidence))
+        new_rating = update_elo(current, frac, int(confidence))
         conn.execute(
-            """INSERT INTO ratings(pillar_id, axis, rating, confidence, first_seen, last_practiced)
-               VALUES(?, ?, ?, ?, ?, ?)
-               ON CONFLICT(pillar_id, axis)
+            """INSERT INTO ratings(pillar_id, axis, subject, rating, confidence, first_seen, last_practiced)
+               VALUES(?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(pillar_id, axis, subject)
                DO UPDATE SET rating = excluded.rating, confidence = excluded.confidence,
                              last_practiced = excluded.last_practiced""",
-            (pid, axis, new_rating, tighten(band), _now(), _now()),
+            (pid, axis, subject, new_rating, tighten(band), _now(), _now()),
         )
         conn.execute(
-            "INSERT INTO rating_history(pillar, axis, old_rating, new_rating) VALUES(?, ?, ?, ?)",
-            (pillar.strip(), axis, current, new_rating),
+            "INSERT INTO rating_history(pillar, axis, subject, old_rating, new_rating) VALUES(?, ?, ?, ?, ?)",
+            (pillar.strip(), axis, subject, current, new_rating),
         )
         conn.execute(
-            """INSERT INTO attempts(item_id, session_id, confidence, correct, seconds, ai_off, detail)
-               VALUES(NULL, ?, ?, ?, ?, ?, ?)""",
-            (progress.current_session(conn), int(confidence), int(bool(correct)),
-             float(seconds), int(bool(ai_off)), concept),
+            """INSERT INTO attempts(item_id, session_id, confidence, correct, seconds, ai_off,
+                                    detail, subject, answer_type, score)
+               VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (progress.current_session(conn), int(confidence), int(correct_bool),
+             float(seconds), int(bool(ai_off)), concept, subject, answer_type, frac),
         )
         conn.commit()
     finally:
         conn.close()
 
+    correct = correct_bool
     due = schedule(concept, bool(correct), int(confidence))
     xp = (12 if correct else 3) + (5 if ai_off else 0) + (2 if correct and confidence >= 3 else 0)
     total_xp = progress.award_xp(xp, label=concept, cause="attempt")
@@ -442,6 +497,134 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
     if not r.ok and r.stderr.strip():
         out += f"error:\n{r.stderr.strip()}\n"
     return _clip(out.strip() + "\n\n" + summary)
+
+
+def grade_and_record_subject(
+    pillar: str,
+    axis: str,
+    concept: str,
+    answer: str,
+    key: str,
+    answer_type: str,
+    confidence: int,
+    subject: str = DEFAULT_SUBJECT,
+    tolerance: str = "",
+    seconds: float = 0.0,
+) -> str:
+    """Grade a NON-CODE drill deterministically and record the VERIFIED result — the
+    tamper-proof, subject-aware generalisation of grade_and_record (plan §5.5).
+
+    Picks a ground-truth grader from `answer_type` (numeric | symbolic | units | choice),
+    runs it against `key` (the objective reference), and records the outcome via the
+    subject-aware pipeline. The GRADER sets the score — you cannot fake it. Use this for
+    every objective non-code drill (maths numeric/symbolic answers, MCQs, unit answers).
+
+    - answer:      the learner's answer, verbatim.
+    - key:         the objective reference answer to grade against.
+    - answer_type: numeric | symbolic | units | choice.
+    - tolerance:   optional JSON for numeric, e.g. '{"abs": 0.01}' or '{"rel": 0.02}'.
+    - subject:     registry key (maths/stats/ml/...); axis a CORE axis or subject extension.
+    For code drills use grade_and_record (sandbox) instead.
+    """
+    from . import graders
+
+    atype = (answer_type or "").strip()
+    if atype not in graders.DETERMINISTIC_TYPES:
+        return (f"grade_and_record_subject handles only deterministic types "
+                f"({', '.join(sorted(graders.DETERMINISTIC_TYPES))}); got '{atype}'. "
+                "Use grade_rubric for proofs/interpretation, grade_and_record for code.")
+    try:
+        res = graders.grade(answer, {"answer_type": atype, "answer": key, "tolerance": tolerance})
+    except ValueError as e:
+        return f"grading error: {e}"
+    verdict = "PASS ✓" if res.score >= PASS_THRESHOLD else "FAIL ✗"
+    summary = record_attempt(pillar, axis, concept, confidence, res.score >= PASS_THRESHOLD,
+                             seconds, ai_off=True, subject=subject, score=res.score,
+                             answer_type=atype)
+    return _clip(f"{verdict} ({atype} grader, deterministic: {res.detail})\n\n{summary}")
+
+
+def grade_rubric(
+    pillar: str,
+    axis: str,
+    concept: str,
+    prompt: str,
+    answer: str,
+    reference: str,
+    rubric: list,
+    confidence: int,
+    subject: str = DEFAULT_SUBJECT,
+    answer_type: str = "proof",
+    seconds: float = 0.0,
+) -> str:
+    """Grade a NON-DETERMINISTIC answer (proof / interpretation / explanation) with the
+    constrained rubric judge and record the partial-credit result (plan §5.2–5.4).
+
+    The judge is a DIFFERENT model than the tutor, grades the learner's `answer` ONLY
+    against the stored `reference` + the structured `rubric`, is doc-grounded, and runs
+    k=1 (single pass; the raw verdict is logged for optional human audit). It returns a
+    per-criterion breakdown → a weighted fraction ∈ [0,1]. Criteria may be axis-tagged
+    ({"axis": "interpretation"}), so one multi-part answer updates several axis cells with
+    the right partial weights; the fallback `axis` catches untagged criteria.
+
+    `rubric` is a list of {"id", "description", "weight"?, "axis"?}. Fail-open: if the judge
+    is unavailable, nothing is recorded and a note is returned (never a fabricated score).
+    """
+    import json
+
+    from . import verify
+
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'"
+    rubric_list = list(rubric or [])
+    res = verify.rubric_judge(prompt, answer, reference, rubric_list, subject=subject)
+    if not res.get("ok") or res.get("score") is None:
+        return (f"rubric grading unavailable ({res.get('reason', 'judge error')}); "
+                "nothing recorded — configure a second provider to enable judged grading.")
+
+    # Deterministic sub-checks OVERRIDE the judge on the parts a ground-truth grader can
+    # check (plan §5.2.6). A rubric criterion may carry {"check": {"answer_type", "answer",
+    # "value"}} — an objective sub-part; if so, that grader's fraction replaces the judge's
+    # for that criterion, so the model can't talk its way past a checkable fact.
+    from . import graders
+    det_index = {c.get("id"): c for c in rubric_list if c.get("check")}
+
+    # Group per-criterion fractions by their axis (untagged criteria fall to `axis`), so a
+    # multi-part answer updates each competency cell with its own weighted partial credit.
+    by_axis: dict[str, list[tuple[float, float]]] = {}
+    for c in res["criteria"]:
+        frac = float(c["fraction"])
+        spec = det_index.get(c["id"])
+        if spec:
+            chk = spec["check"]
+            try:
+                dres = graders.grade(chk.get("value", ""),
+                                     {"answer_type": chk.get("answer_type"),
+                                      "answer": chk.get("answer"), "tolerance": chk.get("tolerance", "")})
+                frac = dres.score  # deterministic verdict wins on this criterion
+            except ValueError:
+                pass
+        ax = subjects.remap_axis(c.get("axis") or axis)
+        if not subjects.valid_axis(subject, ax):
+            ax = subjects.remap_axis(axis)  # keep the record on a valid cell
+        by_axis.setdefault(ax, []).append((float(c["weight"]), frac))
+
+    recorded: list[str] = []
+    first_axis = subjects.remap_axis(axis)
+    for ax, parts in by_axis.items():
+        w = sum(p[0] for p in parts) or 1.0
+        frac = sum(p[0] * p[1] for p in parts) / w
+        record_attempt(pillar, ax, concept, confidence, frac >= PASS_THRESHOLD, seconds,
+                       ai_off=True, subject=subject, score=frac, answer_type=answer_type)
+        recorded.append(f"{ax} {frac:.2f}")
+
+    verdict = "PASS ✓" if res["score"] >= PASS_THRESHOLD else "PARTIAL"
+    detail = json.dumps({"score": res["score"], "model": res["model"],
+                         "criteria": [{k: c[k] for k in ("id", "axis", "verdict", "fraction")}
+                                      for c in res["criteria"]]})
+    return _clip(f"{verdict} (rubric judge, k=1, score {res['score']:.2f}; "
+                 f"axes: {', '.join(recorded)})\naudit: {detail}")
 
 
 def progress_report() -> str:
@@ -623,56 +806,63 @@ def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 
-def assessment_items(n: int = 8) -> str:
-    """Draw a fresh rotating set of ~n items from the FROZEN benchmark for an assessment.
+def assessment_items(n: int = 8, subject: str = DEFAULT_SUBJECT) -> str:
+    """Draw a fresh rotating set of ~n items from ONE subject's FROZEN benchmark for an
+    assessment.
 
     Tier-1 only (the `eklavya assess` loop). Returns the items to administer AI-off — each
-    with its id, difficulty (1..5), the prompt to pose, and the private `answer` KEY you
-    grade against. The key is for YOUR grading ONLY — never reveal, hint at, or teach it
-    during the sitting. Items are spread across difficulty and pillar and avoid ones seen in
-    the last couple of sittings. Pose them one at a time, record correctness with
-    `record_assessment` at the end.
+    with its id, difficulty (1..5), answer_type (code|numeric|symbolic|choice|...), the
+    prompt to pose, the private `answer` KEY, and any tolerance/rubric for grading. The key
+    is for YOUR grading ONLY — never reveal, hint at, or teach it during the sitting. Items
+    are spread across difficulty and pillar and avoid ones seen in the last couple of
+    sittings. Grade objective items with grade_and_record_subject; record the whole sitting
+    with `record_assessment` at the end. `subject` defaults to coding.
     """
     import json
 
     from . import benchmark
 
+    subject = (subject or DEFAULT_SUBJECT).strip()
     conn = connect()
     try:
-        items = benchmark.select_items(conn, n=n)
+        items = benchmark.select_items(conn, n=n, subject=subject)
     finally:
         conn.close()
     if not items:
-        return "no benchmark items available"
+        return f"no benchmark items available for subject '{subject}'"
     return json.dumps([
-        {"item_id": it["id"], "difficulty": it["difficulty"],
-         "pillar": it["pillar"], "prompt": it["prompt"], "answer": it["answer"]}
+        {"item_id": it["id"], "difficulty": it["difficulty"], "subject": it["subject"],
+         "answer_type": it["answer_type"], "pillar": it["pillar"], "prompt": it["prompt"],
+         "answer": it["answer"], "tolerance": it["tolerance"], "rubric": it["rubric"]}
         for it in items
     ])
 
 
-def record_assessment(outcomes: list, context: str = "") -> str:
-    """Persist a completed frozen assessment and compute the ability score θ (Tier-1).
+def record_assessment(outcomes: list, context: str = "", subject: str = DEFAULT_SUBJECT) -> str:
+    """Persist a completed frozen assessment for ONE subject and compute its ability score θ.
 
     Call this ONCE, at the very end of an `assess` sitting, after every item has been posed
     and objectively judged. `outcomes` is a list of dicts, one per administered item:
-    {"item_id": <int>, "difficulty": <1..5>, "correct": <true|false>, "seconds": <float>}.
+    {"item_id": <int>, "difficulty": <1..5>, "correct": <true|false>, "seconds": <float>,
+    "score": <0..1, optional partial credit>}. θ is per-subject (one ruler per subject).
     `context` is an optional short note ("baseline", "week 4"). Returns the θ estimate and
     the score. Never teach or hint during the sitting — this only records what happened.
     """
     from . import benchmark
 
+    subject = (subject or DEFAULT_SUBJECT).strip()
     norm = [
         {"item_id": int(o["item_id"]), "difficulty": int(o["difficulty"]),
-         "correct": bool(o["correct"]), "seconds": o.get("seconds")}
+         "correct": bool(o["correct"]), "seconds": o.get("seconds"), "score": o.get("score"),
+         "criteria_json": o.get("criteria_json")}
         for o in outcomes
     ]
     if not norm:
         return "no outcomes to record"
-    res = benchmark.record_assessment(norm, context=context)
+    res = benchmark.record_assessment(norm, context=context, subject=subject)
     theta = res["theta"]
     theta_txt = f"{theta:+.2f}" if theta is not None else "—"
-    return (f"assessment #{res['assessment_id']} recorded: θ = {theta_txt} "
+    return (f"assessment #{res['assessment_id']} recorded ({subject}): θ = {theta_txt} "
             f"({res['n_correct']}/{res['n_items']} correct on the frozen benchmark)")
 
 
@@ -705,8 +895,8 @@ from .resume import read_resume  # noqa: E402
 #     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
 #     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
 AGENT_TOOLS = [
-    grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
-    record_attempt, save_baseline, suggest_focus,
+    grade_and_record, grade_and_record_subject, grade_rubric, web_search, read_github,
+    read_resume, get_questions, add_question, record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, save_artifact, run_bash,
 ]
 
@@ -718,4 +908,4 @@ AIINTERVIEW_TOOLS = AGENT_TOOLS
 # Tier-1 assessment: a DELIBERATELY MINIMAL toolset — pull frozen items, grade code if
 # needed, record the sitting. No suggest_focus, no teaching aids: the assessment must not
 # adapt to or teach the learner (that's what keeps the benchmark a non-circular ruler).
-ASSESSMENT_TOOLS = [assessment_items, grade_and_record, record_assessment]
+ASSESSMENT_TOOLS = [assessment_items, grade_and_record, grade_and_record_subject, record_assessment]

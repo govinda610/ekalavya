@@ -17,15 +17,22 @@ _TARGET = 0.65
 _CONFIDENCE_P = {1: 0.25, 2: 0.6, 3: 0.9}
 
 
-def update_elo(current: float, correct: bool, confidence: int = 2) -> float:
+def update_elo(current: float, correct: bool | float, confidence: int = 2) -> float:
     """Return the new rating after one attempt.
 
     The calibration signal is confidence, not item difficulty (we don't have a
     reliable per-item difficulty): `surprise` amplifies the update when the outcome
     contradicts the learner's stated confidence — punishing confident-wrong (the
     illusion of knowing) and rewarding unsure-right.
+
+    `correct` accepts a bool OR a partial-credit fraction ∈ [0,1] (plan §5.3): a bool
+    maps to 0.0/1.0, a float is used directly, so a 0.7 on a hard proof nudges the
+    rating proportionally. The `score - _TARGET` update already works natively for either.
     """
-    score = 1.0 if correct else 0.0
+    if isinstance(correct, bool):
+        score = 1.0 if correct else 0.0
+    else:
+        score = max(0.0, min(1.0, float(correct)))
     claimed = _CONFIDENCE_P.get(int(confidence), 0.6)
     surprise = abs(score - claimed)  # 0 = perfectly calibrated, 1 = maximally wrong
     k = _BASE_K * (1.0 + surprise)   # up to 2× on a big miscalibration

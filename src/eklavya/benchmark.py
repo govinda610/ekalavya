@@ -52,6 +52,8 @@ def _b_of(difficulty: int) -> float:
 # tutor's teaching loops never select from `benchmark_items`, only this module does.
 # `answer` is the objective key the assessment agent grades against (never shown as a
 # hint). Each tuple: (pillar, difficulty 1..5, prompt, answer, grader).
+# The original coding/CS/SQL bank. Each tuple: (pillar, difficulty 1..5, prompt, answer,
+# grader). These are subject='coding' with answer_type='code' (stamped below). Frozen.
 _STARTER_ITEMS: list[tuple[str, int, str, str, str]] = [
     # --- Python fundamentals ---
     ("Python", 1,
@@ -130,45 +132,117 @@ _STARTER_ITEMS: list[tuple[str, int, str, str, str]] = [
 ]
 
 
-def seed_items(conn) -> int:
-    """Idempotently insert the starter frozen item bank; return how many were inserted.
+# --- per-subject deterministic starter banks (subject framework §4.4) ------
+#
+# Small frozen banks for the new subjects, authored with the DETERMINISTIC answer types
+# (numeric/symbolic/choice) so they grade tamper-proof WITHOUT an LLM — as trustworthy as
+# the coding sandbox. Each tuple: (subject, pillar, difficulty, prompt, answer, answer_type,
+# tolerance-json). Reference-rubric (proof/interpretation) items are intentionally NOT
+# seeded here: they each need a stored reference + structured rubric, so they're authored
+# later (see `starter_bank_status`) rather than stubbed with a weak key. θ per subject reads
+# only these objective items for now — a credible, non-circular ruler from day one.
+_SUBJECT_STARTER_ITEMS: list[tuple[str, str, int, str, str, str, str]] = [
+    # --- Mathematics (numeric / symbolic / choice) ---
+    ("maths", "Arithmetic", 1, "What is 7 * 8?", "56", "numeric", ""),
+    ("maths", "Algebra", 2, "Solve for x: 2x + 6 = 10. Give x.", "2", "numeric", ""),
+    ("maths", "Algebra", 3, "Expand (x + 1)^2.", "x^2 + 2*x + 1", "symbolic", ""),
+    ("maths", "Calculus", 3, "Differentiate x^3 with respect to x.", "3*x^2", "symbolic", ""),
+    ("maths", "Calculus", 4, "Evaluate the indefinite integral of 2*x (omit +C).", "x^2", "symbolic", ""),
+    ("maths", "Trigonometry", 4, "Simplify sin(x)^2 + cos(x)^2.", "1", "symbolic", ""),
+    ("maths", "Linear Algebra", 2,
+     "What is the determinant of [[1,2],[3,4]]?", "-2", "numeric", ""),
+    # --- Statistics & Econometrics (numeric / choice) ---
+    ("stats", "Probability", 1,
+     "A fair coin is tossed once. P(heads)? Give a decimal.", "0.5", "numeric", ""),
+    ("stats", "Probability", 2,
+     "Two independent fair coins. P(both heads)? Decimal.", "0.25", "numeric", ""),
+    ("stats", "Descriptive", 2, "Mean of 2, 4, 6, 8?", "5", "numeric", ""),
+    ("stats", "Inference", 3,
+     "Which clause of a t-test compares to the critical value: the test statistic or the "
+     "p-value's own threshold? Answer 'test statistic' or 'p-value'.",
+     "test statistic|p-value", "choice", ""),
+    ("stats", "OLS", 3,
+     "In simple OLS y = a + b x, if cov(x,y) > 0 and var(x) > 0, is the slope b positive or "
+     "negative? Answer 'positive' or 'negative'.", "positive", "choice", ""),
+    ("stats", "OLS", 4,
+     "Under Gauss-Markov, is the OLS estimator biased or unbiased? Answer 'biased' or "
+     "'unbiased'.", "unbiased", "choice", ""),
+]
 
-    Only inserts items not already present (matched on `prompt`), so it is safe to call
-    on every launch from ``_migrate``. Never overwrites an existing item — the bank is
-    frozen once seeded. Uses the passed-in connection (does not commit; the caller does).
+
+def seed_items(conn) -> int:
+    """Idempotently insert the starter frozen item banks; return how many were inserted.
+
+    Seeds BOTH the original coding bank (subject='coding', answer_type='code') and the new
+    per-subject deterministic banks (maths/stats). Only inserts items not already present
+    (matched on `prompt`), so it is safe to call on every launch from ``_migrate``. Never
+    overwrites an existing item — the bank is frozen once seeded. Uses the passed-in
+    connection (does not commit; the caller does).
     """
     inserted = 0
     for pillar, diff, prompt, answer, grader in _STARTER_ITEMS:
-        exists = conn.execute(
-            "SELECT 1 FROM benchmark_items WHERE prompt = ?", (prompt,)
-        ).fetchone()
-        if exists:
+        if conn.execute("SELECT 1 FROM benchmark_items WHERE prompt = ?", (prompt,)).fetchone():
             continue
         conn.execute(
-            "INSERT INTO benchmark_items(pillar, difficulty, prompt, answer, grader) "
-            "VALUES(?, ?, ?, ?, ?)",
+            "INSERT INTO benchmark_items(subject, pillar, difficulty, prompt, answer, grader, "
+            "answer_type) VALUES('coding', ?, ?, ?, ?, ?, 'code')",
             (pillar, int(diff), prompt, answer, grader),
+        )
+        inserted += 1
+    for subject, pillar, diff, prompt, answer, atype, tol in _SUBJECT_STARTER_ITEMS:
+        if conn.execute("SELECT 1 FROM benchmark_items WHERE prompt = ?", (prompt,)).fetchone():
+            continue
+        conn.execute(
+            "INSERT INTO benchmark_items(subject, pillar, difficulty, prompt, answer, grader, "
+            "answer_type, tolerance) VALUES(?, ?, ?, ?, ?, ?, ?, ?)",
+            (subject, pillar, int(diff), prompt, answer, atype, atype, tol or None),
         )
         inserted += 1
     return inserted
 
 
+def starter_bank_status() -> dict[str, int]:
+    """Per-subject frozen item counts — documents which subjects have a usable θ ruler yet.
+
+    ml / cs_theory have NO objective starter items seeded (their credible items are mostly
+    proof/interpretation, which need per-item reference+rubric authoring); they return 0
+    here, i.e. a documented stub, not a fabricated bank. Grow via authored items over time.
+    """
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT subject, COUNT(*) AS c FROM benchmark_items GROUP BY subject"
+        ).fetchall()
+    finally:
+        conn.close()
+    return {r["subject"]: r["c"] for r in rows}
+
+
 # --- item selection --------------------------------------------------------
 
-def _recent_item_ids(conn, sittings: int = 2) -> set[int]:
-    """Item ids used in the most recent `sittings` completed assessments — to avoid repeats."""
-    rows = conn.execute(
-        "SELECT DISTINCT r.item_id FROM assessment_responses r "
-        "WHERE r.assessment_id IN ("
-        "  SELECT id FROM assessments ORDER BY started_at DESC LIMIT ?"
-        ")",
-        (sittings,),
-    ).fetchall()
+def _recent_item_ids(conn, sittings: int = 2, subject: str | None = None) -> set[int]:
+    """Item ids used in the most recent `sittings` completed assessments — to avoid repeats.
+    Scoped to one subject's sittings when `subject` is given (per-subject rotation)."""
+    if subject:
+        rows = conn.execute(
+            "SELECT DISTINCT r.item_id FROM assessment_responses r "
+            "WHERE r.assessment_id IN ("
+            "  SELECT id FROM assessments WHERE subject = ? ORDER BY started_at DESC LIMIT ?)",
+            (subject, sittings),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT DISTINCT r.item_id FROM assessment_responses r "
+            "WHERE r.assessment_id IN ("
+            "  SELECT id FROM assessments ORDER BY started_at DESC LIMIT ?)",
+            (sittings,),
+        ).fetchall()
     return {r["item_id"] for r in rows}
 
 
-def select_items(conn, n: int = 8, avoid_recent: int = 2) -> list[dict]:
-    """Pick a rotating subset of ~`n` frozen items, spread across difficulty and pillar.
+def select_items(conn, n: int = 8, avoid_recent: int = 2, subject: str = "coding") -> list[dict]:
+    """Pick a rotating subset of ~`n` frozen items for one SUBJECT's bank, spread across
+    difficulty and pillar.
 
     Strategy (simple + defensible): prefer items NOT used in the last `avoid_recent`
     sittings, then round-robin across difficulty buckets 1..5 so every sitting samples
@@ -176,12 +250,15 @@ def select_items(conn, n: int = 8, avoid_recent: int = 2) -> list[dict]:
     or all-hard). Within a bucket, rotate across pillars and least-recently-used items.
     Falls back to allowing recent items if the fresh pool is too small (small bank).
 
-    Returns a list of item dicts (id, pillar, difficulty, prompt, answer, grader), ordered
-    easy→hard so the sitting ramps up.
+    Essays are never drawn into the θ ruler (excluded per plan §4.4 / locked decision).
+    Returns a list of item dicts (id, subject, pillar, difficulty, prompt, answer, grader,
+    answer_type, tolerance, rubric), ordered easy→hard so the sitting ramps up.
     """
-    recent = _recent_item_ids(conn, avoid_recent) if avoid_recent else set()
+    recent = _recent_item_ids(conn, avoid_recent, subject) if avoid_recent else set()
     all_items = [dict(r) for r in conn.execute(
-        "SELECT id, pillar, difficulty, prompt, answer, grader FROM benchmark_items"
+        "SELECT id, subject, pillar, difficulty, prompt, answer, grader, answer_type, "
+        "tolerance, rubric FROM benchmark_items WHERE subject = ? AND answer_type != 'essay'",
+        (subject,),
     ).fetchall()]
     if not all_items:
         return []
@@ -290,40 +367,48 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def record_assessment(items_and_outcomes: list[dict], context: str = "") -> dict:
-    """Persist one completed frozen assessment + its per-item responses, and its θ.
+def record_assessment(items_and_outcomes: list[dict], context: str = "",
+                      subject: str = "coding") -> dict:
+    """Persist one completed frozen assessment + its per-item responses, and its θ, for ONE
+    subject (one ruler per subject — you cannot compare a maths θ to a coding θ).
 
-    `items_and_outcomes` is a list of dicts: {"item_id", "difficulty", "correct", "seconds"}.
-    Computes θ under the Rasch model from the item difficulties + correctness, writes one
-    `assessments` row and one `assessment_responses` row per item, and returns
-    {"assessment_id", "theta", "n_items", "n_correct"}.
+    `items_and_outcomes` is a list of dicts: {"item_id", "difficulty", "correct", "seconds",
+    "score"?, "criteria_json"?}. θ stays binary 1PL — a partial-credit item is thresholded at
+    τ=0.5 (plan §4.2): correct = (score ≥ 0.5) when a `score` is present, else the given
+    `correct`. Writes one `assessments` row (tagged with `subject`) and one
+    `assessment_responses` row per item (storing the fractional score + judge audit trail),
+    and returns {"assessment_id", "theta", "n_items", "n_correct", "subject"}.
     """
-    responses = [
-        (_b_of(o["difficulty"]), 1 if o["correct"] else 0) for o in items_and_outcomes
-    ]
+    def _correct(o) -> int:
+        if o.get("score") is not None:
+            return 1 if float(o["score"]) >= 0.5 else 0
+        return 1 if o["correct"] else 0
+
+    responses = [(_b_of(o["difficulty"]), _correct(o)) for o in items_and_outcomes]
     theta = estimate_theta(responses)
     n_items = len(items_and_outcomes)
-    n_correct = sum(1 for o in items_and_outcomes if o["correct"])
+    n_correct = sum(_correct(o) for o in items_and_outcomes)
 
     conn = connect()
     try:
         cur = conn.execute(
-            "INSERT INTO assessments(started_at, ended_at, theta, n_items, context) "
-            "VALUES(?, ?, ?, ?, ?)",
-            (context and None or _now(), _now(), theta, n_items, context or None),
+            "INSERT INTO assessments(started_at, ended_at, theta, n_items, subject, context) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            (context and None or _now(), _now(), theta, n_items, subject, context or None),
         )
         assessment_id = cur.lastrowid
         for o in items_and_outcomes:
             conn.execute(
-                "INSERT INTO assessment_responses(assessment_id, item_id, correct, seconds) "
-                "VALUES(?, ?, ?, ?)",
-                (assessment_id, o["item_id"], int(bool(o["correct"])), o.get("seconds")),
+                "INSERT INTO assessment_responses(assessment_id, item_id, correct, score, "
+                "criteria_json, seconds) VALUES(?, ?, ?, ?, ?, ?)",
+                (assessment_id, o["item_id"], _correct(o),
+                 o.get("score"), o.get("criteria_json"), o.get("seconds")),
             )
         conn.commit()
     finally:
         conn.close()
     return {"assessment_id": assessment_id, "theta": theta,
-            "n_items": n_items, "n_correct": n_correct}
+            "n_items": n_items, "n_correct": n_correct, "subject": subject}
 
 
 # --- the θ-over-time series (primary effectiveness outcome) ----------------
@@ -343,24 +428,37 @@ def _slope(points: list[tuple[float, float]]) -> float | None:
     return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / denom
 
 
-def history() -> dict:
+def history(subject: str | None = None) -> dict:
     """θ per completed assessment over time — the trustworthy, non-circular ability curve.
 
-    Returns the per-sitting series (with date, θ, n_items, n_correct), the current θ, the
-    baseline θ (first sitting), the θ slope across sittings (the primary §9 outcome), and
-    the frozen item-bank size. Empty/one-sitting states return safe None slopes with n so a
-    caller can show confidence honestly.
+    Scoped to ONE subject when `subject` is given (its own ruler); otherwise the whole
+    series across every subject (legacy callers). Returns the per-sitting series (with date,
+    θ, n_items, n_correct), the current θ, the baseline θ (first sitting), the θ slope across
+    sittings (the primary §9 outcome), and the frozen item-bank size. Empty/one-sitting
+    states return safe None slopes with n so a caller can show confidence honestly.
     """
     conn = connect()
     try:
-        rows = conn.execute(
-            "SELECT a.id, a.started_at, a.ended_at, a.theta, a.n_items, "
-            "  (SELECT COUNT(*) FROM assessment_responses r "
-            "   WHERE r.assessment_id = a.id AND r.correct = 1) AS n_correct "
-            "FROM assessments a WHERE a.theta IS NOT NULL "
-            "ORDER BY a.started_at, a.id"
-        ).fetchall()
-        bank_n = conn.execute("SELECT COUNT(*) AS c FROM benchmark_items").fetchone()["c"]
+        if subject:
+            rows = conn.execute(
+                "SELECT a.id, a.started_at, a.ended_at, a.theta, a.n_items, "
+                "  (SELECT COUNT(*) FROM assessment_responses r "
+                "   WHERE r.assessment_id = a.id AND r.correct = 1) AS n_correct "
+                "FROM assessments a WHERE a.theta IS NOT NULL AND a.subject = ? "
+                "ORDER BY a.started_at, a.id", (subject,)
+            ).fetchall()
+            bank_n = conn.execute(
+                "SELECT COUNT(*) AS c FROM benchmark_items WHERE subject = ?", (subject,)
+            ).fetchone()["c"]
+        else:
+            rows = conn.execute(
+                "SELECT a.id, a.started_at, a.ended_at, a.theta, a.n_items, "
+                "  (SELECT COUNT(*) FROM assessment_responses r "
+                "   WHERE r.assessment_id = a.id AND r.correct = 1) AS n_correct "
+                "FROM assessments a WHERE a.theta IS NOT NULL "
+                "ORDER BY a.started_at, a.id"
+            ).fetchall()
+            bank_n = conn.execute("SELECT COUNT(*) AS c FROM benchmark_items").fetchone()["c"]
     finally:
         conn.close()
 
@@ -376,9 +474,25 @@ def history() -> dict:
     return {
         "n_assessments": len(series),
         "bank_size": bank_n,
+        "subject": subject,
         "series": series,
         "current_theta": series[-1]["theta"] if series else None,
         "baseline_theta": series[0]["theta"] if series else None,
         "slope": round(slope, 3) if slope is not None else None,
         "rising": (slope is not None and slope > 0),
     }
+
+
+def subject_histories() -> dict[str, dict]:
+    """Per-subject θ history (§4.3 surfacing) — one `history(subject)` per subject that has
+    either a frozen item bank or at least one recorded sitting. Never places two subjects'
+    θ on one axis; each entry is that subject's own ruler."""
+    conn = connect()
+    try:
+        subs = [r["subject"] for r in conn.execute(
+            "SELECT subject FROM benchmark_items UNION "
+            "SELECT subject FROM assessments ORDER BY subject"
+        ).fetchall()]
+    finally:
+        conn.close()
+    return {s: history(subject=s) for s in dict.fromkeys(subs)}

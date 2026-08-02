@@ -19,6 +19,8 @@ _PARITY_TABLES = (
     "pillars", "ratings", "attempts", "goals", "goal_reviews", "curriculum",
     "rating_history", "rewards", "cards", "items", "concepts", "misconceptions",
     "learning_prefs", "chats", "sessions", "repos", "questions", "ai_assists", "meta",
+    # Unified subject framework (registry tables carry learner-relevant config).
+    "subjects", "axes",
 )
 
 

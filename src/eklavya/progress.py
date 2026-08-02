@@ -142,10 +142,11 @@ def touch_streak(today: str | None = None) -> int:
 _CONF_P = {1: 0.35, 2: 0.65, 3: 0.90}
 
 
-def calibration(window: int = 50) -> dict:
+def calibration(window: int = 50, subject: str | None = None) -> dict:
     """The calibration signal over the last `window` graded attempts — the product's
     headline "do you know what you know?" metric, which the rating math already reacts
-    to but which was never surfaced on its own.
+    to but which was never surfaced on its own. Scoped to one `subject` when given (a
+    learner may be well-calibrated in coding but overconfident in econometrics).
 
     Returns {n, brier, bias, confidently_wrong}:
       - brier: mean squared gap between stated confidence and being right (0 = perfect,
@@ -159,10 +160,17 @@ def calibration(window: int = 50) -> dict:
 
     conn = connect()
     try:
-        rows = conn.execute(
-            "SELECT confidence AS c, correct AS k FROM attempts "
-            "WHERE confidence IS NOT NULL ORDER BY id DESC LIMIT ?", (int(window),)
-        ).fetchall()
+        if subject:
+            rows = conn.execute(
+                "SELECT confidence AS c, correct AS k FROM attempts "
+                "WHERE confidence IS NOT NULL AND subject = ? ORDER BY id DESC LIMIT ?",
+                (subject, int(window)),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT confidence AS c, correct AS k FROM attempts "
+                "WHERE confidence IS NOT NULL ORDER BY id DESC LIMIT ?", (int(window),)
+            ).fetchall()
     finally:
         conn.close()
     pairs = [(r["c"], int(bool(r["k"]))) for r in rows if r["c"] in _CONF_P]

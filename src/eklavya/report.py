@@ -5,21 +5,36 @@ Shared by the dashboard (and usable by the TUI/CLI). Pure queries — no writes.
 
 from __future__ import annotations
 
-from . import progress
+from . import progress, subjects
 from .db import connect
 from .scoring import level_of
 from .tools import AXES
 
 
-def grid() -> dict:
-    """The mastery grid as {pillar: {axis: {level, rating}}} plus the axis order."""
+def grid(subject: str | None = None) -> dict:
+    """The mastery grid as {pillar: {axis: {level, rating}}} plus the axis order.
+
+    Subject-aware (subject framework §4.5): without `subject` it returns the whole grid
+    across every subject (axes = the union of CORE + every extension seen). With a
+    `subject` it filters to that subject's pillars and reports that subject's declared
+    axis order (CORE subset + extensions). Legacy single-subject callers keep working —
+    with no subject the coding pillars still appear and the coding axes are included.
+    """
     conn = connect()
     try:
-        rows = conn.execute(
-            """SELECT p.name AS pillar, r.axis AS axis, r.rating AS rating
-               FROM ratings r JOIN pillars p ON p.id = r.pillar_id
-               ORDER BY p.name"""
-        ).fetchall()
+        if subject:
+            rows = conn.execute(
+                """SELECT p.name AS pillar, r.axis AS axis, r.rating AS rating
+                   FROM ratings r JOIN pillars p ON p.id = r.pillar_id
+                   WHERE r.subject = ? ORDER BY p.name""",
+                (subject,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                """SELECT p.name AS pillar, r.axis AS axis, r.rating AS rating
+                   FROM ratings r JOIN pillars p ON p.id = r.pillar_id
+                   ORDER BY p.name"""
+            ).fetchall()
     finally:
         conn.close()
     pillars: dict[str, dict] = {}
@@ -28,7 +43,20 @@ def grid() -> dict:
             "level": level_of(r["rating"]),
             "rating": round(r["rating"]),
         }
-    return {"axes": list(AXES), "pillars": pillars}
+    if subject:
+        axes = list(subjects.axes_for(subject))
+    else:
+        # union: CORE first (canonical order), then any extension axis present, in a
+        # stable registry order, so the whole-grid view has a sensible column order.
+        seen = {ax for row in pillars.values() for ax in row}
+        axes = [ax for ax in subjects.CORE_AXES if ax in seen or not pillars]
+        for s in subjects.all_subjects():
+            for ax in s.ext_axes:
+                if ax in seen and ax not in axes:
+                    axes.append(ax)
+        if not axes:  # no ratings yet — show the default coding grid shape
+            axes = list(subjects.axes_for(subjects.DEFAULT_SUBJECT))
+    return {"axes": axes, "pillars": pillars, "subject": subject}
 
 
 def goals() -> list[dict]:
@@ -91,19 +119,25 @@ def is_first_run() -> bool:
         conn.close()
 
 
-def ai_gap() -> dict:
+def ai_gap(subject: str | None = None) -> dict:
     """Unaided vs AI-assisted accuracy — the gap you're closing (Atrophy's idea).
 
     Returns the overall unaided/assisted success rates and a recent unaided-accuracy
     trend (per-day buckets), so the dashboard can show whether unaided skill is
-    actually rising.
+    actually rising. Scoped to one `subject` when given (per-subject guardrail).
     """
     conn = connect()
     try:
-        rows = conn.execute(
-            "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
-            "ORDER BY created_at"
-        ).fetchall()
+        if subject:
+            rows = conn.execute(
+                "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
+                "WHERE subject = ? ORDER BY created_at", (subject,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
+                "ORDER BY created_at"
+            ).fetchall()
     finally:
         conn.close()
 
