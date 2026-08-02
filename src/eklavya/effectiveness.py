@@ -39,14 +39,15 @@ def _slope(points: list[tuple[float, float]]) -> float | None:
     return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / denom
 
 
-def unaided() -> dict:
+def unaided(subject: str | None = None) -> dict:
     """Unaided (AI-off) accuracy, its trend, and the AI-off↔AI-on gap.
 
     Reuses ``report.ai_gap()`` wholesale for the rates/trend, then adds the one thing
     it doesn't compute: whether the unaided trend is *rising* (a slope over the per-day
-    series) and whether the gap is *closing* (unaided climbing toward assisted).
+    series) and whether the gap is *closing* (unaided climbing toward assisted). Scoped to
+    one `subject` when given (the per-subject guardrail: "unaided rising in Stats, flat in ML").
     """
-    g = report.ai_gap()
+    g = report.ai_gap(subject)
     trend = [t for t in g["trend"] if t["rate"] is not None]
     slope = _slope([(i, t["rate"]) for i, t in enumerate(trend)])
     return {
@@ -63,27 +64,41 @@ def unaided() -> dict:
     }
 
 
-def elo() -> dict:
+def elo(subject: str | None = None) -> dict:
     """Per-pillar Elo: current mean rating per pillar, the overall trajectory, and the
-    strongest / weakest pillars.
+    strongest / weakest pillars. Scoped to one `subject` when given.
 
-    ``ratings`` holds the current rating per (pillar, axis); ``rating_history`` holds
-    every change with a timestamp — the raw ability curve. We surface the pillar means
+    ``ratings`` holds the current rating per (subject, pillar, axis); ``rating_history``
+    holds every change with a timestamp — the raw ability curve. We surface the pillar means
     (STRENGTHS vs WEAKNESSES) and an overall mean-rating time series (daily).
     """
     conn = connect()
     try:
-        cur = conn.execute(
-            "SELECT p.name AS pillar, AVG(r.rating) AS rating, COUNT(*) AS n "
-            "FROM ratings r JOIN pillars p ON p.id = r.pillar_id "
-            "GROUP BY p.name ORDER BY rating DESC"
-        ).fetchall()
-        # overall mean of new_rating per active day, from the history curve
-        daily = conn.execute(
-            "SELECT substr(created_at,1,10) AS day, AVG(new_rating) AS rating, COUNT(*) AS n "
-            "FROM rating_history GROUP BY day ORDER BY day"
-        ).fetchall()
-        hist_n = conn.execute("SELECT COUNT(*) AS c FROM rating_history").fetchone()["c"]
+        if subject:
+            cur = conn.execute(
+                "SELECT p.name AS pillar, AVG(r.rating) AS rating, COUNT(*) AS n "
+                "FROM ratings r JOIN pillars p ON p.id = r.pillar_id "
+                "WHERE r.subject = ? GROUP BY p.name ORDER BY rating DESC", (subject,)
+            ).fetchall()
+            daily = conn.execute(
+                "SELECT substr(created_at,1,10) AS day, AVG(new_rating) AS rating, COUNT(*) AS n "
+                "FROM rating_history WHERE subject = ? GROUP BY day ORDER BY day", (subject,)
+            ).fetchall()
+            hist_n = conn.execute(
+                "SELECT COUNT(*) AS c FROM rating_history WHERE subject = ?", (subject,)
+            ).fetchone()["c"]
+        else:
+            cur = conn.execute(
+                "SELECT p.name AS pillar, AVG(r.rating) AS rating, COUNT(*) AS n "
+                "FROM ratings r JOIN pillars p ON p.id = r.pillar_id "
+                "GROUP BY p.name ORDER BY rating DESC"
+            ).fetchall()
+            # overall mean of new_rating per active day, from the history curve
+            daily = conn.execute(
+                "SELECT substr(created_at,1,10) AS day, AVG(new_rating) AS rating, COUNT(*) AS n "
+                "FROM rating_history GROUP BY day ORDER BY day"
+            ).fetchall()
+            hist_n = conn.execute("SELECT COUNT(*) AS c FROM rating_history").fetchone()["c"]
     finally:
         conn.close()
 
@@ -102,8 +117,8 @@ def elo() -> dict:
     }
 
 
-def retention() -> dict:
-    """FSRS retention — durable memory, not cramming.
+def retention(subject: str | None = None) -> dict:
+    """FSRS retention — durable memory, not cramming. Scoped to one `subject` when given.
 
     A card is only evidence of *retention* once it has graduated out of initial learning
     — i.e. it survived at least one real interval. In FSRS that's ``state`` 2 (Review) or
@@ -117,9 +132,15 @@ def retention() -> dict:
 
     conn = connect()
     try:
-        rows = conn.execute(
-            "SELECT lapses, due, state_json FROM cards WHERE state_json IS NOT NULL"
-        ).fetchall()
+        if subject:
+            rows = conn.execute(
+                "SELECT lapses, due, state_json FROM cards "
+                "WHERE state_json IS NOT NULL AND subject = ?", (subject,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT lapses, due, state_json FROM cards WHERE state_json IS NOT NULL"
+            ).fetchall()
     finally:
         conn.close()
 
@@ -140,8 +161,10 @@ def retention() -> dict:
     return {"n": graduated, "recalled": recalled, "rate": rate, "cards_total": len(rows)}
 
 
-def dose() -> dict:
-    """Dose / effort — the independent variable for any dose-response story.
+def dose(subject: str | None = None) -> dict:
+    """Dose / effort — the independent variable for any dose-response story. Scoped to one
+    `subject` when given (attempt count + active days filter by subject; minutes stay global,
+    since sessions aren't subject-tagged — a sitting can span subjects).
 
     Total practice minutes (from ``sessions``), session count, attempt count, active
     days, and the current streak. Minutes prefer each session's wall-clock span
@@ -154,10 +177,19 @@ def dose() -> dict:
         srows = conn.execute(
             "SELECT planned_min, started_at, ended_at, last_active FROM sessions"
         ).fetchall()
-        attempts_n = conn.execute("SELECT COUNT(*) AS c FROM attempts").fetchone()["c"]
-        active_days = conn.execute(
-            "SELECT COUNT(DISTINCT substr(created_at,1,10)) AS d FROM attempts"
-        ).fetchone()["d"]
+        if subject:
+            attempts_n = conn.execute(
+                "SELECT COUNT(*) AS c FROM attempts WHERE subject = ?", (subject,)
+            ).fetchone()["c"]
+            active_days = conn.execute(
+                "SELECT COUNT(DISTINCT substr(created_at,1,10)) AS d FROM attempts WHERE subject = ?",
+                (subject,)
+            ).fetchone()["d"]
+        else:
+            attempts_n = conn.execute("SELECT COUNT(*) AS c FROM attempts").fetchone()["c"]
+            active_days = conn.execute(
+                "SELECT COUNT(DISTINCT substr(created_at,1,10)) AS d FROM attempts"
+            ).fetchone()["d"]
     finally:
         conn.close()
 
@@ -259,12 +291,50 @@ def export_attempts(out_path, fmt: str = "csv") -> int:
     return len(rows)
 
 
+def active_subjects() -> list[str]:
+    """Subjects the learner has any recorded activity in (an attempt, a rating, or a
+    benchmark sitting) — the set the per-subject strips iterate over. Ordered, deduped."""
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT subject FROM attempts UNION SELECT subject FROM ratings "
+            "UNION SELECT subject FROM assessments ORDER BY subject"
+        ).fetchall()
+    finally:
+        conn.close()
+    return list(dict.fromkeys(r["subject"] for r in rows if r["subject"]))
+
+
+def per_subject() -> dict[str, dict]:
+    """Per-subject effectiveness strips — the DATA layer for the unified overview (task #83).
+
+    For each active subject: its unaided guardrail, per-pillar Elo strengths/weaknesses,
+    calibration, retention, dose, and its OWN frozen-benchmark θ history (never cross-subject
+    comparable — each is that subject's ruler). This is pure data; the dashboard UI redesign
+    that renders these strips is deferred to #83 (not touched here).
+    """
+    from . import benchmark
+
+    out: dict[str, dict] = {}
+    for s in active_subjects():
+        out[s] = {
+            "unaided": unaided(s),
+            "elo": elo(s),
+            "calibration": progress.calibration(subject=s),
+            "retention": retention(s),
+            "dose": dose(s),
+            "benchmark": benchmark.history(subject=s),
+        }
+    return out
+
+
 def summary() -> dict:
     """The whole Tier-0 picture as small, JSON-serialisable numbers with counts.
 
     Bundles the guardrail (unaided trend + gap), per-skill Elo (strengths/weaknesses),
     calibration (reused from ``progress``), retention, and dose — everything the
-    effectiveness view and offline analysis need in one read.
+    effectiveness view and offline analysis need in one read. `per_subject` adds the same
+    numbers grouped by subject (the #83 data backbone), leaving the UI redesign for later.
     """
     from . import benchmark, experiments
 
@@ -279,6 +349,8 @@ def summary() -> dict:
         "benchmark": benchmark.history(),
         # Tier-3: real-world outcomes — does it matter beyond the app's own metrics?
         "outcomes": experiments.outcomes()[:8],
+        # Per-subject grouping — the data layer for the #83 overview (UI redesign deferred).
+        "per_subject": per_subject(),
     }
 
 

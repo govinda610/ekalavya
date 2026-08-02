@@ -119,19 +119,25 @@ def is_first_run() -> bool:
         conn.close()
 
 
-def ai_gap() -> dict:
+def ai_gap(subject: str | None = None) -> dict:
     """Unaided vs AI-assisted accuracy — the gap you're closing (Atrophy's idea).
 
     Returns the overall unaided/assisted success rates and a recent unaided-accuracy
     trend (per-day buckets), so the dashboard can show whether unaided skill is
-    actually rising.
+    actually rising. Scoped to one `subject` when given (per-subject guardrail).
     """
     conn = connect()
     try:
-        rows = conn.execute(
-            "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
-            "ORDER BY created_at"
-        ).fetchall()
+        if subject:
+            rows = conn.execute(
+                "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
+                "WHERE subject = ? ORDER BY created_at", (subject,)
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT ai_off, correct, substr(created_at, 1, 10) AS day FROM attempts "
+                "ORDER BY created_at"
+            ).fetchall()
     finally:
         conn.close()
 
