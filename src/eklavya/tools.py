@@ -398,6 +398,37 @@ def suggest_focus(minutes: int = 30) -> str:
     return "\n".join(lines)
 
 
+def _bash_escapes_workspace(command: str, ws: Path) -> str | None:
+    """Best-effort scan: the first path-like argument that resolves OUTSIDE `ws`, or None.
+
+    Splits the command with shell lexing and, for each non-flag token that looks like a path
+    (contains a `/`, a `~`, or names an existing entry), resolves it relative to the workspace
+    and checks containment. Tokens that don't look like paths (a bare verb, a flag, a SQL
+    string) are ignored — this is a deny-the-obvious-escape filter, not a full jail (#49).
+    """
+    import shlex
+
+    ws = ws.resolve()
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        return None  # unparseable — the approval gate + denylist still apply
+    for tok in tokens[1:]:
+        if tok.startswith("-"):
+            continue  # a flag, not a path
+        looks_like_path = ("/" in tok) or tok.startswith("~") or ".." in tok.split("/")
+        if not looks_like_path:
+            continue
+        try:
+            cand = Path(tok).expanduser()
+            resolved = (cand if cand.is_absolute() else ws / cand).resolve()
+        except Exception:
+            return tok
+        if not resolved.is_relative_to(ws):
+            return tok
+    return None
+
+
 def run_bash(command: str, explanation: str) -> str:
     """Run a shell command in the learner's workspace. Use it to run/verify code,
     inspect files, or query the learner db with sqlite3 (the db is `eklavya.db` in the
@@ -416,11 +447,22 @@ def run_bash(command: str, explanation: str) -> str:
     if deny.search(command):
         return "Refused: this command matches a blocked destructive pattern."
 
+    from .workspace import workspace_dir
+
+    # DEPLOYED confinement (best-effort, until the full bwrap/nsjail jail — task #49). A shared
+    # host means a prompt-injected command must not reach outside THIS tenant's workspace, so we
+    # scan the command's path-like arguments and refuse any that resolves outside it (absolute
+    # paths, `..` escapes, `~`). This is not a real jail — a metacharacter-laced command can still
+    # do harm — so it's paired with the approval gate; here we simply deny the clearest escapes.
+    if config.DEPLOYED:
+        escape = _bash_escapes_workspace(command, workspace_dir())
+        if escape is not None:
+            return (f"Refused (deployed): '{escape}' resolves outside your workspace. "
+                    "Commands here may only touch files inside your own workspace.")
+
     from .backups import snapshot_if_changed
 
     snapshot_if_changed(f"before run_bash: {command[:80]}")  # safety net for model SQL
-
-    from .workspace import workspace_dir
 
     # Scrub secrets from the child env so a command can't read/exfiltrate API keys
     # (echo $..._API_KEY, env, etc.) into the model or the transcript.

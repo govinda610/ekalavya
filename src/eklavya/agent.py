@@ -8,6 +8,8 @@ a checkpointer so a conversation persists across turns on one thread_id.
 from __future__ import annotations
 
 import re
+import shlex
+from pathlib import Path
 
 from .fallback import build_fallback_chat_model
 
@@ -46,25 +48,70 @@ def _exclude_execute_tool() -> None:
 
 # Read-only shell commands the tutor may run WITHOUT the human-approval prompt — the trace
 # still shows they ran. Kept deliberately tight: navigation/inspection only, no code execution
-# (python), no state mutation (sqlite3 can write), no env dump (could leak keys). Anything not
-# on this list still requires the learner's explicit approval, so the default is always "ask".
+# (python), no state mutation (sqlite3 can write), no env dump (could leak keys). File-READ
+# commands (cat/head/tail/grep/nl/cut/less …) are deliberately NOT here: reading a file's
+# CONTENTS is exactly the exfil vector (cat /etc/passwd, cat ~/.eklavya-data/users.db), so any
+# file read now requires the learner's explicit approval instead of silently auto-running.
+# Anything not on this list still requires approval, so the default is always "ask".
 _SAFE_BASH_CMDS = frozenset({
-    "pwd", "ls", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep", "tree", "stat",
-    "file", "du", "df", "date", "echo", "printf", "which", "basename", "dirname", "realpath",
-    "sort", "uniq", "cut", "nl", "diff", "cmp",
+    "pwd", "ls", "wc", "tree", "stat", "file", "du", "df", "date", "echo", "printf",
+    "which", "basename", "dirname", "realpath", "sort", "uniq", "diff", "cmp",
 })
 # Reject the whole command if it contains any shell metacharacter that could chain, redirect,
 # substitute, or escape into something unsafe (so "ls; rm -rf" or "cat $(…)" is never auto-run).
 _UNSAFE_BASH = re.compile(r"[;&|<>`$\\]|\n|--?exec|-delete|-fdelete")
 
+# A token looks like a path target (as opposed to a flag) if it isn't a bare `-x`/`--flag`.
+# We treat every non-flag argument as a path that MUST resolve inside the tenant workspace.
+_FLAG_RE = re.compile(r"^-")
+
+
+def _args_confined_to_workspace(args: list[str]) -> bool:
+    """True only if every non-flag argument resolves to a path INSIDE the tenant workspace.
+
+    Rejects absolute paths, `..` escapes, and `~` expansions that leave the workspace, so an
+    auto-approved command can only ever touch the learner's own tree. A bare option (`-la`,
+    `--color`) is ignored; anything that looks like a target is resolved (relative to the
+    workspace, which is run_bash's cwd) and checked with is_relative_to — the same containment
+    test workspace._is_forbidden uses.
+    """
+    from .workspace import workspace_dir
+
+    ws = workspace_dir().resolve()
+    for a in args:
+        if _FLAG_RE.match(a):
+            continue  # an option flag, not a path
+        if "~" in a:
+            return False  # never auto-expand a home reference
+        try:
+            candidate = Path(a)
+            resolved = (candidate if candidate.is_absolute() else ws / candidate).resolve()
+        except Exception:
+            return False
+        if not resolved.is_relative_to(ws):
+            return False
+    return True
+
 
 def is_safe_bash(command: str) -> bool:
-    """True only for a single, simple, read-only command whose first token is whitelisted and
-    which has no chaining/redirection/substitution — safe to run without asking the learner."""
+    """True only for a single, simple, read-only command that (a) has a whitelisted verb,
+    (b) has no chaining/redirection/substitution, and (c) whose every path argument resolves
+    INSIDE the tenant workspace — safe to run without asking the learner.
+
+    Target-aware: even a whitelisted verb is refused auto-approval if any argument points
+    outside the workspace (absolute path, `..` escape, or `~`), so `ls /`, `stat ../../x`,
+    or `du ~/.eklavya-data` all fall back to explicit approval rather than silently running.
+    """
     cmd = (command or "").strip()
     if not cmd or _UNSAFE_BASH.search(cmd):
         return False
-    return cmd.split()[0] in _SAFE_BASH_CMDS
+    try:
+        parts = shlex.split(cmd)
+    except ValueError:
+        return False
+    if not parts or parts[0] not in _SAFE_BASH_CMDS:
+        return False
+    return _args_confined_to_workspace(parts[1:])
 
 
 def pending_bash_approval(agent, config) -> dict | None:
