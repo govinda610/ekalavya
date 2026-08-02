@@ -188,6 +188,7 @@ def create_app():
     @app.get("/forest", response_class=HTMLResponse)
     @app.get("/library", response_class=HTMLResponse)
     @app.get("/settings", response_class=HTMLResponse)
+    @app.get("/overview", response_class=HTMLResponse)
     def spa_view() -> str:
         return _INDEX
 
@@ -215,6 +216,14 @@ def create_app():
         # authors durable artifacts (lessons, code, framed HTML, interactive visuals) with
         # a highlight-to-ask popover. Full wiring to the agent is a later task.
         return _CANVAS
+
+    @app.get("/progress", response_class=HTMLResponse)
+    def progress_overview() -> str:
+        # The unified Overview (#83): a complete superset of Dashboard + Journey +
+        # Effectiveness in one page. The three legacy routes below stay for back-compat.
+        from .overview_view import render as render_overview
+
+        return render_overview()
 
     @app.get("/dashboard", response_class=HTMLResponse)
     def dashboard() -> str:
@@ -1051,8 +1060,8 @@ button:disabled{opacity:.42;cursor:default}
 .art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
 .art-echo .lbl{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
 .art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
-#dash,#journey,#effect,#profile{display:none;height:100%}
-#dash iframe,#journey iframe,#effect iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
+#prog,#profile{display:none;height:100%}
+#prog iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
 #library,#settings{display:none;height:100%;overflow-y:auto}
 /* settings screen (template K) — setrows + toggles */
 .settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
@@ -1382,9 +1391,7 @@ body.reduce-motion *{animation:none !important}
     <div class="rail-item" data-rail="tree" onclick="railGo('tree')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg> Forest Map</div>
     <div class="rail-item" data-rail="library" onclick="railGo('library')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg> Library</div>
     <div class="rail-group">Progress</div>
-    <div class="rail-item" data-rail="dash" onclick="railGo('dash')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Dashboard</div>
-    <div class="rail-item" data-rail="journey" onclick="railGo('journey')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M4 20 C8 8 16 8 20 4 M4 20 h4 M4 20 v-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg> Journey</div>
-    <div class="rail-item" data-rail="effect" onclick="railGo('effect')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12 h4 l3 7 4-14 3 7 h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Effectiveness</div>
+    <div class="rail-item" data-rail="prog" onclick="railGo('prog')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Overview</div>
     <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
     <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
     <div class="rail-mini-hud" id="acctbtn" role="button" tabindex="0" title="Account & sign out" onclick="toggleAcct(event)">
@@ -1469,9 +1476,7 @@ body.reduce-motion *{animation:none !important}
       </div>
     </div>
   </div>
-  <div id="dash"><iframe id="dashframe" src="/dashboard"></iframe></div>
-  <div id="journey"><iframe id="jframe" src="/journey"></iframe></div>
-  <div id="effect"><iframe id="effectframe" src="/effectiveness"></iframe></div>
+  <div id="prog"><iframe id="progframe" src="/progress"></iframe></div>
   <div id="profile"><iframe id="pframe" src="/profile"></iframe></div>
   <div id="tree">
     <div class="treehead">
@@ -1490,7 +1495,7 @@ body.reduce-motion *{animation:none !important}
   </div>
 </main>
 <nav id="mnav" aria-label="Sections">
-  <button class="ni" data-rail="dash" onclick="railGo('dash')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Ashram</button>
+  <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Progress</button>
   <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
   <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
   <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
@@ -1565,17 +1570,15 @@ let lastSentCode = '';   // editor code the agent has already seen this chat —
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
 // view switching — driven by BOTH the header tabs and the ashram left rail.
-// The rail carries Practice/Progress/Forest Map(tree)/Library/Settings; the header
-// tabs carry Practice/Progress/Journey/Profile/Skill Tree — they share these targets.
+// The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings; the header
+// tabs share these targets. Dashboard+Journey+Effectiveness are now ONE unified Overview.
 function showView(v){
-  const DISP={practice:'grid',dash:'block',journey:'block',effect:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
+  const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
-  if(v==='dash') document.getElementById('dashframe').src='/dashboard';
-  if(v==='journey') document.getElementById('jframe').src='/journey';
-  if(v==='effect') document.getElementById('effectframe').src='/effectiveness';  // reload → latest metrics
+  if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
   if(v==='library') loadLibrary();
@@ -2508,7 +2511,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
-  const _deep={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname];
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog'}[location.pathname];
   if(_deep) showView(_deep);
   else if(!c.first_run && location.pathname==='/') showView('tree');
 });
