@@ -1080,6 +1080,8 @@ button:disabled{opacity:.42;cursor:default}
 .artpill{font-family:var(--f-mono);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--line-soft);color:var(--parch-dim);white-space:nowrap;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .artpill:hover{color:var(--gold-bright)} .artpill.on{border-color:var(--gold-deep);color:var(--gold-bright);background:rgba(231,182,75,.08)}
 .artpill .k{opacity:.6}
+/* keyboard focus ring for the focusable click-controls (a11y) */
+.seg span:focus-visible,.artpill:focus-visible,.lib-pill:focus-visible,.artcard:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .canvas-body{flex:1;padding:20px 24px;overflow:auto;position:relative}
 .art-md h3{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 4px}
 .art-md .adeva{font-family:var(--f-deva);font-size:15px;color:var(--gold-bright);margin-bottom:16px}
@@ -1481,8 +1483,8 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
           <option value="onboard">First-time setup</option>
         </select>
         <div class="seg" id="rightseg" role="tablist" aria-label="Right pane">
-          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab">▤ Editor</span>
-          <span data-pane="canvas" onclick="showPane('canvas')" role="tab">✦ Canvas</span>
+          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab" tabindex="0" aria-selected="true">▤ Editor</span>
+          <span data-pane="canvas" onclick="showPane('canvas')" role="tab" tabindex="0" aria-selected="false">✦ Canvas</span>
         </div>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
@@ -1636,6 +1638,18 @@ function showView(v){
 document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
 function railGo(v){ showView(v); }
 
+// Keyboard a11y: primary click-only controls (segmented tabs, artifact/library pills, artifact
+// cards) are focusable spans/divs — let Enter/Space activate them like a button. Delegated so it
+// covers dynamically-rendered pills/cards too. Only fires when the focused element IS the control
+// (not a nested <button>, e.g. the artcard pin).
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter' && e.key!==' ' && e.key!=='Spacebar') return;
+  const t=e.target;
+  if(t && t.matches && t.matches('#rightseg span[role=tab],.artpill,.lib-pill,.artcard')){
+    e.preventDefault(); t.click();
+  }
+});
+
 /* ===== Settings screen (template K) — setrows + toggles + provider selector ===== */
 // Reduced motion is on when EITHER the saved setting OR the OS media query asks for it —
 // so celebratory/ambient animations are quieted at boot, not only after visiting Settings.
@@ -1685,7 +1699,7 @@ function libCard(a, feat){
   const glyph=KIND_GLYPH[a.kind]||'◆', klabel=KIND_LABEL[a.kind]||a.kind;
   const preview=(a.content||'').replace(/[#*`>_]/g,'').replace(/<[^>]+>/g,' ').trim().slice(0,160);
   const when=(a.updated_at||'').replace('T',' ').slice(0,16);
-  return "<div class='artcard"+(feat?' feat':'')+"' onclick='openArtifact("+a.id+")'>"+
+  return "<div class='artcard"+(feat?' feat':'')+"' role='button' tabindex='0' aria-label='"+esc(a.title)+"' onclick='openArtifact("+a.id+")'>"+
     "<button class='apin"+(a.pinned?' on':'')+"' title='"+(a.pinned?'Unpin':'Pin')+"' onclick='event.stopPropagation();togglePin("+a.id+","+(a.pinned?0:1)+")'>"+(a.pinned?'★':'☆')+"</button>"+
     "<div class='atype "+a.kind+"'>"+glyph+" "+klabel+(a.pinned?' · pinned':'')+"</div>"+
     "<h4>"+esc(a.title)+"</h4><p>"+esc(preview||'—')+"</p>"+
@@ -1696,7 +1710,7 @@ function loadLibrary(){
   fetch(url).then(r=>r.json()).then(list=>{
     const filters=['','markdown','code','viz','html'];
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
-    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
+    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' role='button' tabindex='0' aria-current='"+(f===_libFilter?'true':'false')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
     let body;
     if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and it'll appear here.</div></div>"; }
     else {
@@ -1711,8 +1725,8 @@ function loadLibrary(){
         "<div class='lib-grid'>"+groups[p].map(a=>libCard(a,false)).join('')+"</div></div>").join('')+"</div>";
     }
     const groupToggle="<div class='lib-group-toggle'>"+
-      "<span class='lib-pill"+(_libGroup==='pillar'?' on':'')+"' onclick=\"setLibGroup('pillar')\">By pillar</span>"+
-      "<span class='lib-pill"+(_libGroup==='chat'?' on':'')+"' onclick=\"setLibGroup('chat')\">By chat</span></div>";
+      "<span class='lib-pill"+(_libGroup==='pillar'?' on':'')+"' role='button' tabindex='0' aria-current='"+(_libGroup==='pillar'?'true':'false')+"' onclick=\"setLibGroup('pillar')\">By pillar</span>"+
+      "<span class='lib-pill"+(_libGroup==='chat'?' on':'')+"' role='button' tabindex='0' aria-current='"+(_libGroup==='chat'?'true':'false')+"' onclick=\"setLibGroup('chat')\">By chat</span></div>";
     document.getElementById('library').innerHTML=
      "<div class='lib'><div class='lib-top'>"+
      "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by "+(_libGroup==='chat'?'chat':'pillar')+", kept for revision.</div></div>"+
@@ -1749,7 +1763,7 @@ fetch('/api/artifacts').then(r=>r.json()).then(l=>{ _maxArtId=l.length?Math.max.
 function showPane(p){
   const col=document.querySelector('#practice .col:not(.chat)');
   const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
-  document.querySelectorAll('#rightseg span').forEach(s=>s.classList.toggle('on', s.dataset.pane===p));
+  document.querySelectorAll('#rightseg span').forEach(s=>{const on=s.dataset.pane===p; s.classList.toggle('on',on); s.setAttribute('aria-selected',on?'true':'false');});
   if(isCanvas){ loadCanvas(); }
   else if(editor){ setTimeout(()=>editor.layout(),60); }
 }
@@ -1762,13 +1776,13 @@ function loadCanvas(select){
       "<div class='canvas-empty'>No artifacts yet. Ask the guru for a lesson and save it to your Canvas — it renders here.</div>"; _curArt=null; return; }
     if(select!=null) _curArt=select;
     if(_curArt==null || !list.find(a=>a.id===_curArt)) _curArt=list[0].id;
-    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
+    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' role='tab' tabindex='0' aria-selected='"+(a.id===_curArt?'true':'false')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
       artGlyph(a.kind)+"</span> "+esc(a.title)+"</span>").join('');
     renderArtifact(list.find(a=>a.id===_curArt));
   }).catch(()=>{});
 }
 function selectArtifact(id){ _curArt=id;
-  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
+  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>{const on=!!(_artifacts[i]&&_artifacts[i].id===id); p.classList.toggle('on',on); p.setAttribute('aria-selected',on?'true':'false');});
   const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
 }
 // vizShell — wrap a bare viz fragment in a self-contained doc that preloads Chart.js (from
