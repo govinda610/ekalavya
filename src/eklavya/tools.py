@@ -10,7 +10,9 @@ from the signature, and we can unit-test them directly without any LLM.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import config
 from .config import ensure_home
@@ -166,8 +168,39 @@ def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
     return f"curriculum: '{concept}' added"
 
 
+def _guard_destructive(op: str) -> None:
+    """Protect the learner's real store from accidental wipes by stray scripts or agents.
+
+    Two layers, in order:
+      1. REFUSE when the op would hit the real single-user home (``~/.eklavya``) with no
+         per-user home bound — the exact way an unscoped script clobbers real data —
+         unless ``EKLAVYA_ALLOW_DESTRUCTIVE=1`` signals deliberate intent. Test/agent runs
+         that bind a temp ``EKLAVYA_HOME``/``EKLAVYA_DATA_ROOT`` never match, so they pass.
+      2. ALWAYS take a recovery snapshot first, so any authorised destructive change is
+         one ``eklavya revert`` away. Best-effort: a backup failure must never itself
+         block a legitimate op, but a hard refusal above always wins.
+    """
+    bound = config._current_home.get() is not None
+    home = config.paths().home
+    allow = os.environ.get("EKLAVYA_ALLOW_DESTRUCTIVE", "0") not in ("0", "", "false", "False")
+    if not bound and home == (Path.home() / ".eklavya") and not allow:
+        raise RuntimeError(
+            f"Refusing {op}: it would modify the real single-user store at {home} with no "
+            "user home bound. Bind a user home / set EKLAVYA_DATA_ROOT (multi-user), or set "
+            "EKLAVYA_ALLOW_DESTRUCTIVE=1 to override deliberately."
+        )
+    try:
+        from .backups import snapshot
+        snapshot(f"before {op}")  # unconditional: always back up before a destructive wipe
+    except Exception:
+        pass  # never let a backup hiccup block a legitimate operation
+
+
 def clear_curriculum() -> str:
-    """Wipe the curriculum graph — use before drafting a fresh one."""
+    """Wipe the curriculum graph — use before drafting a fresh one.
+
+    Guarded: refuses to touch the real single-user store unbound, and snapshots first."""
+    _guard_destructive("clear_curriculum")
     conn = connect()
     try:
         conn.execute("DELETE FROM curriculum")
