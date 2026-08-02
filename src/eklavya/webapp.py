@@ -815,7 +815,7 @@ _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/katex/katex.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+<link rel="stylesheet" href="/static/hljs-github-dark.min.css">
 <style>
 /* ===== Option E · cinematic-forest practice arena (product mode) =====
    The full palette + fonts of the shared design system, inlined here (the SPA is a single
@@ -953,6 +953,8 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 .mermaid{background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:10px;text-align:center}
 .mermaid svg{max-width:100% !important;height:auto}
 #tree .mermaid{background:transparent;border:0}#tree .mermaid svg{max-width:100% !important;height:auto}
+/* degraded-markdown fallback (a markdown lib failed to load): show readable escaped text */
+.md-fallback{white-space:pre-wrap;word-break:break-word;font-family:var(--f-body);margin:0}
 .resumebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px 0}
 .resumebar.hidden{display:none}
 .resumehint{font-family:var(--f-body);font-size:11.5px;color:var(--parch-mute);opacity:.85}
@@ -1578,15 +1580,22 @@ body.reduce-motion *{animation:none !important}
 <div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
 <div id="winpulse"><span class="wp-spark">✦</span><span class="wp-t">Struck true</span><span class="wp-n">+0 XP</span></div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- marked / dompurify / highlight.js are vendored locally (like Chart.js/three/KaTeX) so the
+     editor + markdown keep working offline / behind a firewall. -->
+<script src="/static/marked.min.js"></script>
+<script src="/static/purify.min.js"></script>
+<script src="/static/highlight.min.js"></script>
+<!-- mermaid + Monaco stay on the CDN but are version-pinned with SRI + crossorigin. -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
+  integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr"
+  crossorigin="anonymous"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
 <script src="/static/katex/contrib/auto-render.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"
+  integrity="sha384-SF/kPhqG3NMxqsYAbQqHkdF53WQx8yTkY0Ys+M+ayeC20QNujPyyxIuUEdEf0eG/"
+  crossorigin="anonymous"></script>
 <script src="/static/forest2d.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
@@ -1803,7 +1812,7 @@ function renderArtifact(a){
     body.innerHTML=''; body.appendChild(f); f.srcdoc=doc;
     return;  // no highlight-to-ask inside the cross-origin frame; keep the popover out
   } else {  // markdown lesson
-    body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
+    body.innerHTML="<div class='art-md' data-selectable='1'>"+safeMd(a.content||'')+"</div>";
     body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
     typesetMath(body);  // render LaTeX in a saved lesson
   }
@@ -2051,8 +2060,18 @@ function typesetMath(el){
     {left:'\\(',right:'\\)',display:false}, {left:'$',right:'$',display:false}
   ], throwOnError:false, ignoredTags:['script','noscript','style','textarea','pre','code']}); }catch(e){}
 }
+// Sanitize + parse markdown, degrading gracefully if a vendored lib failed to load
+// (offline / blocked): fall back to escaped plain text rather than throwing and blanking the
+// message. marked+DOMPurify are required; hljs/mermaid/katex already degrade via try/catch.
+function safeMd(text){
+  if(typeof marked==='undefined' || typeof DOMPurify==='undefined'){
+    return '<pre class="md-fallback">'+esc(text||'')+'</pre>';
+  }
+  try{ return DOMPurify.sanitize(marked.parse(text)); }
+  catch(e){ return '<pre class="md-fallback">'+esc(text||'')+'</pre>'; }
+}
 function renderMd(text){
-  const html = DOMPurify.sanitize(marked.parse(text));  // never trust model output in the DOM
+  const html = safeMd(text);  // never trust model output in the DOM; degrades to escaped text
   const tmp=document.createElement('div'); tmp.innerHTML=html;
   tmp.querySelectorAll('pre code').forEach(c=>{
     if(c.className.includes('mermaid')||c.className.includes('language-mermaid')){
@@ -2143,7 +2162,7 @@ async function consume(res, ui){
     for(const line of lines){ if(!line.trim())continue;
       let o; try{o=JSON.parse(line);}catch(e){continue;}
       if(o.t){ clearWelcome(); ui.m.style.display=''; ui.buf+=o.t; const now=Date.now();
-        if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=DOMPurify.sanitize(marked.parse(ui.buf)); }
+        if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=safeMd(ui.buf); }
         scroll(); }
       else if(o.tool){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
@@ -2270,7 +2289,7 @@ function sendChat(){
   stream(t, attach);
 }
 
-function esc(s){ return (s||'').replace(/</g,'&lt;'); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 // Run output renders in the editor pane (#edrun, below the code) — it persists across chat
 // messages and its body scrolls (max-height) instead of being clipped or lost in the log.
 function showRunPane(headHtml){
