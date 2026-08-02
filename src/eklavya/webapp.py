@@ -1805,6 +1805,17 @@ let _curFocus=null;             // active pillar name, for the drill-in default
 function _reducedMotion(){ return document.body.classList.contains('reduce-motion')
   || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
 
+// Detect groves that became MASTERED since the learner last saw the forest (compared against
+// a small localStorage snapshot of previously-mastered pillars) so we can fire a one-time
+// milestone celebration on the newly-blossomed grove. Derived purely from the /api/forest
+// groves already returned — no extra state, no server call.
+function _freshlyMastered(groves){
+  let prev=[]; try{ prev=JSON.parse(localStorage.getItem('forestMastered')||'[]'); }catch(e){}
+  const now=(groves||[]).filter(g=>g.status==='blossoming').map(g=>g.pillar);
+  const fresh=now.filter(p=>!prev.includes(p));
+  try{ localStorage.setItem('forestMastered', JSON.stringify(now)); }catch(e){}
+  return fresh;
+}
 async function showForest(){
   const svg=document.getElementById('forestsvg');
   document.getElementById('tabForest').classList.add('on');
@@ -1813,6 +1824,9 @@ async function showForest(){
   const c=await Forest2D.showOverview(svg,{reduced:_reducedMotion(),onGrove:(p)=>showGrove(p)});
   _curFocus = c ? c.active : null;
   document.getElementById('tabTrack').disabled=!_curFocus;
+  // milestone flourish for any grove freshly mastered since last view (staggered)
+  if(c && c.groves){ const fresh=_freshlyMastered(c.groves);
+    fresh.forEach((p,i)=>setTimeout(()=>Forest2D.celebrate(p,{svg:svg}), 400+i*700)); }
 }
 
 async function showGrove(pillar){

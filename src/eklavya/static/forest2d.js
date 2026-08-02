@@ -2348,6 +2348,66 @@
   }
 
   // ============================================================================
+  // MILESTONE CELEBRATION — a one-time bloom-burst + gold glow flourish when a grove reaches
+  // MASTERED. Additive (drawn over everything, removed when done), reduced-motion safe (a
+  // brief static gold bloom instead of motion). Exposed as Forest2D.celebrate(pillar) so the
+  // app can fire it after a grove completes; also auto-plays for a freshly-blossoming grove
+  // on load. Uses SMIL so it needs no rAF loop and self-cleans on `end`.
+  // ============================================================================
+  let _lastSvg = null;   // the currently-mounted map svg, so the public hook can find nodes
+  function celebrateAt(svg, cx, cy, reduced) {
+    if (!svg) return;
+    const g = el('g', { class: 'celebrate', 'pointer-events': 'none', transform: 'translate(' + cx + ',' + cy + ')' }, svg);
+    // a swelling golden glow halo
+    const halo = el('circle', { cx: 0, cy: -18, r: 20, fill: 'url(#nodeGold)', opacity: 0.9 }, g);
+    // a burst ring
+    const ring = el('circle', { cx: 0, cy: -18, r: 20, fill: 'none', stroke: C.goldBright, 'stroke-width': 3, opacity: 0.9 }, g);
+    // petals flung outward (bloom-burst)
+    const petals = 12, pr = rng('celeb' + cx + cy);
+    const petalNodes = [];
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2, dist = 46 + pr() * 26;
+      const p = el('g', { transform: 'translate(0,-18)' }, g);
+      const petal = el('path', { d: 'M0,0 Q3,-6 0,-13 Q-3,-6 0,0 Z', fill: i % 2 ? C.goldBright : C.gold, opacity: 0.95, transform: 'rotate(' + (a * 180 / Math.PI) + ')' }, p);
+      petalNodes.push({ g: p, a: a, dist: dist });
+    }
+    if (reduced) {
+      // static bloom that lingers briefly then fades — no motion, still a clear "mastered!" flash
+      petalNodes.forEach(pn => pn.g.setAttribute('transform', 'translate(' + (Math.cos(pn.a) * pn.dist * 0.7).toFixed(0) + ',' + (-18 + Math.sin(pn.a) * pn.dist * 0.7).toFixed(0) + ')'));
+      const f = el('animate', { attributeName: 'opacity', values: '1;1;0', keyTimes: '0;0.6;1', dur: '2.6s', begin: '0s', fill: 'freeze', repeatCount: '1' });
+      g.appendChild(f); f.addEventListener('endEvent', () => g.remove()); setTimeout(() => g.remove(), 3000);
+      return;
+    }
+    // animated: halo swells + fades, ring expands, petals fly out + fade, then self-remove.
+    halo.appendChild(el('animate', { attributeName: 'r', values: '20;96', dur: '1.4s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    halo.appendChild(el('animate', { attributeName: 'opacity', values: '0.9;0', dur: '1.6s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    ring.appendChild(el('animate', { attributeName: 'r', values: '10;90', dur: '1.2s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    ring.appendChild(el('animate', { attributeName: 'stroke-width', values: '4;0.4', dur: '1.2s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    ring.appendChild(el('animate', { attributeName: 'opacity', values: '0.95;0', dur: '1.3s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    petalNodes.forEach((pn, i) => {
+      const ex = (Math.cos(pn.a) * pn.dist).toFixed(0), ey = (-18 + Math.sin(pn.a) * pn.dist - 20).toFixed(0);
+      pn.g.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', values: '0,-18;' + ex + ',' + ey, dur: (1.1 + (i % 3) * 0.2).toFixed(1) + 's', begin: '0s', fill: 'freeze', repeatCount: '1', calcMode: 'spline', keySplines: '0.2 0.8 0.3 1' }));
+      pn.g.appendChild(el('animate', { attributeName: 'opacity', values: '1;1;0', keyTimes: '0;0.5;1', dur: (1.3 + (i % 3) * 0.2).toFixed(1) + 's', begin: '0s', fill: 'freeze', repeatCount: '1' }));
+    });
+    // self-clean after the longest tween
+    setTimeout(() => { if (g.parentNode) g.remove(); }, 2200);
+  }
+
+  // public hook: fire the celebration on a grove by pillar name (the app calls this after a
+  // grove is freshly mastered). No-op if the map isn't mounted / the grove isn't found.
+  function celebrate(pillar, opts) {
+    opts = opts || {};
+    const svg = opts.svg || _lastSvg;
+    if (!svg || !pillar) return false;
+    const grp = svg.querySelector('.grove'); // fallback
+    const target = Array.prototype.slice.call(svg.querySelectorAll('.grove')).find(n => n._pillar === pillar);
+    if (!target || !target._nodePt) return false;
+    const reduced = svg.classList.contains('reduced') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    celebrateAt(svg, target._nodePt.x, target._nodePt.y, !!reduced);
+    return true;
+  }
+
+  // ============================================================================
   // LIFE — fireflies, birds, player avatar (all reduced-motion aware)
   // ============================================================================
   function paintLife(g, pts, activeIdx, reduced) {
@@ -2617,6 +2677,10 @@
       wireCreatureProximity(svg, reduced);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
+      _lastSvg = svg;
+      if (reduced) svg.classList.add('reduced');
+      // one-time milestone flourish: if the caller names a freshly-mastered grove, celebrate it.
+      if (opts.celebratePillar) setTimeout(() => celebrate(opts.celebratePillar, { svg: svg }), 260);
       return c;
     }).catch(() => { empty(svg, 'could not load the forest map.'); return null; });
   }
@@ -2682,12 +2746,15 @@
       wireCreatureProximity(svg, reduced);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
+      _lastSvg = svg;
+      if (reduced) svg.classList.add('reduced');
+      if (opts.celebrateConcept) setTimeout(() => celebrate(opts.celebrateConcept, { svg: svg }), 260);
       return c;
     }).catch(() => { empty(svg, 'could not load this grove.'); return null; });
     function metaC(s) { return s === 'done' ? '✦ mastered' : s === 'avail' ? '◇ available' : '— locked'; }
   }
 
-  global.Forest2D = { showOverview: showOverview, showGrove: showGrove, VB: VB };
+  global.Forest2D = { showOverview: showOverview, showGrove: showGrove, celebrate: celebrate, VB: VB };
   // dev-only: expose creature factories for the offline art-gallery screenshot harness. Gated
   // behind an explicit flag so it never ships behaviour to the app; tree-shakes to nothing.
   if (global.__FOREST_DEBUG__) {
