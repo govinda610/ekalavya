@@ -18,7 +18,7 @@ os.environ["EKLAVYA_PROFILE"] = str(Path(_TMP) / "profile.md")
 
 import pytest  # noqa: E402
 
-from eklavya import subjects, tools  # noqa: E402
+from eklavya import report, subjects, tools  # noqa: E402
 from eklavya.db import connect, init_db  # noqa: E402
 from eklavya.db.store import _migrate  # noqa: E402
 
@@ -91,6 +91,65 @@ def test_backfill_defaults_to_coding():
     assert p["subject"] == "coding"
     assert a["subject"] == "coding" and a["answer_type"] == "code" and a["score"] == 1.0
     assert r["subject"] == "coding"
+
+
+# --- P2: subject-aware rating + grid ---------------------------------------
+
+def test_second_subject_onboards_and_rates_separately():
+    # coding and stats can both have a pillar with the SAME axis name (recall), rated
+    # independently — the (pillar, axis, subject) key keeps them apart.
+    tools.set_baseline_rating("Python", "recall", "strong", subject="coding")
+    tools.set_baseline_rating("OLS", "interpretation", "gap", subject="stats")
+    tools.record_attempt("OLS", "interpretation", "reading a coefficient", 2, True, subject="stats")
+    conn = connect()
+    try:
+        stats_cell = conn.execute(
+            "SELECT r.rating FROM ratings r JOIN pillars p ON p.id=r.pillar_id "
+            "WHERE p.name='OLS' AND r.axis='interpretation' AND r.subject='stats'").fetchone()
+        coding_cell = conn.execute(
+            "SELECT r.rating FROM ratings r JOIN pillars p ON p.id=r.pillar_id "
+            "WHERE p.name='Python' AND r.axis='recall' AND r.subject='coding'").fetchone()
+        subj = conn.execute("SELECT subject FROM pillars WHERE name='OLS'").fetchone()["subject"]
+    finally:
+        conn.close()
+    assert stats_cell is not None and coding_cell is not None
+    assert subj == "stats"
+
+
+def test_axis_rejected_when_not_in_subject_set():
+    # interpretation is NOT a coding axis; debugging is NOT a stats axis.
+    assert "unknown axis" in tools.set_baseline_rating("X", "interpretation", "gap", subject="coding")
+    assert "unknown axis" in tools.record_attempt("Y", "debugging", "z", 2, True, subject="stats")
+    assert "unknown subject" in tools.set_baseline_rating("X", "recall", "gap", subject="astrology")
+
+
+def test_grid_is_subject_aware():
+    tools.set_baseline_rating("Python", "recall", "strong", subject="coding")
+    tools.set_baseline_rating("OLS", "interpretation", "gap", subject="stats")
+    coding = report.grid(subject="coding")
+    stats = report.grid(subject="stats")
+    assert "Python" in coding["pillars"] and "OLS" not in coding["pillars"]
+    assert "OLS" in stats["pillars"] and "Python" not in stats["pillars"]
+    # each subject reports its OWN axis order (stats has interpretation; coding doesn't)
+    assert "interpretation" in stats["axes"] and "interpretation" not in coding["axes"]
+    assert "debugging" in coding["axes"]
+    # whole-grid (no subject) shows both pillars
+    whole = report.grid()
+    assert "Python" in whole["pillars"] and "OLS" in whole["pillars"]
+
+
+def test_partial_credit_flows_into_elo_and_correct_threshold():
+    # a 0.7 fraction counts as correct (≥ τ=0.5) and nudges Elo up; a 0.3 does not.
+    tools.record_attempt("Proofs", "derivation_proof", "induction", 2, False, score=0.7, subject="maths")
+    tools.record_attempt("Proofs", "derivation_proof", "induction", 2, False, score=0.3, subject="maths")
+    conn = connect()
+    try:
+        rows = conn.execute(
+            "SELECT correct, score FROM attempts WHERE subject='maths' ORDER BY id").fetchall()
+    finally:
+        conn.close()
+    assert rows[0]["correct"] == 1 and abs(rows[0]["score"] - 0.7) < 1e-9
+    assert rows[1]["correct"] == 0 and abs(rows[1]["score"] - 0.3) < 1e-9
 
 
 # --- THE parity test: an old-schema DB ports losslessly --------------------
