@@ -368,6 +368,7 @@
   // Subtle CURSOR PARALLAX — near layers shift a hair more than far ones as the pointer
   // moves, so the scene feels alive & 3-D. rAF-throttled, pointer-only, reduced-motion-off.
   function wireParallax(svg, layers, reduced) {
+    return;  // DISABLED: cursor parallax moved the whole map/far layers too aggressively
     if (reduced || !window.matchMedia || !window.matchMedia('(pointer:fine)').matches) return;
     let tx = 0, ty = 0, raf = 0;
     const apply = () => { raf = 0; layers.forEach(({ node, k }) => { node.setAttribute('transform', 'translate(' + (tx * k).toFixed(2) + ',' + (ty * k).toFixed(2) + ')'); }); };
@@ -1843,6 +1844,7 @@
   // ONE delegated pointermove on the svg (rAF-throttled) scans the tagged creatures and toggles
   // a transform/class by distance — no per-creature listeners. pointer-fine + reduced-safe only.
   function wireCreatureProximity(svg, reduced) {
+    return;  // DISABLED: creatures jumped/fled too violently as the cursor came near
     if (reduced || !window.matchMedia || !window.matchMedia('(pointer:fine)').matches) return;
     const layer = svg.querySelector('[data-crit-layer]');
     if (!layer) return;
