@@ -4,13 +4,14 @@ Two stores, one truth (see PLAN §12):
   - profile.md  → the human-readable learner model, SHARED with Teacher Mode
   - eklavya.db  → the structured state (ratings, cards, goals, ...)
 
-Path resolution goes through a single accessor — ``paths()`` — so the app can be
-made per-user without touching every reader (see docs/MULTIUSER_DEPLOYMENT_PLAN.md §3).
-A ``ContextVar`` holds the *current* user's home; when it is unset (the single-user
-default) ``paths()`` resolves exactly as it always has, honouring the EKLAVYA_HOME /
-EKLAVYA_WORKSPACE / EKLAVYA_PROFILE environment overrides. The module-level constants
-(``EKLAVYA_HOME``, ``WORKSPACE``, ``DB_PATH``, ...) are kept as thin, dynamic shims via
-``__getattr__`` so existing readers keep working while transparently becoming per-user.
+Path resolution goes through a single accessor — ``paths()`` — so every reader is per-user
+without threading a user through each call. A ``ContextVar`` holds the *current* account's
+home, which the CLI/TUI (``resolve_local_user``) and the web (the session's user) bind
+before touching state. When it is unset ``paths()`` falls back to the EKLAVYA_HOME /
+EKLAVYA_WORKSPACE / EKLAVYA_PROFILE overrides (a "which home" knob for tests + ad-hoc runs),
+else the retired ``~/.eklavya`` — never written to for real data. The module-level constants
+(``EKLAVYA_HOME``, ``WORKSPACE``, ``DB_PATH``, ...) are thin dynamic shims via ``__getattr__``
+so existing readers resolve per-account for free.
 """
 
 from __future__ import annotations
@@ -36,11 +37,6 @@ load_dotenv()
 #     optional signup-approval gate.
 DEPLOYED = os.environ.get("EKLAVYA_DEPLOYED", "0") not in ("0", "", "false", "False")
 
-# Transitional alias: the deployment posture used to be called MULTIUSER. Kept only so the
-# remaining call sites + tests migrate over in one focused pass; remove once all reference
-# DEPLOYED. It equals DEPLOYED at import; tests that monkeypatch it still work.
-MULTIUSER = DEPLOYED
-
 # Trust the reverse proxy's forwarded client IP for login throttling. OFF by default:
 # when the app is exposed directly, request.client.host is the real client and a header
 # could be spoofed. Turn this ON *only* behind a trusted proxy (e.g. Caddy), which sets
@@ -65,17 +61,17 @@ SIGNUP_APPROVAL = os.environ.get("EKLAVYA_SIGNUP_APPROVAL", "0") not in ("0", ""
 
 # --- the current user's home (contextvar) ----------------------------------
 
-# Holds the resolved home for the request/task currently in flight. Unset (None) means
-# "single-user default" → resolve from the environment exactly as the original code did.
+# Holds the resolved home for the request/task currently in flight. Unset (None) → fall back
+# to the environment override (EKLAVYA_HOME) / the retired ~/.eklavya (never real data).
 _current_home: ContextVar[Path | None] = ContextVar("eklavya_home", default=None)
 
 
 def set_current_home(home: Path | str) -> None:
-    """Bind the current context to a user's home dir. Read lazily by ``paths()``.
+    """Bind the current context to an account's home dir. Read lazily by ``paths()``.
 
-    In single-user mode this is pre-seeded once with ``~/.eklavya`` (or the env override)
-    so behaviour is unchanged. In multi-user mode auth middleware (Phase 3) sets it per
-    request. Must be set on the same context that reads paths — see ``run_user_task``.
+    The CLI/TUI bind the resolved local account at startup; the web auth middleware binds
+    the session's user per request. Must be set on the same context that reads paths — see
+    ``run_user_task``.
     """
     _current_home.set(Path(home))
 
@@ -130,10 +126,9 @@ class Paths:
 def paths() -> Paths:
     """Resolve the current user's state paths (contextvar-aware).
 
-    When the contextvar is unset (single-user default) the EKLAVYA_WORKSPACE /
-    EKLAVYA_PROFILE env overrides are honoured, matching the original constants exactly.
-    When a specific home is bound (multi-user), paths follow the fixed per-user layout
-    rooted at that home — env overrides that point at the single-user home don't apply.
+    When the contextvar is unset the EKLAVYA_WORKSPACE / EKLAVYA_PROFILE env overrides are
+    honoured (the "which home" knob). When an account's home is bound, paths follow the
+    fixed per-account layout rooted at that home — the env overrides don't apply.
     """
     bound = _current_home.get()
     home = bound if bound is not None else _default_home()
@@ -195,10 +190,11 @@ def clear_default_user() -> None:
         f.unlink()
 
 
-def resolve_local_user() -> str:
+def resolve_local_user(user: str | None = None) -> str:
     """The uid the CLI/TUI should run as, resolved in precedence order:
 
-      1. ``EKLAVYA_USER`` (an email or a uid) → that existing account;
+      1. an explicit ``user`` ref (the ``--user`` flag) or ``EKLAVYA_USER`` (email or uid)
+         → that existing account;
       2. else the stored default local user (``eklavya login`` writes it);
       3. else if exactly one account exists → it;
       4. else → first-run: create/pick a frictionless local account.
@@ -209,8 +205,8 @@ def resolve_local_user() -> str:
     """
     from . import auth
 
-    # 1. explicit override — email or uid
-    requested = os.environ.get("EKLAVYA_USER", "").strip()
+    # 1. explicit override — email or uid (the flag wins over the env var)
+    requested = (user or os.environ.get("EKLAVYA_USER", "")).strip()
     if requested:
         uid = auth.resolve_user_ref(requested)
         if uid is None:
