@@ -294,156 +294,100 @@ def forest_map(pillar: str | None = None) -> dict:
         if pillar not in concepts_by_pillar:
             return {"empty": True, "groves": [], "pillars": pillars, "viewbox": [0, 0, 900, 640]}
         cs = concepts_by_pillar[pillar]
-        own = set(cs)
-        nodes = [{"name": c, "status": concept_status[c],
-                  "prereqs": list(prereqs[c]),
-                  "unlocks": [d for d in concepts if c in prereqs.get(d, ()) and d in own]}
-                 for c in cs]
-        # concept→prereq edges within the grove, and external prereqs → context nodes.
-        edges: list[dict] = []
-        context: list[dict] = []
-        seen_ctx: set[str] = set()
-        for c in cs:
-            for p_ in prereqs[c]:
-                if p_ in own:
-                    edges.append({"src": p_, "dst": c})            # both live here
-                elif p_ in pillar_of:                              # external prereq → context node
-                    if p_ not in seen_ctx:
-                        seen_ctx.add(p_)
-                        context.append({"name": p_, "status": concept_status[p_],
-                                        "pillar": pillar_of[p_]})
-                    edges.append({"src": p_, "dst": c, "external": True})
+        # dependency-order the concepts (topological within the pillar) so the sub-path
+        # reads as a progression, and expose intra-pillar edges for the drill-in graph.
+        cs = _topo_order(cs, prereqs)
+        nodes = [{"name": c, "status": concept_status[c]} for c in cs]
+        idx = {c: i for i, c in enumerate(cs)}
+        c_edges = [{"from": pr, "to": c} for c in cs for pr in prereqs[c] if pr in idx]
         layout = _forest_layout(len(nodes))
-        dag = _dag_layout(cs, edges)
-        land = _landscape_layout(cs, edges)
         return {
             "empty": False, "pillar": pillar, "pillars": pillars,
-            "grove": grove(pillar), "concepts": nodes,
-            "edges": edges, "context": context,
+            "grove": grove(pillar), "concepts": nodes, "edges": c_edges,
             "layout": layout, "viewbox": layout["viewbox"],
-            "dag": dag, "land": land,
         }
 
-    groves = [grove(p) for p in pillars]
-    # Cross-pillar grove→grove dependency EDGES: pillar A depends on pillar B when any
-    # concept in A has a prereq that lives in B (self-loops excluded). De-duplicated,
-    # so the overview reads as a true (coarse) DAG over the groves.
-    grove_edges: list[dict] = []
-    seen_edge: set[tuple] = set()
+    # Sequential walk order along the winding path — foundations (fewest prereqs into
+    # the pillar) first, frontier last — so the 2D map can thread a start→temple spine
+    # and the minimap can list groves in journey order. Deterministic: we order by
+    # (grove depth in the cross-pillar prereq DAG, then name) so it's stable.
+    ordered_pillars = _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of)
+    index_of = {p: i for i, p in enumerate(ordered_pillars)}
+
+    # Prerequisite EDGES between groves: pillar A depends on pillar B when some concept
+    # in A lists a prereq that lives in B. State-styled downstream by the renderer.
+    edge_set: set[tuple[str, str]] = set()
     for c in concepts:
-        a = pillar_of[c]
-        for p_ in prereqs.get(c, ()):
-            b = pillar_of.get(p_)
-            if b and b != a and (b, a) not in seen_edge:
-                seen_edge.add((b, a))
-                grove_edges.append({"src": b, "dst": a})           # B unlocks → A
+        pa = pillar_of[c]
+        for pr in prereqs[c]:
+            pb = pillar_of.get(pr)
+            if pb and pb != pa:
+                edge_set.add((pb, pa))          # B → A  (prereq → dependent)
+    edges = [{"from": b, "to": a} for (b, a) in sorted(edge_set, key=lambda e: (index_of.get(e[0], 0), index_of.get(e[1], 0)))]
 
-    # SEQUENTIAL learning ORDER over the groves — the walkable path the 3D forest lays out.
-    # Toposort the coarse grove DAG (foundations first) so a milestone tree only appears
-    # after the groves it builds on. Ties break by grove-depth then name, so the sequence
-    # is deterministic and stable across loads. Purely additive: each grove gets an `order`.
-    grove_order = _toposort_concepts(pillars, {
-        p: [e["src"] for e in grove_edges if e["dst"] == p] for p in pillars
-    })
-    order_of = {p: i for i, p in enumerate(grove_order)}
-    # Saved-artifact count per pillar → a subtle lantern/scroll glint on that grove.
-    from . import artifacts as _artifacts
-    art_counts: dict[str, int] = {}
-    try:
-        for p in pillars:
-            art_counts[p] = len(_artifacts.list_artifacts(pillar=p))
-    except Exception:
-        art_counts = {p: 0 for p in pillars}
+    groves = [grove(p) for p in ordered_pillars]
     for g in groves:
-        g["order"] = order_of.get(g["pillar"], 0)
-        g["artifacts"] = art_counts.get(g["pillar"], 0)
-    groves.sort(key=lambda g: g["order"])   # emit in walk order (additive; consumers may re-sort)
-
+        g["order"] = index_of[g["pillar"]]
     layout = _forest_layout(len(groves))
-    dag = _dag_layout(pillars, grove_edges)
-    land = _landscape_layout(pillars, grove_edges)
     return {
-        "empty": False, "pillars": pillars, "active": active,
-        "groves": groves, "edges": grove_edges,
+        "empty": False, "pillars": ordered_pillars, "active": active,
+        "groves": groves, "edges": edges, "order": ordered_pillars,
         "layout": layout, "viewbox": layout["viewbox"],
-        "dag": dag, "land": land,
     }
 
 
-def _dag_layout(names: list[str], edges: list[dict]) -> dict:
-    """Layered ('Sugiyama-lite') coordinates for a prerequisite DAG.
-
-    Every node lands in a LAYER equal to its longest prerequisite chain depth (so
-    foundations sit at the top and advanced work flows downward), then nodes spread
-    evenly across their layer. Wide layers wrap onto stacked sub-rows so a 43-node
-    grove still fits without clipping. Returns {viewbox, pos:{name:{x,y}}, layers:N}
-    — the render threads organic branch/vine paths through these points.
-
-    Only edges whose endpoints are both in `names` constrain the layering; unknown
-    endpoints (external context) are ignored here and placed by the caller.
-    """
-    known = set(names)
-    deps: dict[str, list[str]] = {n: [] for n in names}   # n depends on deps[n]
-    for e in edges:
-        s, d = e.get("src"), e.get("dst")
-        if s in known and d in known and s != d:
-            deps[d].append(s)
-
-    # longest-path depth = layer (memoised; cycle-safe via a visiting guard).
+def _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of) -> list[str]:
+    """Order pillars along the journey: a pillar's 'depth' is how deep its shallowest
+    concept sits in the cross-pillar prerequisite chain — root pillars (whose earliest
+    concept has no out-of-pillar prereqs) lead, frontier pillars trail. Ties break by a
+    small size heuristic (bigger, more foundational pillars earlier) then name, so the
+    walk is deterministic and re-derives identically as pillars are added/removed."""
+    # cross-pillar dependency between pillars (A depends on B)
+    dep: dict[str, set[str]] = {p: set() for p in pillars}
+    for p in pillars:
+        for c in concepts_by_pillar[p]:
+            for pr in prereqs[c]:
+                pb = pillar_of.get(pr)
+                if pb and pb != p:
+                    dep[p].add(pb)
+    # longest-path depth in the pillar DAG (memoised; cycles guarded)
     depth: dict[str, int] = {}
-    visiting: set[str] = set()
 
-    def layer_of(n: str) -> int:
-        if n in depth:
-            return depth[n]
-        if n in visiting:          # a cycle — break it so we never recurse forever
-            return 0
-        visiting.add(n)
-        d = 0
-        for p in deps[n]:
-            d = max(d, layer_of(p) + 1)
-        visiting.discard(n)
-        depth[n] = d
-        return d
+    def d(p: str, stack: frozenset) -> int:
+        if p in depth:
+            return depth[p]
+        if p in stack:
+            return 0                              # break any accidental cycle
+        ds = [d(b, stack | {p}) + 1 for b in dep[p] if b in dep]
+        depth[p] = max(ds) if ds else 0
+        return depth[p]
 
-    for n in names:
-        layer_of(n)
+    for p in pillars:
+        d(p, frozenset())
+    return sorted(pillars, key=lambda p: (depth[p], -len(concepts_by_pillar[p]), p))
 
-    # group by layer, preserving the input (topo) order within each layer
-    by_layer: dict[int, list[str]] = {}
-    for n in names:
-        by_layer.setdefault(depth[n], []).append(n)
-    n_layers = (max(by_layer) + 1) if by_layer else 0
 
-    import math
+def _topo_order(items: list[str], prereqs: dict[str, list[str]]) -> list[str]:
+    """Stable topological order of `items` by their (in-set) prereqs — a concept comes
+    after every prereq that is also in `items`. Preserves original order among peers and
+    is robust to cycles (falls back to original position). Used for the grove drill-in."""
+    inset = set(items)
+    pos = {c: i for i, c in enumerate(items)}
+    out: list[str] = []
+    seen: set[str] = set()
 
-    W = 1200
-    margin_x, margin_top = 120, 90
-    col_w = 210                     # horizontal spacing between nodes in a layer
-    sub_h = 98                      # vertical spacing between wrapped sub-rows (denser)
-    layer_gap = 16                  # extra breathing room between layers (tightened)
-    max_per_row = max(1, (W - 2 * margin_x) // col_w + 1)
+    def visit(c: str, stack: frozenset) -> None:
+        if c in seen or c in stack:
+            return
+        for pr in sorted((p for p in prereqs.get(c, []) if p in inset), key=lambda p: pos[p]):
+            visit(pr, stack | {c})
+        seen.add(c)
+        out.append(c)
 
-    pos: dict[str, dict] = {}
-    y = margin_top
-    for li in range(n_layers):
-        nodes = by_layer.get(li, [])
-        if not nodes:
-            continue
-        sub_rows = math.ceil(len(nodes) / max_per_row)
-        idx = 0
-        for sr in range(sub_rows):
-            row = nodes[sr * max_per_row:(sr + 1) * max_per_row]
-            span = (len(row) - 1) * col_w
-            x0 = (W - span) / 2                       # centre each sub-row
-            for j, name in enumerate(row):
-                pos[name] = {"x": round(x0 + j * col_w, 1), "y": round(y, 1)}
-                idx += 1
-            y += sub_h
-        y += layer_gap
+    for c in items:
+        visit(c, frozenset())
+    return out
 
-    H = max(560, round(y + 60))
-    return {"viewbox": [0, 0, W, H], "pos": pos, "layers": n_layers}
 
 
 def _forest_layout(n: int) -> dict:
@@ -482,106 +426,6 @@ def _forest_layout(n: int) -> dict:
             x = W / 2
         points.append({"x": round(x, 1), "y": round(y, 1)})
     return {"viewbox": [0, 0, W, round(H)], "points": points, "rows": rows, "cols": cols}
-
-
-def _landscape_layout(names: list[str], edges: list[dict]) -> dict:
-    """Place nodes as an ORGANIC WOODLAND, not a grid — a wide landscape the render
-    paints groves onto with real depth.
-
-    We still respect prerequisite order (roots at the back, dependents flowing toward
-    the viewer) so the map stays truthful, but the placement is deliberately un-gridlike:
-
-      • DEPTH BAND — a node's longest prereq-chain length maps to a back→front band.
-        Fewer bands than raw layers (so a deep tree still reads as far / mid / near),
-        which drives parallax and how big/lush a tree is drawn.
-      • ROW = band → a horizontal ribbon of the scene, back bands higher & shorter,
-        near bands lower & wider (a receding ground plane).
-      • X within a band spreads the band's nodes across the ribbon, then each node gets
-        a SMALL DETERMINISTIC jitter (seeded by name) in x and y so the treeline waves
-        and never lines up in columns. Same input → same scene every load.
-
-    Returns {viewbox, pos:{name:{x,y}}, band:{name:0..B-1}, bands:B, ground:y} — purely
-    additive alongside the existing `dag`/`layout` payloads; the render chooses this one.
-    """
-    import hashlib
-    import math
-
-    known = set(names)
-    deps: dict[str, list[str]] = {n: [] for n in names}
-    for e in edges:
-        s, d = e.get("src"), e.get("dst")
-        if s in known and d in known and s != d:
-            deps[d].append(s)
-
-    # longest-path depth (cycle-safe), exactly as the dag layering does.
-    depth: dict[str, int] = {}
-    visiting: set[str] = set()
-
-    def depth_of(n: str) -> int:
-        if n in depth:
-            return depth[n]
-        if n in visiting:
-            return 0
-        visiting.add(n)
-        d = 0
-        for p in deps[n]:
-            d = max(d, depth_of(p) + 1)
-        visiting.discard(n)
-        depth[n] = d
-        return d
-
-    for n in names:
-        depth_of(n)
-    max_depth = max(depth.values()) if depth else 0
-
-    # Collapse raw layers into a handful of depth BANDS (far → near). A single-layer
-    # forest still gets one nice mid band; a deep one gets up to 5 receding ribbons.
-    n_bands = max(1, min(5, max_depth + 1))
-    band: dict[str, int] = {}
-    for n in names:
-        band[n] = 0 if max_depth == 0 else min(n_bands - 1, round(depth[n] / max_depth * (n_bands - 1)))
-
-    by_band: dict[int, list[str]] = {}
-    for n in names:
-        by_band.setdefault(band[n], []).append(n)
-
-    # A wide, cinematic canvas — landscape, not portrait: width dominates so the whole
-    # vista reads as a horizon, not a column. Height stays close to a 16:10 frame so a
-    # width-fit shows the full scene (far treeline → near foreground) without cropping.
-    W = 1680
-    sky = 140                       # sky / horizon band above the treeline
-    band_gap = 150                  # vertical spacing between depth ribbons (kept tight)
-    ground = 300 + (n_bands - 1) * band_gap   # near-band baseline
-    H = ground + 170
-    margin_x = 150
-
-    def jitter(name: str, salt: str, span: float) -> float:
-        # deterministic per-name jitter in [-span, +span]
-        h = int(hashlib.md5((name + salt).encode()).hexdigest()[:8], 16)
-        return (h / 0xFFFFFFFF - 0.5) * 2 * span
-
-    pos: dict[str, dict] = {}
-    for b in range(n_bands):
-        nodes = by_band.get(b, [])
-        if not nodes:
-            continue
-        # back bands sit high (just under the treeline) & narrower; near bands sit low & wide.
-        t = b / max(1, n_bands - 1)                 # 0 far … 1 near
-        top = sky + 130                              # first grove ribbon rests below the horizon
-        row_y = top + t * (ground - top)
-        inset = (1 - t) * 120                        # far ribbons are inset (perspective)
-        x0, x1 = margin_x + inset, W - margin_x - inset
-        # order nodes within a band by x-jitter so neighbours don't always share prereqs
-        nodes = sorted(nodes, key=lambda nm: jitter(nm, "order", 1.0))
-        span = x1 - x0
-        for i, nm in enumerate(nodes):
-            frac = (i + 0.5) / len(nodes) if len(nodes) > 1 else 0.5
-            x = x0 + frac * span + jitter(nm, "x", span / max(3, len(nodes) * 2))
-            y = row_y + jitter(nm, "y", 46)          # wave the treeline
-            pos[nm] = {"x": round(max(60, min(W - 60, x)), 1), "y": round(y, 1)}
-
-    return {"viewbox": [0, 0, W, round(H)], "pos": pos, "band": band,
-            "bands": n_bands, "ground": round(ground), "sky": sky}
 
 
 def _gap_phrase(days: float) -> str:

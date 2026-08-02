@@ -89,6 +89,35 @@ def test_node_is_done_despite_concept_wording_drift():
     assert st["Structured concurrency"] == "avail"    # …and its dependent is now unlocked
 
 
+def test_forest_exposes_journey_order_and_cross_pillar_edges():
+    """The 2D map needs a deterministic walk order (foundations→frontier) and grove-level
+    prerequisite edges. Both are additive on forest_map()."""
+    tools.add_curriculum("Basics: variables, types, control flow", "", "Python Fundamentals")
+    tools.add_curriculum("Embeddings: cosine, dot, norms",
+                         "Basics: variables, types, control flow", "RAG & Vector Retrieval")
+    tools.add_curriculum("Re-ranking with cross-encoders",
+                         "Embeddings: cosine, dot, norms", "RAG & Vector Retrieval")
+    fm = report.forest_map()
+    # order lists every pillar once, with the root (no cross-pillar prereqs) first
+    assert set(fm["order"]) == {"Python Fundamentals", "RAG & Vector Retrieval"}
+    assert fm["order"][0] == "Python Fundamentals"
+    # each grove carries its index in the walk
+    assert {g["pillar"]: g["order"] for g in fm["groves"]}["Python Fundamentals"] == 0
+    # a cross-pillar edge Python Fundamentals → RAG (prereq lives in another pillar)
+    assert {"from": "Python Fundamentals", "to": "RAG & Vector Retrieval"} in fm["edges"]
+
+
+def test_grove_drilldown_exposes_ordered_concepts_and_edges():
+    tools.add_curriculum("A start", "", "Python Fundamentals")
+    tools.add_curriculum("B needs A", "A start", "Python Fundamentals")
+    tools.add_curriculum("C needs B", "B needs A", "Python Fundamentals")
+    fm = report.forest_map("Python Fundamentals")
+    names = [c["name"] for c in fm["concepts"]]
+    assert names == ["A start", "B needs A", "C needs B"]        # topological within the grove
+    assert {"from": "A start", "to": "B needs A"} in fm["edges"]
+    assert {"from": "B needs A", "to": "C needs B"} in fm["edges"]
+
+
 def test_layout_scales_and_wraps_for_varying_pillar_counts():
     # 5 pillars and 40 pillars both lay out on a winding path with a taller-when-needed canvas
     for n, min_h in ((5, 560), (40, 900)):

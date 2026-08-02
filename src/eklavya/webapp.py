@@ -1110,8 +1110,12 @@ body.reduce-motion *{animation:none !important}
  color:#2a1c07;border:none;border-radius:4px;padding:10px 18px;font-weight:600;cursor:pointer}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
-#tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
-.treehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;flex:none}
+/* full-bleed: the map fills the content area (no floating rounded debug box, spec §13) */
+#tree{display:none;height:100%;flex-direction:column;min-height:0;position:relative}   /* tab switch toggles display:flex */
+.treehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:none;
+ padding:11px 20px;position:absolute;top:0;left:0;right:0;z-index:6;pointer-events:none;
+ background:linear-gradient(180deg,rgba(6,9,20,.55),transparent)}
+.treehead>*{pointer-events:auto}
 .treehead .ttitle{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;color:var(--parch)}
 .treehead .tsub{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute);letter-spacing:.02em}
 .treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
@@ -1122,73 +1126,15 @@ body.reduce-motion *{animation:none !important}
  background:rgba(6,9,20,.5);border:1px solid var(--line-soft);padding:6px 12px;border-radius:5px;cursor:pointer;transition:.16s}
 .ttab:hover{color:var(--gold-bright)} .ttab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .ttab:disabled{opacity:.4;cursor:default}
-/* the map fills the pane in a gold-hairline frame; the SVG scales to width (no overflow) */
-.mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
- box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
-.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
-/* the 3D forest canvas fills the frame; WebGL owns the pixels, HUD floats over it */
-.mapframe canvas#forest3d{display:block;width:100%;height:100%;flex:1;min-height:0;touch-action:none;cursor:grab}
-.mapframe canvas#forest3d:active{cursor:grabbing}
-.forest3d-fallback{margin:auto;padding:40px 30px;max-width:460px;text-align:center;
- font-family:var(--f-body);font-size:14px;line-height:1.6;color:var(--parch-dim)}
-/* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
-.mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
-.mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
-  background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
-  display:grid;place-items:center;backdrop-filter:blur(3px)}
-.mapzoom button:hover{border-color:var(--gold)}
-/* mobile: the 3D forest is the star — give it (almost) the full viewport height, and
-   tighten the panel padding / header so the scene isn't a short letterbox. */
-@media(max-width:820px){
-  #tree{padding:10px 10px}
-  .treehead{margin-bottom:8px}
-  .treehead .ttitle{font-size:15px}
-  .mapframe{min-height:78vh}
-}
-/* The forest is now a WebGL <canvas> (static/forest3d.js) — its scene, particles,
-   trees, path, birds and "you are here" are drawn in 3D. Only the HUD overlays
-   below (quest banner, node popover, zoom/back buttons) remain as DOM. Motion is
-   gated inside the scene by _reduced(); the body.reduce-motion class still drives
-   the rest of the app. */
-/* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
-.mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
- background:linear-gradient(180deg,rgba(10,16,30,.92),rgba(8,12,22,.9));
- border:1px solid var(--line-gold);border-radius:9px;padding:9px 12px;backdrop-filter:blur(4px);
- box-shadow:0 14px 34px -20px rgba(0,0,0,.8)}
-.mapquest .qh{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;color:var(--parch-mute);text-transform:uppercase}
-.mapquest .qt{font-family:var(--f-title);font-size:14px;color:var(--gold-bright);margin-top:2px}
-.mapquest .qd{font-family:var(--f-body);font-size:11.5px;color:var(--parch-dim);margin-top:3px;line-height:1.4}
-/* the click-to-act node popover */
-.nodepop{position:absolute;z-index:9;width:290px;max-width:calc(100% - 24px);
- background:linear-gradient(180deg,rgba(12,18,32,.97),rgba(9,13,24,.97));
- border:1px solid var(--line-gold);border-radius:12px;padding:14px 15px 15px;
- box-shadow:0 26px 60px -22px rgba(0,0,0,.85);animation:popIn .16s ease-out}
-@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
-.reduce-motion .nodepop{animation:none}
-.nodepop .npclose{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--parch-mute);
- font-size:16px;line-height:1;cursor:pointer}
-.nodepop .npclose:hover{color:var(--gold-bright)}
-.nodepop .npstat{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-block;
- padding:2px 8px;border-radius:20px;border:1px solid var(--line-soft)}
-.nodepop .npstat.done{color:#e7b64b;border-color:rgba(231,182,75,.5)}
-.nodepop .npstat.avail{color:#7ff2ea;border-color:rgba(127,242,234,.5)}
-.nodepop .npstat.lock{color:#a89670}
-.nodepop .nptitle{font-family:var(--f-title);font-size:16px;color:var(--parch);margin:8px 0 2px;line-height:1.25;padding-right:16px}
-.nodepop .npsub{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute)}
-.nodepop .npsec{margin-top:10px}
-.nodepop .npsec .lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--parch-mute)}
-.nodepop .npchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
-.nodepop .npchip{font-family:var(--f-body);font-size:11px;padding:3px 8px;border-radius:14px;
- border:1px solid var(--line-soft);color:var(--parch-dim)}
-.nodepop .npchip.done{color:#e7b64b;border-color:rgba(231,182,75,.35)}
-.nodepop .npchip.miss{color:#e79b8a;border-color:rgba(231,155,138,.35)}
-.nodepop .npact{width:100%;margin-top:13px;font-family:var(--f-title);font-size:13px;font-weight:600;
- border:none;border-radius:7px;padding:10px;cursor:pointer;color:#2a1c07;
- background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep))}
-.nodepop .npact.revise{background:linear-gradient(180deg,#8fe6df,#57d3ce 55%,#2ea3a0);color:#04201e}
-.nodepop .npact:hover{filter:brightness(1.08)}
-.nodepop .npact.locked{background:rgba(90,74,52,.4);color:var(--parch-mute);cursor:default}
-.nodepop .npact.locked:hover{filter:none}
+/* the map is edge-to-edge; the SVG covers the pane (slice) so it always fills, no letterbox */
+.mapframe{flex:1;min-height:0;overflow:hidden;display:flex;background:#141026;position:relative}
+.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0}
+.grove{transition:filter .2s}
+.grove:not(.locked){cursor:pointer}
+.grove:not(.locked):hover{filter:brightness(1.15) drop-shadow(0 0 14px rgba(231,182,75,.45))}
+.grove.locked{cursor:default}
+.hud{pointer-events:none}
+@media(max-width:820px){.treehead{padding:8px 12px}.treehead .ttitle{font-size:15px}.treehead .tsub{display:none}}
 .treeempty{margin:auto;padding:50px;text-align:center;max-width:440px;color:var(--parch-dim)}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
@@ -1530,13 +1476,7 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><canvas id="forest3d" role="img" aria-label="Enchanted 3D forest of mastery: milestone groves on a glowing winding path toward a golden temple."></canvas>
-      <div class="mapzoom">
-        <button id="mapback" onclick="forestBack()" title="Back to the forest" hidden>←</button>
-        <button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Recenter on you">⟲</button></div>
-      <div class="mapquest" id="mapquest" hidden></div>
-      <div class="nodepop" id="nodepop" hidden></div>
-    </div>
+    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enchanted-forest map of learning groves on a winding path to the temple."></svg></div>
   </div>
   <div id="library"></div>
   <div id="settings"></div>
@@ -1593,22 +1533,12 @@ body.reduce-motion *{animation:none !important}
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
-<!-- Three.js + post-processing (vendored locally, works offline) drive the 3D Forest.
-     Load order matters: core → shader chunks → composer/passes → controls → scene. -->
-<script src="/static/three.min.js"></script>
-<script src="/static/CopyShader.js"></script>
-<script src="/static/LuminosityHighPassShader.js"></script>
-<script src="/static/EffectComposer.js"></script>
-<script src="/static/RenderPass.js"></script>
-<script src="/static/ShaderPass.js"></script>
-<script src="/static/UnrealBloomPass.js"></script>
-<script src="/static/OrbitControls.js"></script>
-<script src="/static/forest3d.js"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
 <script src="/static/katex/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="/static/forest2d.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
   flowchart:{useMaxWidth:true, htmlLabels:true}});
@@ -1641,7 +1571,6 @@ function showView(v){
   if(v==='effect') document.getElementById('effectframe').src='/effectiveness';  // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
-  else if(window.forestSetVisible) forestSetVisible(false);   // pause rAF + free the GPU when the forest is hidden
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
 }
@@ -1868,176 +1797,44 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-/* ===== Data-driven 3D FOREST OF MASTERY (real-time WebGL, Three.js) =====
-   The forest is a live 3D scene (src/eklavya/static/forest3d.js): a night woodland
-   under a warm moon, a glowing winding path past ornate milestone-trees (one per
-   curriculum PILLAR, in learning order) climbing toward a golden temple. Status
-   drives each grove's look; the active grove wears a teal "YOU ARE HERE" ring and
-   the camera rests near it. Clicking a grove reuses the popover below; flying into
-   a grove reveals its concepts as a short sub-forest. Everything is generated from
-   /api/forest each load, so the scene grows with the curriculum. This file keeps
-   the DATA fetch + the shared popover; forest3d.js owns all the geometry. */
-const SVGNS='http://www.w3.org/2000/svg';   // still used by the ceremony rays below
+/* ===== Forest of Mastery — 2D painterly MAP (Forest2D, static/forest2d.js) =====
+   The winding-path enchanted-forest map is now rendered by Forest2D, driven from the
+   same /api/forest data. These thin wrappers keep the SPA's showForest()/showGrove()
+   entry points + tab wiring intact. */
 let _curFocus=null;             // active pillar name, for the drill-in default
-let _forestView='overview';     // 'overview' | pillar-name — remembered for the ⟲ + resize
-let _forestData=null;           // the last-loaded /api/forest payload (for the popover)
-function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
-function _reduced(){return document.body.classList.contains('reduce-motion')
-  || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
-
-
-// ===== 3D forest lifecycle: mount the WebGL scene + drive it from /api/forest =====
-// The heavy lifting (geometry, lights, particles, camera, raycast) lives in
-// static/forest3d.js as window.Forest3D. Here we just fetch data, hand it over,
-// and keep the canvas visible only while the Forest tab is showing (rAF paused +
-// GL disposed otherwise, per the perf contract).
-function _forestMount(){
-  const cv=document.getElementById('forest3d');
-  const frame=document.querySelector('.mapframe');
-  if(!cv||!window.Forest3D) return false;
-  if(!Forest3D.mounted){ Forest3D.mount(cv,frame); }
-  return Forest3D.ok();
-}
-// Pause/dispose when leaving the Forest view; resume when it returns. Called by showView.
-function forestSetVisible(on){ if(window.Forest3D&&Forest3D.mounted) Forest3D.setVisible(on); }
-
-
-// ===== the node click-to-act popover =====
-function hideNodePop(){const p=document.getElementById('nodepop');if(p)p.hidden=true;}
-// Place the popover near the clicked node (screen coords), clamped inside the frame.
-function _showNodePop(html,evt){
-  const pop=document.getElementById('nodepop'), frame=document.querySelector('.mapframe');
-  pop.innerHTML=html; pop.hidden=false;
-  const fr=frame.getBoundingClientRect(), pr=pop.getBoundingClientRect();
-  let x=(evt?evt.clientX-fr.left:fr.width/2)+14, y=(evt?evt.clientY-fr.top:fr.height/2)-10;
-  x=Math.max(10,Math.min(fr.width-pr.width-10,x));
-  y=Math.max(10,Math.min(fr.height-pr.height-10,y));
-  pop.style.left=x+'px'; pop.style.top=y+'px';
-  const cb=pop.querySelector('.npclose'); if(cb) cb.onclick=hideNodePop;
-}
-// Kick off (or revise) practice on a concept → switch to the chat view and stream it.
-function forestDive(name){ hideNodePop(); showView('practice');
-  stream("Let's work on "+name+" now."); }
-function forestRevise(name){ hideNodePop(); showView('practice');
-  stream("I want to revise "+name+" — I've covered it before; quiz me and refresh the key ideas."); }
-window.forestDive=forestDive; window.forestRevise=forestRevise;
-
-function _statPill(s){return s==='done'?'<span class="npstat done">◆ mastered</span>'
-  :s==='avail'?'<span class="npstat avail">○ available</span>':'<span class="npstat lock">— locked</span>';}
-function _chips(names,cls){return (names&&names.length)
-  ? '<div class="npchips">'+names.map(n=>'<span class="npchip '+(cls||'')+'">'+_esc(_short(n,26))+'</span>').join('')+'</div>'
-  : '<div class="npchips"><span class="npchip" style="opacity:.6">—</span></div>';}
-
-// Build the popover for a CONCEPT node (drill-in). statusOf resolves any prereq's status.
-function _openConceptPop(cc,statusOf,evt){
-  const missing=(cc.prereqs||[]).filter(p=>statusOf(p)!=='done');
-  const done=(cc.prereqs||[]).filter(p=>statusOf(p)==='done');
-  let act='';
-  if(cc.status==='done')
-    act='<button class="npact revise" onclick="forestRevise('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">↻ Revise this</button>';
-  else if(cc.status==='avail')
-    act='<button class="npact" onclick="forestDive('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">➤ Dive in</button>';
-  else
-    act='<button class="npact locked" disabled>🔒 Finish its prerequisites first</button>';
-  const html=
-    '<button class="npclose">×</button>'+_statPill(cc.status)+
-    '<div class="nptitle">'+_esc(cc.name)+'</div>'+
-    (cc.status==='lock'
-      ? '<div class="npsec"><div class="lbl">Still needed</div>'+_chips(missing,'miss')+'</div>'
-      : '<div class="npsec"><div class="lbl">Builds on</div>'+_chips(done.length?done:(cc.prereqs||[]),done.length?'done':'')+'</div>')+
-    '<div class="npsec"><div class="lbl">Unlocks next</div>'+_chips(cc.unlocks)+'</div>'+
-    act;
-  _showNodePop(html,evt);
-}
-
-// ===== drive the 3D forest from /api/forest =====
-// showForest / showGrove fetch the data-driven map and hand it to window.Forest3D,
-// which builds the WebGL scene. The tabs, sub-line and quest banner mirror the
-// current view; the popover + Dive-in/Revise wiring is unchanged (shared helpers).
+function _reducedMotion(){ return document.body.classList.contains('reduce-motion')
+  || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
 
 async function showForest(){
-  _forestView='overview';
+  const svg=document.getElementById('forestsvg');
   document.getElementById('tabForest').classList.add('on');
   document.getElementById('tabTrack').classList.remove('on');
-  const mb=document.getElementById('mapback'); if(mb) mb.hidden=true;
-  document.getElementById('mapquest').hidden=true; hideNodePop();
-  if(!_forestMount()){ return; }               // WebGL fallback handled inside mount()
-  Forest3D.setVisible(true);
-  try{
-    const c=await (await fetch('/api/forest')).json();
-    _forestData=c;
-    if(c.empty){ _forestEmpty(); document.getElementById('tabTrack').disabled=true; return; }
-    _curFocus=c.active;
-    document.getElementById('tabTrack').disabled=!_curFocus;
-    const nMast=c.groves.filter(g=>g.status==='blossoming').length;
-    document.getElementById('treesub').textContent=
-      c.groves.length+' groves · '+nMast+' mastered · wander the wood, tap a grove to enter';
-    // tag the active grove so the 3D scene can place the "YOU ARE HERE" ring + rest the camera
-    c.groves.forEach(g=>{ g._active = (g.pillar===c.active); });
-    Forest3D.renderOverview(c);
-    _questBanner(c.active?'Current grove':'Your forest',
-      c.active||'—', c.active?'Tap it to explore its concepts, or dive straight in.':'Tap any grove to explore.');
-  }catch(e){ _forestEmpty('could not load the forest map.'); }
+  document.getElementById('treesub').textContent='a winding path from the entrance to the temple · tap a grove to enter';
+  const c=await Forest2D.showOverview(svg,{reduced:_reducedMotion(),onGrove:(p)=>showGrove(p)});
+  _curFocus = c ? c.active : null;
+  document.getElementById('tabTrack').disabled=!_curFocus;
 }
 
-// Overview grove popover: summary + "enter grove" (drill-in). Unchanged behaviour.
-function _openGrovePop(g,evt){
-  const act='<button class="npact" onclick="showGrove('+JSON.stringify(g.pillar).replace(/"/g,'&quot;')+');hideNodePop()">▶ Enter grove</button>';
-  const st=g.status==='blossoming'?'done':g.status==='locked'?'lock':'avail';
-  const html='<button class="npclose">×</button>'+_statPill(st)+
-    '<div class="nptitle">'+_esc(g.pillar)+'</div>'+
-    '<div class="npsub">'+g.done+' / '+g.total+' concepts mastered</div>'+
-    '<div class="npsec"><div class="lbl">'+(g.status==='blossoming'?'A blossoming grove':g.status==='active'?'Your current focus':g.status==='locked'?'Locked — grow its roots first':'Open to explore')+'</div></div>'+act;
-  _showNodePop(html,evt);
-}
-window._openGrovePop=_openGrovePop; window._openConceptPop=_openConceptPop;
-
-// Drill-in: one grove's concepts as its own little SUB-FOREST in 3D. Each concept is a
-// tree along a short sub-path; clicking one opens the concept popover (Dive-in/Revise).
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
-  _forestView=pillar;
+  const svg=document.getElementById('forestsvg');
   document.getElementById('tabForest').classList.remove('on');
   document.getElementById('tabTrack').classList.add('on');
   document.getElementById('tabTrack').disabled=false;
-  const mb=document.getElementById('mapback'); if(mb) mb.hidden=false;
-  hideNodePop();
-  if(!_forestMount()){ return; }
-  Forest3D.setVisible(true);
-  try{
-    const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
-    _forestData=c;
-    if(c.empty){ _forestEmpty(); return; }
-    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← back to the forest';
-    Forest3D.renderGrove(c, pillar);
-    _questBanner('Inside '+_short(pillar,22), c.grove.done+' / '+c.grove.total+' mastered',
-      'A path through this grove\'s concepts. Tap a leafed tree to dive in.');
-  }catch(e){ _forestEmpty('could not load this grove.'); }
+  const c=await Forest2D.showGrove(svg,pillar,{reduced:_reducedMotion(),onBack:()=>showForest(),
+    onConcept:(concept)=>diveIntoConcept(concept,pillar)});
+  if(c && c.grove) document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
 }
 
-// The ← HUD button: from a drilled-in grove back to the whole forest.
-function forestBack(){ showForest(); }
-window.forestBack=forestBack;
-
-// A small "where you are" banner over the canvas (top-left).
-function _questBanner(head,title,desc){
-  const q=document.getElementById('mapquest');
-  q.innerHTML='<div class="qh">'+_esc(head)+'</div><div class="qt">'+_esc(title)+'</div><div class="qd">'+_esc(desc)+'</div>';
-  q.hidden=false;
-}
-
-// HUD zoom buttons → the 3D camera (constrained dolly toward/away from the target).
-function forestZoom(m){ if(window.Forest3D) Forest3D.zoom(m); }
-function forestZoomReset(){ if(window.Forest3D) Forest3D.zoomReset(); }
-window.forestZoom=forestZoom; window.forestZoomReset=forestZoomReset;
-
-// Empty / error state — a quiet message in the frame (no scene to build).
-function _forestEmpty(msg){
-  document.getElementById('mapquest').hidden=true;
-  _questBanner('The forest', 'Not planted yet',
-    msg||'Finish onboarding and Ekalavya will plant your groves.');
+// Dive from a grove's concept node straight into the Practice arena, seeded on it.
+function diveIntoConcept(concept,pillar){
+  showView('practice');
+  const ta=document.getElementById('chatin');
+  const ask="Let's practise “"+concept+"” from "+pillar+". Give me one drill to start.";
+  if(ta){ ta.value=ask; ta.focus(); }
+  if(typeof stream==='function' && !window.__diving){ window.__diving=true;
+    try{ stream(ask); } finally { setTimeout(()=>{window.__diving=false;},50); } }
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
@@ -2099,6 +1896,7 @@ function showAchievement(name, desc){
   setTimeout(()=>t.classList.remove('on'),4200);
 }
 function _ceremonyRays(){ const g=document.getElementById('ceremonyrays'); if(g.childElementCount) return;
+  const SVGNS='http://www.w3.org/2000/svg';
   for(let i=0;i<40;i++){ const a=i*9*Math.PI/180, x2=100+96*Math.cos(a), y2=100+96*Math.sin(a);
     const l=document.createElementNS(SVGNS,'line'); l.setAttribute('x1',100);l.setAttribute('y1',100);
     l.setAttribute('x2',x2.toFixed(1));l.setAttribute('y2',y2.toFixed(1)); g.appendChild(l);} }
@@ -2580,8 +2378,6 @@ function openModes(){
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
-
-// (forest pan/zoom/orbit is handled by the 3D scene — see forestZoom/Forest3D above.)
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
