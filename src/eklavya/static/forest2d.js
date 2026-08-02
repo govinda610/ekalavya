@@ -382,6 +382,17 @@
         el('path', { d: 'M0,' + (y - 22) + ' L' + w + ',' + y + ' L' + (-w) + ',' + y + ' Z', fill: k === 0 ? belly : body }, crown);
       }
       el('path', { d: 'M0,-40 L10,-28 L-10,-28 Z', fill: lit, opacity: 0.7 }, crown);
+    } else if (kind === 'peepal') {
+      // peepal / bodhi tree — slim pale trunk, a tall rounded heart-shaped crown with a
+      // few drip-tip leaves; the sacred fig, distinct from the squat banyan.
+      el('path', { d: 'M0,26 C-3,4 4,0 1,-16', stroke: trunkCol, 'stroke-width': 6, fill: 'none', 'stroke-linecap': 'round' }, t);
+      el('path', { d: 'M0,-2 C-14,-8 -20,-20 -22,-30 M0,-2 C14,-8 20,-20 22,-30', stroke: trunkCol, 'stroke-width': 3, fill: 'none', 'stroke-linecap': 'round' }, t);
+      lobes(crown, -26, 46, 8, 1.15);
+      // a couple of dangling heart-leaves with drip tips catching light
+      for (let k = 0; k < 4; k++) {
+        const lx = (r() - 0.5) * 40, ly = -6 + r() * 14;
+        el('path', { d: 'M' + lx.toFixed(0) + ',' + ly.toFixed(0) + ' q-4,4 0,9 q4,-5 0,-9 Z', fill: lit, opacity: 0.6 }, crown);
+      }
     } else {
       // banyan / broadleaf — thick trunk, wide multi-lobed crown (the workhorse)
       const wide = kind === 'banyan';
@@ -574,33 +585,124 @@
     return gg;
   }
 
-  // The sacred lotus-pond (kund): glowing water, concentric ripples, lotus pads & flowers,
-  // floating diyas, a meditating guru on the near bank, a peacock beside it.
-  // Choose a foreground clearing for the sacred pond that is farthest from every grove
-  // medallion (so it never sits under a node/label), preferring the lower foreground band.
-  function pondSpot(pts) {
-    // candidates across the mid/near foreground band (below the temple, above the frame lip)
-    const cands = [];
-    for (let fx = 0.18; fx <= 0.82; fx += 0.08) {
-      for (const y of [560, 600, 640]) cands.push({ x: VB.w * fx, y: y });
-    }
-    let best = cands[0], bestScore = -1e9;
-    cands.forEach(c => {
-      let nearest = 1e9;
-      pts.forEach(p => { const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < nearest) nearest = d; });
-      // require real clearance from medallions; gently prefer the sides so the central
-      // climbing path stays clear, and keep it off the extreme foreground frame.
-      const sideBias = Math.abs(c.x - VB.w / 2) * 0.18;
-      const score = nearest + sideBias;
-      if (score > bestScore) { bestScore = score; best = c; }
-    });
-    return best;
+  // ---- more Indic mythological LIFE (readable silhouettes at map scale, on-palette) ----
+  function critterBase(parent, x, y, s, dir, shadowRx) {
+    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + (s * (dir || 1)) + ',' + s + ')' }, parent);
+    el('ellipse', { cx: 0, cy: 5, rx: shadowRx || 16, ry: 4, fill: '#08120e', opacity: 0.4 }, gg);
+    return gg;
   }
 
-  function paintPond(g, reduced, spot) {
+  // a DEER / chital — slender body, arched neck, small antlers, dappled back.
+  function deer(parent, x, y, s, dir) {
+    const gg = critterBase(parent, x, y, s, dir, 15);
+    el('path', { d: 'M-13,3 L-13,-6 M-6,3 L-6,-7 M6,2 L6,-7 M12,2 L12,-7', stroke: '#2a2018', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);  // legs
+    el('path', { d: 'M-14,-7 C-8,-14 8,-14 13,-8 L11,-3 C4,-6 -6,-6 -13,-3 Z', fill: '#5a4326' }, gg);   // body
+    el('path', { d: 'M12,-8 C16,-12 17,-18 15,-22', fill: 'none', stroke: '#5a4326', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, gg);  // neck
+    el('circle', { cx: 15, cy: -23, r: 3, fill: '#6a5030' }, gg);                                        // head
+    el('path', { d: 'M15,-25 l-2,-5 M17,-25 l2,-5', stroke: C.gold, 'stroke-width': 1, 'stroke-linecap': 'round' }, gg);  // antlers
+    for (let i = 0; i < 4; i++) el('circle', { cx: -8 + i * 5, cy: -9 + (i % 2) * 2, r: 0.9, fill: C.goldBright, opacity: 0.7 }, gg);  // dapples
+    return gg;
+  }
+
+  // a NAGA — sacred serpent coiled with a raised hood, jewelled teal scales.
+  function naga(parent, x, y, s, dir) {
+    const gg = critterBase(parent, x, y, s, dir, 18);
+    el('path', { d: 'M-16,3 q-6,-8 2,-11 q10,-4 14,3 q4,7 -3,10 q-9,3 -13,-2', fill: 'none', stroke: '#146a66', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // coil
+    el('path', { d: 'M8,-4 C14,-10 12,-20 6,-26', fill: 'none', stroke: '#1a7d78', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // rising body
+    el('path', { d: 'M6,-26 q-7,-4 -3,-11 q7,4 3,11 M6,-26 q7,-4 3,-11 q-7,4 -3,11', fill: '#124d4c', stroke: C.teal, 'stroke-width': 0.8 }, gg);  // hood
+    el('circle', { cx: 5, cy: -30, r: 1.2, fill: C.goldBright }, gg); el('circle', { cx: 9, cy: -30, r: 1.2, fill: C.goldBright }, gg);  // eyes
+    return gg;
+  }
+
+  // an ELEPHANT (gaja) — rounded body, trunk, tusks, big ear; a bindi on the brow.
+  function elephant(parent, x, y, s, dir) {
+    const gg = critterBase(parent, x, y, s, dir, 26);
+    el('path', { d: 'M-16,3 L-16,-6 M-7,3 L-7,-7 M7,3 L7,-7 M15,3 L15,-6', stroke: '#2b2a34', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // legs
+    el('ellipse', { cx: -2, cy: -12, rx: 20, ry: 14, fill: '#39384a' }, gg);                              // body
+    el('circle', { cx: 16, cy: -14, r: 10, fill: '#3f3e52' }, gg);                                        // head
+    el('path', { d: 'M9,-16 q-8,3 -6,10', fill: '#2b2a38', opacity: 0.9 }, gg);                           // ear
+    el('path', { d: 'M24,-11 C30,-6 29,2 26,7', fill: 'none', stroke: '#3f3e52', 'stroke-width': 4.5, 'stroke-linecap': 'round' }, gg);  // trunk
+    el('path', { d: 'M22,-6 l5,6 M25,-7 l4,7', stroke: '#e9e2cf', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);  // tusks
+    el('circle', { cx: 16, cy: -18, r: 1.4, fill: C.ember, opacity: 0.85 }, gg);                          // bindi
+    el('path', { d: 'M-14,-20 q6,-5 12,0', fill: 'none', stroke: C.gold, 'stroke-width': 1, opacity: 0.6 }, gg);  // caparison hint
+    return gg;
+  }
+
+  // a MONKEY (vanara) — small hunched body + long curling tail, perched.
+  function monkey(parent, x, y, s, dir) {
+    const gg = critterBase(parent, x, y, s, dir, 9);
+    el('path', { d: 'M-2,2 q-12,2 -14,-6 q-2,-8 6,-8', fill: 'none', stroke: '#4a3a2a', 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);  // tail
+    el('ellipse', { cx: 0, cy: -6, rx: 7, ry: 8, fill: '#4a3a2a' }, gg);                                  // body
+    el('circle', { cx: 2, cy: -15, r: 4.2, fill: '#5a4632' }, gg);                                        // head
+    el('circle', { cx: 2, cy: -15, r: 2.4, fill: '#caa878' }, gg);                                        // face
+    el('circle', { cx: -1, cy: -19, r: 1.4, fill: '#4a3a2a' }, gg); el('circle', { cx: 5, cy: -19, r: 1.4, fill: '#4a3a2a' }, gg);  // ears
+    return gg;
+  }
+
+  // a walking PILGRIM (yatri) — robed figure with a staff, mid-stride along a path.
+  function pilgrim(parent, x, y, s, dir) {
+    const gg = critterBase(parent, x, y, s, dir, 8);
+    el('path', { d: 'M-3,4 L-5,-6 M3,4 L2,-6', stroke: '#17130f', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // legs stride
+    el('path', { d: 'M0,-6 C-6,-6 -6,2 -4,4 L4,4 C6,2 6,-6 0,-6 Z', fill: '#2a2118' }, gg);               // robe
+    el('path', { d: 'M0,-6 C-4,-14 4,-14 0,-6', fill: '#33281c' }, gg);                                   // torso
+    el('circle', { cx: 0, cy: -17, r: 3, fill: '#2a2018' }, gg);                                          // head
+    el('line', { x1: 6, y1: -20, x2: 7, y2: 5, stroke: C.goldEmber, 'stroke-width': 1.4 }, gg);           // staff
+    el('circle', { cx: 6, cy: -20, r: 1.6, fill: 'url(#diyaG)' }, gg);                                    // lamp/knot on staff
+    return gg;
+  }
+
+  // a small FLOCK of birds — V-strokes gliding; used across the sky band, per-band.
+  function flock(parent, x, y, s, seed, reduced) {
+    const r = rng(seed); const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    const n = 3 + Math.floor(r() * 3);
+    for (let i = 0; i < n; i++) {
+      const bx = (r() - 0.5) * 40, by = (r() - 0.5) * 16, sz = 4 + r() * 3;
+      el('path', { d: 'M' + bx.toFixed(1) + ',' + by.toFixed(1) + ' q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0',
+        fill: 'none', stroke: 'rgba(230,220,190,.5)', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);
+    }
+    if (!reduced) animT(gg, '0,0', ((r() > 0.5 ? 30 : -30)) + ',' + (-8) + '', (18 + r() * 10).toFixed(0) + 's');
+    return gg;
+  }
+
+  // The sacred lotus-pond (kund): glowing water, concentric ripples, lotus pads & flowers,
+  // floating diyas, a meditating guru on the near bank, a peacock beside it.
+  // Distribute SEVERAL sacred kunds across the whole map (one roughly per path band), each
+  // in a clearing well clear of every grove medallion/label. Greedy: pick the clearest
+  // candidate in each y-band, then keep pond→pond spacing so they read as distinct pools.
+  // Deterministic-from-data (positions derive only from grove points), scales to any count.
+  function pondSpots(pts, temple) {
+    if (!pts.length) return [];
+    // y-bands from just under the temple down to the near foreground
+    const yTop = temple ? temple.y + 150 : 300;
+    const bandYs = [];
+    for (let y = yTop; y <= VB.h - 96; y += 118) bandYs.push(y);
+    const chosen = [];
+    bandYs.forEach(by => {
+      let best = null, bestScore = -1e9;
+      for (let fx = 0.12; fx <= 0.88; fx += 0.05) {
+        const c = { x: VB.w * fx, y: by + ( (Math.round(fx * 20)) % 2 ? 14 : -14) };
+        let nearNode = 1e9;
+        pts.forEach(p => { const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < nearNode) nearNode = d; });
+        let nearPond = 1e9;
+        chosen.forEach(p => { const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < nearPond) nearPond = d; });
+        // want clearance from nodes AND from other ponds; mild side-preference
+        const score = nearNode + Math.min(nearPond, 200) * 0.6 + Math.abs(c.x - VB.w / 2) * 0.08;
+        if (nearNode > 70 && score > bestScore) { bestScore = score; best = c; }
+      }
+      if (best) chosen.push(best);
+    });
+    return chosen;
+  }
+
+  function paintPond(g, reduced, spot, idx) {
     // default clearing: right-mid glade; caller may pass a computed gap so the pond never
-    // sits under a grove medallion (positions vary with grove count).
-    const cx = spot ? spot.x : VB.w * 0.79, cy = spot ? spot.y : 560, rx = 120, ry = 40;
+    // sits under a grove medallion (positions vary with grove count). `idx` seeds variety
+    // (size + who sits by the water) so distributed ponds don't look identical.
+    idx = idx || 0;
+    const near = spot ? Math.min(1, Math.max(0, (spot.y - 250) / 480)) : 0.8;   // 0 far … 1 near
+    const scale = 0.62 + near * 0.5;                                            // pools recede up-map
+    const cx = spot ? spot.x : VB.w * 0.79, cy = spot ? spot.y : 560;
+    const rx = 120 * scale, ry = 40 * scale;
     const gg = el('g', {}, g);
     // bank rim / wet stone
     el('ellipse', { cx: cx, cy: cy + 4, rx: rx + 14, ry: ry + 8, fill: '#0c1c18', opacity: 0.6, filter: 'url(#soft1)' }, gg);
@@ -628,16 +730,20 @@
       for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; el('path', { d: 'M0,0 Q' + (Math.cos(a) * 3).toFixed(1) + ',-5 ' + (Math.cos(a) * 6).toFixed(1) + ',' + (Math.sin(a) * 6 - 2).toFixed(1), stroke: C.magenta, 'stroke-width': 1.4, fill: 'none', opacity: 0.75 }, lg); }
       el('circle', { cx: 0, cy: 0, r: 1.8, fill: C.goldBright }, lg);
     }
-    // three floating diyas drifting on the water
+    // floating diyas drifting on the water
     [[-0.5, 0.1], [0.2, -0.2], [0.55, 0.25]].forEach(([fx, fy], i) => {
-      const d = diya(gg, cx + fx * rx, cy + fy * ry, 0.7, reduced, 'ponddiya' + i);
+      const d = diya(gg, cx + fx * rx, cy + fy * ry, 0.7 * scale, reduced, 'ponddiya' + idx + i);
       if (!reduced) animT(d, '0,0', ((i % 2 ? 10 : -10)) + ',0', (10 + i * 3) + 's');
     });
-    // meditating guru on the near bank + a peacock beside the water
-    guru(gg, cx - rx * 0.7, cy + 10, 1.05, reduced);
-    peacock(gg, cx + rx * 0.85, cy - 6, 0.9, -1, reduced);
-    // a small bank shrine (stacked stones + a diya)
-    diya(gg, cx - rx * 0.2, cy - ry * 0.7, 0.8, reduced, 'shrined');
+    // a bank FIGURE (varies per pond) + a creature beside the water, both foreshortened
+    const fsc = 1.05 * scale;
+    if (idx % 3 === 0) guru(gg, cx - rx * 0.7, cy + 10 * scale, fsc, reduced);
+    else if (idx % 3 === 1) pilgrim(gg, cx - rx * 0.7, cy + 8 * scale, fsc, 1);
+    else guru(gg, cx - rx * 0.7, cy + 10 * scale, fsc, reduced);
+    (idx % 2 ? deer(gg, cx + rx * 0.9, cy + 2 * scale, 0.9 * scale, -1)
+             : peacock(gg, cx + rx * 0.85, cy - 6 * scale, 0.9 * scale, -1, reduced));
+    // a small bank shrine (a lit diya at the water's edge)
+    diya(gg, cx - rx * 0.2, cy - ry * 0.7, 0.8 * scale, reduced, 'shrined' + idx);
   }
 
   // Diyas lining the luminous path — small oil-lamps placed just off the trail at
@@ -655,6 +761,142 @@
       const px = mx + (-dy / len) * off * side, py = my + (dx / len) * off * side * 0.5 + 8;
       const sc = 0.6 + (a.scale || 1) * 0.3;
       diya(layer, px.toFixed(0), py.toFixed(0), sc, reduced, 'pd' + i);
+    }
+  }
+
+  // ============================================================================
+  // PER-BAND FOLIAGE — the key to UNIFORM density: for every path segment (all the
+  // switchback rows up to the temple), scatter trees flanking BOTH sides + understorey
+  // filling the gaps between bands, sized by perspective (bigger low, smaller high). This
+  // is procedural per-segment (seeded from geometry), so new pillars auto-get the same
+  // lush treatment and it scales to any count — no hand-placed spots for a fixed 18.
+  // Drawn into the background (behind the path/nodes) so it never hides labels.
+  function paintBandFoliage(g, pts, temple, reduced) {
+    if (!pts || !pts.length) return;
+    const layer = el('g', {}, g);
+    // walk the meandered river so we flank the ACTUAL winding trail, incl. up to the temple
+    const spine = temple ? pts.concat([{ x: temple.x, y: temple.y + 96, scale: 0.42 }]) : pts;
+    const river = meander(spine);
+    // perspective helper: how "near" a y is (0 far/top … 1 near/bottom)
+    const nearOf = y => Math.min(1, Math.max(0, (y - (temple ? temple.y : 116)) / (VB.h - (temple ? temple.y : 116))));
+
+    // (1) trees flanking BOTH sides of every river segment — a continuous treed corridor
+    for (let i = 0; i < river.length - 1; i++) {
+      const a = river[i], b = river[i + 1];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;                  // unit perpendicular
+      const near = nearOf(my);
+      const seed = 'band|' + i;
+      const rr = rng(seed);
+      // two flanking stands (one each side); nearer bands get bigger, denser stands
+      [-1, 1].forEach(sideDir => {
+        const nStands = 1 + Math.floor(rr() * 2);           // 1–2 stands per side per segment
+        for (let s = 0; s < nStands; s++) {
+          const off = (52 + rr() * 60) * (0.7 + near * 0.7);   // push clear of the ~40px path halo
+          const along = (rr() - 0.5) * len * 0.6;              // slide along the segment
+          const tx = mx + nx * off * sideDir + (dx / len) * along;
+          const ty = my + ny * off * sideDir * 0.55 + (dy / len) * along;
+          if (tx < 6 || tx > VB.w - 6) continue;
+          const scl = (0.5 + near * 0.95) * (0.8 + rr() * 0.5);
+          const kinds = ['banyan', 'round', 'willow', 'peepal', 'round', 'banyan'];
+          const kind = kinds[Math.floor(rr() * kinds.length)];
+          const tone = Math.min(1, 0.25 + near * 0.6 + (rr() - 0.5) * 0.2);
+          const tg = el('g', { transform: 'translate(' + tx.toFixed(0) + ',' + ty.toFixed(0) + ')', opacity: (0.82 + rr() * 0.16).toFixed(2) }, layer);
+          // sway only a minority of the nearest, largest band trees (keeps SMIL count sane)
+          forestTree(tg, scl, tone, kind, rng(seed + '|' + sideDir + '|' + s), !reduced && near > 0.62 && scl > 0.9 && rr() > 0.72);
+        }
+      });
+    }
+
+    // (2) understorey tufts + wildflowers filling the ground BETWEEN the path bands so
+    // there is no empty dark space anywhere. Anchored to river points, scaled by depth.
+    const ru = rng('bandunder');
+    river.forEach((p, i) => {
+      const near = nearOf(p.y);
+      const clusters = 3 + Math.floor(near * 4);
+      for (let k = 0; k < clusters; k++) {
+        const ang = ru() * Math.PI * 2, rad = 40 + ru() * 130;
+        const x = p.x + Math.cos(ang) * rad, y = p.y + Math.sin(ang) * rad * 0.5 + 14;
+        if (x < 8 || x > VB.w - 8 || y < 300 || y > VB.h - 12) continue;
+        const h = (5 + ru() * 12) * (0.5 + near);
+        const lean = (ru() - 0.5) * 6;
+        const col = shade('#1f4230', -0.08 + near * 0.34 + ru() * 0.1);
+        el('path', { d: 'M0,0 q' + lean.toFixed(0) + ',' + (-h * 0.6).toFixed(0) + ' ' + (lean * 1.4).toFixed(0) + ',' + (-h).toFixed(0),
+          stroke: col, 'stroke-width': (1 + near * 1.5).toFixed(1), fill: 'none', 'stroke-linecap': 'round',
+          opacity: (0.4 + near * 0.4).toFixed(2), transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')' }, layer);
+        if (ru() > 0.72) {  // an occasional wildflower spark
+          el('circle', { cx: x.toFixed(0), cy: (y - h).toFixed(0), r: (0.8 + ru() * 1.2).toFixed(1),
+            fill: [C.gold, C.magenta, '#d7f0c0', C.goldBright][Math.floor(ru() * 4)], opacity: 0.6 }, layer);
+        }
+      }
+    });
+  }
+
+  // ============================================================================
+  // MYTHOLOGICAL LIFE, DISTRIBUTED — peacocks, deer, nagas, elephants, monkeys, sages,
+  // pilgrims, bird-flocks + apsara wisps scattered across ALL bands (near→far). Anchored
+  // to path geometry & offset clear of every grove medallion/label; deterministic-from-data
+  // so it's stable across reloads and auto-populates new pillars. Drawn over foliage,
+  // under the grove nodes (nodes are painted after) so creatures never cover a label.
+  // ============================================================================
+  function paintCreatures(g, pts, temple, reduced) {
+    if (!pts || !pts.length) return;
+    const layer = el('g', {}, g);
+    const r = rng('critters');
+    const nearOf = y => Math.min(1, Math.max(0, (y - (temple ? temple.y : 116)) / (VB.h - (temple ? temple.y : 116))));
+    // is (x,y) clear of every grove medallion + its label band? (labels hang ~y+30..+78)
+    const clearOfNodes = (x, y) => pts.every(p => {
+      const s = p.scale || 1;
+      const dx = Math.abs(x - p.x), dy = y - p.y;
+      const nearBody = dx < 62 * s && dy > -80 * s && dy < 34 * s;      // canopy/medallion
+      const nearLabel = dx < 80 * s && dy > 24 * s && dy < 86 * s;      // label band
+      return !(nearBody || nearLabel);
+    });
+    // a rotating cast so every band gets varied fauna; ground-dwellers by kind
+    const ground = ['peacock', 'deer', 'peacock', 'monkey', 'naga', 'elephant', 'peacock', 'deer'];
+    let gi = 0;
+    // place ~2 ground creatures per grove point, on alternating sides, in real clearings
+    pts.forEach((p, idx) => {
+      const near = nearOf(p.y);
+      const tries = 2;
+      for (let t = 0; t < tries; t++) {
+        const side = (idx + t) % 2 === 0 ? 1 : -1;
+        let placed = false;
+        for (let attempt = 0; attempt < 6 && !placed; attempt++) {
+          const off = (70 + r() * 70);
+          const x = p.x + side * off, y = p.y + (r() - 0.5) * 30 + 20;
+          if (x < 40 || x > VB.w - 40 || y < 300 || y > VB.h - 40) continue;
+          if (!clearOfNodes(x, y)) continue;
+          const sc = (0.62 + near * 0.7);
+          const kind = ground[gi++ % ground.length];
+          const dir = side < 0 ? 1 : -1;
+          if (kind === 'peacock') peacock(layer, x, y, 0.85 * sc, dir, reduced);
+          else if (kind === 'deer') deer(layer, x, y, sc, dir);
+          else if (kind === 'monkey') monkey(layer, x, y, 0.9 * sc, dir);
+          else if (kind === 'naga') naga(layer, x, y, 0.9 * sc, dir);
+          else if (kind === 'elephant') elephant(layer, x, y, 0.9 * sc, dir);
+          placed = true;
+        }
+      }
+    });
+    // a few meditating SAGES + walking PILGRIMS along the trail (clear of nodes)
+    pts.forEach((p, idx) => {
+      if (idx % 3 !== 1) return;
+      const near = nearOf(p.y), side = idx % 2 ? -1 : 1;
+      const x = p.x + side * (96 + r() * 30), y = p.y + 26;
+      if (x < 40 || x > VB.w - 40 || !clearOfNodes(x, y)) return;
+      const sc = 0.7 + near * 0.5;
+      if (idx % 2) guru(layer, x, y, sc, reduced); else pilgrim(layer, x, y, sc, 1);
+    });
+    // bird-FLOCKS across the sky/upper bands + apsara-wisps drifting mid-map
+    for (let i = 0; i < 4; i++) flock(layer, 120 + i * 260, 130 + (i % 2) * 40, 0.9 + (i % 2) * 0.3, 'flk' + i, reduced);
+    for (let i = 0; i < 5; i++) {
+      const p = pts[Math.floor((i + 0.5) / 5 * pts.length)] || pts[0];
+      const wx = p.x + (r() - 0.5) * 90, wy = p.y - 40 - r() * 30;
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.5, filter: 'url(#soft1)' }, layer);
+      if (!reduced) { anim(w, 'opacity', '0.5', '0.14', (3 + r() * 3).toFixed(1) + 's');
+        animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 70).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
   }
 
@@ -1057,7 +1299,7 @@
   function paintLife(g, pts, activeIdx, reduced) {
     // fireflies clustered near the path & light — denser, varied size/colour/flicker
     const r = rng('flies'); const ff = el('g', {}, g);
-    for (let i = 0; i < 78; i++) {
+    for (let i = 0; i < 54; i++) {
       const anchor = pts[Math.floor(r() * pts.length)] || { x: VB.w / 2, y: VB.h / 2 };
       const x = anchor.x + (r() - 0.5) * 150, y = anchor.y + (r() - 0.5) * 110;
       const col = [C.gold, C.goldBright, '#bfe9a0', C.teal][Math.floor(r() * 4)];
@@ -1244,7 +1486,8 @@
       paintTemple(bg, lay.temple, reduced);
       paintMist(bg, reduced);
       paintStands(bg, reduced);
-      paintPond(bg, reduced, pondSpot(pts));
+      paintBandFoliage(bg, pts, lay.temple, reduced);          // lush trees + understorey along EVERY band
+      pondSpots(pts, lay.temple).forEach((sp, i) => paintPond(bg, reduced, sp, i));  // kunds across the map
       paintGodRays(bg, lay.temple, reduced);
 
       // edges (faint vines, drawn first/under) → then the luminous path (dominant spine)
@@ -1254,6 +1497,7 @@
       paintEdges(world, c.edges || [], posByPillar, statusByPillar);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
+      paintCreatures(world, pts, lay.temple, reduced);         // peacocks/deer/nagas/elephants/sages, all bands
 
       // draw nodes back-to-front (far/high first) so foreground groves overlap correctly
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
@@ -1295,6 +1539,8 @@
       paintTemple(bg, lay.temple, reduced);
       paintMist(bg, reduced);
       paintStands(bg, reduced);
+      paintBandFoliage(bg, pts, lay.temple, reduced);
+      pondSpots(pts, lay.temple).forEach((sp, i) => paintPond(bg, reduced, sp, i));
       paintGodRays(bg, lay.temple, reduced);
 
       const world = el('g', {}, svg);
@@ -1304,6 +1550,7 @@
       paintEdges(world, c.edges || [], posByName, statusByName);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
+      paintCreatures(world, pts, lay.temple, reduced);
 
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
