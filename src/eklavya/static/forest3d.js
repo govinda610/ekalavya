@@ -328,10 +328,11 @@
   function buildTemple() {
     var g = new T.Group();
     var mat = new T.MeshStandardMaterial({
-      // emissive pulled back so the shikhara tiers read as gold DETAIL (banded by the flat
-      // shading) rather than a white silhouette; still glowing, still the horizon anchor.
-      color: COL.goldBright, emissive: COL.gold, emissiveIntensity: 0.85,
-      roughness: 0.28, metalness: 0.45, flatShading: true, fog: false,
+      // A DEEPER base gold (not the near-white goldBright) + lower emissive + lower metalness
+      // so the lit shikhara tiers stay a structured GOLD under the moon/warm keys + ACES + bloom
+      // instead of the reflective faces washing to pure white. Flat shading bands the tiers.
+      color: COL.gold, emissive: COL.goldDeep, emissiveIntensity: 0.45,
+      roughness: 0.42, metalness: 0.25, flatShading: true, fog: false,
     });
     // warm amber (not near-white) so the doorway/finials glow keeps colour instead of clipping.
     var brightMat = new T.MeshBasicMaterial({ color: 0xffdf9a, fog: false });   // doorway/finials glow
@@ -361,10 +362,12 @@
     // a glowing arched DOORWAY at the base of the central tower (the destination beckons)
     var door = new T.Mesh(new T.PlaneGeometry(6, 9), brightMat);
     door.position.set(0, 10, 11.2); g.add(door);
-    var doorGlow = glowSprite(0xffe6b4, 20, 0.45, true); doorGlow.position.set(0, 10, 12); g.add(doorGlow);
+    // doorway glow kept smaller + fainter so it reads as a lit arch, not a white flare that
+    // merges with the shikhara into one clipped core.
+    var doorGlow = glowSprite(0xffe6b4, 15, 0.3, true); doorGlow.position.set(0, 10, 12); g.add(doorGlow);
     // a warm beacon light + a layered halo so the temple glows on the horizon (dialed back
-    // from the previous blazing value that clipped the whole temple to white).
-    var glow = new T.PointLight(0xffd98a, 1.3, 200, 2.0); glow.position.y = topY * 0.5; g.add(glow);
+    // again so the structured gold tiers survive bloom instead of washing to white).
+    var glow = new T.PointLight(0xffd98a, 0.9, 200, 2.0); glow.position.y = topY * 0.5; g.add(glow);
     g.userData.mats = [mat, brightMat]; g.userData.topY = topY;
     return g;
   }
@@ -379,9 +382,11 @@
       var pl = new T.Mesh(new T.PlaneGeometry(7, 150), mat);
       pl.position.set(i * 10, topY + 30, -6); pl.rotation.z = i * 0.06; g.add(pl);
     }
-    // a big soft warm halo that spills up into the sky/forest behind the temple
-    var halo = glowSprite(0xffdc9a, 200, 0.34, true); halo.position.set(0, topY * 0.6, -4); g.add(halo);
-    var halo2 = glowSprite(0xffefc4, 100, 0.4, true); halo2.position.set(0, topY * 0.55, -2); g.add(halo2);
+    // a big soft warm halo that spills up into the sky/forest behind the temple. The broad
+    // outer halo stays (the horizon glow the refs have); the tight inner core is dimmed so it
+    // no longer sums with the shikhara/doorway into a blown-out white centre.
+    var halo = glowSprite(0xffdc9a, 210, 0.3, true); halo.position.set(0, topY * 0.6, -4); g.add(halo);
+    var halo2 = glowSprite(0xffefc4, 90, 0.24, true); halo2.position.set(0, topY * 0.55, -2); g.add(halo2);
     g.userData = { mat: mat };
     return g;
   }
@@ -433,7 +438,7 @@
     // composition (like forest_bg's teal-white trail). A bright core ribbon + a bright inner
     // stripe + a broad soft under-glow, raised just above the ground so it never hides under
     // foliage. Fog-free so it glows all the way to the temple.
-    function ribbon(t0, t1, core, coreE, edge, width, op) {
+    function ribbon(t0, t1, core, coreE, edge, width, op, stripe) {
       var n = Math.max(8, Math.round((t1 - t0) * 160));
       var sub = [];
       for (var i = 0; i <= n; i++) sub.push(curve.getPoint(t0 + (t1 - t0) * i / n));
@@ -450,20 +455,22 @@
         roughness: 0.35, transparent: true, opacity: op, fog: false });
       var m = new T.Mesh(geo, mat); m.position.y += 0.4; g.add(m);
       // a bright inner stripe running down the middle (the flowing-energy core) — kept
-      // slimmer + gentler so it reads as a glow, not a blown-out white streak up close.
-      // Warm gold (not near-white) + low additive opacity so it keeps colour instead of clipping.
-      var smat = new T.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: op * 0.3,
+      // slimmer + gentler so it reads as a glow, not a blown-out white streak up close. Its
+      // colour tracks the stretch (warm gold near, cool teal toward the temple) so the far
+      // path leads the eye as a COOL luminous line instead of a warm streak that sums to white.
+      var smat = new T.MeshBasicMaterial({ color: stripe || 0xffe6b0, transparent: true, opacity: op * 0.3,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
       var geoS = new T.TubeGeometry(c2, n, width * 0.24, 8, false); geoS.scale(1, 0.22, 1);
       var mS = new T.Mesh(geoS, smat); mS.position.y += 0.55; g.add(mS);
       g.userData.disposables = (g.userData.disposables || []).concat([geo0, gmat, geo, mat, geoS, smat]);
       return m;
     }
-    // traveled (warm gold) → ahead (luminous teal toward the temple). Emissive kept well
-    // below full-white so the ribbon glows + blooms but keeps its gold→teal gradient and
-    // inner-stripe detail instead of clipping to a flat white river near the camera.
-    ribbon(0, travT, COL.gold, 0.85, 0xffd98a, 3.4, 0.9);
-    if (travT < 1) ribbon(travT, 1, COL.teal, 0.8, COL.tealBright, 3.0, 0.82);
+    // traveled (warm gold, warm stripe) → ahead (luminous COOL teal toward the temple, with a
+    // teal stripe). The far stretch glows a touch brighter + stays cool so it clearly leads the
+    // eye to the temple, while the near/traveled stretch keeps its warm gold — a gold→teal
+    // gradient. Emissive still below full-white so it blooms without clipping to a white river.
+    ribbon(0, travT, COL.gold, 0.72, 0xffd98a, 3.4, 0.86, 0xffe0a4);
+    if (travT < 1) ribbon(travT, 1, COL.teal, 0.92, COL.tealBright, 3.0, 0.82, 0x9ff2ea);
     g.userData.curve = curve;
     return g;
   }
@@ -882,7 +889,7 @@
     // bright warm-violet ambient; the GROUND term is lifted to a warmer, lighter mauve so
     // backlit tree UNDERSIDES keep a touch of warm colour instead of going pure black (the
     // refs have no black tree faces). A gentle wrap fill from below-front does the same.
-    scene.add(new T.HemisphereLight(0xd0bce0, 0x5a4a66, 1.45));
+    scene.add(new T.HemisphereLight(0xd6c4e6, 0x6e5a72, 1.6));
     var moon = new T.DirectionalLight(0xf4f0ff, 1.5);            // strong key, high + toward camera
     moon.position.set(40, 120, 150); scene.add(moon);           // +Z → lights the camera-facing foliage
     var warmRim = new T.DirectionalLight(0xffca80, 1.0);         // warm rim from the temple/horizon
@@ -891,8 +898,12 @@
     coolFill.position.set(-90, 40, 40); scene.add(coolFill);
     // a low WARM wrap fill from below-front so the shaded, camera-facing tree undersides keep
     // a warm glow instead of crushing to black (a cheap half-lambert stand-in via a soft light).
-    var wrapFill = new T.DirectionalLight(0xffcaa0, 0.35);
+    var wrapFill = new T.DirectionalLight(0xffcaa0, 0.5);
     wrapFill.position.set(0, 8, 90); scene.add(wrapFill);
+    // a second warm fill from BEHIND-below (temple side) so the backlit far faces of trees
+    // keep a warm rim/colour instead of crushing to black — the refs have no black tree faces.
+    var backFill = new T.DirectionalLight(0xffbe86, 0.28);
+    backFill.position.set(20, 14, -120); scene.add(backFill);
 
     // --- moon disc + haze, high over the far ridge (up-right of the temple) ----
     var moonGroup = new T.Group();
@@ -1119,7 +1130,7 @@
   // catch the moonlight so they read as volumes. Warmer, lighter, more varied greens/teals
   // so the wood glows instead of going navy-black. A handful of draw calls for the whole wood.
   function buildInstancedForest() {
-    var COUNT = reduced() ? 240 : 460;
+    var COUNT = reduced() ? 260 : 520;   // a touch denser mid-ground (still a handful of draw calls)
     var trunkGeo = new T.CylinderGeometry(0.28, 0.5, 6, 5);
     var trunkMat = new T.MeshStandardMaterial({ color: 0x3a2c22, roughness: 1, flatShading: true });
     // crowns: detail-1 icosahedra (more facets → they catch light as rounded volumes)
@@ -1136,7 +1147,8 @@
     // a LUSH, warm-leaning palette: sunlit greens, emerald, teal, olive, a warm-gold canopy
     // and a violet whisper — lifted well above black so the wood reads as living foliage.
     var palette = [0x5a9a5e, 0x6aa858, 0x4a9a78, 0x429090, 0x7a9a4e, 0x8a9a52,
-                   0x5a8a9a, 0x9a8a4e, 0x6a5a80, 0x4e8a6e];
+                   0x5a8a9a, 0x9a8a4e, 0x6a5a80, 0x4e8a6e,
+                   0x3fa070, 0x2f9a6a, 0x7a5c96, 0x8a6aa0];   // extra emerald + violet variety
     var col = new T.Color(), fogC = new T.Color(0x38304e);
     var placed = 0, lastX = 0, lastZ = 0;
     for (var i = 0; i < COUNT && placed < COUNT; i++) {
