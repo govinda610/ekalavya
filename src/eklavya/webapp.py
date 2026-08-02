@@ -2363,11 +2363,17 @@ async function runCode(){
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
-  // Esc anywhere in the arena cancels an in-flight reply (never while editing a past turn).
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape' && streaming && !document.querySelector('.msg.editing')){ e.preventDefault(); cancelStream(); }
-  });
 })();
+// Single Escape handler with precedence: an OPEN overlay (mode chooser, chat drawer) is
+// dismissed first and swallows the key, so Esc never also aborts the in-flight reply. Only when
+// nothing is open does Esc cancel a stream (and never while editing a past turn).
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  const modes=document.getElementById('modes'), drawer=document.getElementById('drawer');
+  if(modes && modes.classList.contains('on')){ e.preventDefault(); closeModes(); return; }
+  if(drawer && drawer.classList.contains('open')){ e.preventDefault(); closeDrawer(); return; }
+  if(streaming && !document.querySelector('.msg.editing')){ e.preventDefault(); cancelStream(); }
+});
 
 function flashSubmit(t){ const b=document.querySelector('button.submit'); if(b) b.textContent=t; }
 function submitCode(){
@@ -2476,7 +2482,6 @@ function openModes(){
 }
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
