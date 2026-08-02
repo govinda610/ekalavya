@@ -137,3 +137,17 @@ def test_grade_and_record_subject_rejects_non_deterministic_type():
         "Proofs", "derivation_proof", "induction", answer="...", key="...",
         answer_type="proof", confidence=2, subject="maths")
     assert "deterministic" in out.lower()
+
+
+def test_symbolic_grader_refuses_over_long_input():
+    # A symbolic bomb (huge/nested expression) is refused before parsing, not stalled.
+    bomb = "(" * 300 + "x" + ")" * 300
+    res = graders.grade_symbolic(bomb, "x")
+    assert res.score == 0.0
+    assert "could not parse" in res.detail
+
+
+def test_symbolic_grader_still_grades_normal_answers():
+    # The guard doesn't break ordinary, short equivalence checks.
+    assert graders.grade_symbolic("(x+1)^2", "x^2 + 2*x + 1").score == 1.0
+    assert graders.grade_symbolic("x + 1", "x + 2").score == 0.0

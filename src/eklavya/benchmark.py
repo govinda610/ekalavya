@@ -394,7 +394,10 @@ def record_assessment(items_and_outcomes: list[dict], context: str = "",
         cur = conn.execute(
             "INSERT INTO assessments(started_at, ended_at, theta, n_items, subject, context) "
             "VALUES(?, ?, ?, ?, ?, ?)",
-            (context and None or _now(), _now(), theta, n_items, subject, context or None),
+            # started_at is always the sitting's timestamp; the note lives in its own `context`
+            # column. (The old `context and None or _now()` was a broken ternary that always
+            # collapsed to _now() and confusingly implied the note could set the start time.)
+            (_now(), _now(), theta, n_items, subject, context or None),
         )
         assessment_id = cur.lastrowid
         for o in items_and_outcomes:

@@ -15,6 +15,44 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+# Resource guards for the SymPy path (symbolic answers are untrusted LLM/learner input, so a
+# crafted "symbolic bomb" — a huge or deeply-nested expression — could stall the process).
+# Two cheap caps: refuse over-long input outright, and run each parse/simplify under a wall-time
+# limit in a worker thread so a pathological expression can't block the caller indefinitely.
+_MAX_EXPR_LEN = 400  # a real maths answer is short; anything longer is refused before parsing
+_SYMPY_TIMEOUT = 3.0  # seconds of wall-time any single parse/simplify may take
+
+
+class _GraderTimeout(Exception):
+    """Raised when a SymPy operation exceeds _SYMPY_TIMEOUT."""
+
+
+def _with_timeout(fn, *args, seconds: float = _SYMPY_TIMEOUT):
+    """Run `fn(*args)` in a daemon thread, raising _GraderTimeout if it runs past `seconds`.
+
+    Works off the main thread (unlike signal.alarm), so it's safe in the web workers. It cannot
+    force-kill the runaway thread, but it returns control to the caller so one bad expression
+    can't hang a request; combined with the length cap this keeps the graders bounded in practice.
+    """
+    import threading
+
+    box: dict = {}
+
+    def _run():
+        try:
+            box["v"] = fn(*args)
+        except BaseException as e:  # noqa: BLE001 — propagate the real error to the caller
+            box["e"] = e
+
+    t = threading.Thread(target=_run, daemon=True)
+    t.start()
+    t.join(seconds)
+    if t.is_alive():
+        raise _GraderTimeout(f"symbolic grading exceeded {seconds:g}s")
+    if "e" in box:
+        raise box["e"]
+    return box.get("v")
+
 
 @dataclass
 class GradeResult:
@@ -70,13 +108,17 @@ def grade_numeric(answer: str, key: str, tol: float = 0.0, rel: float = 0.0) -> 
 
 def _sympify(expr: str):
     """Parse an expression string into a SymPy object (implicit multiplication + ^ as
-    power, like a human writes maths). Returns None on any parse failure."""
+    power, like a human writes maths). Returns None on any parse failure, on over-long input
+    (a symbolic-bomb guard), or on a parse that runs past the wall-time limit."""
     from sympy.parsing.sympy_parser import (  # local import: sympy is a real but heavy dep
         convert_xor, implicit_multiplication_application, parse_expr, standard_transformations)
+    s = str(expr).strip()
+    if len(s) > _MAX_EXPR_LEN:
+        return None
     try:
         transforms = standard_transformations + (
             implicit_multiplication_application, convert_xor)
-        return parse_expr(str(expr).strip(), transformations=transforms, evaluate=True)
+        return _with_timeout(lambda: parse_expr(s, transformations=transforms, evaluate=True))
     except Exception:
         return None
 
@@ -93,17 +135,17 @@ def grade_symbolic(answer: str, reference: str) -> GradeResult:
     if a is None or r is None:
         return GradeResult(0.0, "could not parse an expression", "symbolic")
     try:
-        if sp.simplify(a - r) == 0:
+        if _with_timeout(lambda: sp.simplify(a - r)) == 0:
             return GradeResult(1.0, "symbolically equal", "symbolic")
     except Exception:
         pass
     try:
-        if a.equals(r):  # slower, handles some transcendental identities
+        if _with_timeout(lambda: a.equals(r)):  # slower, handles some transcendental identities
             return GradeResult(1.0, "equal (equals())", "symbolic")
     except Exception:
         pass
     # numeric spot-check: evaluate both at a few random points; equal everywhere ⇒ equal.
-    try:
+    def _spot_check() -> bool:
         syms = sorted(a.free_symbols | r.free_symbols, key=str)
         import random
         rng = random.Random(0)
@@ -111,8 +153,13 @@ def grade_symbolic(answer: str, reference: str) -> GradeResult:
             subs = {s: rng.uniform(0.1, 2.0) for s in syms}
             va, vr = complex(a.subs(subs)), complex(r.subs(subs))
             if abs(va - vr) > 1e-6:
-                return GradeResult(0.0, "not equivalent", "symbolic")
-        return GradeResult(1.0, "numerically equivalent at sampled points", "symbolic")
+                return False
+        return True
+
+    try:
+        if _with_timeout(_spot_check):
+            return GradeResult(1.0, "numerically equivalent at sampled points", "symbolic")
+        return GradeResult(0.0, "not equivalent", "symbolic")
     except Exception:
         return GradeResult(0.0, "not equivalent", "symbolic")
 
@@ -131,15 +178,21 @@ def grade_units(answer: str, reference: str) -> GradeResult:
     if a is None or r is None:
         return GradeResult(0.0, "could not parse a quantity/units", "units")
     try:
-        da = SI.get_dimensional_expr(a)
-        dr = SI.get_dimensional_expr(r)
         import sympy as sp
-        if sp.simplify(da - dr) != 0:
+
+        def _compare():
+            da = SI.get_dimensional_expr(a)
+            dr = SI.get_dimensional_expr(r)
+            if sp.simplify(da - dr) != 0:
+                return None  # dimension mismatch
+            # same dimension → compare magnitudes by converting a into r's units.
+            conv = convert_to(a, r)
+            ratio = sp.simplify(conv / r)
+            return abs(complex(ratio) - 1.0) < 1e-6
+
+        ok = _with_timeout(_compare)
+        if ok is None:
             return GradeResult(0.0, "dimension mismatch", "units")
-        # same dimension → compare magnitudes by converting a into r's units.
-        conv = convert_to(a, r)
-        ratio = sp.simplify(conv / r)
-        ok = abs(complex(ratio) - 1.0) < 1e-6
         return GradeResult(1.0 if ok else 0.0,
                            "dimension + magnitude match" if ok else "magnitude mismatch", "units")
     except Exception:
@@ -147,14 +200,19 @@ def grade_units(answer: str, reference: str) -> GradeResult:
 
 
 def _sympify_units(text: str):
-    """Parse `<number> <unit-expr>` using SymPy's SI unit symbols in scope."""
+    """Parse `<number> <unit-expr>` using SymPy's SI unit symbols in scope. Refuses over-long
+    input (symbolic-bomb guard) and bounds the parse with the wall-time limit."""
     from sympy.physics import units as u
     from sympy.parsing.sympy_parser import (
         implicit_multiplication_application, parse_expr, standard_transformations)
+    s = str(text).strip()
+    if len(s) > _MAX_EXPR_LEN:
+        return None
     try:
         local = {name: getattr(u, name) for name in dir(u) if not name.startswith("_")}
         transforms = standard_transformations + (implicit_multiplication_application,)
-        return parse_expr(str(text).strip(), transformations=transforms, local_dict=local, evaluate=True)
+        return _with_timeout(
+            lambda: parse_expr(s, transformations=transforms, local_dict=local, evaluate=True))
     except Exception:
         return None
 
