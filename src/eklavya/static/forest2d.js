@@ -2126,27 +2126,66 @@
     }
   }
 
-  function paintEdges(g, edges, posByPillar, statusByPillar) {
-    // Prerequisite threads between grove medallions (spec §10). Kept SUBTLE so the
-    // luminous main path stays the dominant spine — edges are faint connective vines,
-    // brightest only where they tell the "what unlocks next" story (into active/available).
-    const layer = el('g', { opacity: 0.9 }, g);
+  function paintEdges(g, edges, posByPillar, statusByPillar, orderByPillar, reduced) {
+    // Prerequisite DEPENDENCY threads between grove medallions (spec §10). The luminous
+    // winding path already carries the MAIN JOURNEY (the topological walk, node→next-node),
+    // so an edge that just links a grove to the very next one in that walk is redundant with
+    // the spine and stays a faint whisper. Every OTHER edge is a BRANCH: a foundation feeding
+    // a PARALLEL track, or a track that skips/re-joins — those are what reveal the graph's
+    // parallel structure, so we draw them CLEARLY as directional threads with an arrowhead.
+    // Deterministic + auto-expanding: classification is purely from the data's journey order.
+    const layer = el('g', { opacity: 0.95 }, g);
+    // how many dependents each prereq has → a prereq with ≥2 is a real FORK (parallel tracks).
+    const outDeg = {};
+    edges.forEach(e => { outDeg[e.from] = (outDeg[e.from] || 0) + 1; });
     edges.forEach(e => {
       const a = posByPillar[e.from], b = posByPillar[e.to];
       if (!a || !b) return;
+      const oa = orderByPillar ? orderByPillar[e.from] : null;
+      const ob = orderByPillar ? orderByPillar[e.to] : null;
+      // spine-redundant when `to` immediately follows `from` in the journey walk AND `from`
+      // isn't a fork (a fork must still show its extra branches even to the next node).
+      const consecutive = oa != null && ob != null && ob === oa + 1;
+      const isBranch = !consecutive || (outDeg[e.from] || 0) > 1;
       const st = statusByPillar[e.to];
-      let stroke, w, dash, op;
-      if (st === 'active') { stroke = C.teal; w = 1.8; dash = '4 6'; op = 0.6; }
-      else if (st === 'unlocked') { stroke = C.teal; w = 1.2; dash = '3 7'; op = 0.32; }
-      else if (st === 'blossoming') { stroke = C.gold; w = 1.2; dash = 'none'; op = 0.28; }
-      else { stroke = '#3a4652'; w = 1; dash = '1 9'; op = 0.2; }   // locked → whisper only
-      // curve the vine toward the path centre so it drapes rather than crosshatches
-      const mx = (a.x + b.x) / 2 + (VB.w / 2 - (a.x + b.x) / 2) * 0.18;
-      const my = (a.y + b.y) / 2 + 20;
-      const ep = el('path', { class: 'pedge', d: 'M' + a.x + ',' + (a.y - 52) + ' Q' + mx + ',' + my + ' ' + b.x + ',' + (b.y - 52),
-        fill: 'none', stroke: stroke, 'stroke-width': w, 'stroke-dasharray': dash, opacity: op, 'stroke-linecap': 'round' }, layer);
-      // tag endpoints so hovering a grove can light up its connected route (see wireHover)
+      // colour by the DEPENDENT's status: teal for the live "what unlocks next", warm gold
+      // for a mastered link, a cool whisper for still-locked branches.
+      let stroke;
+      if (st === 'active') stroke = C.teal;
+      else if (st === 'unlocked') stroke = C.teal;
+      else if (st === 'blossoming') stroke = C.gold;
+      else stroke = '#5a6f78';
+      // anchor a little above each medallion foot; branch threads bow toward the path centre
+      // so parallel tracks fan out legibly rather than crosshatching over the groves.
+      const ay = a.y - 52, by = b.y - 52;
+      const mx = (a.x + b.x) / 2 + (VB.w / 2 - (a.x + b.x) / 2) * (isBranch ? 0.10 : 0.18);
+      const my = (a.y + b.y) / 2 + (isBranch ? -6 : 20);
+      const d = 'M' + a.x + ',' + ay + ' Q' + mx.toFixed(1) + ',' + my.toFixed(1) + ' ' + b.x + ',' + by;
+      let w, dash, op;
+      if (isBranch) {
+        // a clearly-legible branch thread: brighter, a touch thicker, dashed for "route ahead"
+        w = st === 'locked' ? 1.6 : 2.2;
+        dash = st === 'blossoming' ? 'none' : '6 6';
+        op = st === 'locked' ? 0.34 : (st === 'active' ? 0.72 : 0.52);
+      } else {
+        // redundant with the spine → whisper only (keeps the spine the dominant line)
+        w = 1; dash = '2 9'; op = 0.16;
+      }
+      const ep = el('path', { class: 'pedge', d: d, fill: 'none', stroke: stroke,
+        'stroke-width': w, 'stroke-dasharray': dash, opacity: op, 'stroke-linecap': 'round' }, layer);
       ep.setAttribute('data-from', e.from); ep.setAttribute('data-to', e.to);
+      if (isBranch) {
+        // small arrowhead at the dependent end, pointing prereq → dependent (the unlock arrow),
+        // and an upward-flowing dash shimmer on the live (non-locked) branches (reduced-safe).
+        const t = 0.86;   // param along the quadratic bezier, near the dependent
+        const bx = (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * mx + t * t * b.x;
+        const byp = (1 - t) * (1 - t) * ay + 2 * (1 - t) * t * my + t * t * by;
+        const ang = Math.atan2(by - byp, b.x - bx) * 180 / Math.PI;
+        const ah = el('g', { class: 'pedge-arrow', transform: 'translate(' + bx.toFixed(1) + ',' + byp.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')', opacity: op + 0.12, 'pointer-events': 'none' }, layer);
+        el('path', { d: 'M-4.5,-3.4 L2,0 L-4.5,3.4', fill: 'none', stroke: stroke, 'stroke-width': 1.8, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, ah);
+        ah.setAttribute('data-from', e.from); ah.setAttribute('data-to', e.to);
+        if (!reduced && st !== 'locked' && st !== 'blossoming') anim(ep, 'stroke-dashoffset', '0', '-24', '1.9s', 'linear');
+      }
     });
   }
 
@@ -2682,11 +2721,14 @@
       ponds.forEach((sp, i) => paintPond(bg, reduced, sp, i));  // kunds across the map
       paintGodRays(bg, lay.temple, reduced);
 
-      // edges (faint vines, drawn first/under) → then the luminous path (dominant spine)
+      // dependency threads (branches, drawn first/under) → then the luminous path (main spine)
       const world = el('g', {}, svg);
       const posByPillar = {}; groves.forEach((g, i) => posByPillar[g.pillar] = pts[i]);
       const statusByPillar = {}; groves.forEach(g => statusByPillar[g.pillar] = g.status);
-      paintEdges(world, c.edges || [], posByPillar, statusByPillar);
+      // journey order = the grove's index in the (already journey-ordered) array, so branch
+      // vs main-spine edges are classified straight from the render order (auto-expands).
+      const orderByPillar = {}; groves.forEach((g, i) => orderByPillar[g.pillar] = i);
+      paintEdges(world, c.edges || [], posByPillar, statusByPillar, orderByPillar, reduced);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
       paintCreatures(world, pts, lay.temple, reduced, ponds, groves);  // habitat + difficulty-mapped fauna
@@ -2753,7 +2795,8 @@
       // intra-pillar edges (under) → luminous path (over)
       const posByName = {}; c.concepts.forEach((cc, i) => posByName[cc.name] = pts[i]);
       const statusByName = {}; groves.forEach(g => statusByName[g.pillar] = g.status);
-      paintEdges(world, c.edges || [], posByName, statusByName);
+      const orderByName = {}; c.concepts.forEach((cc, i) => orderByName[cc.name] = i);
+      paintEdges(world, c.edges || [], posByName, statusByName, orderByName, reduced);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
       paintCreatures(world, pts, lay.temple, reduced, ponds, groves);
