@@ -412,14 +412,27 @@
     g.add(trunk);
 
     if (style.bare) {
-      // locked: crooked bare limbs, dim, no leaves
+      // LOCKED: a DORMANT tree — crooked limbs with a sparse frost-blue canopy (not naked
+      // sticks), so the map reads as a wood of resting groves waiting to bloom, not a
+      // graveyard. Dim + cool + low so it clearly still reads as "locked" vs the lit groves.
+      var frostA = toonMat({ color: COL.lockedLeaf });
+      var frostB = toonMat({ color: COL.locked });
+      var canopyL = new T.Group();
       for (var l = 0; l < 5; l++) {
         var ang = l / 5 * 6.28 + r();
         var f = new T.Vector3(top.x, top.y * (0.6 + 0.1 * l), top.z);
         var t2 = new T.Vector3(Math.cos(ang) * 3 * s, top.y + (0.4 + r()) * 2 * s, Math.sin(ang) * 3 * s);
         g.add(_limb(f, t2, f.clone().lerp(t2, 0.5).add(new T.Vector3(0, s, 0)), 0.18 * s, 0.05 * s, barkMat));
+        // a small sparse frost tuft at each limb tip
+        var tuft = new T.Mesh(new T.IcosahedronGeometry((0.9 + r() * 0.5) * s, 0), r() < 0.5 ? frostA : frostB);
+        tuft.position.copy(t2); canopyL.add(tuft);
       }
-      g.userData.canopy = null;
+      // a thin dormant crown
+      var crownL = new T.Mesh(new T.IcosahedronGeometry(2.0 * s, 0), frostA);
+      crownL.position.set(top.x, top.y + 0.8 * s, top.z); crownL.scale.y = 0.8; canopyL.add(crownL);
+      g.add(canopyL);
+      g.userData.canopy = canopyL;
+      g.userData.mats = [frostA, frostB, barkMat];
       return g;
     }
 
@@ -862,6 +875,28 @@
         g.add(lan); lanterns.push(lan);
       }
     });
+    // NEAR-EDGE foreground band (spec §6): a row of dark ferns + shrubs + rocks along the
+    // front (high +Z) edge so the empty bright foreground reads as an overhung near bank,
+    // not bare ground. Near-silhouette; bleeds off the bottom of frame.
+    var frontZ = maxZ + 6, spanX = maxX - minX;
+    var nFront = Math.max(8, Math.round(spanX / 16));
+    for (var fi = 0; fi <= nFront; fi++) {
+      var fx = minX - 6 + (spanX + 12) * (fi / nFront) + (r() - 0.5) * 8;
+      var fz = frontZ + (r() - 0.5) * 10;
+      var fgy = groundY(fx, fz);
+      // a low dark shrub clump
+      for (var cc = 0; cc < 2 + ((r() * 2) | 0); cc++) {
+        var sh = new T.Mesh(new T.IcosahedronGeometry(3 + r() * 3, 0), leaf);
+        sh.position.set(fx + (r() - 0.5) * 8, fgy + 1.5 + r() * 2, fz + (r() - 0.5) * 6);
+        sh.scale.y = 0.75; sh.castShadow = true; g.add(sh);
+      }
+      // a fern fan
+      for (var bl = 0; bl < 4; bl++) {
+        var blade = new T.Mesh(new T.ConeGeometry(0.4, 4 + r() * 2, 4), bark);
+        blade.position.set(fx + (r() - 0.5) * 6, fgy + 2, fz + (r() - 0.5) * 4);
+        blade.rotation.z = (r() - 0.5) * 1.0; g.add(blade);
+      }
+    }
     g.userData = { bark: bark, leaf: leaf };
     return { group: g, lanterns: lanterns };
   }
@@ -1273,10 +1308,12 @@
       }
     }
 
-    // --- PATH-AS-GRAPH: draw the prerequisite topology as glowing edges between grove nodes
-    // (spec §10). State-styled: gold=traversed (both mastered), teal=available-next, dim=locked.
-    // Data-driven from data.edges (grove→grove prereq DAG) — auto-updates with the curriculum.
-    if (mode === "overview" && data.edges && data.edges.length) {
+    // --- PATH-AS-GRAPH: draw the prerequisite topology as glowing edges (spec §10 + §11).
+    // State-styled: gold=traversed (both mastered), teal=available-next, dim=locked. Data-driven
+    // from data.edges (grove→grove DAG in overview; concept→concept DAG in the drill-in) —
+    // auto-updates with the curriculum. In the drill-in these are the dependency edges between
+    // concept trees (§11: the single highest-value change to the grove view).
+    if (data.edges && data.edges.length) {
       var edgeGrp = buildEdges(data.edges, laid, nodeIndex);
       if (edgeGrp) scene.add(edgeGrp);
     }
