@@ -247,20 +247,99 @@ def forest_map(pillar: str | None = None) -> dict:
         if pillar not in concepts_by_pillar:
             return {"empty": True, "groves": [], "pillars": pillars, "viewbox": [0, 0, 900, 640]}
         cs = concepts_by_pillar[pillar]
+        # dependency-order the concepts (topological within the pillar) so the sub-path
+        # reads as a progression, and expose intra-pillar edges for the drill-in graph.
+        cs = _topo_order(cs, prereqs)
         nodes = [{"name": c, "status": concept_status[c]} for c in cs]
+        idx = {c: i for i, c in enumerate(cs)}
+        c_edges = [{"from": pr, "to": c} for c in cs for pr in prereqs[c] if pr in idx]
         layout = _forest_layout(len(nodes))
         return {
             "empty": False, "pillar": pillar, "pillars": pillars,
-            "grove": grove(pillar), "concepts": nodes,
+            "grove": grove(pillar), "concepts": nodes, "edges": c_edges,
             "layout": layout, "viewbox": layout["viewbox"],
         }
 
-    groves = [grove(p) for p in pillars]
+    # Sequential walk order along the winding path — foundations (fewest prereqs into
+    # the pillar) first, frontier last — so the 2D map can thread a start→temple spine
+    # and the minimap can list groves in journey order. Deterministic: we order by
+    # (grove depth in the cross-pillar prereq DAG, then name) so it's stable.
+    ordered_pillars = _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of)
+    index_of = {p: i for i, p in enumerate(ordered_pillars)}
+
+    # Prerequisite EDGES between groves: pillar A depends on pillar B when some concept
+    # in A lists a prereq that lives in B. State-styled downstream by the renderer.
+    edge_set: set[tuple[str, str]] = set()
+    for c in concepts:
+        pa = pillar_of[c]
+        for pr in prereqs[c]:
+            pb = pillar_of.get(pr)
+            if pb and pb != pa:
+                edge_set.add((pb, pa))          # B → A  (prereq → dependent)
+    edges = [{"from": b, "to": a} for (b, a) in sorted(edge_set, key=lambda e: (index_of.get(e[0], 0), index_of.get(e[1], 0)))]
+
+    groves = [grove(p) for p in ordered_pillars]
+    for g in groves:
+        g["order"] = index_of[g["pillar"]]
     layout = _forest_layout(len(groves))
     return {
-        "empty": False, "pillars": pillars, "active": active,
-        "groves": groves, "layout": layout, "viewbox": layout["viewbox"],
+        "empty": False, "pillars": ordered_pillars, "active": active,
+        "groves": groves, "edges": edges, "order": ordered_pillars,
+        "layout": layout, "viewbox": layout["viewbox"],
     }
+
+
+def _grove_order(pillars, concepts_by_pillar, prereqs, pillar_of) -> list[str]:
+    """Order pillars along the journey: a pillar's 'depth' is how deep its shallowest
+    concept sits in the cross-pillar prerequisite chain — root pillars (whose earliest
+    concept has no out-of-pillar prereqs) lead, frontier pillars trail. Ties break by a
+    small size heuristic (bigger, more foundational pillars earlier) then name, so the
+    walk is deterministic and re-derives identically as pillars are added/removed."""
+    # cross-pillar dependency between pillars (A depends on B)
+    dep: dict[str, set[str]] = {p: set() for p in pillars}
+    for p in pillars:
+        for c in concepts_by_pillar[p]:
+            for pr in prereqs[c]:
+                pb = pillar_of.get(pr)
+                if pb and pb != p:
+                    dep[p].add(pb)
+    # longest-path depth in the pillar DAG (memoised; cycles guarded)
+    depth: dict[str, int] = {}
+
+    def d(p: str, stack: frozenset) -> int:
+        if p in depth:
+            return depth[p]
+        if p in stack:
+            return 0                              # break any accidental cycle
+        ds = [d(b, stack | {p}) + 1 for b in dep[p] if b in dep]
+        depth[p] = max(ds) if ds else 0
+        return depth[p]
+
+    for p in pillars:
+        d(p, frozenset())
+    return sorted(pillars, key=lambda p: (depth[p], -len(concepts_by_pillar[p]), p))
+
+
+def _topo_order(items: list[str], prereqs: dict[str, list[str]]) -> list[str]:
+    """Stable topological order of `items` by their (in-set) prereqs — a concept comes
+    after every prereq that is also in `items`. Preserves original order among peers and
+    is robust to cycles (falls back to original position). Used for the grove drill-in."""
+    inset = set(items)
+    pos = {c: i for i, c in enumerate(items)}
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def visit(c: str, stack: frozenset) -> None:
+        if c in seen or c in stack:
+            return
+        for pr in sorted((p for p in prereqs.get(c, []) if p in inset), key=lambda p: pos[p]):
+            visit(pr, stack | {c})
+        seen.add(c)
+        out.append(c)
+
+    for c in items:
+        visit(c, frozenset())
+    return out
 
 
 def _forest_layout(n: int) -> dict:
