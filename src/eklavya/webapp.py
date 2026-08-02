@@ -160,6 +160,10 @@ def create_app():
         async def get_response(self, path, scope):
             response = await super().get_response(path, scope)
             response.headers.setdefault("Access-Control-Allow-Origin", "*")
+            # The forest map iterates often; force revalidation so a stale cached copy never
+            # makes a fixed bug look unfixed (browsers otherwise heuristically cache /static JS).
+            if str(path).endswith("forest2d.js"):
+                response.headers["Cache-Control"] = "no-cache"
             return response
 
     app.mount("/static", _CorsStatic(directory=str(_STATIC_DIR)), name="static")
