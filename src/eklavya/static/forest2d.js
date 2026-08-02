@@ -1820,10 +1820,18 @@
       }
     }
 
-    // bird-FLOCKS across the sky (day: more/active) + a couple weaving between the canopies.
-    const nFlocks = tod.night ? 2 : 4;
-    for (let i = 0; i < nFlocks; i++) flock(layer, 120 + i * 300, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
-    for (let i = 0; i < 2; i++) flock(layer, 260 + i * 480, tempY + 200 + (i % 2) * 90, 0.8 + (i % 2) * 0.3, 'flklow' + i, reduced);
+    // bird-FLOCKS across the sky (day: more/active) — spread the full width AND across several
+    // sky heights so the sky reads as alive with birds, not a couple of specks. Still bounded
+    // (each flock is a handful of tiny birds) + reduced-motion safe (flock() draws static poses).
+    const nFlocks = tod.night ? 5 : 8;
+    for (let i = 0; i < nFlocks; i++) {
+      // even horizontal spread with a small deterministic jitter, staggered heights up the sky
+      const fx = 70 + (i / Math.max(1, nFlocks - 1)) * (VB.w - 140) + ((i % 2) ? 60 : -60);
+      const fy = 78 + (i % 4) * 46;
+      flock(layer, Math.round(fx), fy, 0.85 + (i % 3) * 0.35, 'flk' + i, reduced);
+    }
+    // a few more weaving lower between the canopies / over the mid treeline
+    for (let i = 0; i < 4; i++) flock(layer, 180 + i * 300, tempY + 190 + (i % 3) * 70, 0.7 + (i % 2) * 0.35, 'flklow' + i, reduced);
 
     // FIREFLIES + spirit motes — MORE at night (nocturnal ambience), fewer by day.
     const wispCount = tod.night ? 10 : 5;
@@ -2211,11 +2219,9 @@
     if (st !== 'locked') rangoli(inner, ringCol, st, opts.reduced);
 
     if (st === 'locked') {
-      // bare frost-blue sapling — lifted a touch (opacity + slightly brighter stroke) so the
-      // LOCKED groves waiting ahead read as visible future waypoints, not near-invisible.
-      const t = el('g', { opacity: 0.72, transform: 'scale(.8)' }, inner);
-      el('path', { d: 'M0,30 V-2', stroke: '#5a6874', 'stroke-width': 4, 'stroke-linecap': 'round' }, t);
-      el('path', { d: 'M0,6 l-14,-12 M0,6 l14,-12 M0,18 l-11,-9 M0,18 l11,-9', stroke: '#5a6874', 'stroke-width': 3, 'stroke-linecap': 'round' }, t);
+      // VISIBLE dormant SAPLING — a small young/frosted tree so every future pillar reads as a
+      // real waypoint along the trail (a little sapling waiting to grow, not near-invisible text).
+      sapling(inner, grove.pillar, opts.reduced);
     } else {
       // a hover "bloom" halo (revealed by CSS on hover; invisible otherwise)
       el('circle', { class: 'g-bloom', cx: 0, cy: -18, r: 66, fill: st === 'blossoming' ? 'url(#nodeGold)' : 'url(#nodeTeal)', opacity: 0 }, inner);
@@ -2288,6 +2294,40 @@
     if (!reduced) { // gentle canopy sway
       const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', values: '-1.4 0 30;1.4 0 30;-1.4 0 30', dur: (5 + r() * 3).toFixed(1) + 's', repeatCount: 'indefinite' });
       sway.appendChild(rot);
+    }
+  }
+
+  // A dormant SAPLING for LOCKED / future pillars — a small young tree that is CLEARLY VISIBLE
+  // (so the learner sees a waypoint at every pillar ahead) yet obviously distinct from the lush
+  // active/available/mastered trees: a slim cool-bark trunk, a few bare/sparse frosted branches,
+  // a small dim blue-green crown tuft, and a faint moonlit rim — "a pillar is here, not yet
+  // growing because you're not investing in it." No heavy filters; reduced-motion → fully static.
+  function sapling(grp, seed, reduced) {
+    const r = rng(seed + '|sapling');
+    // frosted moonlit ground bloom so the sapling separates from the dark floor even statically
+    el('ellipse', { cx: 0, cy: 4, rx: 30, ry: 40, fill: 'url(#mistG)', opacity: 0.22 }, grp);
+    const t = el('g', { transform: 'scale(.92)' }, grp);
+    // young slim trunk — cool slate bark with a lit moonlit edge (reads as bark, not a wire)
+    el('path', { d: 'M0,30 C-2,14 2,8 0,-14', stroke: '#3f4c5a', 'stroke-width': 5, fill: 'none', 'stroke-linecap': 'round' }, t);
+    el('path', { d: 'M0,30 C-2,14 2,8 0,-14', stroke: '#66788a', 'stroke-width': 2, fill: 'none', 'stroke-linecap': 'round' }, t);
+    // sparse BARE branches reaching up — dim cool tone with a faint frost rim on top of each
+    const twigs = 'M0,2 l-15,-14 M0,2 l15,-14 M-8,-6 l-6,-9 M8,-6 l6,-9 M0,-8 l-9,-13 M0,-8 l9,-13 M0,-12 l0,-9';
+    el('path', { d: twigs, stroke: '#465666', 'stroke-width': 2.6, 'stroke-linecap': 'round', fill: 'none' }, t);
+    el('path', { d: twigs, stroke: '#7f95a6', 'stroke-width': 1, 'stroke-linecap': 'round', fill: 'none', opacity: 0.75 }, t);
+    // a SMALL dim frosted crown — a few sparse cool blue-green tufts (young growth, not lush)
+    const crown = el('g', {}, t);
+    const tufts = 4;
+    for (let i = 0; i < tufts; i++) {
+      const cx = (r() - 0.5) * 26, cy = -20 + (r() - 0.5) * 14, rad = 6 + r() * 5;
+      el('circle', { cx: cx.toFixed(1), cy: cy.toFixed(1), r: rad.toFixed(1), fill: '#3a5560', opacity: 0.62 }, crown);
+    }
+    // frosted rim highlights on the crown (moonlit, cool) — the "frozen/dormant" read
+    for (let i = 0; i < 2; i++) el('circle', { cx: (-6 + r() * 12).toFixed(1), cy: (-26 - r() * 6).toFixed(1), r: (4 + r() * 3).toFixed(1), fill: '#9fc0cc', opacity: 0.4 }, crown);
+    // a couple of pale frost specks so it catches a little moonlight (distinct from gold blossoms)
+    for (let i = 0; i < 3; i++) el('circle', { cx: ((r() - 0.5) * 24).toFixed(1), cy: (-20 + (r() - 0.5) * 16).toFixed(1), r: 1.3, fill: '#cfe4ea', opacity: 0.6 }, crown);
+    if (!reduced) { // barely-there frosty shiver so it reads as dormant, not dead (bounded)
+      const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', values: '-0.8 0 30;0.8 0 30;-0.8 0 30', dur: (7 + r() * 3).toFixed(1) + 's', repeatCount: 'indefinite' });
+      crown.appendChild(rot);
     }
   }
 
