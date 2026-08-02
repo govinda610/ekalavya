@@ -8,8 +8,9 @@ Sessions are signed cookies (no server-side session table — see §0.5 of the d
 plan); this module only owns *accounts* and *password hashing*. The signing/verifying of
 the session cookie lives in ``middleware.py``.
 
-Everything here is inert in single-user mode: the module is only imported and used when
-``config.MULTIUSER`` is on. Passwords are hashed with argon2id (``argon2-cffi``).
+The account model is always on: locally there's a single frictionless default account
+(``ensure_local_user``), while a deployed install has one row per real user. Passwords are
+hashed with argon2id (``argon2-cffi``).
 """
 
 from __future__ import annotations
@@ -130,6 +131,49 @@ def verify_login(email: str, password: str) -> str | None:
     except Exception:
         return None
     return row["id"]
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Return {id, email, status, created_at} for an email (lowercased), or None."""
+    email = email.strip().lower()
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT id, email, status, created_at FROM users WHERE email = ?", (email,)
+        ).fetchone()
+    finally:
+        conn.close()
+    return dict(row) if row else None
+
+
+def resolve_user_ref(ref: str) -> str | None:
+    """Resolve a user reference (an email OR a uid) to a uid, or None if no such account.
+    Used by ``EKLAVYA_USER`` / the CLI ``--user`` flag."""
+    ref = ref.strip()
+    if not ref:
+        return None
+    if "@" in ref:
+        u = get_user_by_email(ref)
+        return u["id"] if u else None
+    return ref if get_user(ref) else None
+
+
+def ensure_local_user() -> str:
+    """Return a frictionless local account's uid, creating one on first run.
+
+    For a solo local self-host we don't want to force email+password on every command. If an
+    account already exists we return it (the sole one; or raise if it's ambiguous — the
+    caller handles that upstream). Otherwise we mint a low-ceremony local account with a
+    synthesised local email and a random password (never shown; login is via the stored
+    default, not a form). Deployed installs never call this — they use full signup/login.
+    """
+    users = list_users()
+    if len(users) == 1:
+        return users[0]["id"]
+    if len(users) > 1:
+        raise ValueError("multiple accounts exist — designate one with `eklavya login`.")
+    password = uuid.uuid4().hex + uuid.uuid4().hex  # 64 hex chars, never surfaced
+    return create_user("local@eklavya.local", password, status="active")
 
 
 def get_user(uid: str) -> dict | None:

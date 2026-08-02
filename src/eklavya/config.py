@@ -26,9 +26,20 @@ from dotenv import load_dotenv
 # Load a local .env if present, so credentials don't have to live in the shell.
 load_dotenv()
 
-# Multi-user is opt-in; the default (0) is the single-user self-host path, byte-for-byte
-# identical to before. Phase 1 only adds the plumbing — no auth/middleware is mounted.
-MULTIUSER = os.environ.get("EKLAVYA_MULTIUSER", "0") not in ("0", "", "false", "False")
+# The account model is ALWAYS on now — web, CLI, and TUI all operate as a logged-in
+# account, data always living at $EKLAVYA_DATA_ROOT/users/<uid>/... . The only axis left is
+# the DEPLOYMENT POSTURE: a local self-host (default) vs a hosted, public deployment. They
+# differ only by config, never by code path:
+#   - local (DEPLOYED off): a frictionless default account (no email/password ceremony per
+#     command), broad host reads so you can point the tutor at your real code, no signup gate;
+#   - deployed (DEPLOYED on): full email+password auth, reads confined to the tenant's tree,
+#     optional signup-approval gate.
+DEPLOYED = os.environ.get("EKLAVYA_DEPLOYED", "0") not in ("0", "", "false", "False")
+
+# Transitional alias: the deployment posture used to be called MULTIUSER. Kept only so the
+# remaining call sites + tests migrate over in one focused pass; remove once all reference
+# DEPLOYED. It equals DEPLOYED at import; tests that monkeypatch it still work.
+MULTIUSER = DEPLOYED
 
 # Trust the reverse proxy's forwarded client IP for login throttling. OFF by default:
 # when the app is exposed directly, request.client.host is the real client and a header
@@ -87,7 +98,15 @@ def current_thread() -> str | None:
 
 
 def _default_home() -> Path:
-    """The single-user home, from the environment (the pre-contextvar behaviour)."""
+    """The home used when NO account is bound to the current context.
+
+    This is a fallback only — real reads/writes always run under a bound account (the CLI/
+    TUI bind the resolved local user; the web binds the session's user). The ``EKLAVYA_HOME``
+    override is honoured here so tests (and ad-hoc scripts) can pin a throwaway home without
+    going through the account layer. Absent that override it resolves to the retired
+    ``~/.eklavya`` path, which is NEVER written to for real data — the destructive-op guard
+    (tools.py) refuses any wipe that would land there with no account bound.
+    """
     return Path(os.environ.get("EKLAVYA_HOME", Path.home() / ".eklavya"))
 
 
@@ -136,15 +155,87 @@ def paths() -> Paths:
 
 
 def data_root() -> Path:
-    """The multi-user data root (``$EKLAVYA_DATA_ROOT``): parent of ``users/`` and of the
-    shared ``users.db``. Not used in single-user mode."""
+    """The data root (``$EKLAVYA_DATA_ROOT``, default ``~/.eklavya-data``): parent of
+    ``users/`` and of the shared ``users.db``. All real data lives beneath here."""
     return Path(os.environ.get("EKLAVYA_DATA_ROOT", Path.home() / ".eklavya-data"))
 
 
 def user_home(uid: str) -> Path:
-    """The on-disk home for a given user id in multi-user mode:
-    ``$EKLAVYA_DATA_ROOT/users/<uid>``. Not used in single-user mode."""
+    """The on-disk home for a given user id: ``$EKLAVYA_DATA_ROOT/users/<uid>``."""
     return data_root() / "users" / uid
+
+
+# --- resolving which local account the CLI/TUI runs as ----------------------
+
+def _default_user_file() -> Path:
+    """Where the stored "default local user" (a uid) is remembered, at the data-root level
+    (alongside ``users.db``), so it survives across CLI invocations."""
+    return data_root() / "default_user"
+
+
+def stored_default_user() -> str | None:
+    """The uid of the machine's remembered default local account, or None."""
+    f = _default_user_file()
+    if not f.exists():
+        return None
+    uid = f.read_text(encoding="utf-8").strip()
+    return uid or None
+
+
+def set_default_user(uid: str) -> None:
+    """Remember ``uid`` as this machine's default local account (used by ``eklavya login``)."""
+    data_root().mkdir(parents=True, exist_ok=True)
+    _default_user_file().write_text(uid.strip(), encoding="utf-8")
+
+
+def clear_default_user() -> None:
+    """Forget the remembered default local account (used by ``eklavya logout``)."""
+    f = _default_user_file()
+    if f.exists():
+        f.unlink()
+
+
+def resolve_local_user() -> str:
+    """The uid the CLI/TUI should run as, resolved in precedence order:
+
+      1. ``EKLAVYA_USER`` (an email or a uid) → that existing account;
+      2. else the stored default local user (``eklavya login`` writes it);
+      3. else if exactly one account exists → it;
+      4. else → first-run: create/pick a frictionless local account.
+
+    Always resolves to an EXISTING account — it never silently creates a fresh empty one
+    when real accounts already exist (that would hide the learner's data). Ambiguity (2+
+    accounts, none designated) raises so the caller can prompt with ``--user`` / ``login``.
+    """
+    from . import auth
+
+    # 1. explicit override — email or uid
+    requested = os.environ.get("EKLAVYA_USER", "").strip()
+    if requested:
+        uid = auth.resolve_user_ref(requested)
+        if uid is None:
+            raise LookupError(f"no account for EKLAVYA_USER={requested!r}")
+        return uid
+
+    # 2. stored default
+    stored = stored_default_user()
+    if stored and auth.get_user(stored):
+        return stored
+
+    users = auth.list_users()
+    # 3. the sole account
+    if len(users) == 1:
+        return users[0]["id"]
+    if len(users) > 1:
+        raise LookupError(
+            "multiple accounts exist and none is designated — pick one with "
+            "`eklavya login` / `--user <email>`, or set EKLAVYA_USER."
+        )
+
+    # 4. first run — create a frictionless local account and remember it
+    uid = auth.ensure_local_user()
+    set_default_user(uid)
+    return uid
 
 
 def run_user_task(fn, *args, **kwargs):

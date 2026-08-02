@@ -172,10 +172,11 @@ def _guard_destructive(op: str) -> None:
     """Protect the learner's real store from accidental wipes by stray scripts or agents.
 
     Two layers, in order:
-      1. REFUSE when the op would hit the real single-user home (``~/.eklavya``) with no
-         per-user home bound — the exact way an unscoped script clobbers real data —
-         unless ``EKLAVYA_ALLOW_DESTRUCTIVE=1`` signals deliberate intent. Test/agent runs
-         that bind a temp ``EKLAVYA_HOME``/``EKLAVYA_DATA_ROOT`` never match, so they pass.
+      1. REFUSE when NO account is bound to the context and the op would land on the retired
+         ``~/.eklavya`` fallback home — the exact way an unscoped script clobbers real data —
+         unless ``EKLAVYA_ALLOW_DESTRUCTIVE=1`` signals deliberate intent. Real runs always
+         bind an account first (CLI/TUI resolve one; the web binds the session's user); test
+         runs that pin a temp ``EKLAVYA_HOME``/``EKLAVYA_DATA_ROOT`` never match, so they pass.
       2. ALWAYS take a recovery snapshot first, so any authorised destructive change is
          one ``eklavya revert`` away. Best-effort: a backup failure must never itself
          block a legitimate op, but a hard refusal above always wins.
