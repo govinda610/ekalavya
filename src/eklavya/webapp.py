@@ -328,7 +328,7 @@ def create_app():
         from .config import set_current_thread  # (the `config` param shadows the module here)
         from .verify import selfcheck
 
-        set_current_thread(thread)  # so save_artifact links what it saves to this chat
+        set_current_thread(thread)  # so an artifact file written this turn links to this chat
 
         try:  # the learner's message (a fresh turn) → context for the judge; "" on resume
             user_context = inputs["messages"][0]["content"] if isinstance(inputs, dict) else ""
@@ -390,6 +390,15 @@ def create_app():
         note = selfcheck("".join(buf), context=judge_context)  # context-aware second-model review
         if note:
             yield json.dumps({"t": note}) + "\n"
+        # Auto-import any artifact FILE the tutor wrote this turn (workspace/artifacts/…) into
+        # the Scriptorium — no save tool, the file itself is the save. `pingCanvas` on the
+        # client then surfaces the newest one on the Canvas (reusing the existing hook).
+        try:
+            from . import artifact_import
+
+            artifact_import.import_new()
+        except Exception:
+            _log.exception("artifact import failed")
         try:  # auto-name the chat from the learner's first real message
             from .chatstore import auto_title, get_title, rename_chat
 
@@ -619,11 +628,34 @@ def create_app():
     # --- canvas artifacts (per-user) ---------------------------------------
     # The tutor's durable lessons/code/HTML/visuals. Per-user via the contextvar the auth
     # middleware binds (single-user resolves to the one implicit user). All CRUD.
+    def _with_chat_titles(rows: list) -> list:
+        """Stamp each artifact with the title of the chat it came from, so the Library can
+        group by chat too. Resolves thread_id → title once per distinct thread."""
+        from .chatstore import get_title
+
+        titles: dict[str, str | None] = {}
+        for a in rows:
+            tid = a.get("thread_id")
+            if tid and tid not in titles:
+                try:
+                    titles[tid] = get_title(tid)
+                except Exception:
+                    titles[tid] = None
+            a["chat"] = (titles.get(tid) if tid else None) or None
+        return rows
+
     @app.get("/api/artifacts")
     def artifacts_list(kind: str = "", q: str = "") -> list:
-        from . import artifacts
+        from . import artifact_import, artifacts
 
-        return artifacts.list_artifacts(kind=kind or None, query=q or None)
+        # Scan the drop-folder first so a file the tutor wrote (or the learner dropped in)
+        # is imported before the Library/Canvas reads — belt-and-braces alongside the
+        # turn-end import in the stream.
+        try:
+            artifact_import.import_new()
+        except Exception:
+            _log.exception("artifact import failed")
+        return _with_chat_titles(artifacts.list_artifacts(kind=kind or None, query=q or None))
 
     @app.post("/api/artifacts")
     async def artifacts_create(request: Request):
@@ -1092,7 +1124,8 @@ body.reduce-motion *{animation:none !important}
  padding:11px 38px 11px 14px;font-family:var(--f-body);font-size:14px;outline:none}
 .lib-search input:focus{border-color:var(--gold)}
 .lib-search .ls-ic{position:absolute;right:12px;top:11px;color:var(--gold)}
-.lib-filters{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.lib-filters{display:flex;align-items:center;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.lib-group-toggle{display:inline-flex;gap:6px}
 .lib-pill{font-family:var(--f-mono);font-size:11px;letter-spacing:.04em;color:var(--parch-dim);background:rgba(6,9,20,.5);
  border:1px solid var(--line-soft);border-radius:999px;padding:5px 14px;cursor:pointer;transition:.14s}
 .lib-pill:hover{color:var(--gold-bright)} .lib-pill.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
@@ -1626,7 +1659,7 @@ function loadSettings(){
   }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
 }
 /* ===== Artifacts Library — the Scriptorium (template F) ===== */
-let _libFilter='', _libQuery='';
+let _libFilter='', _libQuery='', _libGroup='pillar';  // group by 'pillar' or 'chat'
 const KIND_GLYPH={markdown:'◆',code:'▶',viz:'◈',html:'□'};
 const KIND_LABEL={markdown:'lesson',code:'code',viz:'visual',html:'html'};
 function libCard(a, feat){
@@ -1646,29 +1679,35 @@ function loadLibrary(){
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
     const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
     let body;
-    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div></div>"; }
+    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and it'll appear here.</div></div>"; }
     else {
-      // group by pillar (each artifact files under its pillar; unfiled ones sit under 'General', last)
+      // group by PILLAR or by CHAT (toggle). Unfiled → 'General'/'Unfiled', sorted last.
+      const byChat=_libGroup==='chat';
+      const other=byChat?'Unfiled':'General';
       const groups={};
-      list.forEach(a=>{ const p=(a.pillar||'').trim()||'General'; (groups[p]=groups[p]||[]).push(a); });
-      const names=Object.keys(groups).sort((x,y)=> x==='General'?1 : (y==='General'?-1 : x.localeCompare(y)));
+      list.forEach(a=>{ const k=(byChat?(a.chat||''):(a.pillar||'')).trim()||other; (groups[k]=groups[k]||[]).push(a); });
+      const names=Object.keys(groups).sort((x,y)=> x===other?1 : (y===other?-1 : x.localeCompare(y)));
       body="<div class='lib-groups'>"+names.map(p=>
         "<div class='lib-pgroup'><div class='lib-phead'><span class='lp-name'>"+esc(p)+"</span><span class='lp-n'>"+groups[p].length+"</span></div>"+
         "<div class='lib-grid'>"+groups[p].map(a=>libCard(a,false)).join('')+"</div></div>").join('')+"</div>";
     }
+    const groupToggle="<div class='lib-group-toggle'>"+
+      "<span class='lib-pill"+(_libGroup==='pillar'?' on':'')+"' onclick=\"setLibGroup('pillar')\">By pillar</span>"+
+      "<span class='lib-pill"+(_libGroup==='chat'?' on':'')+"' onclick=\"setLibGroup('chat')\">By chat</span></div>";
     document.getElementById('library').innerHTML=
      "<div class='lib'><div class='lib-top'>"+
-     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by pillar, kept for revision.</div></div>"+
+     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by "+(_libGroup==='chat'?'chat':'pillar')+", kept for revision.</div></div>"+
      "<span style='flex:1'></span>"+
      "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
      "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
-     "<div class='lib-filters'>"+pills+"</div>"+body+"</div>";
+     "<div class='lib-filters'>"+pills+"<span style='flex:1'></span>"+groupToggle+"</div>"+body+"</div>";
     const si=document.getElementById('libsearch');
     si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
     si.focus(); si.setSelectionRange(si.value.length, si.value.length);
   }).catch(()=>{ document.getElementById('library').innerHTML="<div class='lib'><div class='lib-empty'>could not load the library.</div></div>"; });
 }
 function setLibFilter(f){ _libFilter=f; loadLibrary(); }
+function setLibGroup(g){ _libGroup=g; loadLibrary(); }
 function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},
   body:JSON.stringify({pinned:!!on})}).then(()=>loadLibrary()).catch(()=>{}); }
 // openArtifact(id) — opens the artifact in the arena's Canvas tab.
