@@ -143,20 +143,30 @@
     d.innerHTML = [
       // sky: indigo night warming toward the temple horizon
       grad('skyG', 0, 0, 0, 1, [[0, C.skyHigh], [0.42, C.skyMid], [0.72, C.skyHorizon], [1, '#2a2340']]),
-      // ground: saturated teal-green, never grey, warming toward the path
-      grad('groundG', 0, 0, 0, 1, [[0, C.groundDeep], [0.5, C.ground], [1, '#0a1713']]),
+      // ground: layered forest floor — deep teal shadow near the treeline warming to a
+      // mossy sunlit sward in the mid-band and darkening again into the foreground cover.
+      grad('groundG', 0, 0, 0, 1, [[0, '#16302a'], [0.28, C.ground], [0.55, '#20402f'], [0.8, '#132923'], [1, '#0a1713']]),
+      // a warm pool of light spilling down the centre from the temple onto the floor
+      radial('floorLight', 50, 0, 90, [[0, 'rgba(231,190,110,.22)'], [0.45, 'rgba(120,160,120,.10)'], [1, 'rgba(120,160,120,0)']]),
       radial('templeGlow', 50, 46, 60, [[0, '#fff2c4'], [0.35, C.goldBright], [0.7, 'rgba(231,182,75,.35)'], [1, 'rgba(231,182,75,0)']]),
       radial('nodeGold', 50, 45, 60, [[0, '#fff3cf'], [0.4, C.gold], [1, 'rgba(231,182,75,0)']]),
       radial('nodeTeal', 50, 45, 60, [[0, '#d6fbf4'], [0.4, C.teal], [1, 'rgba(87,211,206,0)']]),
-      radial('mistG', 50, 50, 60, [[0, 'rgba(180,200,220,.30)'], [1, 'rgba(180,200,220,0)']]),
+      radial('mistG', 50, 50, 60, [[0, 'rgba(180,205,225,.32)'], [0.6, 'rgba(150,190,210,.14)'], [1, 'rgba(180,200,220,0)']]),
       radial('moonG', 50, 50, 60, [[0, '#fbf3d8'], [0.5, 'rgba(247,231,197,.55)'], [1, 'rgba(247,231,197,0)']]),
-      // luminous path: pale core, teal halo
+      // canopy foliage: a rounded painterly leaf-mass with a lit crown and shaded belly
+      radial('leafLit', 42, 32, 68, [[0, '#7fb488'], [0.5, '#4e8a5c'], [1, '#264b3c']]),
+      radial('leafDark', 44, 34, 70, [[0, '#2b5245'], [0.55, '#1c3a30'], [1, '#0f2019']]),
+      // luminous path: warm gold near the temple flowing to cool teal down at the entrance
+      grad('pathFlow', 0, 0, 0, 1, [[0, '#f7e6a8'], [0.4, '#eaf0d0'], [1, '#bfeee0']]),
       grad('pathG', 0, 0, 0, 1, [[0, '#f4f7e0'], [1, '#dfeecb']]),
+      // god-ray cone: bright at the temple, fading down over the map
+      grad('rayG', 0, 0, 0, 1, [[0, 'rgba(255,238,190,.30)'], [0.5, 'rgba(247,217,138,.10)'], [1, 'rgba(247,217,138,0)']]),
       // vignette for edges
       radial('vig', 50, 46, 75, [[0, 'rgba(0,0,0,0)'], [0.72, 'rgba(0,0,0,0)'], [1, 'rgba(4,6,14,.72)']]),
       // soft blur filters
       '<filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter>',
       '<filter id="soft2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>',
+      '<filter id="soft1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>',
       '<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
       '<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .04 0"/></filter>'
     ].join('');
@@ -208,10 +218,11 @@
     const glow = el('circle', { cx: tp.x, cy: tp.y + 6, r: 150, fill: 'url(#templeGlow)' }, g);
     if (!reduced) anim(glow, 'opacity', '1', '0.72', '6s');
     const t = el('g', { transform: 'translate(' + tp.x + ',' + tp.y + ')' }, g);
-    // light shafts fanning down from the temple (god-rays)
+    // short light shafts fanning down from the temple onto the treeline (long overlay rays
+    // are drawn in paintGodRays, above the ground, so they read over the forest).
     const rays = el('g', { opacity: 0.5, filter: 'url(#soft2)' }, t);
     for (let i = -2; i <= 2; i++) {
-      el('path', { d: 'M0,-8 L' + (i * 60 - 40) + ',260 L' + (i * 60 + 40) + ',260 Z', fill: 'rgba(247,217,138,.10)' }, rays);
+      el('path', { d: 'M0,-8 L' + (i * 60 - 40) + ',230 L' + (i * 60 + 40) + ',230 Z', fill: 'rgba(247,217,138,.10)' }, rays);
     }
     // three spires (center tallest) — stepped tiers as a stack of trapezoids
     spire(t, 0, 0, 1.0); spire(t, -78, 26, 0.62); spire(t, 78, 26, 0.62);
@@ -241,55 +252,201 @@
       if (!reduced) { const dur = (26 + i * 6) + 's'; const dx = (i % 2 ? 40 : -40);
         animT(m, x + ',' + y, (x + dx) + ',' + y, dur); }
     }
+    // low drifting mist ribbons over the forest floor (softens the treeline seam, depth)
+    for (let i = 0; i < 3; i++) {
+      const y = 470 + i * 80, x = (i % 2 ? VB.w * 0.6 : VB.w * 0.4);
+      const m = el('ellipse', { cx: x, cy: y, rx: 560, ry: 30, fill: 'url(#mistG)', opacity: 0.28 }, g);
+      if (!reduced) { animT(m, x + ',' + y, (x + (i % 2 ? -34 : 34)) + ',' + y, (34 + i * 8) + 's'); }
+    }
+  }
+
+  // Long soft god-rays raking down from the temple across the whole forest (drawn ABOVE
+  // the ground so the beams read over the trees — the reference art's signature light).
+  function paintGodRays(g, tp, reduced) {
+    const rays = el('g', { opacity: 0.5, filter: 'url(#soft2)', 'pointer-events': 'none',
+      transform: 'translate(' + tp.x + ',' + (tp.y + 30) + ')' }, g);
+    for (let i = -3; i <= 3; i++) {
+      const spread = i * 92, top = i * 20;
+      el('path', { d: 'M' + (top - 26) + ',0 L' + (spread - 120) + ',560 L' + (spread + 120) + ',560 L' + (top + 26) + ',0 Z', fill: 'url(#rayG)' }, rays);
+    }
+    if (!reduced) anim(rays, 'opacity', '0.5', '0.32', '9s');
   }
 
   // ============================================================================
   // FOLIAGE STANDS (midground) + PROSCENIUM FRAME (foreground) — depth + framing
   // ============================================================================
-  function paintStands(g) {
-    // a lush understorey filling the ground plane between the path and the frame, so it
-    // reads as a dense forest floor (never empty/dark), with density rising toward the
-    // edges and a warm forest-floor wash so nothing is grey.
-    el('rect', { x: 0, y: 300, width: VB.w, height: VB.h - 300, fill: 'url(#groundG)' }, g);
-    // soft canopy-shadow pools scattered on the floor
-    const rp = rng('pools');
-    for (let i = 0; i < 26; i++) {
-      const x = rp() * VB.w, y = 360 + rp() * (VB.h - 420), rad = 40 + rp() * 90;
-      el('ellipse', { cx: x.toFixed(0), cy: y.toFixed(0), rx: rad.toFixed(0), ry: (rad * 0.4).toFixed(0), fill: rp() > 0.5 ? shade(C.groundLit, -0.1) : C.groundDeep, opacity: 0.25, filter: 'url(#soft2)' }, g);
+  // A single illustrated forest tree — layered painterly canopy with a lit crown, a
+  // shaded belly, a tapering trunk and a soft cast shadow. `kind` varies the silhouette so
+  // the wood reads as a mix of banyan / round / willow / spire, not one stamp repeated.
+  function forestTree(parent, sc, tone, kind, r, sway) {
+    // tone in [0,1]: 0 = deep-shadow filler, 1 = lit near-tree. Blends toward teal-green.
+    const belly = shade('#132a22', tone * 0.10);
+    const body = shade('#1c3a30', 0.04 + tone * 0.22);
+    const lit = shade('#3f7a58', 0.05 + tone * 0.30);
+    const rim = shade('#6fae82', tone * 0.25);
+    const trunkCol = shade('#241c26', tone * 0.18);
+    const t = el('g', { transform: 'scale(' + sc.toFixed(2) + ')' }, parent);
+    // cast shadow pooled at the base
+    el('ellipse', { cx: 2, cy: 26, rx: 24, ry: 7, fill: '#08120e', opacity: 0.45, filter: 'url(#soft1)' }, t);
+    const crown = el('g', {}, t);
+    if (kind === 'willow') {
+      // weeping willow — low twisted trunk + drooping fronds
+      el('path', { d: 'M0,26 C-6,6 5,2 1,-14', stroke: trunkCol, 'stroke-width': 6, fill: 'none', 'stroke-linecap': 'round' }, t);
+      for (let k = 0; k < 5; k++) {
+        const dx = (r() - 0.5) * 46;
+        el('path', { d: 'M' + dx.toFixed(0) + ',-18 q' + (dx * 0.3).toFixed(0) + ',26 ' + (dx * 0.5).toFixed(0) + ',42',
+          stroke: body, 'stroke-width': 7, fill: 'none', 'stroke-linecap': 'round', opacity: 0.85 }, crown);
+      }
+      lobes(crown, -18, 30, 6, 0.9);
+    } else if (kind === 'spire') {
+      // conifer-ish spire for the ridgeline — tall narrow stacked triangles
+      el('path', { d: 'M0,26 V-6', stroke: trunkCol, 'stroke-width': 5, 'stroke-linecap': 'round' }, t);
+      for (let k = 0; k < 4; k++) {
+        const y = 6 - k * 14, w = 34 - k * 7;
+        el('path', { d: 'M0,' + (y - 22) + ' L' + w + ',' + y + ' L' + (-w) + ',' + y + ' Z', fill: k === 0 ? belly : body }, crown);
+      }
+      el('path', { d: 'M0,-40 L10,-28 L-10,-28 Z', fill: lit, opacity: 0.7 }, crown);
+    } else {
+      // banyan / broadleaf — thick trunk, wide multi-lobed crown (the workhorse)
+      const wide = kind === 'banyan';
+      el('path', { d: 'M0,26 C-5,6 6,2 1,-12', stroke: trunkCol, 'stroke-width': wide ? 9 : 6, fill: 'none', 'stroke-linecap': 'round' }, t);
+      if (wide) { // a couple of splayed limbs + aerial roots
+        el('path', { d: 'M0,-2 C-22,-6 -30,-18 -40,-26 M0,-2 C22,-6 30,-18 40,-26', stroke: trunkCol, 'stroke-width': 5, fill: 'none', 'stroke-linecap': 'round' }, t);
+        for (let k = 0; k < 4; k++) el('line', { x1: -30 + k * 20, y1: -6, x2: -28 + k * 20, y2: 20, stroke: trunkCol, 'stroke-width': 1.6, opacity: 0.55 }, t);
+      }
+      lobes(crown, -20, wide ? 54 : 40, wide ? 9 : 7, wide ? 1.05 : 0.85);
     }
-    // clustered tree stands — edges dense, centre (path) sparse
+    if (!sway) return t;
+    const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', values: '-1 0 26;1.1 0 26;-1 0 26', dur: (5 + r() * 3.5).toFixed(1) + 's', repeatCount: 'indefinite' });
+    crown.appendChild(rot);
+    return t;
+
+    // a painterly cloud of overlapping leaf-lobes: dark belly first, body, then a lit crown
+    function lobes(g2, cy, spread, n, vscale) {
+      for (let k = 0; k < n; k++) {
+        const cx = (r() - 0.5) * spread, y = cy + (r() - 0.5) * spread * 0.5 * vscale, rad = 11 + r() * 13;
+        el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: belly, opacity: 0.9 }, g2);
+      }
+      for (let k = 0; k < n; k++) {
+        const cx = (r() - 0.5) * spread * 0.9, y = cy - 3 + (r() - 0.5) * spread * 0.45 * vscale, rad = 10 + r() * 12;
+        el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: body, opacity: 0.95 }, g2);
+      }
+      // lit crown catching the temple key light (upper-left biased)
+      for (let k = 0; k < Math.max(2, n - 3); k++) {
+        const cx = -spread * 0.2 + (r() - 0.5) * spread * 0.6, y = cy - 8 - r() * spread * 0.3, rad = 6 + r() * 8;
+        el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: lit, opacity: 0.7 }, g2);
+      }
+      el('circle', { cx: (-spread * 0.18).toFixed(1), cy: (cy - spread * 0.32).toFixed(1), r: (4 + r() * 4).toFixed(1), fill: rim, opacity: 0.5 }, g2);
+    }
+  }
+
+  function paintStands(g, reduced) {
+    // ---- the forest floor: layered painterly ground + a distant canopy WALL -----------
+    el('rect', { x: 0, y: 290, width: VB.w, height: VB.h - 290, fill: 'url(#groundG)' }, g);
+    // a dense dark canopy silhouette hugging the treeline horizon so the world reads as a
+    // forest you're INSIDE (not scattered trees on a plane). Rolling lobed skyline.
+    canopyWall(g, 330, '#0e2019', 0.96, 'cwA', 30);
+    canopyWall(g, 360, '#12271f', 0.9, 'cwB', 26);
+    // warm light pooling down the centre from the temple
+    el('rect', { x: 0, y: 290, width: VB.w, height: VB.h - 290, fill: 'url(#floorLight)', opacity: 0.9 }, g);
+    // soft canopy-shadow pools on the floor (depth)
+    const rp = rng('pools');
+    for (let i = 0; i < 22; i++) {
+      const x = rp() * VB.w, y = 380 + rp() * (VB.h - 440), rad = 44 + rp() * 96;
+      el('ellipse', { cx: x.toFixed(0), cy: y.toFixed(0), rx: rad.toFixed(0), ry: (rad * 0.36).toFixed(0), fill: rp() > 0.5 ? shade(C.groundLit, -0.14) : C.groundDeep, opacity: 0.22, filter: 'url(#soft2)' }, g);
+    }
+    // ---- understorey scatter: ferns, grass tufts, flowers, mushrooms, logs -------------
+    understorey(g, reduced);
+
+    // ---- clustered tree STANDS — edges dense, real clearings near the path/centre ------
+    // [x, y, scale, kind]; larger & nearer at the bottom, receding & smaller up top.
     const spots = [
-      [90, 320, 1.1], [1110, 320, 1.1], [40, 460, 1.35], [1160, 460, 1.35],
-      [200, 285, .8], [1000, 285, .8], [470, 250, .55], [740, 245, .55],
-      [300, 380, .95], [900, 380, .95], [120, 600, 1.5], [1080, 600, 1.5],
-      [350, 640, 1.1], [850, 640, 1.1], [560, 300, .5], [660, 300, .5],
-      [230, 520, 1.1], [980, 520, 1.1]
+      [70, 330, 1.05, 'banyan'], [1130, 330, 1.05, 'banyan'], [30, 470, 1.5, 'banyan'], [1170, 470, 1.5, 'banyan'],
+      [180, 300, .78, 'round'], [1020, 300, .78, 'round'], [440, 262, .5, 'spire'], [760, 258, .5, 'spire'],
+      [270, 400, .95, 'willow'], [930, 400, .95, 'round'], [110, 610, 1.6, 'banyan'], [1090, 610, 1.6, 'banyan'],
+      [330, 660, 1.15, 'round'], [870, 660, 1.15, 'willow'], [560, 300, .46, 'spire'], [640, 296, .46, 'spire'],
+      [210, 540, 1.05, 'round'], [990, 540, 1.05, 'willow'], [400, 620, .9, 'round'], [800, 615, .9, 'banyan'],
+      [520, 660, .8, 'round'], [680, 662, .8, 'round']
     ];
-    spots.forEach(([x, y, s], i) => stand(g, x, y, s, 'st' + i));
-    function stand(parent, x, y, s, seed) {
+    spots.forEach(([x, y, s, kind], i) => stand(g, x, y, s, kind, 'st' + i));
+
+    function canopyWall(parent, baseY, col, op, seed, step) {
+      const r = rng(seed); let d = 'M0,' + VB.h + ' L0,' + baseY;
+      for (let x = -20; x <= VB.w + 20; x += step) {
+        const y = baseY - 26 - r() * 40 + Math.sin(x * 0.02) * 10;
+        d += ' Q' + (x + step / 2) + ',' + (y - 18 - r() * 20).toFixed(0) + ' ' + (x + step) + ',' + y.toFixed(0);
+      }
+      d += ' L' + VB.w + ',' + VB.h + ' Z';
+      el('path', { d: d, fill: col, opacity: op, filter: 'url(#soft1)' }, parent);
+    }
+    function stand(parent, x, y, s, kind, seed) {
       const rr = rng(seed);
       const gg = el('g', { transform: 'translate(' + x + ',' + y + ')' }, parent);
       const trees = 2 + Math.floor(rr() * 3);
+      // depth tone: nearer (lower on screen, bigger scale) trees are more lit
+      const depthTone = Math.min(1, Math.max(0, (y - 260) / 400)) * 0.7 + s * 0.2;
       for (let i = 0; i < trees; i++) {
-        const tx = (rr() - 0.5) * 80 * s, ty = (rr() - 0.5) * 30 * s, sc = (0.7 + rr() * 0.7) * s;
-        // deep teal-green canopy (NOT olive-black), slight per-tree jitter, key-lit rim
-        const base = shade('#1b3a34', -0.05 + rr() * 0.16);
-        const t = el('g', { transform: 'translate(' + tx.toFixed(0) + ',' + ty.toFixed(0) + ') scale(' + sc.toFixed(2) + ')', opacity: (0.62 + rr() * 0.28).toFixed(2) }, gg);
-        el('ellipse', { cx: 0, cy: 22, rx: 16, ry: 5, fill: '#0b1512', opacity: 0.5 }, t);
-        el('path', { d: 'M0,22 V0', stroke: '#241d1a', 'stroke-width': 4 }, t);
-        for (let k = 0; k < 6; k++) el('circle', { cx: (rr() - 0.5) * 30, cy: -8 - rr() * 22, r: 11 + rr() * 10, fill: base }, t);
-        // rim light on top-left (key from temple side)
-        for (let k = 0; k < 2; k++) el('circle', { cx: -6 - rr() * 8, cy: -22 - rr() * 8, r: 6 + rr() * 5, fill: shade(base, 0.28), opacity: 0.6 }, t);
+        const tx = (rr() - 0.5) * 90 * s, ty = (rr() - 0.5) * 34 * s, sc = (0.72 + rr() * 0.7) * s;
+        const tone = Math.min(1, depthTone + (rr() - 0.5) * 0.22);
+        const k = kind === 'banyan' && rr() < 0.35 ? 'round' : kind;
+        const tg = el('g', { transform: 'translate(' + tx.toFixed(0) + ',' + ty.toFixed(0) + ')', opacity: (0.72 + rr() * 0.24).toFixed(2) }, gg);
+        forestTree(tg, sc, tone, k, rng(seed + '|' + i), !reduced && s > 0.9 && rr() > 0.4);
       }
+    }
+  }
+
+  // ferns, grass tufts, wildflowers, mushrooms, fallen logs — a living forest floor.
+  function understorey(g, reduced) {
+    const r = rng('under'); const layer = el('g', {}, g);
+    // grass/fern band hugging the treeline so trunks meet foliage, not a hard line
+    for (let i = 0; i < 120; i++) {
+      const x = r() * VB.w, y = 340 + r() * (VB.h - 400);
+      const near = (y - 340) / (VB.h - 400);          // 0 far … 1 near
+      const h = (6 + r() * 14) * (0.5 + near);
+      const lean = (r() - 0.5) * 6;
+      const col = shade('#1f4230', -0.1 + near * 0.35 + r() * 0.1);
+      el('path', { d: 'M0,0 q' + lean.toFixed(0) + ',' + (-h * 0.6).toFixed(0) + ' ' + (lean * 1.4).toFixed(0) + ',' + (-h).toFixed(0),
+        stroke: col, 'stroke-width': (1 + near * 1.6).toFixed(1), fill: 'none', 'stroke-linecap': 'round',
+        opacity: (0.4 + near * 0.4).toFixed(2), transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')' }, layer);
+    }
+    // ferns — small radiating fronds
+    for (let i = 0; i < 22; i++) {
+      const x = r() * VB.w, y = 420 + r() * (VB.h - 470), near = (y - 420) / (VB.h - 470);
+      const fg = el('g', { transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ') scale(' + (0.6 + near * 0.9).toFixed(2) + ')' }, layer);
+      for (let k = -3; k <= 3; k++) {
+        const a = k * 20, len = 16 + r() * 8;
+        el('path', { d: 'M0,0 q' + (Math.sin(a * Math.PI / 180) * len * 0.5).toFixed(0) + ',' + (-len * 0.7).toFixed(0) + ' ' + (Math.sin(a * Math.PI / 180) * len).toFixed(0) + ',' + (-len).toFixed(0),
+          stroke: shade('#2b5a3e', r() * 0.2), 'stroke-width': 1.4, fill: 'none', 'stroke-linecap': 'round', opacity: 0.55 }, fg);
+      }
+    }
+    // wildflowers — sparse warm/violet dots of light (spec: rare, as sparkle)
+    for (let i = 0; i < 34; i++) {
+      const x = r() * VB.w, y = 460 + r() * (VB.h - 500);
+      const col = [C.gold, '#e6c46a', C.magenta, '#d7f0c0'][Math.floor(r() * 4)];
+      el('circle', { cx: x.toFixed(0), cy: y.toFixed(0), r: (0.8 + r() * 1.4).toFixed(1), fill: col, opacity: 0.55 }, layer);
+    }
+    // mushrooms + a couple of mossy logs, low near the foreground
+    for (let i = 0; i < 8; i++) {
+      const x = 80 + r() * (VB.w - 160), y = 600 + r() * 140;
+      const mg = el('g', { transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')' }, layer);
+      el('rect', { x: -1.4, y: -2, width: 2.8, height: 6, fill: '#3a4038', opacity: 0.7 }, mg);
+      el('ellipse', { cx: 0, cy: -2, rx: 5, ry: 3, fill: r() > 0.5 ? '#b8623c' : '#c9a35a', opacity: 0.65 }, mg);
+    }
+    for (let i = 0; i < 3; i++) {
+      const x = 120 + r() * (VB.w - 240), y = 680 + r() * 60;
+      el('ellipse', { cx: x.toFixed(0), cy: y.toFixed(0), rx: (36 + r() * 34).toFixed(0), ry: (7 + r() * 4).toFixed(0), fill: '#20342a', opacity: 0.6, transform: 'rotate(' + ((r() - 0.5) * 16).toFixed(0) + ' ' + x.toFixed(0) + ' ' + y.toFixed(0) + ')' }, layer);
     }
   }
 
   // The proscenium: big dark arching banyans L/R, arch across the top, ferns/rocks
   // bottom corners — the single biggest "composed map" cue (spec §6.1).
   function paintFrame(g) {
-    // top arching branches
-    el('path', { d: 'M0,0 H1200 V54 C980,120 820,70 620,86 C420,70 250,124 0,58 Z', fill: C.frame, opacity: 0.96, filter: 'url(#soft)' }, g);
-    hangingLeaves(g, 300, 70, 'tl'); hangingLeaves(g, 900, 70, 'tr');
+    // top arching branches — a heavier canopy roof so the map reads as seen from within
+    // a bower, with a scalloped foliage underside and hanging vine tendrils.
+    el('path', { d: 'M0,0 H1200 V60 C980,130 820,74 620,92 C420,74 250,134 0,64 Z', fill: C.frame, opacity: 0.97, filter: 'url(#soft)' }, g);
+    topArch(g);
+    hangingLeaves(g, 300, 74, 'tl'); hangingLeaves(g, 900, 74, 'tr');
+    hangingVines(g, 'tv');
     // left banyan mass
     banyan(g, -30, VB.h * 0.42, 1, 'L');
     // right banyan mass
@@ -315,10 +472,37 @@
       centers.forEach(([cx, cy, rad]) => {
         for (let k = 0; k < 5; k++) el('circle', { cx: (cx + (r() - 0.5) * rad * 0.7).toFixed(0), cy: (cy + (r() - 0.5) * rad * 0.7).toFixed(0), r: (rad * (0.5 + r() * 0.5)).toFixed(0), fill: shade('#0d1712', r() * 0.06), opacity: (0.9 + r() * 0.1).toFixed(2) }, cl);
       });
-      // a few dim teal-green lit leaves catching moonlight along the top edge
-      for (let i = 0; i < 10; i++) el('circle', { cx: dir * (40 + r() * 280), cy: -260 + r() * 80, r: 5 + r() * 5, fill: shade('#1b3a34', 0.12), opacity: 0.4 }, cl);
+      // teal-green lit leaves catching moonlight along the crown so the corner tree reads
+      // as lush overhanging foliage, not a flat black mass.
+      for (let i = 0; i < 22; i++) {
+        const lx = dir * (30 + r() * 300), ly = -280 + r() * 120;
+        el('circle', { cx: lx.toFixed(0), cy: ly.toFixed(0), r: (4 + r() * 8).toFixed(1), fill: shade('#1f4436', 0.08 + r() * 0.22), opacity: (0.35 + r() * 0.3).toFixed(2) }, cl);
+      }
       // warm lanterns hanging in the frame (ref A/alt5)
       lantern(gg, dir * 140, -30); lantern(gg, dir * 250, 60); lantern(gg, dir * 70, 90);
+    }
+    // a leafy scalloped underside to the top canopy roof + dangling leaf clusters
+    function topArch(parent) {
+      const r = rng('topArch'); const gg = el('g', {}, parent);
+      for (let x = 40; x < VB.w; x += 70) {
+        const y = 44 + Math.sin(x * 0.02) * 8 + r() * 10;
+        for (let k = 0; k < 4; k++) el('circle', { cx: (x + (r() - 0.5) * 40).toFixed(0), cy: (y + r() * 14).toFixed(0), r: (10 + r() * 12).toFixed(0), fill: shade('#0e1c15', r() * 0.08), opacity: 0.9 }, gg);
+        // a few catch moonlight
+        if (r() > 0.6) el('circle', { cx: x.toFixed(0), cy: (y - 4).toFixed(0), r: (5 + r() * 4).toFixed(1), fill: shade('#254a3a', 0.14), opacity: 0.4 }, gg);
+      }
+    }
+    // slender hanging vine tendrils with tiny leaves, draping from the top canopy
+    function hangingVines(parent, seed) {
+      const r = rng(seed); const gg = el('g', {}, parent);
+      for (let i = 0; i < 12; i++) {
+        const x = 60 + r() * (VB.w - 120), len = 40 + r() * 130, swing = (r() - 0.5) * 30;
+        el('path', { d: 'M' + x.toFixed(0) + ',48 q' + swing.toFixed(0) + ',' + (len * 0.6).toFixed(0) + ' ' + (swing * 0.7).toFixed(0) + ',' + len.toFixed(0),
+          stroke: '#12241a', 'stroke-width': 1.6, fill: 'none', 'stroke-linecap': 'round', opacity: 0.65 }, gg);
+        for (let k = 1; k <= 3; k++) {
+          const ty = 48 + len * (k / 3.2);
+          el('ellipse', { cx: (x + swing * (k / 4)).toFixed(0), cy: ty.toFixed(0), rx: 3, ry: 6, fill: shade('#1c3a2b', r() * 0.2), opacity: 0.6, transform: 'rotate(' + ((r() - 0.5) * 40).toFixed(0) + ' ' + (x + swing * (k / 4)).toFixed(0) + ' ' + ty.toFixed(0) + ')' }, gg);
+        }
+      }
     }
     function lantern(parent, x, y) {
       const gg = el('g', { transform: 'translate(' + x + ',' + y + ')' }, parent);
@@ -348,35 +532,57 @@
   // ============================================================================
   // THE PATH (graph spine) + prerequisite EDGES between groves
   // ============================================================================
+  // Insert a gentle mid-waypoint between each pair of nodes, nudged sideways, so the trail
+  // MEANDERS like a river instead of running dead-straight between medallions. Deterministic.
+  function meander(pts) {
+    if (pts.length < 2) return pts.slice();
+    const r = rng('meander'); const out = [pts[0]];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      // perpendicular offset, scaled by segment length, alternating side + a little jitter
+      const side = (i % 2 === 0 ? 1 : -1) * (0.9 + r() * 0.5);
+      const amp = Math.min(46, len * 0.18) * side;
+      out.push({ x: mx + (-dy / len) * amp, y: my + (dx / len) * amp * 0.4, scale: (a.scale + b.scale) / 2 });
+      out.push(b);
+    }
+    return out;
+  }
+
   function paintPath(g, pts, travelledUpto, reduced, temple) {
     // extend the trail from the last grove up to the temple so the spine clearly ends
     // at the destination (start at pts[0] entrance → temple).
     const ptsE = temple ? pts.concat([{ x: temple.x, y: temple.y + 78, scale: 0.5 }]) : pts;
-    pts = ptsE;
-    // The luminous winding RIVER-PATH — the spine of the map (ref A). Wide teal halo,
-    // pale core, brightening along the travelled (gold) portion toward the temple.
-    const full = pathThrough(pts, null);
+    // flowing river-path through meander waypoints; the node index i maps to river index 2i
+    const river = meander(ptsE);
+    const riverIdx = i => Math.min(river.length, i * 2 + 1);
+    // The luminous winding RIVER-PATH — the spine of the map (ref A/ref art): a broad
+    // teal halo, a warm gold→teal core gradient, energy flowing up toward the temple.
+    const full = pathThrough(river, null);
     if (!full) return;
-    el('path', { d: full, fill: 'none', stroke: C.pathGlow, 'stroke-width': 34, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.20, filter: 'url(#soft2)' }, g);
-    el('path', { d: full, fill: 'none', stroke: C.pathEdge, 'stroke-width': 16, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.34, filter: 'url(#soft)' }, g);
-    el('path', { d: full, fill: 'none', stroke: '#dfeecb', 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.42 }, g);
+    el('path', { d: full, fill: 'none', stroke: C.pathGlow, 'stroke-width': 40, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.18, filter: 'url(#soft2)' }, g);
+    el('path', { d: full, fill: 'none', stroke: C.pathEdge, 'stroke-width': 20, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.30, filter: 'url(#soft)' }, g);
+    el('path', { d: full, fill: 'none', stroke: 'url(#pathFlow)', 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.62 }, g);
+    el('path', { d: full, fill: 'none', stroke: '#f4f7e0', 'stroke-width': 3.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.5 }, g);
     // dim dashed remainder (what's left to walk)
-    el('path', { d: full, fill: 'none', stroke: 'rgba(235,240,215,.45)', 'stroke-width': 3.5, 'stroke-linecap': 'round', 'stroke-dasharray': '1 15' }, g);
+    el('path', { d: full, fill: 'none', stroke: 'rgba(235,240,215,.42)', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '1 16' }, g);
     // travelled portion — bright luminous gold-white core with flowing dashes
     if (travelledUpto >= 1) {
-      const gold = pathThrough(pts, travelledUpto + 1 > pts.length ? pts.length : travelledUpto + 1);
-      el('path', { d: gold, fill: 'none', stroke: C.gold, 'stroke-width': 11, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.5, filter: 'url(#soft)' }, g);
-      el('path', { d: gold, fill: 'none', stroke: 'url(#pathG)', 'stroke-width': 7, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: 'url(#glow)' }, g);
-      const flow = el('path', { d: gold, fill: 'none', stroke: '#ffffff', 'stroke-width': 2.6, 'stroke-linecap': 'round', 'stroke-dasharray': '2 22', opacity: 0.9 }, g);
+      const upto = Math.min(river.length, riverIdx(travelledUpto - 1) + 1);
+      const gold = pathThrough(river, upto);
+      el('path', { d: gold, fill: 'none', stroke: C.gold, 'stroke-width': 12, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.42, filter: 'url(#soft)' }, g);
+      el('path', { d: gold, fill: 'none', stroke: 'url(#pathG)', 'stroke-width': 6, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', filter: 'url(#glow)' }, g);
+      const flow = el('path', { d: gold, fill: 'none', stroke: '#fff6da', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-dasharray': '2 22', opacity: 0.85 }, g);
       if (!reduced) anim(flow, 'stroke-dashoffset', '0', '-24', '1.6s', 'linear');
     }
-    // a START marker at the foreground entrance + link up to the temple destination
-    const s0 = pts[0];
+    // a START marker at the foreground entrance
+    const s0 = river[0];
     el('circle', { cx: s0.x, cy: s0.y, r: 7, fill: 'none', stroke: C.gold, 'stroke-width': 2, opacity: 0.8 }, g);
-    // bead-markers along the trail (ref A) between nodes
-    for (let i = 0; i < pts.length; i++) {
+    // bead-markers at each grove along the trail (ref A)
+    for (let i = 0; i < ptsE.length; i++) {
       const done = i < travelledUpto;
-      el('circle', { cx: pts[i].x, cy: pts[i].y, r: 2.6, fill: done ? C.goldBright : 'rgba(235,240,215,.55)' }, g);
+      el('circle', { cx: ptsE[i].x, cy: ptsE[i].y, r: 2.6, fill: done ? C.goldBright : 'rgba(235,240,215,.55)' }, g);
     }
   }
 
@@ -572,19 +778,28 @@
   // LIFE — fireflies, birds, player avatar (all reduced-motion aware)
   // ============================================================================
   function paintLife(g, pts, activeIdx, reduced) {
-    // fireflies clustered near the path & light
+    // fireflies clustered near the path & light — denser, varied size/colour/flicker
     const r = rng('flies'); const ff = el('g', {}, g);
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 78; i++) {
       const anchor = pts[Math.floor(r() * pts.length)] || { x: VB.w / 2, y: VB.h / 2 };
-      const x = anchor.x + (r() - 0.5) * 160, y = anchor.y + (r() - 0.5) * 120;
-      const col = [C.gold, '#bfe9a0', C.teal][Math.floor(r() * 3)];
-      const rad = 0.8 + r() * 1.6;
+      const x = anchor.x + (r() - 0.5) * 150, y = anchor.y + (r() - 0.5) * 110;
+      const col = [C.gold, C.goldBright, '#bfe9a0', C.teal][Math.floor(r() * 4)];
+      const rad = 0.6 + r() * 1.8;
       const f = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: col, opacity: 0.9, filter: 'url(#glow)' }, ff);
       if (!reduced) {
         anim(f, 'opacity', '0.9', '0.15', (1.4 + r() * 2.2).toFixed(1) + 's');
         const dx = (r() - 0.5) * 40, dy = (r() - 0.5) * 34;
         animT(f, x.toFixed(0) + ',' + y.toFixed(0), (x + dx).toFixed(0) + ',' + (y + dy).toFixed(0), (5 + r() * 5).toFixed(1) + 's');
       }
+    }
+    // spirit-wisps — a few larger, soft, slow motes drifting along the trail
+    for (let i = 0; i < 4; i++) {
+      const a = pts[Math.min(pts.length - 1, Math.floor((i + 1) / 5 * pts.length))] || pts[0];
+      if (!a) break;
+      const wx = a.x + (r() - 0.5) * 40, wy = a.y - 30 - r() * 20;
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (4 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.55, filter: 'url(#soft1)' }, ff);
+      if (!reduced) { anim(w, 'opacity', '0.55', '0.15', (3 + r() * 3).toFixed(1) + 's');
+        animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 60).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
     // 3 gliding birds on looping arcs across the sky band
     if (!reduced) for (let i = 0; i < 3; i++) bird(g, 200 + i * 340, 150 + i * 26, 22 + i * 6, 'bird' + i);
@@ -735,7 +950,8 @@
       paintHills(bg);
       paintTemple(bg, lay.temple, reduced);
       paintMist(bg, reduced);
-      paintStands(bg);
+      paintStands(bg, reduced);
+      paintGodRays(bg, lay.temple, reduced);
 
       // edges (faint vines, drawn first/under) → then the luminous path (dominant spine)
       const world = el('g', {}, svg);
@@ -783,7 +999,8 @@
       paintHills(bg);
       paintTemple(bg, lay.temple, reduced);
       paintMist(bg, reduced);
-      paintStands(bg);
+      paintStands(bg, reduced);
+      paintGodRays(bg, lay.temple, reduced);
 
       const world = el('g', {}, svg);
       // intra-pillar edges (under) → luminous path (over)

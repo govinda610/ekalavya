@@ -1064,7 +1064,7 @@ body.reduce-motion *{animation:none !important}
 .ttab:hover{color:var(--gold-bright)} .ttab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .ttab:disabled{opacity:.4;cursor:default}
 /* the map is edge-to-edge; the SVG covers the pane (slice) so it always fills, no letterbox */
-.mapframe{flex:1;min-height:0;overflow:hidden;display:flex;background:#0e1322;position:relative}
+.mapframe{flex:1;min-height:0;overflow:hidden;display:flex;background:#141026;position:relative}
 .mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0}
 .grove{transition:filter .2s}
 .grove:not(.locked){cursor:pointer}
