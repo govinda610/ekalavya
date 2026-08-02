@@ -986,9 +986,14 @@ from .resume import read_resume  # noqa: E402
 # NO dedicated tool: the guru simply WRITES the file into workspace/artifacts/<pillar>/<name>.<ext>
 # with the floor write_file tool, and the import bridge (artifact_import) auto-imports it into
 # the Scriptorium + opens it on the Canvas. See prompts.py for the authoring guidance.
+# NOTE: record_attempt is deliberately NOT in AGENT_TOOLS. It writes ratings/attempts with a
+# model-supplied `correct` boolean, so exposing it would let a prompt-injected (or lazy) model
+# stamp correct=True with no sandbox / no grader — defeating the whole tamper-proof claim. It
+# stays an INTERNAL function the graded wrappers below call; those wrappers (grade_and_record /
+# grade_and_record_subject / grade_rubric) are the ONLY agent-facing write path to ratings.
 AGENT_TOOLS = [
     grade_and_record, grade_and_record_subject, grade_rubric, web_search, read_github,
-    read_resume, get_questions, add_question, record_attempt, save_baseline, suggest_focus,
+    read_resume, get_questions, add_question, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, run_bash,
     remember_preference, recall_preferences,
 ]
