@@ -623,39 +623,37 @@
     // composition (like forest_bg's teal-white trail). A bright core ribbon + a bright inner
     // stripe + a broad soft under-glow, raised just above the ground so it never hides under
     // foliage. Fog-free so it glows all the way to the temple.
+    // A broad, FLAT luminous ribbon laid on the earth — reads as the map's spine from the
+    // top-down diorama view (like forest_bg's teal-white trail). Flattened tubes (thin in Y,
+    // wide in XZ) so it's a glowing PATH on the ground, not a pipe.
     function ribbon(t0, t1, core, coreE, edge, width, op, stripe) {
-      var n = Math.max(8, Math.round((t1 - t0) * 160));
+      var n = Math.max(12, Math.round((t1 - t0) * 200));
       var sub = [];
       for (var i = 0; i <= n; i++) sub.push(curve.getPoint(t0 + (t1 - t0) * i / n));
       var c2 = new T.CatmullRomCurve3(sub);
-      // broad soft under-glow (bleeds light onto the ground either side) — kept gentle so
-      // it lights the ground without the additive layers summing to white near the camera.
-      var gmat = new T.MeshBasicMaterial({ color: edge, transparent: true, opacity: op * 0.16,
+      // broad soft under-glow bleeding onto the ground either side of the trail
+      var gmat = new T.MeshBasicMaterial({ color: edge, transparent: true, opacity: op * 0.14,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
-      var geo0 = new T.TubeGeometry(c2, n, width * 2.2, 10, false); geo0.scale(1, 0.05, 1);
-      var m0 = new T.Mesh(geo0, gmat); m0.position.y += 0.15; g.add(m0);
-      // main ribbon body
-      var geo = new T.TubeGeometry(c2, n, width, 10, false); geo.scale(1, 0.22, 1);
+      var geo0 = new T.TubeGeometry(c2, n, width * 2.4, 12, false); geo0.scale(1, 0.04, 1);
+      var m0 = new T.Mesh(geo0, gmat); m0.position.y += 0.12; g.add(m0);
+      // main ribbon body — wide + flat so it reads as a trail from above
+      var geo = new T.TubeGeometry(c2, n, width, 12, false); geo.scale(1, 0.1, 1);
       var mat = new T.MeshStandardMaterial({ color: core, emissive: core, emissiveIntensity: coreE,
-        roughness: 0.35, transparent: true, opacity: op, fog: false });
-      var m = new T.Mesh(geo, mat); m.position.y += 0.4; g.add(m);
-      // a bright inner stripe running down the middle (the flowing-energy core) — kept
-      // slimmer + gentler so it reads as a glow, not a blown-out white streak up close. Its
-      // colour tracks the stretch (warm gold near, cool teal toward the temple) so the far
-      // path leads the eye as a COOL luminous line instead of a warm streak that sums to white.
-      var smat = new T.MeshBasicMaterial({ color: stripe || 0xffe6b0, transparent: true, opacity: op * 0.3,
+        roughness: 0.4, transparent: true, opacity: op, fog: false });
+      var m = new T.Mesh(geo, mat); m.position.y += 0.3; g.add(m);
+      // a bright inner stripe (the flowing-energy core) — a slim luminous centre-line.
+      var smat = new T.MeshBasicMaterial({ color: stripe || 0xffe6b0, transparent: true, opacity: op * 0.34,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
-      var geoS = new T.TubeGeometry(c2, n, width * 0.24, 8, false); geoS.scale(1, 0.22, 1);
-      var mS = new T.Mesh(geoS, smat); mS.position.y += 0.55; g.add(mS);
+      var geoS = new T.TubeGeometry(c2, n, width * 0.3, 8, false); geoS.scale(1, 0.1, 1);
+      var mS = new T.Mesh(geoS, smat); mS.position.y += 0.4; g.add(mS);
       g.userData.disposables = (g.userData.disposables || []).concat([geo0, gmat, geo, mat, geoS, smat]);
       return m;
     }
-    // traveled (warm gold, warm stripe) → ahead (luminous COOL teal toward the temple, with a
-    // teal stripe). The far stretch glows a touch brighter + stays cool so it clearly leads the
-    // eye to the temple, while the near/traveled stretch keeps its warm gold — a gold→teal
-    // gradient. Emissive still below full-white so it blooms without clipping to a white river.
-    ribbon(0, travT, COL.gold, 0.72, 0xffd98a, 3.4, 0.86, 0xffe0a4);
-    if (travT < 1) ribbon(travT, 1, COL.teal, 0.92, COL.tealBright, 3.0, 0.82, 0x9ff2ea);
+    // traveled (warm gold) → ahead (cool teal toward the temple). Wider than before so the
+    // path is the clear spine of the composition. Emissive below full-white so it blooms
+    // without clipping to a white river.
+    ribbon(0, travT, COL.gold, 0.6, 0xffd98a, 4.6, 0.9, 0xffe0a4);
+    if (travT < 1) ribbon(travT, 1, COL.teal, 0.78, COL.tealBright, 4.2, 0.85, 0x9ff2ea);
     g.userData.curve = curve;
     return g;
   }
@@ -877,18 +875,18 @@
     // warmer, lighter shrubs so the understory reads as living green, not dark navy
     var shrubMat = toonMat({ color: 0x3a6a44 });
     var shrubMat2 = toonMat({ color: 0x4a7a4e });
-    var count = reduced() ? 55 : 110;
+    var count = reduced() ? 110 : 220;
     // magical accent colours for glowing flowers/mushrooms (teal, violet, magenta, gold)
     var accents = [0x57d3ce, 0xb07bd6, 0xe86ab0, 0xffcf6a, 0x8fd66a];
     for (var i = 0; i < count; i++) {
-      // hug the path curve tightly so the trail is richly planted-in (the refs are lush
-      // right along the trail), with some spread into the wood.
+      // hug the path curve so the trail is richly planted-in (refs are lush along the trail),
+      // with a wider spread into the wood so the whole map floor carpets, not just the corridor.
       var t = r();
       var cp = curve ? curve.getPoint(t) : new T.Vector3((r() - 0.5) * 120, 0, -40 + r() * 120);
-      var off = 4 + r() * r() * 44, side = r() < 0.5 ? -1 : 1;
-      var x = cp.x + side * off + (r() - 0.5) * 8;
-      var z = cp.z + (r() - 0.5) * 22;
-      if (Math.abs(x) > 150 || z > 60 || z < -150) continue;
+      var off = 4 + r() * r() * 70, side = r() < 0.5 ? -1 : 1;
+      var x = cp.x + side * off + (r() - 0.5) * 14;
+      var z = cp.z + (r() - 0.5) * 34;
+      if (Math.abs(x) > 200 || z > 90 || z < -220) continue;
       var gy = groundY(x, z);
       var kind = r();
       if (kind < 0.42) {
@@ -1025,18 +1023,21 @@
     var out = [];
     if (n === 0) return out;
     if (n === 1) { out.push({ x: 0, z: 20, grove: groves[0] }); return out; }
-    // depth range + lateral amplitude both scale with N so nodes stay EVENLY spread across the
-    // whole field (never bunched) — giving every medallion + label room. Wide lateral spread
-    // (the map reads across the width, spec §1) with a multi-bend serpentine.
-    var zStart = 60;
-    var zSpan = 60 + Math.min(150, n * 9);            // total −Z travel (grows with N)
-    var amp = 58;                                     // lateral serpentine amplitude (wide)
-    // ~1 full bend per 4 groves → ~18 pillars wind through ~4 lobes (Hades-style multi-bend).
-    var bends = Math.max(1.5, n / 4.0);
+    // Distribute nodes EVENLY across the whole field (spec §1: the map reads across the width).
+    // A wide multi-bend serpentine advancing steadily toward the temple, with the lateral sway
+    // holding near full amplitude the whole way (only easing slightly at the very end so the
+    // final node funnels onto the temple axis). This spreads groves across width AND depth so
+    // no medallion/label bunches. Fully data-driven — any N samples the same serpentine.
+    var zStart = 58;
+    var zSpan = 70 + Math.min(170, n * 10);           // total −Z travel (grows with N)
+    var amp = 66;                                     // wide lateral amplitude
+    // ~1 full bend per 3.5 groves → ~18 pillars wind through ~5 lobes, spreading laterally.
+    var bends = Math.max(1.5, n / 3.5);
     for (var i = 0; i < n; i++) {
       var u = i / (n - 1);                            // 0 (entrance) … 1 (temple)
       var z = zStart - u * zSpan;
-      var taper = 1 - u * 0.5;                        // sway eases (not collapses) toward temple
+      // hold amplitude nearly full until the last ~15%, then ease onto the temple centre axis.
+      var taper = u < 0.85 ? 1 : (1 - (u - 0.85) / 0.15);
       var x = Math.sin(u * Math.PI * bends + 0.4) * amp * taper;
       out.push({ x: x, z: z, grove: groves[i], u: u });
     }
@@ -1120,9 +1121,9 @@
     // --- terrain -------------------------------------------------------------
     scene.add(buildTerrain());
 
-    // --- god-rays sweeping from the moon (motion-gated) ----------------------
+    // (standalone moon god-rays were a VISTA device — in the top-down map they streak as odd
+    // bright shafts across the ground, so they're omitted here; the temple keeps its own rays.)
     var godrays = null;
-    if (!reduced()) { godrays = buildGodrays(); scene.add(godrays); }
 
     // --- the milestone groves (or concept sub-forest) along the path ---------
     // ARCHITECTURE (Dead Cells / Hades-style procedural stitching):

@@ -1428,9 +1428,26 @@ body.reduce-motion *{animation:none !important}
 #mnav .ni.center{margin-top:-24px}
 #mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
  display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px -6px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,255,255,.5);border:2px solid rgba(255,246,223,.3)}
+/* On the Forest MAP the practice-tool chips are a tonal mismatch (spec §13) — hide them so
+   the header reads as a clean title bar over the map. */
+body.view-tree #chatsbtn,body.view-tree #edtoggle,body.view-tree #penaltybtn,
+body.view-tree .timerwrap,body.view-tree #wrapbtn,body.view-tree #hud{display:none}
 /* mobile: header stays a single compact bar; the bottom radial nav is the primary nav */
 @media(max-width:900px){
  header{flex-wrap:wrap;gap:10px;padding:10px 14px}
+ /* on the Forest view collapse the header to ONE row so the map fills the screen (spec §13) */
+ body.view-tree header{flex-wrap:nowrap;padding:8px 12px}
+ body.view-tree .who{display:none}
+ body.view-tree .treehead{flex-wrap:wrap;gap:4px}
+ body.view-tree #tree{padding:6px 6px}
+ body.view-tree .mapframe{min-height:82vh}
+ /* float the minimap smaller + inline the legend + drop the quest banner (the "YOU ARE HERE"
+    label already names the current grove) so nothing covers the map on mobile */
+ body.view-tree .mini-panel #forest-mini{width:92px;height:66px}
+ body.view-tree .map-legend{flex-direction:row;flex-wrap:wrap;gap:5px 9px;max-width:150px;font-size:8px}
+ body.view-tree .mapquest{display:none}
+ body.view-tree .map-compass{width:36px;height:36px}
+ body.view-tree .map-compass svg{width:36px;height:36px}
  .creed{display:none}
  .tab{padding:14px 13px}                 /* >=44px hit area */
  .hud{font-size:11px;gap:8px}
@@ -1694,6 +1711,9 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 function showView(v){
   const DISP={practice:'grid',dash:'block',journey:'block',effect:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
+  // the Forest is a full-bleed MAP — collapse the practice-tool chips (Editor/penalty/Timer/
+  // Wrap up) that would clutter it (spec §13), esp. on mobile where the header stole ~40%.
+  document.body.classList.toggle('view-tree', v==='tree');
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
