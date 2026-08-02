@@ -153,6 +153,15 @@
       radial('nodeTeal', 50, 45, 60, [[0, '#d6fbf4'], [0.4, C.teal], [1, 'rgba(87,211,206,0)']]),
       radial('mistG', 50, 50, 60, [[0, 'rgba(180,205,225,.32)'], [0.6, 'rgba(150,190,210,.14)'], [1, 'rgba(180,200,220,0)']]),
       radial('moonG', 50, 50, 60, [[0, '#fbf3d8'], [0.5, 'rgba(247,231,197,.55)'], [1, 'rgba(247,231,197,0)']]),
+      // --- mythological layers (added) --------------------------------------
+      // sacred lotus-pond (kund): teal water lit by a warm rim where the diyas float
+      radial('pondG', 50, 42, 62, [[0, 'rgba(120,224,214,.5)'], [0.4, 'rgba(46,163,160,.34)'], [0.8, 'rgba(18,77,76,.5)'], [1, 'rgba(9,26,26,.7)']]),
+      // diya / oil-lamp flame — a warm ember teardrop of light
+      radial('diyaG', 50, 55, 60, [[0, '#fff2c4'], [0.35, C.goldBright], [0.7, 'rgba(231,182,75,.4)'], [1, 'rgba(217,122,60,0)']]),
+      // divine radiance behind the temple shikhara (sacred sunburst glow)
+      radial('divineG', 50, 50, 60, [[0, 'rgba(255,244,210,.55)'], [0.35, 'rgba(247,217,138,.28)'], [0.7, 'rgba(231,182,75,.10)'], [1, 'rgba(231,182,75,0)']]),
+      // lotus / rangoli petal sheen
+      grad('lotusG', 0, 0, 0, 1, [[0, '#fbe6b0'], [1, '#e7b64b']]),
       // canopy foliage: a rounded painterly leaf-mass with a lit crown and shaded belly
       radial('leafLit', 42, 32, 68, [[0, '#7fb488'], [0.5, '#4e8a5c'], [1, '#264b3c']]),
       radial('leafDark', 44, 34, 70, [[0, '#2b5245'], [0.55, '#1c3a30'], [1, '#0f2019']]),
@@ -193,9 +202,31 @@
       const s = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: '#f4ecd6', opacity: o.toFixed(2) }, stars);
       if (!reduced) anim(s, 'opacity', o.toFixed(2), (o * 0.35).toFixed(2), (2.5 + r() * 4).toFixed(1) + 's');
     }
-    // crescent moon (upper-right, per ref A compass side balance -> put opposite temple)
+    // soft constellation arc across the night — a few sacred asterisms joined by hairlines
+    const cg = el('g', { opacity: 0.5 }, g);
+    const cr = rng('constel');
+    const asterism = [[0.14, 0.10], [0.20, 0.06], [0.27, 0.12], [0.33, 0.07], [0.40, 0.13],
+                      [0.60, 0.09], [0.67, 0.05], [0.72, 0.12], [0.80, 0.07]];
+    let cd = '';
+    asterism.forEach(([fx, fy], i) => {
+      const x = fx * VB.w, y = fy * VB.h;
+      cd += (i && i !== 5 ? 'L' : 'M') + x.toFixed(0) + ',' + y.toFixed(0) + ' ';
+      el('circle', { cx: x.toFixed(0), cy: y.toFixed(0), r: (1.4 + cr()).toFixed(1), fill: '#fbf3d8', opacity: 0.85 }, cg);
+    });
+    el('path', { d: cd, fill: 'none', stroke: 'rgba(247,231,197,.28)', 'stroke-width': 0.6 }, cg);
+
+    // crescent moon (upper-right, opposite the temple) haloed by a subtle lunar MANDALA
     const mg = el('g', { transform: 'translate(' + (VB.w * 0.8) + ',96)' }, g);
     el('circle', { r: 74, fill: 'url(#moonG)' }, mg);
+    // mandala halo: two dotted rings + a radiating spoke wreath (sacred geometry)
+    const mand = el('g', { opacity: 0.4 }, mg);
+    el('circle', { r: 46, fill: 'none', stroke: 'rgba(247,231,197,.5)', 'stroke-width': 0.6, 'stroke-dasharray': '1 5' }, mand);
+    el('circle', { r: 54, fill: 'none', stroke: 'rgba(231,182,75,.4)', 'stroke-width': 0.5 }, mand);
+    for (let i = 0; i < 24; i++) {
+      const a = i * Math.PI / 12, r1 = 46, r2 = i % 2 ? 51 : 58;
+      el('line', { x1: (Math.cos(a) * r1).toFixed(1), y1: (Math.sin(a) * r1).toFixed(1), x2: (Math.cos(a) * r2).toFixed(1), y2: (Math.sin(a) * r2).toFixed(1), stroke: 'rgba(247,231,197,.45)', 'stroke-width': 0.5 }, mand);
+    }
+    if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '140s', repeatCount: 'indefinite' }); mand.appendChild(rot); }
     el('circle', { r: 26, fill: '#f7ecd0' }, mg);
     el('circle', { cx: 11, cy: -6, r: 24, fill: C.skyMid }, mg);  // crescent bite
   }
@@ -215,6 +246,16 @@
 
   // Golden temple — a stepped shikhara/stupa complex, the journey's destination.
   function paintTemple(g, tp, reduced) {
+    // divine radiance — a broad sacred sunburst halo behind the shikhara
+    const divine = el('circle', { cx: tp.x, cy: tp.y + 20, r: 210, fill: 'url(#divineG)' }, g);
+    if (!reduced) anim(divine, 'opacity', '1', '0.7', '8s');
+    // a slow-turning aureole of fine rays (nimbus) — the mandir as a place of light
+    const aur = el('g', { transform: 'translate(' + tp.x + ',' + (tp.y + 10) + ')', opacity: 0.3 }, g);
+    for (let i = 0; i < 40; i++) {
+      const a = i * Math.PI / 20, r1 = 96, r2 = i % 2 ? 150 : 186;
+      el('line', { x1: (Math.cos(a) * r1).toFixed(1), y1: (Math.sin(a) * r1).toFixed(1), x2: (Math.cos(a) * r2).toFixed(1), y2: (Math.sin(a) * r2).toFixed(1), stroke: 'rgba(247,217,138,.5)', 'stroke-width': i % 2 ? 1.4 : 0.7 }, aur);
+    }
+    if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0 0 10', to: '360 0 10', dur: '120s', repeatCount: 'indefinite', additive: 'sum' }); aur.appendChild(rot); }
     const glow = el('circle', { cx: tp.x, cy: tp.y + 6, r: 150, fill: 'url(#templeGlow)' }, g);
     if (!reduced) anim(glow, 'opacity', '1', '0.72', '6s');
     const t = el('g', { transform: 'translate(' + tp.x + ',' + tp.y + ')' }, g);
@@ -241,7 +282,42 @@
       }
       // crowning spire
       el('path', { d: 'M0,' + (y - 26) + ' L' + (w * 0.28) + ',' + y + ' L' + (-w * 0.28) + ',' + y + ' Z', fill: C.goldBright }, gg);
-      el('circle', { cx: 0, cy: y - 30, r: 3.4, fill: '#fff3cf' }, gg);
+      // KALASH finial — a small pot-and-sphere crowning the shikhara (amalaka + kalasha)
+      const ky = y - 26;
+      el('ellipse', { cx: 0, cy: ky - 2, rx: 5, ry: 2, fill: C.goldDeep }, gg);            // amalaka disc
+      el('path', { d: 'M-4,' + (ky - 2) + ' Q0,' + (ky - 14) + ' 4,' + (ky - 2) + ' Z', fill: C.goldBright }, gg);  // pot
+      el('circle', { cx: 0, cy: ky - 15, r: 2.6, fill: '#fff3cf' }, gg);                     // sphere
+      el('line', { x1: 0, y1: ky - 17, x2: 0, y2: ky - 24, stroke: C.goldBright, 'stroke-width': 1 }, gg);
+      el('circle', { cx: 0, cy: ky - 25, r: 1.4, fill: '#fff8e4' }, gg);
+    }
+    // --- TORANA gateway: two ornate pillars + a scalloped arch framing the sanctum ---
+    const tor = el('g', { opacity: 0.94 }, t);
+    [-108, 108].forEach(px => {
+      el('rect', { x: px - 8, y: 40, width: 16, height: 54, rx: 2, fill: C.goldDeep }, tor);
+      el('rect', { x: px - 8, y: 40, width: 5, height: 54, fill: C.gold, opacity: 0.6 }, tor);   // lit edge
+      el('rect', { x: px - 12, y: 36, width: 24, height: 7, rx: 2, fill: C.gold }, tor);         // capital
+      el('rect', { x: px - 12, y: 88, width: 24, height: 6, rx: 2, fill: C.goldDeep }, tor);     // base
+    });
+    // torana arch (double scallop) spanning the pillars
+    el('path', { d: 'M-108,40 Q0,-24 108,40', fill: 'none', stroke: C.gold, 'stroke-width': 5 }, tor);
+    el('path', { d: 'M-108,44 Q0,-14 108,44', fill: 'none', stroke: C.goldBright, 'stroke-width': 2, opacity: 0.7 }, tor);
+    // little scalloped pendants hanging under the arch
+    for (let i = -3; i <= 3; i++) {
+      const px = i * 30, py = 40 - (1 - Math.abs(i) / 3.4) * 44;
+      el('path', { d: 'M' + (px - 4) + ',' + py + ' Q' + px + ',' + (py + 9) + ' ' + (px + 4) + ',' + py + ' Z', fill: C.goldBright, opacity: 0.8 }, tor);
+    }
+    // glowing sanctum DOORWAY with an aum, flanked by two diyas
+    const door = el('g', {}, t);
+    el('path', { d: 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z', fill: 'rgba(255,240,196,.9)', filter: 'url(#glow)' }, door);
+    el('path', { d: 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z', fill: 'none', stroke: C.goldDeep, 'stroke-width': 2 }, door);
+    el('text', { x: 0, y: 80, 'text-anchor': 'middle', 'font-family': 'Tiro Devanagari Hindi, serif', 'font-size': 20, fill: '#7a4a12' }, door).textContent = 'ॐ';
+    [-40, 40].forEach(dx => { el('circle', { cx: dx, cy: 90, r: 6, fill: 'url(#diyaG)' }, door); el('circle', { cx: dx, cy: 90, r: 1.6, fill: '#fff8e4' }, door); });
+    // marigold TORAN garland swagging across the front of the plinth
+    const gar = el('g', {}, t);
+    for (let i = 0; i <= 26; i++) {
+      const fx = -150 + (i / 26) * 300;
+      const sag = Math.sin((i / 26) * Math.PI) * 10;
+      el('circle', { cx: fx.toFixed(0), cy: (66 + sag).toFixed(0), r: 3, fill: i % 3 ? C.gold : C.ember, opacity: 0.9 }, gar);
     }
   }
 
@@ -438,15 +514,160 @@
     }
   }
 
+  // ============================================================================
+  // MYTHOLOGICAL SCENE LAYER — sacred lotus-pond (kund) + meditating guru, floating
+  // diyas, peacock, small shrines. Echoes the reference art (alt5). Sits in a right-side
+  // clearing so it never crowds the central path/labels; deterministic + reduced-safe.
+  // ============================================================================
+
+  // a single oil-lamp diya: a shallow clay bowl with a warm teardrop flame + halo.
+  function diya(parent, x, y, s, reduced, seed) {
+    s = s || 1;
+    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    el('ellipse', { cx: 0, cy: 8, rx: 12, ry: 4, fill: '#3a2417', opacity: 0.7 }, gg);          // reflection/shadow
+    el('circle', { cx: 0, cy: -1, r: 10, fill: 'url(#diyaG)', opacity: 0.9 }, gg);               // glow
+    el('path', { d: 'M-7,3 Q0,9 7,3 Z', fill: '#6a3a1c' }, gg);                                  // clay bowl
+    el('path', { d: 'M-7,3 Q0,7 7,3', fill: 'none', stroke: C.goldDeep, 'stroke-width': 1 }, gg);
+    const fl = el('path', { d: 'M0,-2 C-2,-6 0,-11 0,-13 C0,-11 2,-6 0,-2 Z', fill: C.goldBright }, gg);  // flame
+    el('circle', { cx: 0, cy: -5, r: 1.6, fill: '#fff8e4' }, gg);
+    if (!reduced) { const r = seed ? rng(seed) : Math.random; anim(fl, 'opacity', '1', '0.6', (1.6 + (r() || 0.4)).toFixed(1) + 's'); }
+    return gg;
+  }
+
+  // a serene meditating GURU/sage silhouette in lotus posture, faint aureole (echo of alt5).
+  function guru(parent, x, y, s, reduced) {
+    s = s || 1;
+    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    const halo = el('circle', { cx: 0, cy: -14, r: 20, fill: 'url(#nodeGold)', opacity: 0.35 }, gg);
+    if (!reduced) anim(halo, 'opacity', '0.4', '0.18', '5s');
+    el('ellipse', { cx: 0, cy: 6, rx: 20, ry: 5, fill: '#0a1712', opacity: 0.5 }, gg);        // ground shadow
+    // crossed-leg base
+    el('path', { d: 'M-18,4 Q0,-2 18,4 Q0,10 -18,4 Z', fill: '#12201a' }, gg);
+    // torso + shoulders (robed)
+    el('path', { d: 'M-11,2 C-12,-12 -6,-20 0,-20 C6,-20 12,-12 11,2 Z', fill: '#16241d' }, gg);
+    // saffron shawl accent
+    el('path', { d: 'M-9,-2 C-6,-12 6,-12 9,-2', fill: 'none', stroke: C.ember, 'stroke-width': 2, opacity: 0.7 }, gg);
+    el('circle', { cx: 0, cy: -24, r: 5, fill: '#1a2a22' }, gg);                                // head
+    el('circle', { cx: 0, cy: -25, r: 1.2, fill: C.gold, opacity: 0.8 }, gg);                   // tilak/bindu
+    return gg;
+  }
+
+  // a peacock silhouette perched at the treeline — jewelled teal body + fan of eye-feathers.
+  function peacock(parent, x, y, s, dir, reduced) {
+    s = s || 1; dir = dir || 1;
+    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + (s * dir) + ',' + s + ')' }, parent);
+    // tail fan of ocellus feathers
+    const fan = el('g', {}, gg);
+    for (let i = -3; i <= 3; i++) {
+      const a = i * 15, len = 34 - Math.abs(i) * 3;
+      const ex = Math.sin(a * Math.PI / 180) * len, ey = -Math.cos(a * Math.PI / 180) * len + 4;
+      el('line', { x1: 0, y1: 4, x2: ex.toFixed(1), y2: ey.toFixed(1), stroke: C.peacock, 'stroke-width': 1, opacity: 0.55 }, fan);
+      el('circle', { cx: ex.toFixed(1), cy: ey.toFixed(1), r: 3, fill: C.peacock, opacity: 0.7 }, fan);
+      el('circle', { cx: ex.toFixed(1), cy: ey.toFixed(1), r: 1.4, fill: C.gold, opacity: 0.9 }, fan);
+    }
+    // body + neck + crest
+    el('ellipse', { cx: 6, cy: 2, rx: 8, ry: 6, fill: '#124d4c' }, gg);
+    el('path', { d: 'M12,0 C18,-4 18,-12 15,-16', fill: 'none', stroke: '#146a66', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);
+    el('circle', { cx: 15, cy: -17, r: 3, fill: '#1a7d78' }, gg);
+    el('path', { d: 'M16,-19 l3,-4 M16,-19 l4,-2 M16,-19 l1,-5', stroke: C.teal, 'stroke-width': 0.8 }, gg);  // crest
+    el('path', { d: 'M17,-16 l4,1', stroke: C.gold, 'stroke-width': 1 }, gg);                                 // beak
+    return gg;
+  }
+
+  // The sacred lotus-pond (kund): glowing water, concentric ripples, lotus pads & flowers,
+  // floating diyas, a meditating guru on the near bank, a peacock beside it.
+  // Choose a foreground clearing for the sacred pond that is farthest from every grove
+  // medallion (so it never sits under a node/label), preferring the lower foreground band.
+  function pondSpot(pts) {
+    // candidates across the mid/near foreground band (below the temple, above the frame lip)
+    const cands = [];
+    for (let fx = 0.18; fx <= 0.82; fx += 0.08) {
+      for (const y of [560, 600, 640]) cands.push({ x: VB.w * fx, y: y });
+    }
+    let best = cands[0], bestScore = -1e9;
+    cands.forEach(c => {
+      let nearest = 1e9;
+      pts.forEach(p => { const d = Math.hypot(p.x - c.x, p.y - c.y); if (d < nearest) nearest = d; });
+      // require real clearance from medallions; gently prefer the sides so the central
+      // climbing path stays clear, and keep it off the extreme foreground frame.
+      const sideBias = Math.abs(c.x - VB.w / 2) * 0.18;
+      const score = nearest + sideBias;
+      if (score > bestScore) { bestScore = score; best = c; }
+    });
+    return best;
+  }
+
+  function paintPond(g, reduced, spot) {
+    // default clearing: right-mid glade; caller may pass a computed gap so the pond never
+    // sits under a grove medallion (positions vary with grove count).
+    const cx = spot ? spot.x : VB.w * 0.79, cy = spot ? spot.y : 560, rx = 120, ry = 40;
+    const gg = el('g', {}, g);
+    // bank rim / wet stone
+    el('ellipse', { cx: cx, cy: cy + 4, rx: rx + 14, ry: ry + 8, fill: '#0c1c18', opacity: 0.6, filter: 'url(#soft1)' }, gg);
+    // luminous water
+    el('ellipse', { cx: cx, cy: cy, rx: rx, ry: ry, fill: 'url(#pondG)' }, gg);
+    el('ellipse', { cx: cx, cy: cy, rx: rx, ry: ry, fill: 'none', stroke: C.teal, 'stroke-width': 1, opacity: 0.4 }, gg);
+    // concentric ripples (expanding, reduced-safe)
+    for (let i = 0; i < 3; i++) {
+      const rp = el('ellipse', { cx: cx, cy: cy, rx: (rx * 0.3).toFixed(0), ry: (ry * 0.3).toFixed(0), fill: 'none', stroke: 'rgba(159,230,214,.45)', 'stroke-width': 1 }, gg);
+      if (!reduced) {
+        rp.appendChild(el('animate', { attributeName: 'rx', values: (rx * 0.2) + ';' + (rx * 0.95), dur: '6s', begin: (i * 2) + 's', repeatCount: 'indefinite' }));
+        rp.appendChild(el('animate', { attributeName: 'ry', values: (ry * 0.2) + ';' + (ry * 0.95), dur: '6s', begin: (i * 2) + 's', repeatCount: 'indefinite' }));
+        rp.appendChild(el('animate', { attributeName: 'opacity', values: '0.5;0', dur: '6s', begin: (i * 2) + 's', repeatCount: 'indefinite' }));
+      }
+    }
+    // lotus pads + a couple of pink lotus blooms
+    const r = rng('pond');
+    for (let i = 0; i < 6; i++) {
+      const px = cx + (r() - 0.5) * rx * 1.5, py = cy + (r() - 0.5) * ry * 1.3;
+      el('ellipse', { cx: px.toFixed(0), cy: py.toFixed(0), rx: (7 + r() * 6).toFixed(0), ry: (3 + r() * 2).toFixed(0), fill: '#1e5a43', opacity: 0.7 }, gg);
+    }
+    for (let i = 0; i < 3; i++) {
+      const px = cx + (r() - 0.5) * rx * 1.2, py = cy + (r() - 0.5) * ry;
+      const lg = el('g', { transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, gg);
+      for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; el('path', { d: 'M0,0 Q' + (Math.cos(a) * 3).toFixed(1) + ',-5 ' + (Math.cos(a) * 6).toFixed(1) + ',' + (Math.sin(a) * 6 - 2).toFixed(1), stroke: C.magenta, 'stroke-width': 1.4, fill: 'none', opacity: 0.75 }, lg); }
+      el('circle', { cx: 0, cy: 0, r: 1.8, fill: C.goldBright }, lg);
+    }
+    // three floating diyas drifting on the water
+    [[-0.5, 0.1], [0.2, -0.2], [0.55, 0.25]].forEach(([fx, fy], i) => {
+      const d = diya(gg, cx + fx * rx, cy + fy * ry, 0.7, reduced, 'ponddiya' + i);
+      if (!reduced) animT(d, '0,0', ((i % 2 ? 10 : -10)) + ',0', (10 + i * 3) + 's');
+    });
+    // meditating guru on the near bank + a peacock beside the water
+    guru(gg, cx - rx * 0.7, cy + 10, 1.05, reduced);
+    peacock(gg, cx + rx * 0.85, cy - 6, 0.9, -1, reduced);
+    // a small bank shrine (stacked stones + a diya)
+    diya(gg, cx - rx * 0.2, cy - ry * 0.7, 0.8, reduced, 'shrined');
+  }
+
+  // Diyas lining the luminous path — small oil-lamps placed just off the trail at
+  // deterministic intervals, so the way to the temple is candle-lit (echo of the ref).
+  function paintPathDiyas(g, pts, reduced) {
+    if (!pts || pts.length < 2) return;
+    const r = rng('pathdiya'); const layer = el('g', {}, g);
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      // offset perpendicular to the segment, alternating sides, clear of medallions
+      const side = i % 2 === 0 ? 1 : -1;
+      const off = 34 + r() * 10;
+      const px = mx + (-dy / len) * off * side, py = my + (dx / len) * off * side * 0.5 + 8;
+      const sc = 0.6 + (a.scale || 1) * 0.3;
+      diya(layer, px.toFixed(0), py.toFixed(0), sc, reduced, 'pd' + i);
+    }
+  }
+
   // The proscenium: big dark arching banyans L/R, arch across the top, ferns/rocks
   // bottom corners — the single biggest "composed map" cue (spec §6.1).
-  function paintFrame(g) {
+  function paintFrame(g, reduced) {
     // top arching branches — a heavier canopy roof so the map reads as seen from within
     // a bower, with a scalloped foliage underside and hanging vine tendrils.
     el('path', { d: 'M0,0 H1200 V60 C980,130 820,74 620,92 C420,74 250,134 0,64 Z', fill: C.frame, opacity: 0.97, filter: 'url(#soft)' }, g);
     topArch(g);
     hangingLeaves(g, 300, 74, 'tl'); hangingLeaves(g, 900, 74, 'tr');
     hangingVines(g, 'tv');
+    toranGarland(g);   // marigold-leaf bandhanwar swagging under the canopy roof
     // left banyan mass
     banyan(g, -30, VB.h * 0.42, 1, 'L');
     // right banyan mass
@@ -480,6 +701,39 @@
       }
       // warm lanterns hanging in the frame (ref A/alt5)
       lantern(gg, dir * 140, -30); lantern(gg, dir * 250, 60); lantern(gg, dir * 70, 90);
+      // PRAYER THREADS (mauli) tied around the trunk + a small base SHRINE diya — this is
+      // a SACRED tree (vat/peepal): venerated, thread-wrapped, a lamp lit at its foot.
+      for (let i = 0; i < 3; i++) {
+        const ty = 150 + i * 40;
+        el('path', { d: 'M' + (dir * 8) + ',' + ty + ' q' + (dir * 34) + ',6 ' + (dir * 60) + ',-2', stroke: i % 2 ? C.ember : C.gold, 'stroke-width': 1.4, fill: 'none', opacity: 0.6 }, gg);
+      }
+      diya(gg, dir * 46, 300, 1.05, reduced, seed + 'shrine');
+    }
+    // a marigold + mango-leaf TORAN (bandhanwar) swagging across under the canopy roof,
+    // with a couple of small prayer-flag pennants — the threshold blessing motif.
+    function toranGarland(parent) {
+      const gg = el('g', { opacity: 0.85 }, parent);
+      const segs = 5, x0 = 70, x1 = VB.w - 70, top = 66;
+      let d = 'M' + x0 + ',' + top;
+      const knots = [];
+      for (let i = 1; i <= segs; i++) {
+        const xa = x0 + ((x1 - x0) * (i - 0.5)) / segs, xb = x0 + ((x1 - x0) * i) / segs;
+        d += ' Q' + xa.toFixed(0) + ',' + (top + 30) + ' ' + xb.toFixed(0) + ',' + top;
+        knots.push([xa, top + 26]);
+      }
+      el('path', { d: d, fill: 'none', stroke: C.goldDeep, 'stroke-width': 1.4, opacity: 0.7 }, gg);
+      // marigold + leaf beads along each swag
+      for (let i = 0; i <= segs * 6; i++) {
+        const t = i / (segs * 6), x = x0 + (x1 - x0) * t;
+        const seg = t * segs, sag = Math.sin((seg % 1) * Math.PI) * 28;
+        const y = top + sag;
+        el('circle', { cx: x.toFixed(0), cy: y.toFixed(0), r: 2.4, fill: i % 4 === 0 ? '#2e6b3c' : (i % 2 ? C.gold : C.ember), opacity: 0.85 }, gg);
+      }
+      // small mango-leaf pendants + a pennant at each swag's low point
+      knots.forEach(([kx, ky], i) => {
+        el('path', { d: 'M' + kx.toFixed(0) + ',' + ky.toFixed(0) + ' q-4,10 0,16 q4,-6 0,-16 Z', fill: '#2e6b3c', opacity: 0.7 }, gg);
+        if (i % 2 === 0) el('path', { d: 'M' + kx.toFixed(0) + ',' + (ky + 4) + ' l8,4 l-8,4 Z', fill: i % 4 ? C.ember : C.gold, opacity: 0.75 }, gg);
+      });
     }
     // a leafy scalloped underside to the top canopy roof + dangling leaf clusters
     function topArch(parent) {
@@ -619,10 +873,12 @@
     const grp = el('g', { transform: 'translate(' + pt.x + ',' + pt.y + ') scale(' + s.toFixed(2) + ')', class: 'grove ' + st }, g);
     if (opts.onClick && st !== 'locked') grp.style.cursor = 'pointer';
 
-    // ground ring / rangoli decal
+    // ground ring — a lotus-MANDALA / RANGOLI decal at the grove's foot (spec: sacred
+    // medallion). Locked groves keep only the faint austere ring (a bare sapling shrine).
     const ringCol = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
     el('ellipse', { cx: 0, cy: 30, rx: 46, ry: 15, fill: 'none', stroke: ringCol, 'stroke-width': 1.5, opacity: st === 'locked' ? 0.3 : 0.55 }, grp);
     el('ellipse', { cx: 0, cy: 30, rx: 30, ry: 9, fill: 'none', stroke: ringCol, 'stroke-width': 1, opacity: st === 'locked' ? 0.2 : 0.35, 'stroke-dasharray': '3 5' }, grp);
+    if (st !== 'locked') rangoli(grp, ringCol, st, opts.reduced);
 
     if (st === 'locked') {
       // bare frost-blue sapling at ~55% scale feel
@@ -695,6 +951,27 @@
       const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', values: '-1.4 0 30;1.4 0 30;-1.4 0 30', dur: (5 + r() * 3).toFixed(1) + 's', repeatCount: 'indefinite' });
       sway.appendChild(rot);
     }
+  }
+
+  // a lotus-mandala RANGOLI on the ground at the grove's foot — a ring of foreshortened
+  // petals + kolam dots, in the grove's state colour. Drawn flat (ellipse projection).
+  function rangoli(grp, col, st, reduced) {
+    const rg = el('g', { transform: 'translate(0,30)', opacity: st === 'active' ? 0.7 : 0.5 }, grp);
+    const petals = 12, RX = 40, RY = 13;
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2;
+      const px = Math.cos(a) * RX, py = Math.sin(a) * RY;
+      const nx = Math.cos(a) * (RX - 9), ny = Math.sin(a) * (RY - 3);
+      // a small petal (leaf) pointing outward from the ring centre
+      el('path', { d: 'M' + nx.toFixed(1) + ',' + ny.toFixed(1) + ' Q' + (px * 1.02).toFixed(1) + ',' + ((py - 2)).toFixed(1) + ' ' + (px * 1.14).toFixed(1) + ',' + py.toFixed(1) + ' Q' + (px * 1.02).toFixed(1) + ',' + ((py + 2)).toFixed(1) + ' ' + nx.toFixed(1) + ',' + ny.toFixed(1) + ' Z',
+        fill: col, opacity: 0.5 }, rg);
+    }
+    // kolam dot ring
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2 + Math.PI / petals;
+      el('circle', { cx: (Math.cos(a) * (RX - 4)).toFixed(1), cy: (Math.sin(a) * (RY - 1)).toFixed(1), r: 1, fill: col, opacity: 0.55 }, rg);
+    }
+    if (!reduced && st === 'active') { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '48s', repeatCount: 'indefinite', additive: 'sum' }); rg.appendChild(rot); }
   }
 
   // Icon medallion above the tree: gold-rimmed circle + a per-pillar glyph.
@@ -865,8 +1142,16 @@
       el('text', { x: 26, y: y, 'font-family': 'JetBrains Mono, monospace', 'font-size': 9, fill: C.parchDim }, lg).textContent = lab;
     });
 
-    // ---- compass rose (bottom-left, Indic ornamental) ----
+    // ---- compass rose (bottom-left) — a CHAKRA / lotus-mandala compass (Indic ornament) ----
     const cp = el('g', { transform: 'translate(64,' + (VB.h - 66) + ')', class: 'hud', opacity: 0.92 }, g);
+    // outer lotus-petal wreath (dharmachakra feel) — slow turning
+    const wreath = el('g', { opacity: 0.5 }, cp);
+    for (let i = 0; i < 16; i++) {
+      const a = (i / 16) * Math.PI * 2;
+      el('path', { d: 'M' + (Math.cos(a) * 34).toFixed(1) + ',' + (Math.sin(a) * 34).toFixed(1) + ' L' + (Math.cos(a) * 40).toFixed(1) + ',' + (Math.sin(a) * 40).toFixed(1),
+        stroke: i % 2 ? C.goldBright : 'rgba(231,182,75,.5)', 'stroke-width': i % 2 ? 1.4 : 0.7, 'stroke-linecap': 'round' }, wreath);
+    }
+    if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '90s', repeatCount: 'indefinite' }); wreath.appendChild(rot); }
     el('circle', { r: 34, fill: 'rgba(6,9,20,.7)', stroke: C.gold, 'stroke-width': 1.2 }, cp);
     el('circle', { r: 26, fill: 'none', stroke: 'rgba(231,182,75,.4)', 'stroke-width': 0.6, 'stroke-dasharray': '2 3' }, cp);
     // 8-point star
@@ -883,9 +1168,17 @@
 
     // ---- title cartouche (bottom-center) ----
     const w = Math.max(220, (title || '').length * 9 + 60);
-    const tc = el('g', { transform: 'translate(' + VB.w / 2 + ',' + (VB.h - 30) + ')', class: 'hud' }, g);
-    el('rect', { x: -w / 2, y: -20, width: w, height: 34, rx: 17, fill: 'rgba(6,9,20,.7)', stroke: 'rgba(231,182,75,.35)', 'stroke-width': 1 }, tc);
-    el('text', { x: 0, y: 3, 'text-anchor': 'middle', 'font-family': 'Cinzel, serif', 'font-weight': 700, 'font-size': 13, 'letter-spacing': '.14em', fill: C.goldBright }, tc).textContent = title || 'THE FOREST OF MASTERY';
+    const tc = el('g', { transform: 'translate(' + VB.w / 2 + ',' + (VB.h - 34) + ')', class: 'hud' }, g);
+    el('rect', { x: -w / 2, y: -20, width: w, height: 44, rx: 20, fill: 'rgba(6,9,20,.7)', stroke: 'rgba(231,182,75,.35)', 'stroke-width': 1 }, tc);
+    el('text', { x: 0, y: -1, 'text-anchor': 'middle', 'font-family': 'Cinzel, serif', 'font-weight': 700, 'font-size': 13, 'letter-spacing': '.14em', fill: C.goldBright }, tc).textContent = title || 'THE FOREST OF MASTERY';
+    // Devanagari creed (self-study · practice · attainment) — the app's motif, tastefully small
+    el('text', { x: 0, y: 15, 'text-anchor': 'middle', 'font-family': 'Tiro Devanagari Hindi, serif', 'font-size': 10.5, 'letter-spacing': '.04em', fill: C.gold, opacity: 0.82 }, tc).textContent = 'स्वाध्याय · साधना · सिद्धि';
+    // little lotus-bud finials flanking the cartouche
+    [-1, 1].forEach(s => {
+      const fx = s * (w / 2 + 10);
+      el('path', { d: 'M' + fx + ',-2 q' + (s * 5) + ',-8 0,-14 q' + (-s * 5) + ',6 0,14 Z', fill: 'none', stroke: 'rgba(231,182,75,.5)', 'stroke-width': 1 }, tc);
+      el('circle', { cx: fx, cy: 2, r: 1.6, fill: C.gold, opacity: 0.7 }, tc);
+    });
 
     // ---- progress bar (bottom-right, ref A) ----
     const done = groves.filter(g => g.status === 'blossoming').length;
@@ -951,6 +1244,7 @@
       paintTemple(bg, lay.temple, reduced);
       paintMist(bg, reduced);
       paintStands(bg, reduced);
+      paintPond(bg, reduced, pondSpot(pts));
       paintGodRays(bg, lay.temple, reduced);
 
       // edges (faint vines, drawn first/under) → then the luminous path (dominant spine)
@@ -959,6 +1253,7 @@
       const statusByPillar = {}; groves.forEach(g => statusByPillar[g.pillar] = g.status);
       paintEdges(world, c.edges || [], posByPillar, statusByPillar);
       paintPath(world, pts, travelled, reduced, lay.temple);
+      paintPathDiyas(world, pts, reduced);
 
       // draw nodes back-to-front (far/high first) so foreground groves overlap correctly
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
@@ -971,7 +1266,7 @@
 
       paintLife(world, pts, activeIdx, reduced);
       // foreground proscenium last (frames everything)
-      paintFrame(svg);
+      paintFrame(svg, reduced);
       el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#vig)', 'pointer-events': 'none' }, svg);
       paintHUD(svg, groves, pts, activeIdx, reduced, false, 'THE FOREST OF MASTERY');
       return c;
@@ -1008,6 +1303,7 @@
       const statusByName = {}; groves.forEach(g => statusByName[g.pillar] = g.status);
       paintEdges(world, c.edges || [], posByName, statusByName);
       paintPath(world, pts, travelled, reduced, lay.temple);
+      paintPathDiyas(world, pts, reduced);
 
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
@@ -1020,7 +1316,7 @@
       declutterLabels(nodeGroups, activeIdx);
 
       paintLife(world, pts, activeIdx, reduced);
-      paintFrame(svg);
+      paintFrame(svg, reduced);
       el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#vig)', 'pointer-events': 'none' }, svg);
       // back-to-overview affordance (top-right)
       const back = el('g', { transform: 'translate(' + (VB.w - 150) + ',30)', class: 'hud', style: 'cursor:pointer' }, svg);
