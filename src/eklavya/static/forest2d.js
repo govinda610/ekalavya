@@ -2371,13 +2371,25 @@
       const petal = el('path', { d: 'M0,0 Q3,-6 0,-13 Q-3,-6 0,0 Z', fill: i % 2 ? C.goldBright : C.gold, opacity: 0.95, transform: 'rotate(' + (a * 180 / Math.PI) + ')' }, p);
       petalNodes.push({ g: p, a: a, dist: dist });
     }
+    // bright milestone label on a dark pill so "GROVE MASTERED" reads over any canopy/background
+    const lbl = el('g', { transform: 'translate(0,-64)', opacity: 0 }, g);
+    el('rect', { x: -78, y: -15, width: 156, height: 26, rx: 13,
+      fill: 'rgba(8,6,14,.94)', stroke: C.gold, 'stroke-width': 1.4 }, lbl);
+    const lt = el('text', { x: 0, y: 4, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace',
+      'font-size': 11, 'font-weight': 700, 'letter-spacing': '.14em', fill: C.goldBright,
+      'paint-order': 'stroke', stroke: 'rgba(8,6,14,.9)', 'stroke-width': 2.2, 'stroke-linejoin': 'round' }, lbl);
+    lt.textContent = 'GROVE MASTERED';
     if (reduced) {
       // static bloom that lingers briefly then fades — no motion, still a clear "mastered!" flash
       petalNodes.forEach(pn => pn.g.setAttribute('transform', 'translate(' + (Math.cos(pn.a) * pn.dist * 0.7).toFixed(0) + ',' + (-18 + Math.sin(pn.a) * pn.dist * 0.7).toFixed(0) + ')'));
+      lbl.setAttribute('opacity', 1);
       const f = el('animate', { attributeName: 'opacity', values: '1;1;0', keyTimes: '0;0.6;1', dur: '2.6s', begin: '0s', fill: 'freeze', repeatCount: '1' });
       g.appendChild(f); f.addEventListener('endEvent', () => g.remove()); setTimeout(() => g.remove(), 3000);
       return;
     }
+    // label rises in, holds, then fades with the burst
+    lbl.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', values: '0,-52;0,-72', dur: '1.6s', begin: '0s', fill: 'freeze', repeatCount: '1', calcMode: 'spline', keySplines: '0.2 0.8 0.3 1' }));
+    lbl.appendChild(el('animate', { attributeName: 'opacity', values: '0;1;1;0', keyTimes: '0;0.18;0.7;1', dur: '2s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
     // animated: halo swells + fades, ring expands, petals fly out + fade, then self-remove.
     halo.appendChild(el('animate', { attributeName: 'r', values: '20;96', dur: '1.4s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
     halo.appendChild(el('animate', { attributeName: 'opacity', values: '0.9;0', dur: '1.6s', begin: '0s', fill: 'freeze', repeatCount: '1' }));
