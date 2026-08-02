@@ -908,66 +908,269 @@
     return gg._wrap;
   }
 
-  // a NAGA — sacred serpent coiled with a raised hood, jewelled teal scales. `spirit` gives
-  // a luminous teal spirit-serpent.
-  function naga(parent, x, y, s, dir, spirit, reduced) {
+  // a NAGA / king cobra — redrawn readable: a clearly-coiled body on the ground, a tall
+  // S-rising neck, and a broad symmetric flared HOOD with a distinct diamond head, forked
+  // tongue + eyes. `spirit` gives a luminous teal spirit-serpent; `menace` reddens the eyes
+  // (a guardian of the hard groves — see difficulty mapping).
+  function naga(parent, x, y, s, dir, spirit, reduced, menace) {
     const gg = critterBase(parent, x, y, s, dir, 22, 'crit-naga', spirit, reduced);
-    const coilCol = spirit ? '#57d3ce' : '#146a66', bodyCol = spirit ? '#7fe6df' : '#1a7d78', hoodCol = spirit ? '#2f8478' : '#124d4c';
-    el('path', { d: 'M-20,4 q-7,-10 3,-14 q13,-5 18,4 q5,9 -4,13 q-11,4 -16,-3', fill: 'none', stroke: coilCol, 'stroke-width': 5, 'stroke-linecap': 'round' }, gg);  // coil
-    el('path', { d: 'M-16,1 q6,-4 12,-1', fill: 'none', stroke: spirit ? '#d6fbf4' : C.teal, 'stroke-width': 1.2, opacity: 0.6 }, gg);  // scale sheen
-    // rising body + hood sway together on hover
+    const coilCol = spirit ? '#57d3ce' : '#15706b', bodyCol = spirit ? '#7fe6df' : '#1f8a83',
+          hoodCol = spirit ? '#2f8478' : '#0f4f4c', bellyCol = spirit ? '#bff0e9' : '#3fb0a4';
+    // two stacked ground coils (read as a piled serpent, not a squiggle)
+    el('ellipse', { cx: -3, cy: 1, rx: 17, ry: 7, fill: 'none', stroke: coilCol, 'stroke-width': 5.5 }, gg);
+    el('ellipse', { cx: -1, cy: -3, rx: 12, ry: 5, fill: 'none', stroke: coilCol, 'stroke-width': 5 }, gg);
+    el('path', { d: 'M-14,-2 q10,-4 20,0', fill: 'none', stroke: bellyCol, 'stroke-width': 1.2, opacity: 0.6 }, gg);  // belly scute sheen
+    // rising neck + hood sway together on hover
     const hood = el('g', { class: 'naga-hood' }, gg);
-    el('path', { d: 'M10,-5 C17,-13 15,-25 8,-33', fill: 'none', stroke: bodyCol, 'stroke-width': 5, 'stroke-linecap': 'round' }, hood);  // rising body
-    el('path', { d: 'M8,-33 q-9,-5 -4,-14 q9,5 4,14 M8,-33 q9,-5 4,-14 q-9,5 -4,14', fill: hoodCol, stroke: spirit ? '#d6fbf4' : C.teal, 'stroke-width': 1 }, hood);  // flared hood
-    el('circle', { cx: 8, cy: -35, r: 2.4, fill: bodyCol }, hood);   // head
-    el('circle', { cx: 6.5, cy: -36, r: 1.1, fill: C.goldBright }, hood); el('circle', { cx: 9.5, cy: -36, r: 1.1, fill: C.goldBright }, hood);  // eyes
-    el('path', { d: 'M8,-33 l0,-3', stroke: C.ember, 'stroke-width': 0.8 }, hood);  // flicking tongue base
-    el('path', { d: 'M8,-37 l-1.4,-2.5 M8,-37 l1.4,-2.5', stroke: C.ember, 'stroke-width': 0.9, 'stroke-linecap': 'round' }, hood);  // forked tongue
+    el('path', { d: 'M6,-6 C12,-14 10,-26 5,-34', fill: 'none', stroke: bodyCol, 'stroke-width': 5.4, 'stroke-linecap': 'round' }, hood);  // rising neck
+    // broad symmetric hood (two lobes) framing the head
+    el('path', { d: 'M5,-34 C-6,-40 -8,-52 -2,-56 C1,-49 3,-42 5,-38 C7,-42 9,-49 12,-56 C18,-52 16,-40 5,-34 Z', fill: hoodCol, stroke: spirit ? '#d6fbf4' : bodyCol, 'stroke-width': 1.2 }, hood);
+    // hood eyespot markings (the cobra's ocelli)
+    el('circle', { cx: 0, cy: -48, r: 1.6, fill: spirit ? '#d6fbf4' : C.gold, opacity: 0.8 }, hood);
+    el('circle', { cx: 10, cy: -48, r: 1.6, fill: spirit ? '#d6fbf4' : C.gold, opacity: 0.8 }, hood);
+    // diamond head
+    el('path', { d: 'M5,-38 L1,-44 L5,-49 L9,-44 Z', fill: bodyCol, stroke: spirit ? '#d6fbf4' : hoodCol, 'stroke-width': 0.8 }, hood);
+    const eyeCol = menace ? '#ff5a3c' : C.goldBright;
+    el('circle', { cx: 3, cy: -44, r: 1.1, fill: eyeCol }, hood); el('circle', { cx: 7, cy: -44, r: 1.1, fill: eyeCol }, hood);   // eyes
+    if (menace && !reduced) { const e = el('circle', { cx: 5, cy: -44, r: 3.2, fill: 'none', stroke: '#ff5a3c', 'stroke-width': 0.7, opacity: 0.5 }, hood); anim(e, 'opacity', '0.6', '0.2', '1.6s'); }
+    // forked tongue flicking from the snout
+    el('path', { d: 'M5,-49 l0,-4 M5,-53 l-1.6,-2.4 M5,-53 l1.6,-2.4', stroke: C.ember, 'stroke-width': 0.9, 'stroke-linecap': 'round', fill: 'none' }, hood);
     return gg._wrap;
   }
 
-  // an ELEPHANT (gaja) — rounded body, trunk, tusks, big ear; a bindi on the brow. `spirit`
-  // gives a luminous teal spirit-elephant.
+  // an ELEPHANT (gaja) — redrawn for a clean, unmistakable silhouette: a high domed back
+  // sloping to the rump, four columnar legs with real gaps, a bulged forehead, a curling
+  // trunk, a fanned ear, tusks. `spirit` gives a luminous teal spirit-elephant (Airavata).
   function elephant(parent, x, y, s, dir, spirit, reduced) {
     const gg = critterBase(parent, x, y, s, dir, 30, 'crit-elephant', spirit, reduced);
     gg.setAttribute('class', 'amb-body');   // gentle body sway (+ trunk animates separately)
-    const legCol = spirit ? '#3f8f88' : '#2b2a34', bodyCol = spirit ? '#57b8b0' : '#3d3c50', headCol = spirit ? '#6ac6bd' : '#454458', earCol = spirit ? '#3f8f88' : '#2b2a38';
-    el('path', { d: 'M-18,4 L-18,-7 M-8,4 L-8,-8 M8,4 L8,-8 M17,4 L17,-7', stroke: legCol, 'stroke-width': 4.6, 'stroke-linecap': 'round' }, gg);  // legs
-    el('ellipse', { cx: -2, cy: -14, rx: 23, ry: 16, fill: bodyCol }, gg);                                // body
-    el('ellipse', { cx: -6, cy: -20, rx: 15, ry: 9, fill: spirit ? '#7fe0d8' : '#4a4960', opacity: 0.55 }, gg);  // lit back
-    el('circle', { cx: 19, cy: -16, r: 11.5, fill: headCol }, gg);                                        // head
-    el('path', { d: 'M10,-18 q-10,3 -7,12', fill: earCol, opacity: 0.92 }, gg);                           // ear
-    el('path', { class: 'eleph-trunk', d: 'M28,-12 C35,-7 34,3 30,9', fill: 'none', stroke: headCol, 'stroke-width': 5.2, 'stroke-linecap': 'round' }, gg);  // trunk
-    el('path', { d: 'M25,-6 l6,7 M29,-7 l5,8', stroke: '#f2ecdb', 'stroke-width': 1.7, 'stroke-linecap': 'round' }, gg);  // tusks
-    el('circle', { cx: 21, cy: -19, r: 1.1, fill: '#08120e' }, gg);   // eye
-    el('circle', { cx: 19, cy: -21, r: 1.6, fill: C.ember, opacity: 0.9 }, gg);                           // bindi
-    el('path', { d: 'M-16,-23 q7,-6 14,0', fill: 'none', stroke: spirit ? '#d6fbf4' : C.gold, 'stroke-width': 1.2, opacity: 0.7 }, gg);  // caparison hint
+    const legCol = spirit ? '#357f78' : '#26252e', bodyCol = spirit ? '#57b8b0' : '#403f52',
+          litCol = spirit ? '#7fe0d8' : '#565571', headCol = spirit ? '#63c1b8' : '#4a4960',
+          earCol = spirit ? '#3f8f88' : '#33323f';
+    // four columnar legs (front pair + back pair, with a gap between)
+    el('path', { d: 'M-17,6 L-17,-9 M-6,7 L-6,-10', stroke: legCol, 'stroke-width': 5.2, 'stroke-linecap': 'round' }, gg);   // hind legs
+    el('path', { d: 'M8,7 L8,-10 M18,6 L18,-9', stroke: legCol, 'stroke-width': 5.2, 'stroke-linecap': 'round' }, gg);       // fore legs
+    // toenails
+    el('path', { d: 'M-19,7 h4 M-8,8 h4 M6,8 h4 M16,7 h4', stroke: spirit ? '#bff0e9' : '#1a1922', 'stroke-width': 1, 'stroke-linecap': 'round', opacity: 0.7 }, gg);
+    // body: a high domed back arcing down to a low rump + belly
+    el('path', { d: 'M-20,-8 C-24,-24 -14,-32 2,-32 C16,-32 24,-24 24,-14 C24,-6 20,-4 14,-4 L-14,-4 C-19,-4 -19,-4 -20,-8 Z', fill: bodyCol }, gg);
+    el('path', { d: 'M-16,-26 C-6,-32 8,-31 18,-22', fill: 'none', stroke: litCol, 'stroke-width': 3, 'stroke-linecap': 'round', opacity: 0.7 }, gg);  // lit back ridge
+    // head: bulged forehead merging into the body front, cheek
+    el('path', { d: 'M18,-24 C28,-24 30,-14 28,-6 C27,-2 22,-1 18,-3 C14,-6 14,-20 18,-24 Z', fill: headCol }, gg);
+    // fanned ear over the shoulder
+    el('path', { d: 'M13,-22 C4,-20 2,-8 10,-4 C16,-6 16,-16 16,-22 Z', fill: earCol, opacity: 0.94 }, gg);
+    el('path', { d: 'M13,-20 C7,-17 6,-9 11,-6', fill: 'none', stroke: spirit ? '#bff0e9' : '#26252e', 'stroke-width': 0.8, opacity: 0.6 }, gg);  // ear fold
+    // curling trunk down the front
+    el('path', { class: 'eleph-trunk', d: 'M27,-14 C34,-9 34,2 29,9 C27,12 24,11 25,8', fill: 'none', stroke: headCol, 'stroke-width': 5.4, 'stroke-linecap': 'round' }, gg);
+    // tusks flanking the trunk
+    el('path', { d: 'M23,-4 C25,1 27,4 26,8 M27,-4 C29,0 31,3 31,7', fill: 'none', stroke: '#f2ecdb', 'stroke-width': 1.8, 'stroke-linecap': 'round' }, gg);
+    el('circle', { cx: 24, cy: -16, r: 1.2, fill: '#08120e' }, gg);   // eye
+    el('circle', { cx: 21, cy: -22, r: 1.5, fill: C.ember, opacity: 0.9 }, gg);   // bindi on brow
+    // caparison drape hint across the back
+    el('path', { d: 'M-10,-28 q10,-5 22,-1', fill: 'none', stroke: spirit ? '#d6fbf4' : C.gold, 'stroke-width': 1.2, opacity: 0.65 }, gg);
     return gg._wrap;
   }
 
-  // a MONKEY (vanara) — hunched body, long curling tail, limbs + a clear face. `swing` hangs
-  // it by one arm (for the canopy monkeys); otherwise it sits/perches on the ground.
+  // a MONKEY (vanara) — redrawn readable: a rounded body with a paler belly, jointed limbs,
+  // a long curling tail, and a clear pink face with a pale ruff (langur-like). `swing` hangs
+  // it from a branch by one arm (canopy monkeys); otherwise it sits/perches on the ground.
   function monkey(parent, x, y, s, dir, swing) {
     const gg = critterBase(parent, x, y, s, dir, 13, 'crit-monkey' + (swing ? ' crit-monkey-swing' : ''));
     gg.setAttribute('class', 'amb-body');   // whole body bobs / swings ambiently
-    const furDk = '#4a3a2a', furLt = '#6a5238', face = '#d8b888';
+    const furDk = '#463526', furLt = '#6a5238', belly = '#8a7250', face = '#d8b888', ruff = '#c9b59a';
     if (swing) {
-      // hangs from a branch above by one raised arm; body dangles, tail curls up
-      el('path', { d: 'M0,-22 q1,-8 -4,-11', fill: 'none', stroke: furDk, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // raised gripping arm
-      el('path', { d: 'M2,-2 q9,3 12,-4 q3,-8 -4,-11', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // curling tail up
-      el('ellipse', { cx: 0, cy: -10, rx: 6.5, ry: 9, fill: furDk }, gg);                                 // body
-      el('path', { d: 'M-4,-8 q-6,4 -5,11 M4,-8 q4,6 1,12', fill: 'none', stroke: furDk, 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);  // dangling legs
+      // hangs from a branch above by one raised gripping arm; body dangles, tail curls up
+      el('path', { d: 'M1,-20 C-2,-28 -6,-30 -7,-34', fill: 'none', stroke: furDk, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, gg);  // raised gripping arm
+      el('circle', { cx: -7, cy: -34, r: 1.6, fill: furLt }, gg);   // gripping hand
+      el('path', { d: 'M3,-4 C11,-2 15,-8 13,-16 C12,-22 8,-24 6,-27', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // long curling tail up
+      el('ellipse', { cx: 0, cy: -11, rx: 6.5, ry: 9, fill: furDk }, gg);                                 // body
+      el('ellipse', { cx: 0, cy: -9, rx: 3.8, ry: 6, fill: belly, opacity: 0.7 }, gg);                    // belly
+      el('path', { d: 'M-4,-6 C-8,-2 -8,4 -6,9 M4,-6 C7,-1 6,5 3,10', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // dangling legs
+      el('circle', { cx: -6, cy: 9, r: 1.3, fill: furLt }, gg); el('circle', { cx: 3, cy: 10, r: 1.3, fill: furLt }, gg);   // feet
     } else {
-      el('path', { d: 'M-3,3 q-14,3 -16,-7 q-2,-9 7,-9', fill: 'none', stroke: furDk, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // long tail
+      el('path', { d: 'M-4,2 C-13,4 -19,-2 -18,-9 C-17,-15 -12,-16 -9,-13', fill: 'none', stroke: furDk, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, gg);  // long curling tail
       el('ellipse', { cx: 0, cy: -8, rx: 8, ry: 10, fill: furDk }, gg);                                   // body
-      el('ellipse', { cx: 0, cy: -6, rx: 5, ry: 7, fill: furLt, opacity: 0.6 }, gg);                      // belly
-      el('path', { d: 'M-5,-2 q-4,4 -2,8 M5,-2 q4,4 2,8', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // arms/legs
+      el('ellipse', { cx: 0, cy: -6, rx: 4.6, ry: 7, fill: belly, opacity: 0.75 }, gg);                   // belly
+      el('path', { d: 'M-6,-3 C-9,1 -8,5 -6,8 M6,-3 C9,1 8,5 6,8', fill: 'none', stroke: furDk, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // arms resting
+      el('circle', { cx: -6, cy: 8, r: 1.3, fill: furLt }, gg); el('circle', { cx: 6, cy: 8, r: 1.3, fill: furLt }, gg);   // hands
     }
     const head = el('g', { class: 'monkey-head' }, gg);
-    el('circle', { cx: 2, cy: -19, r: 5.4, fill: furLt }, head);                                          // head
-    el('circle', { cx: 2, cy: -18, r: 3.2, fill: face }, head);                                           // face
-    el('circle', { cx: -2.4, cy: -22, r: 1.8, fill: furDk }, head); el('circle', { cx: 6.4, cy: -22, r: 1.8, fill: furDk }, head);  // ears
-    el('circle', { cx: 0.4, cy: -19, r: 0.7, fill: '#20180f' }, head); el('circle', { cx: 3.6, cy: -19, r: 0.7, fill: '#20180f' }, head);  // eyes
+    el('circle', { cx: 2, cy: -20, r: 6, fill: furDk }, head);                                            // head fur
+    el('circle', { cx: 2, cy: -19, r: 5, fill: ruff }, head);                                             // pale ruff
+    el('ellipse', { cx: 2.4, cy: -18.5, rx: 3.4, ry: 4, fill: face }, head);                              // face
+    el('circle', { cx: -3, cy: -22, r: 1.7, fill: furDk }, head); el('circle', { cx: 7, cy: -22, r: 1.7, fill: furDk }, head);  // ears
+    el('circle', { cx: 0.8, cy: -19.5, r: 0.7, fill: '#20180f' }, head); el('circle', { cx: 3.8, cy: -19.5, r: 0.7, fill: '#20180f' }, head);  // eyes
+    el('path', { d: 'M1.4,-16.5 q1,1 2,0', stroke: '#5a4028', 'stroke-width': 0.7, fill: 'none', 'stroke-linecap': 'round' }, head);   // muzzle
+    return gg._wrap;
+  }
+
+  // ============================================================================
+  // GUARDIAN FAUNA — the dangerous set that marks the HARD / advanced / locked groves.
+  // Menacing silhouettes, watchful low posture, a subtle amber/red eye-glow. All read as
+  // "this grove is a serious challenge." Deterministic difficulty→danger keeps a grove's
+  // guardian stable across reloads (see difficultyOf + guardianFor).
+  // ============================================================================
+
+  // shared predator eye-glow: two small amber/red eyes that softly pulse (reduced-safe: a
+  // static bright dot). `menace` intensifies to red. Sits in the creature's local frame.
+  function predEyes(gg, x, y, gap, menace, reduced) {
+    const col = menace ? '#ff5230' : '#ffb64a';
+    [-gap / 2, gap / 2].forEach(dx => {
+      const halo = el('circle', { cx: x + dx, cy: y, r: 2.4, fill: menace ? 'rgba(255,60,30,.5)' : 'rgba(255,180,60,.5)', 'pointer-events': 'none' }, gg);
+      el('circle', { cx: x + dx, cy: y, r: 1, fill: col }, gg);
+      if (!reduced) anim(halo, 'opacity', '0.85', '0.3', (1.4 + gap * 0.05).toFixed(1) + 's');
+    });
+  }
+
+  // a TIGER (sher/vyaghra) — a low crouched stalking cat: heavy body, powerful shoulders,
+  // striped flank, a long low tail, ears back, glowing eyes. The apex guardian of the
+  // hardest groves. `menace` reddens the eyes (near locked/frontier).
+  function tiger(parent, x, y, s, dir, menace, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 26, 'crit-tiger', null, reduced);
+    const body = '#c67a2e', litB = '#e0a24e', belly = '#efe0c4', stripe = '#241812';
+    // long low tail sweeping up behind the haunch
+    el('path', { d: 'M-20,-10 C-30,-14 -35,-9 -34,-2', fill: 'none', stroke: body, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, gg);
+    el('path', { d: 'M-34,-3 l0,3', stroke: stripe, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, gg);   // tail tip
+    // four legs: crouched hind haunch + planted fore legs
+    el('path', { d: 'M-16,6 L-16,-6 M-9,7 L-9,-6', stroke: body, 'stroke-width': 4.2, 'stroke-linecap': 'round' }, gg);  // hind
+    el('path', { d: 'M10,7 L10,-6 M18,7 L18,-5', stroke: body, 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);      // fore
+    // body: a big rounded haunch at the rear, dipping through the back, rising to the shoulder
+    el('path', { d: 'M-22,-8 C-24,-20 -14,-24 -8,-22 C-2,-20 -2,-14 4,-14 C12,-14 12,-20 18,-20 C25,-20 27,-12 25,-7 C24,-5 22,-4 19,-5 L-18,-5 C-21,-5 -22,-5 -22,-8 Z', fill: body }, gg);
+    el('path', { d: 'M-18,-20 C-12,-23 -6,-20 -2,-16 C4,-19 12,-19 18,-18', fill: 'none', stroke: litB, 'stroke-width': 2.2, 'stroke-linecap': 'round', opacity: 0.7 }, gg);  // lit back
+    el('path', { d: 'M-16,-6 C-4,-8 12,-8 20,-7', fill: 'none', stroke: belly, 'stroke-width': 2, opacity: 0.5 }, gg);   // belly
+    // bold vertical flank stripes
+    for (let i = 0; i < 6; i++) el('path', { d: 'M' + (-16 + i * 7) + ',-18 q-2,7 -1,12', fill: 'none', stroke: stripe, 'stroke-width': 1.5, 'stroke-linecap': 'round', opacity: 0.85 }, gg);
+    // raised head on a thick neck, ears up, watchful (turns to face when the cursor is near)
+    const head = el('g', { class: 'pred-head' }, gg);
+    el('path', { d: 'M22,-16 C26,-20 30,-19 31,-15', fill: 'none', stroke: body, 'stroke-width': 4, 'stroke-linecap': 'round' }, head);  // neck
+    el('circle', { cx: 30, cy: -18, r: 6.4, fill: litB }, head);                              // head
+    el('path', { d: 'M25,-23 l-1,-4 l4,2 Z M35,-23 l1,-4 l-4,2 Z', fill: body }, head);       // ears up
+    el('path', { d: 'M28,-14 q2,3 4,0 Z', fill: belly }, head);                               // muzzle/chin
+    el('path', { d: 'M26,-20 q4,-1 8,0 M27,-16 q3,1 6,0', stroke: stripe, 'stroke-width': 0.8, fill: 'none', opacity: 0.7 }, head);   // face stripes
+    predEyes(head, 30, -19, 4.5, menace, reduced);
+    el('path', { d: 'M28,-13 l1,2', stroke: '#fff', 'stroke-width': 0.7, opacity: 0.6 }, head);   // fang glint
+    return gg._wrap;
+  }
+
+  // a PANTHER (bagheera) — a sleek black big-cat, same crouched stalk as the tiger but a
+  // near-silhouette body (no stripes) with a green-amber eye-shine. Guardian of hard groves.
+  function panther(parent, x, y, s, dir, menace, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 24, 'crit-panther', null, reduced);
+    const body = '#14161c', lit = '#2b2f3a';
+    el('path', { d: 'M-20,-8 C-31,-11 -35,-4 -32,2', fill: 'none', stroke: body, 'stroke-width': 3.2, 'stroke-linecap': 'round' }, gg);  // tail
+    el('path', { d: 'M-14,6 L-14,-4 M-6,7 L-6,-5 M9,7 L9,-5 M16,6 L16,-4', stroke: body, 'stroke-width': 3.8, 'stroke-linecap': 'round' }, gg);  // legs
+    el('path', { d: 'M-19,-6 C-21,-15 -11,-19 0,-19 C11,-19 19,-17 23,-11 C24,-8 23,-6 20,-5 L-15,-5 C-18,-5 -18,-5 -19,-6 Z', fill: body }, gg);
+    el('path', { d: 'M-14,-16 C-2,-19 12,-18 20,-12', fill: 'none', stroke: lit, 'stroke-width': 2, 'stroke-linecap': 'round', opacity: 0.8 }, gg);  // sheen
+    const head = el('g', { class: 'pred-head' }, gg);
+    el('circle', { cx: 22, cy: -9, r: 6.4, fill: lit }, head);
+    el('path', { d: 'M18,-14 l-1,-4 l4,2 M26,-14 l1,-4 l-4,2', fill: body }, head);   // ears
+    el('path', { d: 'M22,-9 q6,1 7,4 q-4,2 -7,0 Z', fill: body }, head);              // muzzle
+    predEyes(head, 22, -11, 5, menace, reduced);
+    return gg._wrap;
+  }
+
+  // a CROCODILE (magar/makara) — a long low armoured reptile at the water's edge: a broad
+  // snout, ridged scaly back, splayed legs, a thick tapering tail, a slit glowing eye. Draws
+  // low and flat (it lurks). Guardian of water-adjacent hard groves.
+  function crocodile(parent, x, y, s, dir, menace, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 30, 'crit-croc', null, reduced);
+    const body = '#3a5a3e', lit = '#57794f', dark = '#22381f', belly = '#7a8c5c';
+    // thick tapering tail
+    el('path', { d: 'M-18,-2 C-30,-3 -38,-1 -44,2 C-38,4 -30,4 -18,2 Z', fill: body }, gg);
+    for (let i = 0; i < 4; i++) el('path', { d: 'M' + (-22 - i * 5) + ',-3 l2,-3', stroke: dark, 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);  // tail ridges
+    // splayed legs
+    el('path', { d: 'M-8,3 l-5,5 M0,3 l5,5 M14,3 l-5,5 M22,3 l5,5', stroke: body, 'stroke-width': 2.6, 'stroke-linecap': 'round' }, gg);
+    // long low body
+    el('path', { d: 'M-18,-5 C-18,1 34,2 34,-2 C34,-6 20,-8 0,-8 C-10,-8 -18,-8 -18,-5 Z', fill: body }, gg);
+    el('path', { d: 'M-16,-6 C-4,-8 18,-8 30,-5', fill: 'none', stroke: lit, 'stroke-width': 1.6, opacity: 0.6 }, gg);  // back sheen
+    // dorsal scute ridges (the croc signature)
+    for (let i = 0; i < 7; i++) el('path', { d: 'M' + (-14 + i * 6) + ',-8 l2,-4 l2,4 Z', fill: dark, opacity: 0.9 }, gg);
+    // broad snout + jaw line with teeth
+    el('path', { d: 'M30,-6 C42,-6 46,-3 44,0 C40,2 34,2 30,1 Z', fill: body }, gg);
+    el('path', { d: 'M31,-1 l3,2 l3,-2 l3,2 l3,-2', fill: 'none', stroke: '#e8e0cc', 'stroke-width': 0.7, opacity: 0.85 }, gg);   // teeth
+    // raised eye ridge with a glowing slit eye
+    el('path', { d: 'M22,-8 q3,-4 6,-1', fill: 'none', stroke: dark, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);
+    predEyes(gg, 25, -10, 0.1, menace, reduced);
+    return gg._wrap;
+  }
+
+  // a WILD BOAR (varaha/suar) — a bristly hump-shouldered pig: a wedge head with tusks, a
+  // ridge of raised bristles, short legs, a curly tail. A charging guardian of hard groves.
+  function boar(parent, x, y, s, dir, menace, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 20, 'crit-boar', null, reduced);
+    const body = '#3f342a', lit = '#5a4a38', dark = '#241c14';
+    el('path', { d: 'M-14,6 L-14,-3 M-6,7 L-6,-4 M8,7 L8,-4 M15,6 L15,-3', stroke: dark, 'stroke-width': 3, 'stroke-linecap': 'round' }, gg);  // short legs
+    el('path', { d: 'M-16,-4 q-4,-2 -3,-6', fill: 'none', stroke: dark, 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);   // curly tail
+    // hump-shouldered body (higher at the shoulder toward the head)
+    el('path', { d: 'M-16,-4 C-18,-12 -10,-16 2,-17 C14,-18 18,-14 20,-9 C21,-6 20,-4 17,-4 Z', fill: body }, gg);
+    el('path', { d: 'M-6,-16 C4,-18 14,-16 18,-11', fill: 'none', stroke: lit, 'stroke-width': 2, opacity: 0.6 }, gg);   // lit hump
+    // raised dorsal bristles
+    for (let i = 0; i < 7; i++) el('line', { x1: -10 + i * 4, y1: -16, x2: -11 + i * 4, y2: -22, stroke: dark, 'stroke-width': 1.2, 'stroke-linecap': 'round' }, gg);
+    // wedge head + snout
+    el('path', { d: 'M17,-11 C25,-12 30,-8 31,-3 C31,-1 28,0 25,-1 C20,-3 16,-7 17,-11 Z', fill: lit }, gg);
+    el('ellipse', { cx: 30, cy: -3, rx: 2.4, ry: 2, fill: dark }, gg);   // snout disc
+    el('path', { d: 'M27,-2 q-2,3 -4,1 M31,-4 q2,-3 3,-1', fill: 'none', stroke: '#efe4d0', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);   // curved tusks
+    el('path', { d: 'M18,-13 l-2,-5 l4,3 Z', fill: dark }, gg);   // ear
+    predEyes(gg, 22, -8, 0.1, menace, reduced);
+    return gg._wrap;
+  }
+
+  // an OWL (uluka) — a plump nocturnal perched bird: a round body, big forward eyes, ear
+  // tufts, a hooked beak. Active at night; a wise watcher near mid-difficulty groves.
+  function owl(parent, x, y, s, dir, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 12, 'crit-owl', null, reduced);
+    const body = '#5a4a34', lit = '#7a6748', disc = '#c9b48c';
+    el('line', { x1: -8, y1: 8, x2: 8, y2: 8, stroke: '#2a2018', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);   // branch
+    el('path', { d: 'M-9,-2 C-11,-14 -6,-22 0,-22 C6,-22 11,-14 9,-2 C9,4 6,7 0,7 C-6,7 -9,4 -9,-2 Z', fill: body }, gg);  // plump body
+    el('path', { d: 'M-6,-10 C-2,-6 2,-6 6,-10 M-6,-4 C-2,0 2,0 6,-4 M-6,2 C-2,5 2,5 6,2', fill: 'none', stroke: lit, 'stroke-width': 1, opacity: 0.6 }, gg);  // breast barring
+    // ear tufts
+    el('path', { d: 'M-6,-20 l-2,-6 l4,3 Z M6,-20 l2,-6 l-4,3 Z', fill: body }, gg);
+    // facial discs + eyes
+    el('circle', { cx: -3.4, cy: -13, r: 3.8, fill: disc }, gg); el('circle', { cx: 3.4, cy: -13, r: 3.8, fill: disc }, gg);
+    const eyeCol = '#f7d98a';
+    el('circle', { cx: -3.4, cy: -13, r: 2, fill: eyeCol }, gg); el('circle', { cx: 3.4, cy: -13, r: 2, fill: eyeCol }, gg);
+    el('circle', { cx: -3.4, cy: -13, r: 0.9, fill: '#08120e' }, gg); el('circle', { cx: 3.4, cy: -13, r: 0.9, fill: '#08120e' }, gg);
+    el('path', { d: 'M0,-11 l-1.4,3 l2.8,0 Z', fill: '#c88a3a' }, gg);   // beak
+    if (!reduced) { const bl = el('rect', { x: -6, y: -15, width: 12, height: 0.1, fill: 'none' }, gg); }   // (blink handled via eye halo elsewhere)
+    return gg._wrap;
+  }
+
+  // a HERON / crane (bagula) — a tall wading bird at the pond edge: long legs, an S-neck, a
+  // dagger beak, poised to fish. Gentle water-margin fauna.
+  function heron(parent, x, y, s, dir, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 14, 'crit-heron', null, reduced);
+    const body = '#8fa7ac', lit = '#c2d2d4', legCol = '#5a4a30';
+    el('path', { d: 'M-1,10 L-2,-6 M3,10 L4,-6', stroke: legCol, 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);   // long legs
+    el('path', { d: 'M-1,10 l-4,2 M3,10 l4,2', stroke: legCol, 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);     // feet
+    el('path', { d: 'M-9,-6 C-11,-14 -4,-16 4,-14 C10,-13 11,-8 8,-4 C4,-2 -6,-2 -9,-6 Z', fill: body }, gg);   // body
+    el('path', { d: 'M-9,-6 C-16,-4 -20,0 -22,4', fill: 'none', stroke: body, 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);   // folded wing/tail plume
+    el('path', { d: 'M-7,-13 C-4,-15 2,-15 4,-13', fill: 'none', stroke: lit, 'stroke-width': 1.2, opacity: 0.7 }, gg);   // back sheen
+    // S-curved neck + head + dagger beak
+    el('path', { d: 'M6,-13 C12,-16 10,-24 6,-28', fill: 'none', stroke: body, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);
+    el('circle', { cx: 6, cy: -29, r: 2.6, fill: lit }, gg);   // head
+    el('path', { d: 'M4,-33 l3,-3 l-4,2 Z', fill: '#e0c04a' }, gg);   // crest plume
+    el('path', { d: 'M8,-29 l7,-1', stroke: '#e8c24a', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);   // dagger beak
+    el('circle', { cx: 6.6, cy: -29.5, r: 0.7, fill: '#08120e' }, gg);   // eye
+    return gg._wrap;
+  }
+
+  // a RABBIT / hare (khargosh) — a small rounded body, long ears, a puff tail. Gentle fauna
+  // near easy/mastered groves. Ears prick / it startles when the cursor is near (see wiring).
+  function rabbit(parent, x, y, s, dir, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 10, 'crit-rabbit', null, reduced);
+    const body = '#a89478', lit = '#cbbc9e', dark = '#6a5842';
+    el('circle', { cx: -7, cy: -1, r: 2.4, fill: '#e8ddc8' }, gg);   // puff tail
+    el('path', { d: 'M-6,-2 C-8,-9 -3,-13 3,-13 C9,-13 11,-8 9,-2 C8,2 4,4 1,4 C-3,4 -6,2 -6,-2 Z', fill: body }, gg);  // body
+    el('path', { d: 'M-4,-11 C0,-13 5,-13 8,-10', fill: 'none', stroke: lit, 'stroke-width': 1.4, opacity: 0.7 }, gg);   // lit back
+    el('path', { d: 'M0,4 l-2,3 M4,4 l2,3', stroke: dark, 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);   // hind feet
+    // head + long ears (the rabbit signature)
+    const head = el('g', { class: 'rabbit-head amb', 'transform-origin': '8px -8px' }, gg);
+    el('circle', { cx: 9, cy: -7, r: 3.4, fill: lit }, head);   // head
+    el('path', { d: 'M7,-9 C5,-16 6,-21 8,-21 C10,-21 10,-16 9,-9 Z', fill: body }, head);   // ear 1
+    el('path', { d: 'M11,-9 C11,-16 13,-20 14,-19 C15,-17 13,-13 12,-9 Z', fill: body }, head);  // ear 2
+    el('path', { d: 'M8,-19 C7,-14 8,-11 8.5,-10', fill: 'none', stroke: '#e0a8a0', 'stroke-width': 0.8, opacity: 0.6 }, head);  // inner ear
+    el('circle', { cx: 10.4, cy: -7.5, r: 0.7, fill: '#20180f' }, head);   // eye
+    el('circle', { cx: 12, cy: -6, r: 0.6, fill: '#c88', opacity: 0.7 }, head);   // nose
     return gg._wrap;
   }
 
@@ -2224,4 +2427,11 @@
   }
 
   global.Forest2D = { showOverview: showOverview, showGrove: showGrove, VB: VB };
+  // dev-only: expose creature factories for the offline art-gallery screenshot harness. Gated
+  // behind an explicit flag so it never ships behaviour to the app; tree-shakes to nothing.
+  if (global.__FOREST_DEBUG__) {
+    global.Forest2D._creatures = { peacock, deer, naga, elephant, monkey, tiger, panther,
+      crocodile, boar, owl, heron, rabbit, guru, pilgrim, perchedBird, diya };
+    global.Forest2D._defs = defs;
+  }
 })(window);
