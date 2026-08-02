@@ -499,6 +499,51 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
     return _clip(out.strip() + "\n\n" + summary)
 
 
+def grade_and_record_subject(
+    pillar: str,
+    axis: str,
+    concept: str,
+    answer: str,
+    key: str,
+    answer_type: str,
+    confidence: int,
+    subject: str = DEFAULT_SUBJECT,
+    tolerance: str = "",
+    seconds: float = 0.0,
+) -> str:
+    """Grade a NON-CODE drill deterministically and record the VERIFIED result — the
+    tamper-proof, subject-aware generalisation of grade_and_record (plan §5.5).
+
+    Picks a ground-truth grader from `answer_type` (numeric | symbolic | units | choice),
+    runs it against `key` (the objective reference), and records the outcome via the
+    subject-aware pipeline. The GRADER sets the score — you cannot fake it. Use this for
+    every objective non-code drill (maths numeric/symbolic answers, MCQs, unit answers).
+
+    - answer:      the learner's answer, verbatim.
+    - key:         the objective reference answer to grade against.
+    - answer_type: numeric | symbolic | units | choice.
+    - tolerance:   optional JSON for numeric, e.g. '{"abs": 0.01}' or '{"rel": 0.02}'.
+    - subject:     registry key (maths/stats/ml/...); axis a CORE axis or subject extension.
+    For code drills use grade_and_record (sandbox) instead.
+    """
+    from . import graders
+
+    atype = (answer_type or "").strip()
+    if atype not in graders.DETERMINISTIC_TYPES:
+        return (f"grade_and_record_subject handles only deterministic types "
+                f"({', '.join(sorted(graders.DETERMINISTIC_TYPES))}); got '{atype}'. "
+                "Use grade_rubric for proofs/interpretation, grade_and_record for code.")
+    try:
+        res = graders.grade(answer, {"answer_type": atype, "answer": key, "tolerance": tolerance})
+    except ValueError as e:
+        return f"grading error: {e}"
+    verdict = "PASS ✓" if res.score >= PASS_THRESHOLD else "FAIL ✗"
+    summary = record_attempt(pillar, axis, concept, confidence, res.score >= PASS_THRESHOLD,
+                             seconds, ai_off=True, subject=subject, score=res.score,
+                             answer_type=atype)
+    return _clip(f"{verdict} ({atype} grader, deterministic: {res.detail})\n\n{summary}")
+
+
 def progress_report() -> str:
     """Return the learner's streak, XP, level, and current mastery grid."""
     from . import progress
@@ -760,8 +805,8 @@ from .resume import read_resume  # noqa: E402
 #     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
 #     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
 AGENT_TOOLS = [
-    grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
-    record_attempt, save_baseline, suggest_focus,
+    grade_and_record, grade_and_record_subject, web_search, read_github, read_resume,
+    get_questions, add_question, record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, save_artifact, run_bash,
 ]
 
@@ -773,4 +818,4 @@ AIINTERVIEW_TOOLS = AGENT_TOOLS
 # Tier-1 assessment: a DELIBERATELY MINIMAL toolset — pull frozen items, grade code if
 # needed, record the sitting. No suggest_focus, no teaching aids: the assessment must not
 # adapt to or teach the learner (that's what keeps the benchmark a non-circular ruler).
-ASSESSMENT_TOOLS = [assessment_items, grade_and_record, record_assessment]
+ASSESSMENT_TOOLS = [assessment_items, grade_and_record, grade_and_record_subject, record_assessment]
