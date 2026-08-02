@@ -2551,12 +2551,15 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
-  stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
   const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog'}[location.pathname];
-  if(_deep) showView(_deep);
-  else if(!c.first_run && location.pathname==='/') showView('tree');
+  const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
+  if(_landing!=='practice') showView(_landing);
+  // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
+  // explicit arena landing. Deep-links and the returning-user Forest Map must NOT auto-start a
+  // thread (that burned tokens + spawned junk chats on every page load / deep-link).
+  if(_landing==='practice') stream(c.kickoff[mode]);
 });
 // deep-link handling for client-only routes now runs inside the /api/config callback above.
 </script></body></html>"""
