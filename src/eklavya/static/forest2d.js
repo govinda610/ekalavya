@@ -1293,34 +1293,70 @@
     return gg._wrap;
   }
 
-  // a FLOCK of birds — bolder V-glyphs gliding on a looping flight path across the sky /
-  // between canopies. Higher-contrast (light stroke + dark under-stroke) so it reads clearly
-  // against sky AND foliage. The inner group flaps its wings continuously (reduced-safe).
+  // wing-shapes for a flying bird — a FILLED 2-wing silhouette (a little body with two
+  // outstretched wings), not a stroked "M" line. `phase` 0 = wings raised (upstroke),
+  // 1 = wings lowered (downstroke); the flap morphs between the two so the wings visibly
+  // beat up/down about the body. `sz` = wing half-span. Symmetric left+right in one path.
+  function birdWings(sz, phase) {
+    // tip height relative to the shoulders: up when raised, down when lowered
+    const tip = phase ? sz * 0.44 : -sz * 0.72;   // y of the wingtip
+    const mid = phase ? sz * 0.10 : -sz * 0.24;   // y of the wing's mid control
+    const back = sz * 0.30;                        // wings sweep slightly back (behind body)
+    // path: from right tip → over the body's shoulders → to left tip, closed underneath so
+    // each wing reads as a solid, tapered blade rather than a hairline.
+    return 'M' + sz.toFixed(1) + ',' + tip.toFixed(1) +
+           ' Q' + (sz * 0.5).toFixed(1) + ',' + mid.toFixed(1) + ' ' + (sz * 0.14).toFixed(1) + ',0.2' +
+           ' Q0,-1.6 ' + (-sz * 0.14).toFixed(1) + ',0.2' +
+           ' Q' + (-sz * 0.5).toFixed(1) + ',' + mid.toFixed(1) + ' ' + (-sz).toFixed(1) + ',' + tip.toFixed(1) +
+           ' Q' + (-sz * 0.5).toFixed(1) + ',' + (mid + back).toFixed(1) + ' ' + (-sz * 0.12).toFixed(1) + ',' + (back * 0.5).toFixed(1) +
+           ' Q0,' + (back * 0.7).toFixed(1) + ' ' + (sz * 0.12).toFixed(1) + ',' + (back * 0.5).toFixed(1) +
+           ' Q' + (sz * 0.5).toFixed(1) + ',' + (mid + back).toFixed(1) + ' ' + sz.toFixed(1) + ',' + tip.toFixed(1) + ' Z';
+  }
+
+  // a FLOCK of birds gliding across the sky. Each bird is a proper little 2-WING silhouette
+  // (body + two wings) with a real up/down FLAP cycle — NOT a bending line. The flock drifts
+  // on a gentle CURVED (bezier) glide with a slight bob, staggered so a few pass by naturally.
+  // Reduced-motion → static mid-glide birds (still clearly wings + body), no drift/flap.
   function flock(parent, x, y, s, seed, reduced) {
     const r = rng(seed); const gg = el('g', { class: 'flock', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
     // wide invisible hit-area so the flock is hoverable (scatter on hover)
-    el('rect', { x: -34, y: -18, width: 68, height: 30, fill: 'transparent', 'pointer-events': 'all' }, gg);
+    el('rect', { x: -40, y: -22, width: 80, height: 36, fill: 'transparent', 'pointer-events': 'all' }, gg);
     const inner = el('g', { class: 'flock-g' }, gg);   // hover + flap target (drift on gg)
-    const n = 4 + Math.floor(r() * 3);
-    const birds = [];
+    const dir = r() > 0.5 ? 1 : -1;                     // heading (mirrors the bird to face it)
+    const n = 3 + Math.floor(r() * 3);
     for (let i = 0; i < n; i++) {
-      const bx = (r() - 0.5) * 46, by = (r() - 0.5) * 20, sz = 5.5 + r() * 3.5;
-      const b = el('g', { class: 'flock-bird', transform: 'translate(' + bx.toFixed(1) + ',' + by.toFixed(1) + ')' }, inner);
-      const wingUp = 'M0,0 q-' + sz + ',-' + (sz * 0.6) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.6) + ' ' + (sz * 2) + ',0';
-      const wingDn = 'M0,0 q-' + sz + ',' + (sz * 0.3) + ' -' + (sz * 2) + ',0 q' + sz + ',' + (sz * 0.3) + ' ' + (sz * 2) + ',0';
-      // dark under-stroke first (contrast against sky), light stroke on top
-      el('path', { class: 'flap', d: wingUp, fill: 'none', stroke: 'rgba(6,10,20,.55)', 'stroke-width': 2.6, 'stroke-linecap': 'round', transform: 'translate(0,0.7)' }, b);
-      const w = el('path', { class: 'flap', d: wingUp, fill: 'none', stroke: 'rgba(240,232,206,.92)', 'stroke-width': 1.7, 'stroke-linecap': 'round' }, b);
-      birds.push([w, wingUp, wingDn, r]);
-      if (!reduced) w.parentNode.querySelectorAll('.flap').forEach(fp => {
-        fp.appendChild(el('animate', { attributeName: 'd', values: wingUp + ';' + wingDn + ';' + wingUp, dur: (0.5 + r() * 0.4).toFixed(2) + 's', begin: (r() * 0.4).toFixed(2) + 's', repeatCount: 'indefinite' }));
-      });
+      // loose V/echelon so the flock reads as several birds, not one glyph
+      const bx = (r() - 0.5) * 48, by = (r() - 0.5) * 22, sz = 5.5 + r() * 3.0;
+      const b = el('g', { class: 'flock-bird', transform: 'translate(' + bx.toFixed(1) + ',' + by.toFixed(1) + ')' + (dir < 0 ? ' scale(-1,1)' : '') }, inner);
+      // tiny compact body between the wings (a small head-forward oval) so the bird never
+      // reads as a bare line, with a hint of a head/beak toward the heading.
+      el('ellipse', { cx: (sz * 0.06).toFixed(1), cy: (sz * 0.06).toFixed(1), rx: (sz * 0.34).toFixed(1), ry: (sz * 0.22).toFixed(1), fill: 'rgba(20,24,36,.92)' }, b);
+      el('circle', { cx: (sz * 0.34).toFixed(1), cy: 0, r: (sz * 0.13).toFixed(1), fill: 'rgba(20,24,36,.92)' }, b);
+      const glide = birdWings(sz, 0.5);                 // resting mid-glide pose
+      // dark under-body first (contrast against bright sky), warm-parchment wing on top
+      el('path', { class: 'flap', d: glide, fill: 'rgba(10,14,24,.5)', transform: 'translate(0,0.7)' }, b);
+      const w = el('path', { class: 'flap', d: glide, fill: 'rgba(236,228,204,.94)' }, b);
+      if (!reduced) {
+        const dur = (0.62 + r() * 0.5).toFixed(2), begin = (r() * 0.5).toFixed(2) + 's';
+        // wings beat up → down → up about the body (staggered per bird)
+        const beat = birdWings(sz, 0) + ';' + birdWings(sz, 1) + ';' + birdWings(sz, 0);
+        b.querySelectorAll('.flap').forEach(fp => {
+          fp.appendChild(el('animate', { attributeName: 'd', values: beat, dur: dur + 's', begin: begin, repeatCount: 'indefinite', calcMode: 'spline', keyTimes: '0;0.5;1', keySplines: '.4 0 .6 1;.4 0 .6 1' }));
+        });
+        // gentle per-bird BOB (wings-up rises a hair) so the flock breathes, staggered
+        const bob = el('animateTransform', { attributeName: 'transform', type: 'translate', additive: 'sum',
+          values: '0 0;0 ' + (-sz * 0.18).toFixed(1) + ';0 0', dur: dur + 's', begin: begin, repeatCount: 'indefinite' });
+        b.appendChild(bob);
+      }
     }
-    // looping glide across the map (SMIL animateMotion on the group)
+    // a gentle one-way CURVED GLIDE across the sky (arc/bezier drift) — no snapping loop.
     if (!reduced) {
-      const dir = r() > 0.5 ? 1 : -1;
-      const mv = el('animateMotion', { dur: (26 + r() * 14).toFixed(0) + 's', repeatCount: 'indefinite',
-        path: 'M0,0 q' + (dir * 140) + ',-30 ' + (dir * 280) + ',10 q' + (dir * 140) + ',40 ' + (dir * 90) + ',-30 q' + (-dir * 260) + ',-20 ' + (-dir * 470) + ',10 Z' });
+      const span = 320 + r() * 220;                     // how far it drifts before restarting
+      const arc = -24 - r() * 26;                        // rise/fall of the glide arc
+      const mv = el('animateMotion', { dur: (30 + r() * 20).toFixed(0) + 's', repeatCount: 'indefinite', calcMode: 'linear',
+        keyPoints: '0;1', keyTimes: '0;1',
+        // start off to one side, arc across, and drift out the other side (curved bezier)
+        path: 'M' + (dir * -span * 0.6).toFixed(0) + ',0 C' + (dir * -span * 0.15).toFixed(0) + ',' + arc.toFixed(0) + ' ' + (dir * span * 0.35).toFixed(0) + ',' + arc.toFixed(0) + ' ' + (dir * span * 0.6).toFixed(0) + ',0' });
       gg.appendChild(mv);
     }
     return gg;
@@ -2449,9 +2485,8 @@
       if (!reduced) { anim(w, 'opacity', '0.55', '0.15', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 60).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
-    // 2 gliding birds on looping arcs across the sky band (each sweeps a wide region; the
-    // flocks above already carry the sky's motion, so 2 is plenty).
-    if (!reduced) for (let i = 0; i < 2; i++) bird(g, 240 + i * 460, 150 + i * 26, 22 + i * 6, 'bird' + i);
+    // (sky birds are drawn as proper 2-wing flocks in paintCreatures — the big single-line
+    // "gliders" that used to sweep here read as bending lines, so they're gone.)
     // player avatar at the active node (lantern-carrying silhouette) — scale + "where am I"
     const ap = pts[activeIdx] || pts[0];
     if (ap) {
@@ -2464,17 +2499,6 @@
       const lan = el('circle', { cx: 11, cy: 2, r: 6, fill: 'url(#nodeGold)' }, av);
       el('circle', { cx: 11, cy: 2, r: 2, fill: C.goldBright }, av);
       if (!reduced) anim(lan, 'opacity', '1', '0.6', '2.4s');
-    }
-    function bird(parent, x, y, sz, seed) {
-      const b = el('path', { d: 'M0,0 q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0', fill: 'none', stroke: 'rgba(230,220,190,.5)', 'stroke-width': 2, 'stroke-linecap': 'round' }, parent);
-      const mv = el('animateMotion', { dur: (22 + hash(seed) % 10) + 's', repeatCount: 'indefinite', rotate: 'auto',
-        path: 'M' + x + ',' + y + ' q160,-40 320,10 q160,50 320,-10' });
-      b.appendChild(mv);
-      const wing = el('animate', { attributeName: 'd', dur: '0.5s', repeatCount: 'indefinite',
-        values: 'M0,0 q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0;' +
-                'M0,0 q-' + sz + ',' + (sz * 0.3) + ' -' + (sz * 2) + ',0 q' + sz + ',' + (sz * 0.3) + ' ' + (sz * 2) + ',0;' +
-                'M0,0 q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0' });
-      b.appendChild(wing);
     }
   }
 
