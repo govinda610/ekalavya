@@ -16,6 +16,44 @@ from .fallback import build_fallback_chat_model
 # A teaching turn can be long (explanations, code); give it room.
 _MAX_TOKENS = 4096
 
+# History budget: the checkpointer replays the WHOLE growing thread every turn, so a long
+# session otherwise re-sends an ever-larger transcript (cost + latency + context-window risk).
+# We window the messages the MODEL sees to the most recent N (the system prompt + our injected
+# per-turn context/preferences are always kept), so old turns fall out of the sent history while
+# still living in the checkpoint. The count is generous — recent continuity matters for teaching.
+_HISTORY_MAX_MESSAGES = 40
+
+
+def _build_history_window_middleware():
+    """A middleware that trims the model's message history to the last _HISTORY_MAX_MESSAGES.
+
+    Uses langchain's `trim_messages` (strategy="last"), keeping the system message and starting
+    the kept window on a human turn so tool-call/tool-result pairs stay valid (an orphaned tool
+    message breaks the provider API). token_counter=len budgets by MESSAGE COUNT — simple and
+    tokenizer-free; the real token cap is the provider's, this just bounds unbounded replay.
+    """
+    from langchain.agents.middleware import AgentMiddleware
+    from langchain_core.messages import trim_messages
+
+    class _HistoryWindowMiddleware(AgentMiddleware):
+        def wrap_model_call(self, request, handler):
+            msgs = request.messages
+            if len(msgs) > _HISTORY_MAX_MESSAGES:
+                trimmed = trim_messages(
+                    msgs,
+                    max_tokens=_HISTORY_MAX_MESSAGES,
+                    token_counter=len,  # budget by message count, not tokens
+                    strategy="last",
+                    start_on="human",       # keep tool-call/result pairs intact
+                    include_system=True,    # never drop the system prompt
+                    allow_partial=False,
+                )
+                if trimmed:  # never send an empty history; fall back to the full list if so
+                    request = request.override(messages=trimmed)
+            return handler(request)
+
+    return _HistoryWindowMiddleware()
+
 # deepagents adds a builtin `execute` shell tool to every agent. We deliberately
 # do NOT want the model to have it: all shell work goes through our own approval-
 # gated `run_bash` tool. Excluding it at the source (rather than only asking the
@@ -159,6 +197,7 @@ def build_agent(system_prompt: str, tools: list, provider: str | None = None,
         model=chat,
         tools=list(tools) + cached_mcp_tools(),  # + web search / docs, when warmed
         system_prompt=system_prompt,
+        middleware=[_build_history_window_middleware()],  # window the replayed history
         backend=build_backend(),  # read-broad host + write-confined /workspace
         checkpointer=checkpointer,
         interrupt_on={"run_bash": {"allowed_decisions": ["approve", "reject"]}},  # human approval

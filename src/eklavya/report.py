@@ -649,18 +649,37 @@ def session_context_line() -> str:
     return "[session context — " + " · ".join(parts) + "]"
 
 
+# Cap the injected preferences block so it can't grow unbounded every turn (context budget):
+# at most this many preferences, each value clipped to this many chars.
+_MAX_PREFS = 12
+_MAX_PREF_VALUE_LEN = 160
+
+
 def preferences_block() -> str:
     """A compact 'Learner preferences:' block of the durable teaching preferences the learner
     has saved (via remember_preference), so every session honours them — just as the profile is
-    loaded. Empty string when none are set, so it adds nothing to the turn."""
+    loaded. Empty string when none are set, so it adds nothing to the turn.
+
+    Bounded on purpose (it rides on EVERY turn): at most `_MAX_PREFS` preferences, each value
+    clipped to `_MAX_PREF_VALUE_LEN` chars, so a pile of long saved preferences can't bloat the
+    per-turn context. Most-recently-updated preferences win the cap."""
     conn = connect()
     try:
-        rows = conn.execute("SELECT key, value FROM learning_prefs ORDER BY key").fetchall()
+        rows = conn.execute(
+            "SELECT key, value FROM learning_prefs ORDER BY updated_at DESC, key LIMIT ?",
+            (_MAX_PREFS,),
+        ).fetchall()
     finally:
         conn.close()
     if not rows:
         return ""
-    items = "; ".join(f"{r['key']}: {r['value']}" for r in rows if (r["value"] or "").strip())
+
+    def _clip_value(v: str) -> str:
+        v = (v or "").strip()
+        return v if len(v) <= _MAX_PREF_VALUE_LEN else v[:_MAX_PREF_VALUE_LEN].rstrip() + "…"
+
+    items = "; ".join(f"{r['key']}: {_clip_value(r['value'])}"
+                      for r in sorted(rows, key=lambda r: r["key"]) if (r["value"] or "").strip())
     if not items:
         return ""
     return "[Learner preferences — " + items + "]"
