@@ -82,8 +82,9 @@ def test_export_csv_writes_header_and_rows():
         rows = list(csv.DictReader(f))
     assert list(rows[0].keys()) == effectiveness.EXPORT_COLUMNS
     assert len(rows) == 4
-    # pillar/axis recovered from rating_history pairing; ratings present
-    assert rows[0]["pillar"] == "Python" and rows[0]["axis"] == "syntax_recall"
+    # pillar/axis recovered from rating_history pairing; ratings present.
+    # Legacy 'syntax_recall' is remapped losslessly onto the CORE axis 'recall'.
+    assert rows[0]["pillar"] == "Python" and rows[0]["axis"] == "recall"
     assert rows[0]["concept"] == "list comprehension"
     assert rows[0]["rating_after"] and rows[0]["rating_before"]
 

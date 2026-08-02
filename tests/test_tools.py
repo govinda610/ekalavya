@@ -75,6 +75,8 @@ def test_add_goal_and_list():
 
 
 def test_mastery_summary_reads_back_levels():
+    # Legacy coding axis names are accepted and remapped losslessly onto the new CORE:
+    # syntax_recall → recall (subject framework, plan §4.1). The rating is preserved.
     tools.set_baseline_rating("Python idioms", "syntax_recall", "familiar")
     summary = tools.mastery_summary()
-    assert "Python idioms / syntax_recall: familiar" in summary
+    assert "Python idioms / recall: familiar" in summary

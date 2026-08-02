@@ -15,11 +15,17 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config
+from . import subjects
 from .config import ensure_home
 from .db import connect
 
-# Atrophy's five cross-cutting skill axes, measured within every pillar.
+# Legacy coding axes — kept as the module-level name many callers/tests still import.
+# The subject-aware axis sets now live in the registry (subjects.py); coding's current
+# axis set is recall/application/transfer + debugging/code_reading/api_memory. This tuple
+# is retained for back-compat (the old grid/prompts/tests reference it).
 AXES = ("syntax_recall", "debugging", "code_reading", "api_memory", "decomposition")
+
+DEFAULT_SUBJECT = subjects.DEFAULT_SUBJECT
 
 # Baseline mastery levels map to starting Elo-style ratings.
 LEVELS = {"unknown": 800.0, "gap": 950.0, "familiar": 1150.0, "strong": 1400.0}
@@ -49,16 +55,20 @@ def save_profile(markdown: str) -> str:
     return f"saved profile ({len(markdown)} chars) to {profile}"
 
 
-def add_pillar(name: str, is_custom: bool = True) -> str:
+def add_pillar(name: str, is_custom: bool = True, subject: str = DEFAULT_SUBJECT) -> str:
     """Create a topic pillar such as 'Python idioms' or 'LangGraph'.
 
     Set is_custom=True for pillars derived from the learner's own goals or repos.
+    subject is the registry key this pillar belongs to (defaults to coding).
     """
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        subject = DEFAULT_SUBJECT
     conn = connect()
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, ?)",
-            (name.strip(), int(is_custom)),
+            "INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, ?, ?)",
+            (name.strip(), int(is_custom), subject),
         )
         conn.commit()
     finally:
@@ -66,32 +76,39 @@ def add_pillar(name: str, is_custom: bool = True) -> str:
     return f"pillar '{name}' ready"
 
 
-def set_baseline_rating(pillar: str, axis: str, level: str) -> str:
-    """Record a baseline mastery level for one (pillar, axis) cell of the grid.
+def set_baseline_rating(pillar: str, axis: str, level: str, subject: str = DEFAULT_SUBJECT) -> str:
+    """Record a baseline mastery level for one (subject, pillar, axis) cell of the grid.
 
-    axis:  one of syntax_recall, debugging, code_reading, api_memory, decomposition.
-    level: one of unknown, gap, familiar, strong.
-    Creates the pillar if it doesn't exist yet.
+    subject: one of the registry keys (coding, maths, stats, ml, cs_theory). Defaults to coding.
+    axis:    a CORE axis (recall/application/derivation_proof/interpretation/synthesis/transfer)
+             or one of the subject's extensions. Legacy coding names (syntax_recall,
+             decomposition) are accepted and remapped losslessly.
+    level:   one of unknown, gap, familiar, strong. Creates the pillar if it doesn't exist yet.
     """
-    if axis not in AXES:
-        return f"unknown axis '{axis}'; use one of: {', '.join(AXES)}"
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'; use one of: {', '.join(s.key for s in subjects.all_subjects())}"
+    axis = subjects.remap_axis(axis)  # legacy syntax_recall→recall / decomposition→synthesis
+    if not subjects.valid_axis(subject, axis):
+        return f"unknown axis '{axis}' for {subject}; use one of: {', '.join(subjects.axes_for(subject))}"
     if level not in LEVELS:
         return f"unknown level '{level}'; use one of: {', '.join(LEVELS)}"
     conn = connect()
     try:
-        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, 1)", (pillar.strip(),))
+        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, 1, ?)",
+                     (pillar.strip(), subject))
         pid = conn.execute("SELECT id FROM pillars WHERE name = ?", (pillar.strip(),)).fetchone()["id"]
         conn.execute(
-            """INSERT INTO ratings(pillar_id, axis, rating, confidence, first_seen, last_practiced)
-               VALUES(?, ?, ?, ?, ?, ?)
-               ON CONFLICT(pillar_id, axis)
+            """INSERT INTO ratings(pillar_id, axis, subject, rating, confidence, first_seen, last_practiced)
+               VALUES(?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(pillar_id, axis, subject)
                DO UPDATE SET rating = excluded.rating, last_practiced = excluded.last_practiced""",
-            (pid, axis, LEVELS[level], 0.3, _now(), _now()),
+            (pid, axis, subject, LEVELS[level], 0.3, _now(), _now()),
         )
         conn.commit()
     finally:
         conn.close()
-    return f"{pillar} / {axis} = {level}"
+    return f"{subject} / {pillar} / {axis} = {level}"
 
 
 def add_goal(horizon: str, text: str, deadline: str = "") -> str:
@@ -150,17 +167,23 @@ def list_goals() -> str:
     )
 
 
-def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
+def add_curriculum(concept: str, prereqs: str = "", pillar: str = "",
+                   subject: str = DEFAULT_SUBJECT) -> str:
     """Add a concept to the learner's curriculum graph (a skill tree). `prereqs` is a
     PIPE-delimited (|) list of EXACT concept names to master first — concept names can
-    contain commas, so never comma-join. Empty for a starting concept.
+    contain commas, so never comma-join. Empty for a starting concept. `subject` is the
+    registry key this concept belongs to (defaults to coding).
     """
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        subject = DEFAULT_SUBJECT
     conn = connect()
     try:
         conn.execute(
-            "INSERT INTO curriculum(concept, prereqs, pillar) VALUES(?, ?, ?) "
-            "ON CONFLICT(concept) DO UPDATE SET prereqs=excluded.prereqs, pillar=excluded.pillar",
-            (concept.strip(), prereqs.strip(), pillar.strip()),
+            "INSERT INTO curriculum(concept, prereqs, pillar, subject) VALUES(?, ?, ?, ?) "
+            "ON CONFLICT(concept) DO UPDATE SET prereqs=excluded.prereqs, pillar=excluded.pillar, "
+            "subject=excluded.subject",
+            (concept.strip(), prereqs.strip(), pillar.strip(), subject),
         )
         conn.commit()
     finally:
@@ -240,10 +263,13 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
     """
     n = {"pillars": 0, "ratings": 0, "goals": 0, "curriculum": 0}
     for p in pillars or []:
-        add_pillar(p)
+        if isinstance(p, dict):
+            add_pillar(p["name"], subject=p.get("subject", DEFAULT_SUBJECT))
+        else:
+            add_pillar(p)
         n["pillars"] += 1
     for r in ratings or []:
-        set_baseline_rating(r["pillar"], r["axis"], r["level"])
+        set_baseline_rating(r["pillar"], r["axis"], r["level"], r.get("subject", DEFAULT_SUBJECT))
         n["ratings"] += 1
     for g in goals or []:
         add_goal(g["horizon"], g["text"], g.get("deadline", ""))
@@ -252,7 +278,8 @@ def save_baseline(pillars: list | None = None, ratings: list | None = None,
         if replace_curriculum:
             clear_curriculum()
         for c in curriculum:
-            add_curriculum(c["concept"], c.get("prereqs", ""), c.get("pillar", ""))
+            add_curriculum(c["concept"], c.get("prereqs", ""), c.get("pillar", ""),
+                           c.get("subject", DEFAULT_SUBJECT))
             n["curriculum"] += 1
     return (f"saved: {n['pillars']} pillars, {n['ratings']} ratings, "
             f"{n['goals']} goals, {n['curriculum']} curriculum nodes")
@@ -342,6 +369,11 @@ def run_bash(command: str, explanation: str) -> str:
     return _clip(out or f"(exit {r.returncode}, no output)")
 
 
+# Partial-credit pass threshold: a fractional score ≥ τ counts as `correct` (binary
+# back-compat + Tier-1). Global (locked decision), plan §5.3.
+PASS_THRESHOLD = 0.5
+
+
 def record_attempt(
     pillar: str,
     axis: str,
@@ -350,52 +382,75 @@ def record_attempt(
     correct: bool,
     seconds: float = 0.0,
     ai_off: bool = True,
+    subject: str = DEFAULT_SUBJECT,
+    score: float | None = None,
+    answer_type: str = "code",
 ) -> str:
     """Record one graded attempt: updates the rating, schedules the review, logs
     it, awards XP, and extends the streak. Call this after each drill is judged.
 
-    axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
+    subject: registry key (coding/maths/stats/ml/cs_theory); defaults to coding.
+    axis: a CORE axis or a subject extension (legacy coding names remapped losslessly).
     confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
+    score: optional partial-credit fraction ∈ [0,1]. When given, Elo consumes the fraction
+           and `correct` is derived as score ≥ τ (0.5); otherwise the passed `correct` is used
+           and score is stored as its 0/1 equivalent.
     """
     from . import progress
     from .scheduling import schedule
     from .scoring import level_of, tighten, update_elo
 
-    if axis not in AXES:
-        return f"unknown axis '{axis}'; use one of: {', '.join(AXES)}"
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'; use one of: {', '.join(s.key for s in subjects.all_subjects())}"
+    axis = subjects.remap_axis(axis)
+    if not subjects.valid_axis(subject, axis):
+        return f"unknown axis '{axis}' for {subject}; use one of: {', '.join(subjects.axes_for(subject))}"
+
+    # Resolve the score fraction + the binary correct (thresholded at τ) coherently.
+    if score is not None:
+        frac = max(0.0, min(1.0, float(score)))
+        correct_bool = frac >= PASS_THRESHOLD
+    else:
+        correct_bool = bool(correct)
+        frac = 1.0 if correct_bool else 0.0
 
     conn = connect()
     try:
-        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom) VALUES(?, 1)", (pillar.strip(),))
+        conn.execute("INSERT OR IGNORE INTO pillars(name, is_custom, subject) VALUES(?, 1, ?)",
+                     (pillar.strip(), subject))
         pid = conn.execute("SELECT id FROM pillars WHERE name = ?", (pillar.strip(),)).fetchone()["id"]
         row = conn.execute(
-            "SELECT rating, confidence FROM ratings WHERE pillar_id = ? AND axis = ?", (pid, axis)
+            "SELECT rating, confidence FROM ratings WHERE pillar_id = ? AND axis = ? AND subject = ?",
+            (pid, axis, subject),
         ).fetchone()
         current = row["rating"] if row else 1000.0
         band = row["confidence"] if row else 0.0
-        new_rating = update_elo(current, bool(correct), int(confidence))
+        new_rating = update_elo(current, frac, int(confidence))
         conn.execute(
-            """INSERT INTO ratings(pillar_id, axis, rating, confidence, first_seen, last_practiced)
-               VALUES(?, ?, ?, ?, ?, ?)
-               ON CONFLICT(pillar_id, axis)
+            """INSERT INTO ratings(pillar_id, axis, subject, rating, confidence, first_seen, last_practiced)
+               VALUES(?, ?, ?, ?, ?, ?, ?)
+               ON CONFLICT(pillar_id, axis, subject)
                DO UPDATE SET rating = excluded.rating, confidence = excluded.confidence,
                              last_practiced = excluded.last_practiced""",
-            (pid, axis, new_rating, tighten(band), _now(), _now()),
+            (pid, axis, subject, new_rating, tighten(band), _now(), _now()),
         )
         conn.execute(
-            "INSERT INTO rating_history(pillar, axis, old_rating, new_rating) VALUES(?, ?, ?, ?)",
-            (pillar.strip(), axis, current, new_rating),
+            "INSERT INTO rating_history(pillar, axis, subject, old_rating, new_rating) VALUES(?, ?, ?, ?, ?)",
+            (pillar.strip(), axis, subject, current, new_rating),
         )
         conn.execute(
-            """INSERT INTO attempts(item_id, session_id, confidence, correct, seconds, ai_off, detail)
-               VALUES(NULL, ?, ?, ?, ?, ?, ?)""",
-            (progress.current_session(conn), int(confidence), int(bool(correct)),
-             float(seconds), int(bool(ai_off)), concept),
+            """INSERT INTO attempts(item_id, session_id, confidence, correct, seconds, ai_off,
+                                    detail, subject, answer_type, score)
+               VALUES(NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (progress.current_session(conn), int(confidence), int(correct_bool),
+             float(seconds), int(bool(ai_off)), concept, subject, answer_type, frac),
         )
         conn.commit()
     finally:
         conn.close()
 
+    correct = correct_bool
     due = schedule(concept, bool(correct), int(confidence))
     xp = (12 if correct else 3) + (5 if ai_off else 0) + (2 if correct and confidence >= 3 else 0)
     total_xp = progress.award_xp(xp, label=concept, cause="attempt")

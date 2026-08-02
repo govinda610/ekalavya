@@ -183,8 +183,9 @@ def dose() -> dict:
 
 # The tidy one-row-per-attempt schema. Fixed order so CSV headers and JSONL keys match.
 EXPORT_COLUMNS = [
-    "attempt_id", "created_at", "pillar", "axis", "concept", "confidence",
-    "correct", "ai_off", "seconds", "session_id", "rating_before", "rating_after",
+    "attempt_id", "created_at", "subject", "pillar", "axis", "concept", "confidence",
+    "correct", "score", "answer_type", "ai_off", "seconds", "session_id",
+    "rating_before", "rating_after",
 ]
 
 
@@ -202,8 +203,8 @@ def attempt_rows() -> list[dict]:
     conn = connect()
     try:
         attempts = conn.execute(
-            "SELECT id, created_at, detail, confidence, correct, ai_off, seconds, session_id "
-            "FROM attempts ORDER BY id"
+            "SELECT id, created_at, detail, confidence, correct, ai_off, seconds, session_id, "
+            "subject, answer_type, score FROM attempts ORDER BY id"
         ).fetchall()
         history = conn.execute(
             "SELECT pillar, axis, old_rating, new_rating FROM rating_history ORDER BY id"
@@ -217,11 +218,14 @@ def attempt_rows() -> list[dict]:
         rows.append({
             "attempt_id": a["id"],
             "created_at": a["created_at"],
+            "subject": a["subject"],
             "pillar": h["pillar"] if h else None,
             "axis": h["axis"] if h else None,
             "concept": a["detail"],
             "confidence": a["confidence"],
             "correct": a["correct"],
+            "score": a["score"],
+            "answer_type": a["answer_type"],
             "ai_off": a["ai_off"],
             "seconds": a["seconds"],
             "session_id": a["session_id"],

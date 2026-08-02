@@ -8,7 +8,7 @@ from pathlib import Path
 from .. import config
 
 SCHEMA = Path(__file__).with_name("schema.sql")
-SCHEMA_VERSION = "1"
+SCHEMA_VERSION = "2"
 
 
 def _migrate_home_to_workspace() -> None:
@@ -135,8 +135,129 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "id INTEGER PRIMARY KEY, kind TEXT NOT NULL, label TEXT NOT NULL, value TEXT, "
         "occurred_at TEXT, note TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
+    # === Unified Subject Framework (docs/UNIFIED_SUBJECT_FRAMEWORK_PLAN.md) ===
+    # Additive + guarded + reversible: create the registry tables, add `subject`/answer_type/
+    # score columns (backfilling legacy rows to 'coding'), and rebuild `ratings` (UNIQUE change +
+    # legacy axis remap) via copy-verify-swap that KEEPS the old table until parity is confirmed.
+    _migrate_subject_framework(conn)
+
     from .. import benchmark
     benchmark.seed_items(conn)
+
+
+def _add_col(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
+    """Guarded ADD COLUMN — only if the table exists and the column is absent (idempotent)."""
+    present = {r["name"] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    if table not in present:
+        return
+    cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if col not in cols:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+
+
+def _seed_registry(conn: sqlite3.Connection) -> None:
+    """Idempotently seed the `subjects` + `axes` catalog from subjects.py (the authoritative
+    in-code definition). Matched on `key`; never overwrites an existing (possibly custom) row."""
+    from .. import subjects
+    for s in subjects.all_subjects():
+        conn.execute(
+            "INSERT OR IGNORE INTO subjects(key, name, core_axes, ext_axes, answer_types, is_custom) "
+            "VALUES(?, ?, ?, ?, ?, ?)",
+            (s.key, s.name, "|".join(s.core_axes), "|".join(s.ext_axes),
+             "|".join(s.answer_types), int(s.is_custom)),
+        )
+    for key, kind, label in subjects.all_axis_catalog():
+        conn.execute("INSERT OR IGNORE INTO axes(key, kind, label) VALUES(?, ?, ?)", (key, kind, label))
+
+
+def _rebuild_ratings_with_subject(conn: sqlite3.Connection) -> None:
+    """Relax ratings' UNIQUE(pillar_id, axis) → UNIQUE(pillar_id, axis, subject) and apply the
+    legacy axis remap — the reversible copy-verify-swap used elsewhere in this codebase.
+
+    SQLite can't ALTER a UNIQUE constraint in place, so: build ratings_v2 with the new
+    constraint, INSERT ... SELECT (stamping subject='coding' and remapping legacy axes),
+    verify row parity, then swap names KEEPING the original as ratings_legacy until the
+    next run — never a DROP of live data, so a failed migration leaves the original intact.
+    """
+    from .. import subjects
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(ratings)")}
+    if not cols or "subject" in cols:
+        return  # already migrated (fresh DB gets the new schema straight from schema.sql)
+
+    conn.execute("DROP TABLE IF EXISTS ratings_v2")
+    conn.execute(
+        "CREATE TABLE ratings_v2 ("
+        "  id INTEGER PRIMARY KEY, pillar_id INTEGER NOT NULL REFERENCES pillars(id), "
+        "  axis TEXT NOT NULL, subject TEXT NOT NULL DEFAULT 'coding', "
+        "  rating REAL NOT NULL DEFAULT 1000, confidence REAL NOT NULL DEFAULT 0, "
+        "  first_seen TEXT, last_practiced TEXT, UNIQUE (pillar_id, axis, subject))"
+    )
+    # Copy every legacy row, remapping the axis label (syntax_recall→recall,
+    # decomposition→synthesis) so historical ratings land on the new CORE losslessly.
+    old_rows = conn.execute(
+        "SELECT id, pillar_id, axis, rating, confidence, first_seen, last_practiced FROM ratings"
+    ).fetchall()
+    for r in old_rows:
+        conn.execute(
+            "INSERT INTO ratings_v2(id, pillar_id, axis, subject, rating, confidence, "
+            "first_seen, last_practiced) VALUES(?, ?, ?, 'coding', ?, ?, ?, ?)",
+            (r["id"], r["pillar_id"], subjects.remap_axis(r["axis"]), r["rating"],
+             r["confidence"], r["first_seen"], r["last_practiced"]),
+        )
+    before = conn.execute("SELECT COUNT(*) AS c FROM ratings").fetchone()["c"]
+    after = conn.execute("SELECT COUNT(*) AS c FROM ratings_v2").fetchone()["c"]
+    if before != after:
+        conn.execute("DROP TABLE ratings_v2")  # abort: leave the original untouched
+        raise RuntimeError(f"ratings rebuild parity FAILED — before={before} after={after}")
+    # Swap: keep the original as ratings_legacy (reversible), promote the new table.
+    conn.execute("DROP TABLE IF EXISTS ratings_legacy")
+    conn.execute("ALTER TABLE ratings RENAME TO ratings_legacy")
+    conn.execute("ALTER TABLE ratings_v2 RENAME TO ratings")
+
+
+def _migrate_subject_framework(conn: sqlite3.Connection) -> None:
+    """Additive, guarded migration for the unified subject framework (plan §6)."""
+    # New registry tables (belt-and-braces; init_db also runs schema.sql's CREATEs).
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS subjects ("
+        "id INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, name TEXT NOT NULL, "
+        "core_axes TEXT NOT NULL, ext_axes TEXT, answer_types TEXT, "
+        "is_custom INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))"
+    )
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS axes ("
+        "id INTEGER PRIMARY KEY, key TEXT NOT NULL UNIQUE, "
+        "kind TEXT NOT NULL DEFAULT 'core', label TEXT)"
+    )
+    # Additive `subject`/answer_type/score columns, backfilling legacy rows to 'coding'.
+    _add_col(conn, "pillars", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "curriculum", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "cards", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "rating_history", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "attempts", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "attempts", "answer_type", "TEXT NOT NULL DEFAULT 'code'")
+    _add_col(conn, "attempts", "score", "REAL")
+    _add_col(conn, "benchmark_items", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "benchmark_items", "answer_type", "TEXT NOT NULL DEFAULT 'code'")
+    _add_col(conn, "benchmark_items", "tolerance", "TEXT")
+    _add_col(conn, "benchmark_items", "rubric", "TEXT")
+    _add_col(conn, "assessments", "subject", "TEXT NOT NULL DEFAULT 'coding'")
+    _add_col(conn, "assessment_responses", "score", "REAL")
+    _add_col(conn, "assessment_responses", "criteria_json", "TEXT")
+    # Legacy attempts: remap the axis stored in rating_history (attempts store concept in
+    # `detail`, axis lives in rating_history). Value updates on existing rows, fully reversible.
+    _remap_legacy_axes(conn)
+    # Rebuild ratings for the UNIQUE(...,subject) change + axis remap (copy-verify-swap).
+    _rebuild_ratings_with_subject(conn)
+    # Seed the registry (subjects + axes catalog) from the authoritative in-code definition.
+    _seed_registry(conn)
+
+
+def _remap_legacy_axes(conn: sqlite3.Connection) -> None:
+    """Apply the legacy coding-axis remap to rating_history rows (idempotent value update)."""
+    from .. import subjects
+    for old, new in subjects.LEGACY_AXIS_REMAP.items():
+        conn.execute("UPDATE rating_history SET axis = ? WHERE axis = ?", (new, old))
 
 
 def init_db(path: Path | None = None) -> Path:
