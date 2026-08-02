@@ -544,6 +544,89 @@ def grade_and_record_subject(
     return _clip(f"{verdict} ({atype} grader, deterministic: {res.detail})\n\n{summary}")
 
 
+def grade_rubric(
+    pillar: str,
+    axis: str,
+    concept: str,
+    prompt: str,
+    answer: str,
+    reference: str,
+    rubric: list,
+    confidence: int,
+    subject: str = DEFAULT_SUBJECT,
+    answer_type: str = "proof",
+    seconds: float = 0.0,
+) -> str:
+    """Grade a NON-DETERMINISTIC answer (proof / interpretation / explanation) with the
+    constrained rubric judge and record the partial-credit result (plan §5.2–5.4).
+
+    The judge is a DIFFERENT model than the tutor, grades the learner's `answer` ONLY
+    against the stored `reference` + the structured `rubric`, is doc-grounded, and runs
+    k=1 (single pass; the raw verdict is logged for optional human audit). It returns a
+    per-criterion breakdown → a weighted fraction ∈ [0,1]. Criteria may be axis-tagged
+    ({"axis": "interpretation"}), so one multi-part answer updates several axis cells with
+    the right partial weights; the fallback `axis` catches untagged criteria.
+
+    `rubric` is a list of {"id", "description", "weight"?, "axis"?}. Fail-open: if the judge
+    is unavailable, nothing is recorded and a note is returned (never a fabricated score).
+    """
+    import json
+
+    from . import verify
+
+    subject = (subject or DEFAULT_SUBJECT).strip()
+    if not subjects.exists(subject):
+        return f"unknown subject '{subject}'"
+    rubric_list = list(rubric or [])
+    res = verify.rubric_judge(prompt, answer, reference, rubric_list, subject=subject)
+    if not res.get("ok") or res.get("score") is None:
+        return (f"rubric grading unavailable ({res.get('reason', 'judge error')}); "
+                "nothing recorded — configure a second provider to enable judged grading.")
+
+    # Deterministic sub-checks OVERRIDE the judge on the parts a ground-truth grader can
+    # check (plan §5.2.6). A rubric criterion may carry {"check": {"answer_type", "answer",
+    # "value"}} — an objective sub-part; if so, that grader's fraction replaces the judge's
+    # for that criterion, so the model can't talk its way past a checkable fact.
+    from . import graders
+    det_index = {c.get("id"): c for c in rubric_list if c.get("check")}
+
+    # Group per-criterion fractions by their axis (untagged criteria fall to `axis`), so a
+    # multi-part answer updates each competency cell with its own weighted partial credit.
+    by_axis: dict[str, list[tuple[float, float]]] = {}
+    for c in res["criteria"]:
+        frac = float(c["fraction"])
+        spec = det_index.get(c["id"])
+        if spec:
+            chk = spec["check"]
+            try:
+                dres = graders.grade(chk.get("value", ""),
+                                     {"answer_type": chk.get("answer_type"),
+                                      "answer": chk.get("answer"), "tolerance": chk.get("tolerance", "")})
+                frac = dres.score  # deterministic verdict wins on this criterion
+            except ValueError:
+                pass
+        ax = subjects.remap_axis(c.get("axis") or axis)
+        if not subjects.valid_axis(subject, ax):
+            ax = subjects.remap_axis(axis)  # keep the record on a valid cell
+        by_axis.setdefault(ax, []).append((float(c["weight"]), frac))
+
+    recorded: list[str] = []
+    first_axis = subjects.remap_axis(axis)
+    for ax, parts in by_axis.items():
+        w = sum(p[0] for p in parts) or 1.0
+        frac = sum(p[0] * p[1] for p in parts) / w
+        record_attempt(pillar, ax, concept, confidence, frac >= PASS_THRESHOLD, seconds,
+                       ai_off=True, subject=subject, score=frac, answer_type=answer_type)
+        recorded.append(f"{ax} {frac:.2f}")
+
+    verdict = "PASS ✓" if res["score"] >= PASS_THRESHOLD else "PARTIAL"
+    detail = json.dumps({"score": res["score"], "model": res["model"],
+                         "criteria": [{k: c[k] for k in ("id", "axis", "verdict", "fraction")}
+                                      for c in res["criteria"]]})
+    return _clip(f"{verdict} (rubric judge, k=1, score {res['score']:.2f}; "
+                 f"axes: {', '.join(recorded)})\naudit: {detail}")
+
+
 def progress_report() -> str:
     """Return the learner's streak, XP, level, and current mastery grid."""
     from . import progress
@@ -805,8 +888,8 @@ from .resume import read_resume  # noqa: E402
 #     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
 #     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
 AGENT_TOOLS = [
-    grade_and_record, grade_and_record_subject, web_search, read_github, read_resume,
-    get_questions, add_question, record_attempt, save_baseline, suggest_focus,
+    grade_and_record, grade_and_record_subject, grade_rubric, web_search, read_github,
+    read_resume, get_questions, add_question, record_attempt, save_baseline, suggest_focus,
     review_ai_usage, record_bug_verdict, save_artifact, run_bash,
 ]
 
