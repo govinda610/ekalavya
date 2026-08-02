@@ -483,21 +483,29 @@
     }
   }
 
-  // Golden temple — a stepped shikhara/stupa complex, the journey's destination.
+  // Golden temple — a stepped shikhara/stupa complex, the journey's destination. The temple
+  // RESPONDS TO PROGRESS (backlog): dim + a shut gate when far from completion; steadily
+  // brighter, then blazing with an OPEN gate as the mastered-fraction rises — so the goal
+  // visibly pulls the learner forward. `pct` is the mastered-grove fraction (0..1).
   function paintTemple(g, tp, reduced, groves) {
-    // divine radiance — a broad sacred sunburst halo behind the shikhara
-    const divine = el('circle', { cx: tp.x, cy: tp.y + 20, r: 210, fill: 'url(#divineG)' }, g);
-    if (!reduced) anim(divine, 'opacity', '1', '0.7', '8s');
-    // a slow-turning aureole of fine rays (nimbus) — the mandir as a place of light
-    const aur = el('g', { transform: 'translate(' + tp.x + ',' + (tp.y + 10) + ')', opacity: 0.3 }, g);
+    const pct = (groves && groves.length) ? groves.filter(gv => gv.status === 'blossoming').length / groves.length : 0;
+    const lum = 0.35 + pct * 0.65;               // overall temple luminance 0.35 (far) … 1 (done)
+    const gateOpen = pct >= 0.999;               // the sanctum gate opens only at full mastery
+    // divine radiance — grows from a faint ember to a broad sacred sunburst as pct rises
+    const divine = el('circle', { cx: tp.x, cy: tp.y + 20, r: (150 + pct * 90).toFixed(0), fill: 'url(#divineG)', opacity: (0.4 + pct * 0.6).toFixed(2) }, g);
+    if (!reduced) anim(divine, 'opacity', (0.4 + pct * 0.6).toFixed(2), (0.28 + pct * 0.42).toFixed(2), '8s');
+    // a slow-turning aureole of fine rays (nimbus) — brighter with progress
+    const aur = el('g', { transform: 'translate(' + tp.x + ',' + (tp.y + 10) + ')', opacity: (0.14 + pct * 0.3).toFixed(2) }, g);
     for (let i = 0; i < 40; i++) {
       const a = i * Math.PI / 20, r1 = 96, r2 = i % 2 ? 150 : 186;
       el('line', { x1: (Math.cos(a) * r1).toFixed(1), y1: (Math.sin(a) * r1).toFixed(1), x2: (Math.cos(a) * r2).toFixed(1), y2: (Math.sin(a) * r2).toFixed(1), stroke: 'rgba(247,217,138,.5)', 'stroke-width': i % 2 ? 1.4 : 0.7 }, aur);
     }
     if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0 0 10', to: '360 0 10', dur: '120s', repeatCount: 'indefinite', additive: 'sum' }); aur.appendChild(rot); }
-    const glow = el('circle', { cx: tp.x, cy: tp.y + 6, r: 150, fill: 'url(#templeGlow)' }, g);
-    if (!reduced) anim(glow, 'opacity', '1', '0.72', '6s');
-    const t = el('g', { transform: 'translate(' + tp.x + ',' + tp.y + ')' }, g);
+    const glow = el('circle', { cx: tp.x, cy: tp.y + 6, r: (110 + pct * 70).toFixed(0), fill: 'url(#templeGlow)', opacity: (0.5 + pct * 0.5).toFixed(2) }, g);
+    if (!reduced) anim(glow, 'opacity', (0.5 + pct * 0.5).toFixed(2), (0.4 + pct * 0.32).toFixed(2), '6s');
+    // the shikhara itself dims a touch when far from completion (a distant, quiet goal) and
+    // brightens to full gold as pct rises — architecture stays fully readable throughout.
+    const t = el('g', { transform: 'translate(' + tp.x + ',' + tp.y + ')', opacity: (0.7 + pct * 0.3).toFixed(2) }, g);
     // short light shafts fanning down from the temple onto the treeline (long overlay rays
     // are drawn in paintGodRays, above the ground, so they read over the forest).
     const rays = el('g', { opacity: 0.5, filter: 'url(#soft2)' }, t);
@@ -545,12 +553,36 @@
       const px = i * 30, py = 40 - (1 - Math.abs(i) / 3.4) * 44;
       el('path', { d: 'M' + (px - 4) + ',' + py + ' Q' + px + ',' + (py + 9) + ' ' + (px + 4) + ',' + py + ' Z', fill: C.goldBright, opacity: 0.8 }, tor);
     }
-    // glowing sanctum DOORWAY with an aum, flanked by two diyas
+    // sanctum GATE — RESPONDS TO PROGRESS. Far from completion it's a SHUT dark gate (two
+    // door-leaves, only a thin light seam); as pct rises the inner light strengthens; at full
+    // mastery the gate stands OPEN with a blazing sanctum behind it. The archway frame is always
+    // drawn; the door-leaves + inner glow reflect the state.
     const door = el('g', {}, t);
-    el('path', { d: 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z', fill: 'rgba(255,240,196,.9)', filter: 'url(#glow)' }, door);
-    el('path', { d: 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z', fill: 'none', stroke: C.goldDeep, 'stroke-width': 2 }, door);
-    el('text', { x: 0, y: 80, 'text-anchor': 'middle', 'font-family': 'Tiro Devanagari Hindi, serif', 'font-size': 20, fill: '#7a4a12' }, door).textContent = 'ॐ';
-    [-40, 40].forEach(dx => { el('circle', { cx: dx, cy: 90, r: 6, fill: 'url(#diyaG)' }, door); el('circle', { cx: dx, cy: 90, r: 1.6, fill: '#fff8e4' }, door); });
+    const arch = 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z';
+    // inner sanctum light — dim ember when locked, blazing gold when open
+    const innerOp = 0.28 + pct * 0.72;
+    const innerAttrs = { d: arch, fill: gateOpen ? 'rgba(255,244,196,.95)' : ('rgba(255,240,196,' + innerOp.toFixed(2) + ')') };
+    if (gateOpen) innerAttrs.filter = 'url(#glow)';
+    el('path', innerAttrs, door);
+    if (!gateOpen) {
+      // two shut door-leaves covering the sanctum (darker the further from completion)
+      const leafShade = shade('#5a3a12', pct * 0.4);
+      el('path', { d: 'M-15,93 L-15,58 Q-8,49 0,49 L0,93 Z', fill: leafShade, stroke: C.goldDeep, 'stroke-width': 0.8 }, door);
+      el('path', { d: 'M15,93 L15,58 Q8,49 0,49 L0,93 Z', fill: shade(leafShade, -0.06), stroke: C.goldDeep, 'stroke-width': 0.8 }, door);
+      // a thin warm light seam between the leaves (hope) + door-ring handles
+      el('line', { x1: 0, y1: 50, x2: 0, y2: 93, stroke: '#ffe9ad', 'stroke-width': 1, opacity: (0.4 + pct * 0.5).toFixed(2) }, door);
+      el('circle', { cx: -5, cy: 74, r: 1.6, fill: C.goldBright, opacity: 0.7 }, door); el('circle', { cx: 5, cy: 74, r: 1.6, fill: C.goldBright, opacity: 0.7 }, door);
+    } else {
+      // OPEN: the aum glyph shines in the blazing sanctum; the leaves are swung aside
+      el('text', { x: 0, y: 80, 'text-anchor': 'middle', 'font-family': 'Tiro Devanagari Hindi, serif', 'font-size': 20, fill: '#7a4a12' }, door).textContent = 'ॐ';
+      el('path', { d: 'M-15,93 L-15,58 Q-13,54 -11,53 L-11,93 Z', fill: '#5a3a12', opacity: 0.8 }, door);   // leaf swung to the jamb
+      el('path', { d: 'M15,93 L15,58 Q13,54 11,53 L11,93 Z', fill: '#4a300f', opacity: 0.8 }, door);
+    }
+    el('path', { d: arch, fill: 'none', stroke: C.goldDeep, 'stroke-width': 2 }, door);
+    // flanking diyas — brighter after dusk / with progress
+    const tod = timeOfDay();
+    const diyaBoost = (tod.night || tod.phase === 'dusk') ? 1 : 0.85;
+    [-40, 40].forEach(dx => { el('circle', { cx: dx, cy: 90, r: (5 + pct * 2).toFixed(1), fill: 'url(#diyaG)', opacity: diyaBoost }, door); el('circle', { cx: dx, cy: 90, r: 1.6, fill: '#fff8e4' }, door); });
     // marigold TORAN garland swagging across the front of the plinth
     const gar = el('g', {}, t);
     for (let i = 0; i <= 26; i++) {
