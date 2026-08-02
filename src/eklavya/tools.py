@@ -576,7 +576,7 @@ def record_attempt(
 
 def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
                      confidence: int, reference: str, seconds: float = 0.0,
-                     ai_off: bool = True) -> str:
+                     ai_off: bool = True, subject: str = DEFAULT_SUBJECT) -> str:
     """Grade a code drill and record the VERIFIED result in one tamper-proof step.
 
     You MUST pass `reference` — your own correct solution. Before grading the
@@ -586,7 +586,12 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
     run the learner's `code` and record the real sandbox pass/fail — you cannot
     fake the outcome. Use this for EVERY code drill.
 
-    axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
+    axis: a CORE axis (recall/application/transfer/...) or a subject extension
+          (debugging/code_reading/api_memory for coding). Legacy coding names
+          (syntax_recall, decomposition) are accepted and remapped losslessly.
+    subject: the registry key this drill belongs to (defaults to coding). Pass the right
+             subject for a non-coding code drill (e.g. a stats simulation) so the attempt
+             lands on that subject's grid, not the coding grid.
     confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
     ai_off: True when they solved it UNAIDED; pass ai_off=False if they told you they used
             AI or looked the answer up (Google/docs-for-the-answer). This only tags the attempt
@@ -605,7 +610,8 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
 
     r = run_tests(code, tests)
     verdict = "PASS ✓" if r.ok else "FAIL ✗"
-    summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds, ai_off=ai_off)
+    summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds,
+                             ai_off=ai_off, subject=subject)
     out = f"{verdict} (verified in sandbox, {r.seconds:.2f}s; tests validated against reference)\n"
     if r.stdout.strip():
         out += f"stdout:\n{r.stdout.strip()}\n"

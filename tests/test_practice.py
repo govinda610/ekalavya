@@ -168,6 +168,18 @@ def test_grade_and_record_records_the_verified_verdict():
     assert ok["correct"] == 1 and bad["correct"] == 0
 
 
+def test_grade_and_record_threads_subject_to_the_right_grid():
+    # A non-coding code drill records on the passed subject's grid, not the coding grid.
+    good = "def mean(xs):\n    return sum(xs) / len(xs)"
+    tools.grade_and_record("Estimators", "application", "sample_mean", good,
+                           "assert mean([2, 4]) == 3", confidence=2, reference=good,
+                           subject="stats")
+    c = connect()
+    row = c.execute("SELECT subject FROM attempts WHERE detail='sample_mean'").fetchone()
+    c.close()
+    assert row["subject"] == "stats"
+
+
 def test_web_search_without_key(monkeypatch):
     for k in ("TAVILY_API_KEY", "EKLAVYA_TAVILY_API_KEY", "SERPER_API_KEY", "EKLAVYA_SERPER_API_KEY"):
         monkeypatch.delenv(k, raising=False)
