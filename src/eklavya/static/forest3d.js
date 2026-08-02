@@ -26,28 +26,199 @@
   var T = window.THREE;
 
   // ---- palette -------------------------------------------------------------
-  // Warm, glowing night — a violet-indigo sky (not cold navy) that lifts to a warm
-  // gold-lilac horizon behind the temple, matching the reference art's mood.
+  // DERIVED FROM THE APP'S OPTION-E DESIGN TOKENS (webapp.py :root) so the 3D scene
+  // sits harmoniously inside the app frame — same indigo night, gold (#e7b64b/#f7d98a),
+  // teal/peacock (#57d3ce), ember/amber. The fix-spec §5 palette is reconciled toward
+  // these tokens: the GROUND is a saturated teal-green earth (never grey), shadows are
+  // blue-violet (via the hemisphere fill), highlights clamp to warm gold — never pure white.
   var COL = {
-    nightTop: 0x141026, nightMid: 0x241e3e, nightLow: 0x3a2e4e,   // indigo → warm lilac horizon
-    fog: 0x2a2440,
-    ground: 0x24263a, groundLit: 0x3a3448,
-    gold: 0xe7b64b, goldBright: 0xf7d98a, goldDeep: 0xb8862f,
-    teal: 0x57d3ce, tealBright: 0x9ff2ea,
-    green: 0x6fbf6a, greenLit: 0x9fe08a,       // warmer, more saturated foliage green
-    ember: 0xffab52, moon: 0xfff2d8,
-    trunk: 0x7a4a26, trunkDark: 0x543018,
-    locked: 0x4a4460, lockedLeaf: 0x35304a,
+    // sky / night — app --indigo-night #101528 base, lifting to a warm lilac-gold horizon
+    nightTop: 0x0d1224, nightMid: 0x1a1a34, nightLow: 0x3a3358,   // indigo zenith → warm lilac horizon
+    skyWarm: 0xe8b866,                                            // temple-glow horizon band
+    fog: 0x20233f,
+    // GROUND — saturated teal-green earth (spec §5 --forest-ground #1E3B3A), warm sage in light.
+    ground: 0x1e3b3a, groundLit: 0x5e7350, groundPath: 0x2a4a40,
+    // gold family (app tokens) — mastered state, temple, lanterns
+    gold: 0xe7b64b, goldBright: 0xf7d98a, goldDeep: 0xb8862f, goldEmber: 0x8a5e1f,
+    // teal / peacock (app tokens) — available + you-are-here + spirit wisps + path network
+    teal: 0x57d3ce, tealBright: 0x9ff2ea, tealDeep: 0x2ea3a0,
+    // foliage greens (app --forest / --forest-lit), warmer than the old olive-black
+    green: 0x52a061, greenLit: 0x84c778, canopyDark: 0x1b3a34,   // filler canopy in shadow (teal-green)
+    ember: 0xffab52, moon: 0xfff2d8, vermilion: 0xff5a3c,
+    trunk: 0x6a5142, trunkLit: 0x8a7060, trunkDark: 0x4a3a44,     // desaturated brown-violet (spec §3)
+    locked: 0x5a6a86, lockedLeaf: 0x3a4a64,                       // frost-blue locked (spec §9)
   };
-  // status → a small style descriptor the tree/particle builders read.
-  function styleFor(status) {
+
+  // Grove SIGNATURE canopy hues (spec §3b) — reconciled toward the app's jewel-tone family
+  // (indigo/gold/teal base) so groves are distinguishable BEFORE reading a label, without
+  // fighting the chrome. Assigned deterministically by grove ORDER (stable, data-driven for
+  // any N pillars — never keyed to today's 7). Gold stays reserved for mastered, teal for
+  // active/available (those live on the emissive/glow channel, not the hue channel).
+  var SIGNATURE_HUES = [
+    0x3e8c6a,  // jade-emerald
+    0x2e8ca0,  // teal-cyan
+    0x6b5aa0,  // violet-indigo
+    0xb8893a,  // muted gold-amber
+    0xa85c4c,  // copper-terracotta
+    0x4e9a78,  // sea-green
+    0x8a4f73,  // plum
+    0x5a7ab0,  // steel-blue
+    0x9a7a3a,  // brass
+    0x4a6a9a,  // slate-indigo
+  ];
+  function signatureHue(order) {
+    return SIGNATURE_HUES[((order % SIGNATURE_HUES.length) + SIGNATURE_HUES.length) % SIGNATURE_HUES.length];
+  }
+
+  // HUE FAMILIES (spec update): at ~18 pillars, 18 unrelated hues read as noise. Instead the
+  // canopy hue is a function of the grove's POSITION ALONG THE JOURNEY (its order fraction u),
+  // sweeping smoothly through a curated ramp of jewel tones — so the map reads as REGIONS of a
+  // world (a warm gold foothills band → cool teal midlands → deep violet highlands near the
+  // temple) rather than a random palette. A small per-grove hue jitter keeps neighbours
+  // distinct. Fully data-driven: any N pillars just sample the same ramp at N points.
+  // All tones sit within the app's indigo / gold / teal family (harmonious with the chrome).
+  var HUE_RAMP = [
+    0xb8893a,  // 0.00 — warm brass/gold (foundations, foothills)
+    0xa8794a,  // copper-amber
+    0x8a8a4a,  // olive-gold
+    0x5a9a6a,  // warm sea-green (transition)
+    0x3e9c7a,  // jade
+    0x2e9aa0,  // teal (midlands)
+    0x3a86b0,  // cyan-steel
+    0x4a6aae,  // indigo-blue
+    0x6a5aa8,  // violet
+    0x7a4f8c,  // plum (highlands, near temple)
+  ];
+  function rampHue(u) {
+    u = Math.max(0, Math.min(1, u));
+    var f = u * (HUE_RAMP.length - 1);
+    var i = Math.floor(f), t = f - i;
+    var a = new T.Color(HUE_RAMP[i]), b = new T.Color(HUE_RAMP[Math.min(HUE_RAMP.length - 1, i + 1)]);
+    return a.lerp(b, t);
+  }
+  // The signature hue for a grove given its journey fraction u + a stable seed for jitter.
+  function familyHue(u, seed) {
+    var c = rampHue(u);
+    var r = rng(seed >>> 0 || 1);
+    c.offsetHSL((r() - 0.5) * 0.04, (r() - 0.5) * 0.06, (r() - 0.5) * 0.05);
+    return c.getHex();
+  }
+
+  // A grove NODE MEDALLION (spec §9): a small gold/teal-rimmed disc floating above the tree —
+  // the consistent click target + the state indicator, legible at any zoom. State rides the
+  // rim colour + fill; grove identity rides the canopy hue below it. A tiny glyph disc marks
+  // mastered/active. Returns a Group; billboards toward the camera in the loop.
+  function buildMedallion(style) {
+    var g = new T.Group();
+    var state = style.state;
+    var rim = state === "blossoming" ? COL.gold
+      : state === "active" ? COL.teal
+      : state === "unlocked" ? COL.tealDeep : COL.locked;
+    var fillC = state === "blossoming" ? COL.goldDeep
+      : state === "active" ? COL.tealDeep
+      : state === "unlocked" ? 0x1c3340 : 0x2a3348;
+    // backing disc (dark, so the rim reads on any canopy)
+    var back = new T.Mesh(new T.CircleGeometry(2.5, 28),
+      new T.MeshBasicMaterial({ color: fillC, transparent: true, opacity: 0.9, fog: false }));
+    g.add(back);
+    // rim ring
+    var ring = new T.Mesh(new T.RingGeometry(2.5, 3.1, 32),
+      new T.MeshBasicMaterial({ color: rim, transparent: true, opacity: state === "locked" ? 0.5 : 0.95,
+        blending: T.AdditiveBlending, depthWrite: false, fog: false }));
+    g.add(ring);
+    // inner glyph pip for mastered/active (a filled centre); locked has none
+    if (state === "blossoming" || state === "active") {
+      var pip = new T.Mesh(new T.CircleGeometry(1.1, 20),
+        new T.MeshBasicMaterial({ color: state === "blossoming" ? COL.goldBright : COL.tealBright, fog: false }));
+      pip.position.z = 0.02; g.add(pip);
+    }
+    // a soft glow behind lit medallions so they pop as beacons (bloom lifts them)
+    if (state !== "locked") {
+      var halo = glowSprite(rim, 12, state === "active" ? 0.5 : 0.32, true);
+      halo.position.z = -0.1; g.add(halo);
+      g.userData.halo = halo;
+    }
+    g.userData.ring = ring; g.userData.state = state;
+    g.userData.disposables = [back.geometry, back.material, ring.geometry, ring.material];
+    return g;
+  }
+
+  // Recursively flag a subtree to cast (and its ground-touching parts to receive) shadows.
+  function setShadow(obj, cast) {
+    obj.traverse(function (o) { if (o.isMesh) { o.castShadow = cast; o.receiveShadow = false; } });
+  }
+
+  // A carved stone PLINTH the milestone tree grows from + a glowing rangoli RING decal set
+  // into the earth (spec §9 node-as-shrine). The ring colour tracks state. Small + cheap.
+  function buildPlinth(scale, st) {
+    var g = new T.Group();
+    var s = scale || 1;
+    var stone = new T.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.95, flatShading: true });
+    var base = new T.Mesh(new T.CylinderGeometry(3.4 * s, 4.0 * s, 1.4 * s, 12), stone);
+    base.position.y = 0.7 * s; base.receiveShadow = true; base.castShadow = true; g.add(base);
+    // rangoli ring decal — a thin glowing torus laid flat in the earth around the plinth
+    var rc = st.state === "blossoming" ? COL.gold : st.state === "active" ? COL.teal
+      : st.state === "unlocked" ? COL.tealDeep : COL.locked;
+    var ring = new T.Mesh(new T.TorusGeometry(5.2 * s, 0.16 * s, 8, 40),
+      new T.MeshBasicMaterial({ color: rc, transparent: true, opacity: st.bare ? 0.3 : 0.7,
+        blending: T.AdditiveBlending, depthWrite: false }));
+    ring.rotation.x = Math.PI / 2; ring.position.y = 0.15; g.add(ring);
+    return g;
+  }
+
+  // PATH-AS-GRAPH edges (spec §10): a glowing thread from each prereq grove to its dependent,
+  // drawn as a thin bloomable tube hugging the ground, state-styled. src/dst are pillar names.
+  function buildEdges(edges, laid, nodeIndex) {
+    var g = new T.Group();
+    var disposables = [];
+    for (var i = 0; i < edges.length; i++) {
+      var a = nodeIndex[edges[i].src], b = nodeIndex[edges[i].dst];
+      if (a == null || b == null) continue;
+      var A = laid[a], B = laid[b];
+      var sa = A.grove.status, sb = B.grove.status;
+      // traversed: both mastered → gold. available-next: dst is active/unlocked & src done → teal.
+      // else dim/locked.
+      var traversed = (sa === "blossoming" && sb === "blossoming");
+      var avail = (sa === "blossoming") && (sb === "active" || sb === "unlocked");
+      var col = traversed ? COL.gold : avail ? COL.teal : COL.locked;
+      var op = traversed ? 0.55 : avail ? 0.6 : 0.22;
+      var p0 = new T.Vector3(A.x, groundY(A.x, A.z) + 0.4, A.z);
+      var p2 = new T.Vector3(B.x, groundY(B.x, B.z) + 0.4, B.z);
+      var mid = p0.clone().lerp(p2, 0.5);
+      mid.x += (B.z - A.z) * 0.05; mid.z -= (B.x - A.x) * 0.05;   // gentle bow
+      mid.y = groundY(mid.x, mid.z) + 1.2;
+      var curve = new T.QuadraticBezierCurve3(p0, mid, p2);
+      var geo = new T.TubeGeometry(curve, 20, 0.35, 6, false);
+      var mat = new T.MeshBasicMaterial({ color: col, transparent: true, opacity: op,
+        blending: T.AdditiveBlending, depthWrite: false, fog: false });
+      var m = new T.Mesh(geo, mat); g.add(m);
+      disposables.push(geo, mat);
+    }
+    g.userData.disposables = disposables;
+    return g;
+  }
+
+  // status → a small style descriptor the tree/particle builders read. `sig` is the grove's
+  // signature canopy hue (§3b): grove IDENTITY rides the canopy hue, node STATE rides the
+  // glow/emissive channel + a state tint blended over the signature. This keeps the two
+  // information channels separate (spec §3b).
+  function styleFor(status, sig) {
+    sig = sig != null ? sig : COL.green;
+    var sigC = new T.Color(sig);
+    var mixToward = function (hex, k) { return sigC.clone().lerp(new T.Color(hex), k).getHex(); };
     switch (status) {
-      // emissive kept LOW (leaves get their colour from lighting + the toon ramp); the glow
-      // comes from the aura halo + bloom, so the tree keeps a defined silhouette.
-      case "blossoming": return { leaf: 0xd9a63e, leaf2: COL.goldBright, glow: COL.gold, bare: false, lush: 1.15, emissive: 0.1 };
-      case "active":     return { leaf: 0x3fb8b0, leaf2: COL.tealBright, glow: COL.teal, bare: false, lush: 1.05, emissive: 0.12 };
-      case "unlocked":   return { leaf: COL.green, leaf2: COL.greenLit, glow: COL.green, bare: false, lush: 0.95, emissive: 0.08 };
-      default:           return { leaf: COL.lockedLeaf, leaf2: COL.locked, glow: COL.locked, bare: true, lush: 0.6, emissive: 0.0 };
+      // MASTERED: signature hue lifted toward gold + gold blossoms; gold glow. Never pure white.
+      case "blossoming": return { leaf: mixToward(COL.gold, 0.45), leaf2: COL.goldBright, glow: COL.gold,
+        bare: false, lush: 1.18, emissive: 0.12, state: "blossoming", sig: sig };
+      // ACTIVE (current focus): brightest signature hue, teal glow (you-are-here channel).
+      case "active":     return { leaf: sigC.clone().offsetHSL(0, 0.05, 0.12).getHex(), leaf2: COL.tealBright, glow: COL.teal,
+        bare: false, lush: 1.08, emissive: 0.14, state: "active", sig: sig };
+      // AVAILABLE: signature hue at moderate value, soft teal glow.
+      case "unlocked":   return { leaf: sig, leaf2: sigC.clone().offsetHSL(0, 0, 0.16).getHex(), glow: COL.teal,
+        bare: false, lush: 0.96, emissive: 0.07, state: "unlocked", sig: sig };
+      // LOCKED: bare frost-blue branches, no foliage, small.
+      default:           return { leaf: COL.lockedLeaf, leaf2: COL.locked, glow: COL.locked,
+        bare: true, lush: 0.62, emissive: 0.0, state: "locked", sig: sig };
     }
   }
 
@@ -56,6 +227,10 @@
 
   function reduced() {
     try { return !!(window._reduced && window._reduced()); } catch (e) { return false; }
+  }
+
+  function _escHtml(s) {
+    return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   // Detect WebGL up-front so we can fall back gracefully instead of crashing.
@@ -138,39 +313,49 @@
   // Undulating terrain: a large plane displaced by layered sines → soft rolling
   // ground that rises toward the temple hill at the far (−Z) end.
   function buildTerrain() {
-    var W = 320, D = 420, segW = 100, segD = 120;
+    var W = 620, D = 680, segW = 140, segD = 150;
     var geo = new T.PlaneGeometry(W, D, segW, segD);
     geo.rotateX(-Math.PI / 2);
+    geo.translate(0, 0, -70);   // centre the terrain under the map (which extends toward −Z)
     var pos = geo.attributes.position, v = new T.Vector3(), col = new T.Color();
+    var earth = new T.Color(COL.ground), earthLit = new T.Color(COL.groundLit), pathC = new T.Color(COL.groundPath);
     var colors = new Float32Array(pos.count * 3);
     for (var i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       var y = groundY(v.x, v.z);
       pos.setY(i, y);
-      // vertex-tint: warmer moss near the path corridor, cooler indigo out in the deep wood
-      var nearPath = Math.exp(-(v.x * v.x) / 2600);
-      col.setHex(COL.ground).lerp(new T.Color(0x243a30), nearPath * 0.7);
+      // SATURATED TEAL-GREEN EARTH (never grey): a base earth tone, lifted toward warm sage
+      // on the sunlit crests (higher y) and toward a mossy path-green along the centre spine.
+      col.copy(earth);
+      var crest = Math.max(0, Math.min(1, (y + 2) / 14));          // higher ground catches light
+      col.lerp(earthLit, crest * 0.5);
+      var nearSpine = Math.exp(-(v.x * v.x) / 5200);
+      col.lerp(pathC, nearSpine * 0.5);
+      // gentle mottling so the earth isn't a flat fill
+      var n2 = Math.sin(v.x * 0.14 + v.z * 0.11) * 0.5 + 0.5;
+      col.offsetHSL(0, 0.02, (n2 - 0.5) * 0.05);
       colors[i * 3] = col.r; colors[i * 3 + 1] = col.g; colors[i * 3 + 2] = col.b;
     }
     geo.setAttribute("color", new T.BufferAttribute(colors, 3));
     geo.computeVertexNormals();
     var mat = new T.MeshStandardMaterial({
       vertexColors: true, roughness: 1.0, metalness: 0.0, flatShading: true,
-      emissive: 0x0a1428, emissiveIntensity: 0.3,
+      emissive: 0x0e2420, emissiveIntensity: 0.22,          // faint teal-green self-lift (not grey)
     });
-    return new T.Mesh(geo, mat);
+    var mesh = new T.Mesh(geo, mat);
+    mesh.receiveShadow = true;
+    return mesh;
   }
 
   // Sample the terrain height analytically (single source of truth for terrain + props).
-  // A rolling floor + a prominent TEMPLE HILL rising at the far (−Z) end so the temple
-  // sits elevated and readable; a shallow flat corridor keeps the path walkable.
+  // A gently rolling floor (SHALLOW — this is a map diorama, not a landscape) + a temple
+  // hill rising at the far (−Z) end so the temple sits elevated and readable.
   function groundY(x, z) {
-    var h = Math.sin(x * 0.05) * 1.6 + Math.cos(z * 0.045 + x * 0.02) * 2.0
-          + Math.sin(x * 0.11 + z * 0.03) * 0.9;
+    var h = Math.sin(x * 0.045) * 1.1 + Math.cos(z * 0.04 + x * 0.02) * 1.3
+          + Math.sin(x * 0.10 + z * 0.03) * 0.6;
     // hill ramps up smoothly toward the back, cresting under the temple
-    var hill = Math.max(0, (-z - 70)) * 0.62;
-    var corridor = Math.exp(-(x * x) / 1600) * 1.0;
-    return h + hill - corridor;
+    var hill = Math.max(0, (-z - 90)) * 0.5;
+    return h + hill;
   }
 
   // A curved branch/trunk limb built from a short quadratic curve → thin TubeGeometry,
@@ -632,59 +817,53 @@
   // dark leaf-masses overhanging the TOP edge, with hanging lanterns dangling into frame.
   // Near-black silhouette so it reads as a vignette, letting the lit vista glow through.
   // Returns { group, lanterns } so the loop can flicker the framing lanterns too.
-  function buildFraming(cam) {
+  // PROSCENIUM (spec §6): dark near-silhouette foliage clumps + rocks tucked into the FOUR
+  // outer corners of the map bounds, framing the composition like the refs' overhanging trees.
+  // Bounds-relative so it always sits just outside the grove spread at the corners, for any N.
+  // Rendered near-black (unlit-ish, deep indigo) so it reads as a vignette and lets the lit
+  // map glow through. `bounds` = {minX,maxX,minZ,maxZ}.
+  function buildFraming(bounds) {
     var g = new T.Group();
     var lanterns = [];
-    // deep mossy-warm silhouette (not pure black) so the framing has a touch of life like the
-    // refs' overhanging trees, while still reading as a dark vignette.
-    var bark = new T.MeshStandardMaterial({ color: 0x1a1220, roughness: 1, flatShading: true });
-    var leaf = new T.MeshStandardMaterial({ color: 0x16221c, roughness: 1, flatShading: true,
-      emissive: 0x141a22, emissiveIntensity: 0.16 });
+    var bark = new T.MeshStandardMaterial({ color: 0x120e1c, roughness: 1, flatShading: true });
+    var leaf = new T.MeshStandardMaterial({ color: 0x101a18, roughness: 1, flatShading: true,
+      emissive: 0x0e1620, emissiveIntensity: 0.12 });
     var r = rng(777);
-
-    // --- two BIG corner trees at the far LEFT/RIGHT edges, trunks arching in, crowns climbing
-    //     the side + top edges — the ornate proscenium (kept to the edges, not the centre). --
-    [[-62, 46, 1], [64, 50, -1]].forEach(function (a) {
-      var x = a[0], z = a[1], dir = a[2], gy = groundY(x, z);
-      // a massive gnarled trunk sweeping up the side of frame
-      var trunk = _limb(new T.Vector3(x, gy - 8, z),
-        new T.Vector3(x - dir * 14, gy + 62, z - 8),
-        new T.Vector3(x - dir * 2, gy + 28, z - 3), 6.5, 3.0, bark);
+    var minX = bounds.minX, maxX = bounds.maxX, minZ = bounds.minZ, maxZ = bounds.maxZ;
+    // the NEAR corners (high +Z, toward the camera) get big overhanging clumps; the far
+    // corners get lower dark stands so the whole frame is proscenium'd.
+    var corners = [
+      { x: minX - 8, z: maxZ + 8, big: true, dir: 1 },   // near-left
+      { x: maxX + 8, z: maxZ + 8, big: true, dir: -1 },  // near-right
+      { x: minX - 6, z: minZ - 6, big: false, dir: 1 },  // far-left
+      { x: maxX + 6, z: minZ - 6, big: false, dir: -1 }, // far-right
+    ];
+    corners.forEach(function (a) {
+      var x = a.x, z = a.z, dir = a.dir, gy = groundY(x, z);
+      var H = a.big ? 46 : 26;
+      // a gnarled trunk sweeping up + INWARD (arching into frame)
+      var trunk = _limb(new T.Vector3(x, gy - 6, z),
+        new T.Vector3(x + dir * 10, gy + H, z - 6),
+        new T.Vector3(x + dir * 3, gy + H * 0.5, z - 3), a.big ? 4.5 : 2.6, 1.6, bark);
       g.add(trunk);
-      // a thick wall of crowns climbing + arching over the side edge (stays near the edge)
-      for (var b = 0; b < 14; b++) {
-        var cy = gy + 8 + b * 5.0;
-        var cx = x - dir * (0 + b * 1.5);
-        var cr = 11 + r() * 7;
+      // a clump of dark crowns climbing the corner + arching inward
+      var n = a.big ? 9 : 5;
+      for (var b = 0; b < n; b++) {
+        var cy = gy + 6 + b * (H / n);
+        var cx = x + dir * b * 1.6;
+        var cr = (a.big ? 9 : 6) + r() * 5;
         var m = new T.Mesh(new T.IcosahedronGeometry(cr, 0), leaf);
-        m.position.set(cx, cy, z - 4 + (r() - 0.5) * 10); g.add(m);
+        m.position.set(cx, cy, z - 3 + (r() - 0.5) * 8); g.add(m);
       }
-      // hanging lanterns from the corner branches, dangling into frame (glow only — real
-      // point-lights are reserved for the path/groves so the light budget stays capped)
-      for (var k = 0; k < 2; k++) {
-        var lx = x - dir * (16 + k * 10), ly = gy + 44 - k * 8, lz = z - 8;
-        var lan = buildLantern(lx, ly, lz, (r() * 1e5) | 0, false);
+      // a mossy boulder anchoring the corner base
+      var rock = new T.Mesh(new T.IcosahedronGeometry(4 + r() * 3, 0), bark);
+      rock.position.set(x + dir * 3, gy + 1.5, z + 2); rock.castShadow = true; g.add(rock);
+      // a hanging lantern dangling into frame from the near corners
+      if (a.big) {
+        var lan = buildLantern(x + dir * 12, gy + H * 0.7, z - 6, (r() * 1e5) | 0, false);
         g.add(lan); lanterns.push(lan);
       }
     });
-
-    // --- TOP overhang: a row of dark leaf-masses hanging down from above the frame ----
-    for (var o = 0; o < 12; o++) {
-      var ox = -60 + o * 11 + (r() - 0.5) * 6;
-      var oy = 62 + (r() - 0.5) * 8;
-      var oz = 18 + (r() - 0.5) * 10;
-      var om = new T.Mesh(new T.IcosahedronGeometry(10 + r() * 7, 0), leaf);
-      om.position.set(ox, oy, oz); g.add(om);
-      // a branch stub the mass hangs from
-      var stub = new T.Mesh(new T.CylinderGeometry(0.5, 1.2, 10, 5), bark);
-      stub.position.set(ox, oy + 7, oz); g.add(stub);
-    }
-    // a few lanterns hanging from the top overhang, dangling into the upper frame
-    for (var tl = 0; tl < 3; tl++) {
-      var tx = -34 + tl * 34, ty = 50 - r() * 6, tz = 16;
-      var tlan = buildLantern(tx, ty, tz, (r() * 1e5) | 0);
-      g.add(tlan); lanterns.push(tlan);
-    }
     g.userData = { bark: bark, leaf: leaf };
     return { group: g, lanterns: lanterns };
   }
@@ -830,22 +1009,36 @@
   // SCENE ASSEMBLY
   // =========================================================================
 
-  // Lay grove positions out along a gently-serpentine path receding toward the
-  // temple (−Z). Order comes from data (`order`); we snake x so it curves.
+  // Lay grove positions out as a MAP (spec §0.5 / §1): a wide, shallow, multi-bend
+  // SERPENTINE that spreads groves LATERALLY (not in depth), so ALL N groves read at
+  // similar scale with room for a medallion + label, no occlusion — the fit-to-bounds
+  // camera then frames the whole spread. Fully data-driven: 3 or 18 pillars both lay out
+  // as a walkable journey from the foreground ENTRANCE (fixed start bookend) to the TEMPLE
+  // (fixed end bookend) on the far hill. Order comes from data (`order`). Nothing keyed to
+  // a pillar — add/remove/reorder pillars → the path re-stitches + re-frames automatically.
+  //
+  // Geometry: nodes advance MOSTLY along −Z (toward the temple) but with a strong lateral
+  // serpentine sway so the trail winds left↔right; the sway amplitude tapers near the temple
+  // so the last grove + path funnel onto the temple's centre axis (both refs do this).
   function layoutGroves(groves) {
     var n = groves.length;
     var out = [];
-    // The path climbs from the foreground toward the temple (−Z). Spacing scales with N
-    // so 3 or 16 pillars both read as a walkable journey. The serpentine sway EASES to
-    // near-zero at the far end so the last grove + path funnel onto the temple's centre
-    // axis — leading the eye to the anchor (both refs do this). Nothing keyed to a pillar.
-    var spacing = Math.max(17, Math.min(30, 160 / Math.max(1, n)));
-    var zStart = 74;
+    if (n === 0) return out;
+    if (n === 1) { out.push({ x: 0, z: 20, grove: groves[0] }); return out; }
+    // depth range + lateral amplitude both scale with N so nodes stay EVENLY spread across the
+    // whole field (never bunched) — giving every medallion + label room. Wide lateral spread
+    // (the map reads across the width, spec §1) with a multi-bend serpentine.
+    var zStart = 60;
+    var zSpan = 60 + Math.min(150, n * 9);            // total −Z travel (grows with N)
+    var amp = 58;                                     // lateral serpentine amplitude (wide)
+    // ~1 full bend per 4 groves → ~18 pillars wind through ~4 lobes (Hades-style multi-bend).
+    var bends = Math.max(1.5, n / 4.0);
     for (var i = 0; i < n; i++) {
-      var z = n > 1 ? zStart - i * spacing : 34;
-      var ease = 1 - i / Math.max(1, n - 1);          // 1 near … 0 far
-      var x = Math.sin(i * 1.05 + 0.5) * (40 * ease * ease);   // sway collapses toward the temple
-      out.push({ x: x, z: z, grove: groves[i] });
+      var u = i / (n - 1);                            // 0 (entrance) … 1 (temple)
+      var z = zStart - u * zSpan;
+      var taper = 1 - u * 0.5;                        // sway eases (not collapses) toward temple
+      var x = Math.sin(u * Math.PI * bends + 0.4) * amp * taper;
+      out.push({ x: x, z: z, grove: groves[i], u: u });
     }
     return out;
   }
@@ -855,9 +1048,9 @@
   function buildScene(data, mode) {
     _windUniforms = [];   // fresh wind-uniform collector for this scene's toon materials
     var scene = new T.Scene();
-    // warm-toned fog so distant trees melt into a warm haze (not cold navy), matching the
-    // temple-glow atmosphere of the refs.
-    scene.fog = new T.FogExp2(0x2a2444, reduced() ? 0.0038 : 0.005);
+    // fog recedes the far ridge INTO the sky (spec §6). Tinted indigo-violet to match the
+    // app night base; lighter/thinner for the map so the whole spread stays legible.
+    scene.fog = new T.FogExp2(0x241f3e, reduced() ? 0.0026 : 0.0034);
     scene.background = new T.Color(COL.nightMid);
 
     // --- sky dome: indigo zenith → warm lilac-gold horizon, with a bright WARM GLOW low
@@ -886,24 +1079,33 @@
 
     // --- lights: warm ambient + a moon key ABOVE-FRONT (lights tree fronts) + a warm rim
     //     from the temple side. The front key is the fix for trees reading as dark cutouts. -
-    // bright warm-violet ambient; the GROUND term is lifted to a warmer, lighter mauve so
-    // backlit tree UNDERSIDES keep a touch of warm colour instead of going pure black (the
-    // refs have no black tree faces). A gentle wrap fill from below-front does the same.
-    scene.add(new T.HemisphereLight(0xd6c4e6, 0x6e5a72, 1.6));
-    var moon = new T.DirectionalLight(0xf4f0ff, 1.5);            // strong key, high + toward camera
-    moon.position.set(40, 120, 150); scene.add(moon);           // +Z → lights the camera-facing foliage
-    var warmRim = new T.DirectionalLight(0xffca80, 1.0);         // warm rim from the temple/horizon
-    warmRim.position.set(0, 50, -140); scene.add(warmRim);
-    var coolFill = new T.DirectionalLight(0x9fb8e0, 0.4);        // gentle cool side fill for form
-    coolFill.position.set(-90, 40, 40); scene.add(coolFill);
-    // a low WARM wrap fill from below-front so the shaded, camera-facing tree undersides keep
-    // a warm glow instead of crushing to black (a cheap half-lambert stand-in via a soft light).
-    var wrapFill = new T.DirectionalLight(0xffcaa0, 0.5);
-    wrapFill.position.set(0, 8, 90); scene.add(wrapFill);
-    // a second warm fill from BEHIND-below (temple side) so the backlit far faces of trees
-    // keep a warm rim/colour instead of crushing to black — the refs have no black tree faces.
-    var backFill = new T.DirectionalLight(0xffbe86, 0.28);
-    backFill.position.set(20, 14, -120); scene.add(backFill);
+    // SKY FILL (spec §2): a HemisphereLight puts COLOUR in the shadows instead of grey —
+    // violet sky term → teal-green ground term, so shaded undersides read blue-violet, never
+    // grey/black (the biggest palette difference from the refs).
+    scene.add(new T.HemisphereLight(0x6a5a9a, 0x16403a, 0.85));
+    // KEY LIGHT (spec §2): warm directional from BEHIND + above the temple → golden rims +
+    // dark undersides, the change that makes trees stop looking like blobs. Casts shadows.
+    var key = new T.DirectionalLight(0xffd9a0, 2.0);
+    key.position.set(40, 130, -120);                            // behind/above the temple (−Z)
+    key.castShadow = true;
+    key.shadow.mapSize.set(2048, 2048);
+    key.shadow.bias = -0.0006;
+    var sc = key.shadow.camera;                                 // tight ortho frustum over the map
+    sc.near = 20; sc.far = 520; sc.left = -240; sc.right = 240; sc.top = 240; sc.bottom = -240;
+    sc.updateProjectionMatrix();
+    scene.add(key); scene.add(key.target);
+    key.target.position.set(0, 0, -30);
+    // FRONT MOON FILL — a gentle cool light from camera side so the backlit camera-facing
+    // faces keep readable form (not crushed), but dimmer than the key so backlighting reads.
+    var moon = new T.DirectionalLight(0xdfe4ff, 0.55);
+    moon.position.set(30, 90, 150); scene.add(moon);
+    // SEPARATION RIM (spec §2): dim cool from camera-left so overlapping canopies don't merge.
+    var coolRim = new T.DirectionalLight(0x7fd8d0, 0.35);
+    coolRim.position.set(-110, 50, 40); scene.add(coolRim);
+    // a low WARM wrap fill so shaded undersides keep a touch of warm colour (refs have no
+    // pure-black tree faces).
+    var wrapFill = new T.DirectionalLight(0xffcaa0, 0.35);
+    wrapFill.position.set(0, 14, 90); scene.add(wrapFill);
 
     // --- moon disc + haze, high over the far ridge (up-right of the temple) ----
     var moonGroup = new T.Group();
@@ -937,37 +1139,47 @@
     var activeIndex = 0;
     for (var i = 0; i < laid.length; i++) if (laid[i].grove._active) activeIndex = i;
 
-    // FIXED END bookend: the TEMPLE — the composition anchor — beyond the last grove, high
-    // on the hill, straight ahead on the path's centre axis so the eye is led to it.
-    var lastZ = laid.length ? laid[laid.length - 1].z : 0;
-    var templeZ = Math.min(-140, lastZ - 54);         // a substantial anchor on the far hill
+    // FIXED END bookend: the TEMPLE — the composition anchor + final node on the map — on the
+    // path's centre axis just beyond the last grove, on the far hill. MAP treatment (spec §7):
+    // a legible golden shrine at map scale (not a giant cinematic vista slab). templeZ tracks
+    // the last grove so it re-seats automatically as the curriculum grows.
+    var lastNode = laid.length ? laid[laid.length - 1] : { x: 0, z: 0 };
+    var templeZ = lastNode.z - 40;                    // just past the final grove, on the hill
     var templeTopY = 0;
     if (mode === "overview") {
       var temple = buildTemple();
       var tgy = groundY(0, templeZ);
-      temple.position.set(0, tgy + 2, templeZ);
-      temple.scale.set(1.5, 1.5, 1.5);
+      var tScale = 0.6;                               // map scale — a jewel shrine, not a vista
+      temple.position.set(0, tgy, templeZ);
+      temple.scale.set(tScale, tScale, tScale);
+      setShadow(temple, true);
       scene.add(temple);
-      templeTopY = tgy + temple.userData.topY * 1.5;
+      templeTopY = tgy + temple.userData.topY * tScale;
       var rays = buildTempleRays(temple.userData.topY);   // rays/halo positioned in temple-local Y
-      rays.position.set(0, tgy, templeZ); rays.scale.set(1.5, 1.5, 1.5); scene.add(rays);
+      rays.position.set(0, tgy, templeZ); rays.scale.set(tScale, tScale, tScale); scene.add(rays);
     }
-
-    // --- DENSE background tree walls (both modes) ----------------------------
-    var bgGroup = buildInstancedForest();
-    scene.add(bgGroup.mesh); scene.add(bgGroup.mesh2); scene.add(bgGroup.mesh3);
 
     // --- the glowing winding PATH (traveled glow runs start→active) ----------
     var path = buildPath(laid, activeIndex, templeZ, mode === "overview");
     scene.add(path);
+
+    // --- filler wood carpeting the map around the nodes + path (both modes) --
+    var bgGroup = buildInstancedForest(laid, path.userData.curve, mode === "overview" ? templeZ : null);
+    scene.add(bgGroup.mesh); scene.add(bgGroup.mesh2); scene.add(bgGroup.mesh3);
 
     // --- low ground FOLIAGE + drifting MIST layers (both modes) --------------
     scene.add(buildGroundFoliage(path.userData.curve));
     var mist = null;
     if (!reduced()) { mist = buildMist(); scene.add(mist); }
 
-    // --- PROSCENIUM framing (dark overhanging foliage + hanging lanterns) ----
-    var framing = buildFraming();
+    // --- PROSCENIUM framing (dark corner foliage + rocks, bounds-relative) ---
+    var fbMinX = -30, fbMaxX = 30, fbMinZ = -20, fbMaxZ = 30;
+    for (var fb = 0; fb < laid.length; fb++) {
+      fbMinX = Math.min(fbMinX, laid[fb].x); fbMaxX = Math.max(fbMaxX, laid[fb].x);
+      fbMinZ = Math.min(fbMinZ, laid[fb].z); fbMaxZ = Math.max(fbMaxZ, laid[fb].z);
+    }
+    if (mode === "overview" && templeZ != null) fbMinZ = Math.min(fbMinZ, templeZ);
+    var framing = buildFraming({ minX: fbMinX, maxX: fbMaxX, minZ: fbMinZ, maxZ: fbMaxZ });
     scene.add(framing.group);
 
     // --- FIXED START bookend: gate-lanterns flanking the entrance (with light) -
@@ -993,16 +1205,26 @@
       scene.add(pond);
     }
 
-    var pickables = [];   // { obj, grove, x/y/z } for raycasting
+    var pickables = [];   // { obj, grove, x/y/z, labelY } for raycasting + DOM labels
     var auras = [];       // grove aura sprites to pulse
+    var medallions = [];  // { grp, state } billboarded node medallions to face the camera
     var youHere = null;
+    var nodeIndex = {};   // pillar → laid-index, for path-graph edge lookup
+
+    // HERO milestone trees are markedly bigger than the neutral filler (spec §3: 2.5–4×) so a
+    // grove node reads as a landmark, not another shrub. Scales gently down with N so ~18 still
+    // fit, but never so small that heroes blend into filler.
+    var baseScale = mode === "overview" ? (laid.length > 12 ? 1.5 : laid.length > 6 ? 1.7 : 2.0) : 1.6;
 
     for (var j = 0; j < laid.length; j++) {
       var L = laid[j], gd = L.grove;
-      var st = styleFor(gd.status);
-      var gy = groundY(L.x, L.z);
-      var scale = mode === "overview" ? 1.3 : 1.0;
+      nodeIndex[gd.pillar || gd.name] = j;
+      // grove SIGNATURE hue from its journey fraction (family band) — see familyHue().
       var seed = hashStr(gd.pillar || gd.name);
+      var sig = familyHue(L.u != null ? L.u : j / Math.max(1, laid.length - 1), seed);
+      var st = styleFor(gd.status, sig);
+      var gy = groundY(L.x, L.z);
+      var scale = baseScale * (gd._active ? 1.15 : 1.0);
       var arche = GROVE_ARCHES[seed % GROVE_ARCHES.length];
       // the ACTIVE grove always gets a hero banyan/willow; others vary by seed.
       var variant = gd._active ? (seed % 2 ? "banyan" : "willow")
@@ -1011,30 +1233,36 @@
       var piece = new T.Group();
       piece.position.set(L.x, gy, L.z);
       var tree = buildTree(st, scale, seed, variant);
+      setShadow(tree, true);
       piece.add(tree);
       arche.decor(piece, st, scale, rng(seed), COL);
+      // carved stone PLINTH the tree grows from (spec §9) + a rangoli ring decal in the earth
+      piece.add(buildPlinth(scale, st));
       piece.userData.grove = gd; piece.userData.arche = arche.name;
       scene.add(piece);
-      pickables.push({ obj: tree, grove: gd, x: L.x, y: gy, z: L.z, piece: piece });
+
+      var treeH = 9 * scale + 4;       // approx canopy top for the medallion + label
+      pickables.push({ obj: tree, grove: gd, x: L.x, y: gy, z: L.z,
+        labelY: gy + treeH + 6, piece: piece, active: !!gd._active });
+
+      // MEDALLION above the canopy — the consistent click target + state indicator (spec §9).
+      var med = buildMedallion(st);
+      med.position.set(L.x, gy + treeH + 6, L.z);
+      med.userData.grove = gd;                 // so a click on the medallion also picks the grove
+      scene.add(med);
+      medallions.push({ grp: med, state: st.state });
+      pickables.push({ obj: med, grove: gd, x: L.x, y: gy, z: L.z, medallion: true });
 
       // soft aura HALO behind lit trees (subtle — bloom lifts it without washing the tree).
-      // Smaller + fainter than before, and auras on groves NEAR the camera (foreground, high
-      // +Z) shrink & dim further so the near grove aura + path + ground-light don't sum into a
-      // central white blob. `nearK` → 1 far from the camera, → ~0.4 for the closest grove.
       if (!st.bare) {
-        var nearK = 1 - 0.6 * Math.max(0, Math.min(1, (L.z - (templeZ + 40)) / 120));
-        var aura = glowSprite(st.glow, 20 * scale * (0.7 + 0.3 * nearK), 0.13 * nearK);
-        aura.position.set(L.x, gy + 12 * scale, L.z - 2);
-        scene.add(aura); auras.push({ sp: aura, status: gd.status, nearK: nearK });
+        var aura = glowSprite(st.glow, 16 * scale, 0.12);
+        aura.position.set(L.x, gy + 9 * scale, L.z - 2);
+        scene.add(aura); auras.push({ sp: aura, status: gd.status });
       }
-      // hanging LANTERN(s) from each lit grove; a real warm light on the nearest few.
+      // hanging LANTERN on each lit grove; a real warm light on the nearest few (budget-capped).
       if (!st.bare) {
-        var lan = buildLantern(L.x + 5 * scale, gy + 12 * scale, L.z + 3, seed, lightBudget-- > 0);
+        var lan = buildLantern(L.x + 4.5 * scale, gy + 9 * scale, L.z + 3, seed, lightBudget-- > 0);
         scene.add(lan); lanterns.push(lan);
-      }
-      if ((gd.artifacts || 0) > 0) {
-        var lan2 = buildLantern(L.x - 5 * scale, gy + 10 * scale, L.z + 1, seed + 7, false);
-        scene.add(lan2); lanterns.push(lan2);
       }
       // "YOU ARE HERE" teal ring encircling the active grove
       if (gd._active) {
@@ -1042,6 +1270,14 @@
         youHere.position.set(L.x, gy + 0.1, L.z);
         scene.add(youHere);
       }
+    }
+
+    // --- PATH-AS-GRAPH: draw the prerequisite topology as glowing edges between grove nodes
+    // (spec §10). State-styled: gold=traversed (both mastered), teal=available-next, dim=locked.
+    // Data-driven from data.edges (grove→grove prereq DAG) — auto-updates with the curriculum.
+    if (mode === "overview" && data.edges && data.edges.length) {
+      var edgeGrp = buildEdges(data.edges, laid, nodeIndex);
+      if (edgeGrp) scene.add(edgeGrp);
     }
 
     // --- fireflies + warm path embers + birds --------------------------------
@@ -1063,6 +1299,7 @@
 
     return {
       scene: scene, pickables: pickables, auras: auras, youHere: youHere,
+      medallions: medallions,
       fireflies: fireflies, embers: embers, birds: birds, path: path, moonHaze: moonHaze,
       lanterns: lanterns, pond: pond, godrays: godrays, mist: mist,
       laid: laid, activeIndex: activeIndex, templeZ: templeZ, templeTopY: templeTopY,
@@ -1129,66 +1366,84 @@
   // tree a fuller, rounder, two-tier silhouette; higher-facet icosahedra + toon-ish shading
   // catch the moonlight so they read as volumes. Warmer, lighter, more varied greens/teals
   // so the wood glows instead of going navy-black. A handful of draw calls for the whole wood.
-  function buildInstancedForest() {
-    var COUNT = reduced() ? 260 : 520;   // a touch denser mid-ground (still a handful of draw calls)
-    var trunkGeo = new T.CylinderGeometry(0.28, 0.5, 6, 5);
-    var trunkMat = new T.MeshStandardMaterial({ color: 0x3a2c22, roughness: 1, flatShading: true });
-    // crowns: detail-1 icosahedra (more facets → they catch light as rounded volumes)
-    var crownGeo = new T.IcosahedronGeometry(2.4, 1);
-    var crownMat = new T.MeshStandardMaterial({ roughness: 0.75, flatShading: true,
-      emissive: 0x24361f, emissiveIntensity: 0.4, vertexColors: true });
-    var topGeo = new T.IcosahedronGeometry(1.5, 1);
+  // Filler wood that CARPETS the map (spec §4) — neutral-dark stands that fill the ground
+  // AROUND the grove nodes + path, rising toward the frame edges to frame the composition,
+  // thinning near the path/nodes so heroes read. Scatters within the actual map bounds
+  // (derived from grove positions), avoiding grove/path/temple footprints. Two instanced
+  // lobes per tree (crown + top) + a trunk → volume; casts + receives soft shadows.
+  function buildInstancedForest(laid, curve, templeZ) {
+    var COUNT = reduced() ? 260 : 460;
+    var trunkGeo = new T.CylinderGeometry(0.22, 0.42, 5, 5);
+    var trunkMat = new T.MeshStandardMaterial({ color: 0x3a3040, roughness: 1, flatShading: true });
+    var crownGeo = new T.IcosahedronGeometry(2.2, 1);
+    var crownMat = new T.MeshStandardMaterial({ roughness: 0.8, flatShading: true,
+      emissive: 0x11241f, emissiveIntensity: 0.22, vertexColors: true });
+    var topGeo = new T.IcosahedronGeometry(1.4, 1);
     var topMat = crownMat.clone();
     var trunks = new T.InstancedMesh(trunkGeo, trunkMat, COUNT);
     var crowns = new T.InstancedMesh(crownGeo, crownMat, COUNT);
     var tops = new T.InstancedMesh(topGeo, topMat, COUNT);
+    trunks.castShadow = crowns.castShadow = tops.castShadow = true;
+    trunks.receiveShadow = crowns.receiveShadow = tops.receiveShadow = true;
     var m = new T.Matrix4(), q = new T.Quaternion(), sc = new T.Vector3(), pos = new T.Vector3();
     var r = rng(20240802);
-    // a LUSH, warm-leaning palette: sunlit greens, emerald, teal, olive, a warm-gold canopy
-    // and a violet whisper — lifted well above black so the wood reads as living foliage.
-    var palette = [0x5a9a5e, 0x6aa858, 0x4a9a78, 0x429090, 0x7a9a4e, 0x8a9a52,
-                   0x5a8a9a, 0x9a8a4e, 0x6a5a80, 0x4e8a6e,
-                   0x3fa070, 0x2f9a6a, 0x7a5c96, 0x8a6aa0];   // extra emerald + violet variety
-    var col = new T.Color(), fogC = new T.Color(0x38304e);
-    var placed = 0, lastX = 0, lastZ = 0;
-    for (var i = 0; i < COUNT && placed < COUNT; i++) {
-      var band, z, x;
-      // ~45% of trees CLUSTER near the previous one (loose clumps → a wild wood, not an
-      // orchard grid); the rest scatter freshly across the depth bands.
-      if (r() < 0.45 && placed > 0) {
-        x = lastX + (r() - 0.5) * 26; z = lastZ + (r() - 0.5) * 22;
-        band = Math.max(0, Math.min(1, (62 - z) / 205));
-      } else {
-        band = r();                          // 0 near … 1 far
-        z = 48 - band * 195;                 // start behind the immediate foreground opening
-        var spreadX = 44 + band * 120;
-        x = (r() - 0.5) * 2 * spreadX;
+    // FILLER stays NEUTRAL-DARK teal-green (spec §3b) so the coloured hero canopies pop.
+    var palette = [0x1b3a34, 0x214238, 0x1e3d3c, 0x263f34, 0x233a3e, 0x2a4038, 0x1d3630];
+    var col = new T.Color(), fogC = new T.Color(0x2a2444);
+
+    // map bounds from the groves (+ temple), padded, so filler carpets the whole visible field.
+    var minX = -60, maxX = 60, minZ = -60, maxZ = 60;
+    for (var g = 0; g < laid.length; g++) {
+      minX = Math.min(minX, laid[g].x); maxX = Math.max(maxX, laid[g].x);
+      minZ = Math.min(minZ, laid[g].z); maxZ = Math.max(maxZ, laid[g].z);
+    }
+    if (templeZ != null) minZ = Math.min(minZ, templeZ);
+    minX -= 90; maxX += 90; maxZ += 60; minZ -= 60;
+    var cx = (minX + maxX) / 2;
+
+    // avoidance test: too close to a grove node, the temple footprint, or the path curve.
+    function blocked(x, z) {
+      for (var i = 0; i < laid.length; i++) {
+        var dx = x - laid[i].x, dz = z - laid[i].z;
+        if (dx * dx + dz * dz < 220) return true;          // grove clearing
       }
-      // keep the walking corridor clear; widen the clearing near the camera so the path +
-      // foreground groves read (the refs open up in front, trees frame the sides/back).
-      var corridor = 14 + Math.max(0, (z - 10)) * 0.7;
-      if (Math.abs(x) < corridor) continue;
-      if (Math.abs(x) < 26 && z < -120) continue;     // keep the temple footprint clear
-      if (Math.abs(x) > 180 || z > 55 || z < -150) continue;
+      if (templeZ != null && Math.abs(x) < 34 && Math.abs(z - templeZ) < 34) return true;
+      // path proximity (sample a few points near this z)
+      if (curve) {
+        var pt = curve.getPoint(Math.max(0, Math.min(1, (maxZ - z) / (maxZ - minZ))));
+        if ((x - pt.x) * (x - pt.x) < 120 && Math.abs(z - pt.z) < 16) return true;
+      }
+      return false;
+    }
+
+    var placed = 0, lastX = 0, lastZ = 0;
+    for (var i = 0; i < COUNT * 3 && placed < COUNT; i++) {
+      var x, z;
+      if (r() < 0.5 && placed > 0) {                        // cluster into loose stands
+        x = lastX + (r() - 0.5) * 22; z = lastZ + (r() - 0.5) * 22;
+      } else {
+        x = minX + r() * (maxX - minX); z = minZ + r() * (maxZ - minZ);
+      }
+      if (x < minX || x > maxX || z < minZ || z > maxZ) continue;
+      // rising density toward the LATERAL frame edges (framing), thinning in the middle band
+      var edge = Math.min(1, Math.abs(x - cx) / ((maxX - minX) / 2));
+      if (r() > 0.25 + edge * 0.75) continue;               // more likely to keep near edges
+      if (blocked(x, z)) continue;
       lastX = x; lastZ = z;
-      // MID-ground trees are bigger + fuller (heroes of the wall); far ones smaller, fading.
-      // Wider size variety (some tall, some squat) for a natural silhouette.
-      var s = (0.7 + r() * r() * 2.2) * (1.0 + (1 - band) * 0.4);
-      var gy = groundY(x, z);
+      var s = 0.7 + r() * r() * 1.8;
+      var gy = groundY(x, z) - 0.15;                        // sink slightly (ground contact)
       q.setFromAxisAngle(new T.Vector3(0, 1, 0), r() * 6.28);
-      // main crown
-      pos.set(x, gy + 3.2 * s, z); sc.set(s, s * (0.92 + r() * 0.4), s);
+      pos.set(x, gy + 2.8 * s, z); sc.set(s, s * (0.9 + r() * 0.4), s);
       m.compose(pos, q, sc); crowns.setMatrixAt(placed, m);
-      // top lobe (offset up + sideways for a two-tier, non-spherical silhouette)
-      pos.set(x + (r() - 0.5) * s, gy + 5.2 * s, z + (r() - 0.5) * s); sc.set(s * 0.9, s, s * 0.9);
+      pos.set(x + (r() - 0.5) * s, gy + 4.6 * s, z + (r() - 0.5) * s); sc.set(s * 0.85, s, s * 0.85);
       m.compose(pos, q, sc); tops.setMatrixAt(placed, m);
-      // trunk
-      pos.set(x, gy + 2.6 * s, z); sc.set(s, s, s);
+      pos.set(x, gy + 2.2 * s, z); sc.set(s, s, s);
       m.compose(pos, q, sc); trunks.setMatrixAt(placed, m);
-      // colour: pick a lush hue, vary lightness a touch, fade FAR trees into the warm fog
       col.setHex(palette[(r() * palette.length) | 0]);
-      col.offsetHSL(0, 0, (r() - 0.5) * 0.08);
-      col.lerp(fogC, band * band * 0.55);
+      col.offsetHSL((r() - 0.5) * 0.03, 0, (r() - 0.5) * 0.06);
+      // fade the outermost / far trees into fog so edges melt into the sky
+      var farK = Math.max(0, Math.min(1, (maxZ - z) / (maxZ - minZ)));   // 0 near … 1 toward temple
+      col.lerp(fogC, Math.min(0.5, edge * 0.4 + farK * 0.3));
       crowns.setColorAt(placed, col); tops.setColorAt(placed, col);
       placed++;
     }
@@ -1210,10 +1465,14 @@
     var r = new T.WebGLRenderer({ canvas: canvas, antialias: true, alpha: false, powerPreference: "high-performance" });
     r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     r.setClearColor(COL.nightMid, 1);
-    // ACES filmic tone mapping — the single biggest flat→cinematic upgrade. Exposure
-    // tuned against the rendered scene (a touch under 1 keeps the night moody).
+    // SHADOWS (spec §2) — soft PCF shadows give trees form + ground contact. Without this
+    // nothing else in the spec saves the render.
+    r.shadowMap.enabled = true;
+    r.shadowMap.type = T.PCFSoftShadowMap;
+    // ACES filmic tone mapping. Exposure a touch under 1 (spec §2: 0.85–1.0) keeps the night
+    // moody and stops emitters clipping to white.
     r.toneMapping = T.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.0;
+    r.toneMappingExposure = 0.92;
     if (T.sRGBEncoding != null) r.outputEncoding = T.sRGBEncoding;
     return r;
   }
@@ -1258,7 +1517,7 @@
     // (path, lanterns, temple, fireflies, rings) instead of flooding the midtones to white.
     // Lowered strength + raised threshold from the previous pass, which stacked into a
     // central white blob near the camera.
-    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.28, 0.7, 1.25);
+    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.26, 0.6, 0.85);
     composer.addPass(bloom);
     var grade = new T.ShaderPass(GradeShader);
     grade.renderToScreen = true;
@@ -1268,42 +1527,97 @@
     return composer;
   }
 
+  // A near-ORTHOGRAPHIC map diorama camera (spec §1). Orthographic removes perspective
+  // distortion at the frame edges and keeps distant groves at readable scale — what makes
+  // the scene read as a MAP, not a landscape photo. The frustum height is set by
+  // fitOrtho() from the grove bounds so all N nodes fit. A slight perspective is faked by
+  // the shallow pitch of the eye, but the projection itself is parallel.
   function makeCamera(w, h) {
-    var cam = new T.PerspectiveCamera(52, w / Math.max(1, h), 0.5, 900);
+    var aspect = w / Math.max(1, h);
+    var halfH = 60;                                    // replaced immediately by fitOrtho()
+    var cam = new T.OrthographicCamera(-halfH * aspect, halfH * aspect, halfH, -halfH, -400, 900);
+    cam.userData.halfH = halfH;
     return cam;
+  }
+
+  // Resize an orthographic camera's frustum to a given half-height, honouring aspect.
+  function setOrthoHalfH(cam, halfH, aspect) {
+    cam.userData.halfH = halfH;
+    cam.left = -halfH * aspect; cam.right = halfH * aspect;
+    cam.top = halfH; cam.bottom = -halfH;
+    cam.updateProjectionMatrix();
   }
 
   function makeControls(cam, dom) {
     var c = new T.OrbitControls(cam, dom);
-    c.enableDamping = true; c.dampingFactor = 0.08;
-    c.minDistance = 24; c.maxDistance = 130;
-    c.maxPolarAngle = Math.PI * 0.5;      // don't dip under the ground
-    c.minPolarAngle = Math.PI * 0.24;     // keep a grounded, cinematic eye-level (temple stays framed)
-    c.enablePan = true; c.screenSpacePanning = false;
-    c.panSpeed = 0.6; c.rotateSpeed = 0.5; c.zoomSpeed = 0.8;
-    c.autoRotate = false; c.autoRotateSpeed = 0.14;   // gentle idle drift (brief §4)
+    c.enableDamping = true; c.dampingFactor = 0.09;
+    // orthographic zoom is via .zoom (dolly is meaningless); constrain it.
+    c.minZoom = 0.55; c.maxZoom = 3.2;
+    // CONSTRAIN orbit (spec §1): keep the shallow map pitch; allow only a little yaw + pitch
+    // so the user can nudge the diorama but never frame it badly. "Wander mode" is separate.
+    var basePolar = MAP_PITCH;                          // shallow map pitch
+    c.maxPolarAngle = basePolar + 0.14;
+    c.minPolarAngle = basePolar - 0.10;
+    c.minAzimuthAngle = -0.35; c.maxAzimuthAngle = 0.35;   // ±~20° yaw
+    c.enablePan = false;
+    c.rotateSpeed = 0.45; c.zoomSpeed = 0.9;
+    c.autoRotate = false;
     return c;
   }
+  // The shallow map pitch (polar angle from +Y). ~24° down-look → horizon ~22–28% from top.
+  var MAP_PITCH = Math.PI * 0.5 - (25 * Math.PI / 180);
 
-  // Frame the DEFAULT camera so the composition reads foreground → winding path → glowing
-  // TEMPLE at the focal third (both refs). We sit behind/above the active grove and aim the
-  // look-target up the path toward the temple, so the temple lands high-centre in frame and
-  // the path leads the eye to it. Smooth tween unless instant/reduced.
-  function restNear(state, target, height, dist, instant) {
+  // FIT-TO-BOUNDS the orthographic map camera (spec §1) so the DEFAULT framing shows ALL
+  // groves + the temple, none occluded, with ~12% padding. Fully a function of the live
+  // grove bounds → adapts automatically to any N (3 or 18 pillars) and re-frames when the
+  // curriculum grows. The eye sits at the shallow MAP_PITCH aimed at the centre of the
+  // spread; the frustum half-height is sized to contain the lateral + depth extent + temple.
+  function fitOrtho(state, aspect, instant) {
     var cam = state.cam, ctl = state.controls;
-    var tZ = state.templeZ != null ? state.templeZ : target.z - 34;   // no temple → aim just ahead
-    // Aim roughly a THIRD of the way from the active grove toward the temple, lifted a
-    // little — so the active grove + its ring sit lower-centre, the path recedes through
-    // the middle, and the temple crowns the upper third.
-    var look = new T.Vector3(target.x * 0.25, target.y + 8, target.z + (tZ - target.z) * 0.4);
-    // Eye sits behind + above the active grove; not so far back that the grove drops off
-    // the bottom (dist tuned so the active grove lands ~lower third of frame).
-    var eye = new T.Vector3(target.x * 0.5, target.y + (height || 34), target.z + (dist || 50));
-    if (instant || reduced()) {
-      cam.position.copy(eye); ctl.target.copy(look); ctl.update();
+    var laid = state.laid || [];
+    // bounds over grove nodes (+ their canopy/label headroom) + the entrance + the temple.
+    var minX = -22, maxX = 22, minZ = -18, maxZ = 34;
+    for (var i = 0; i < laid.length; i++) {
+      minX = Math.min(minX, laid[i].x - 14); maxX = Math.max(maxX, laid[i].x + 14);
+      minZ = Math.min(minZ, laid[i].z - 10); maxZ = Math.max(maxZ, laid[i].z + 16);
+    }
+    if (state.templeZ != null) minZ = Math.min(minZ, state.templeZ - 22);
+    var cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+    // look at the centre of the spread, lifted so the temple crowns the upper band.
+    var look = new T.Vector3(cx, groundY(cx, cz) + 6, cz);
+    // eye direction at the shallow map pitch (parallel projection — distance is irrelevant to
+    // framing, so just place it well back along the view dir).
+    var dir = new T.Vector3(0, Math.cos(MAP_PITCH), Math.sin(MAP_PITCH));
+    var eye = look.clone().add(dir.clone().multiplyScalar(300));
+    // Fit: project the 8 corners of the bounds box (ground + a canopy-height top) through a
+    // trial view matrix at this eye/look, and size halfH so all corners fit with padding.
+    // Robust for any pitch/aspect and any N — the map fills the frame, nothing crops.
+    var trial = new T.Matrix4();
+    var up = new T.Vector3(0, 1, 0);
+    trial.lookAt(eye, look, up);
+    var inv = new T.Matrix4().copy(trial).invert();     // world→view basis
+    // view matrix = inverse of the camera's world transform; build it directly.
+    var camM = new T.Matrix4().makeTranslation(eye.x, eye.y, eye.z).multiply(trial);
+    var viewM = new T.Matrix4().copy(camM).invert();
+    var topY = 22;                                       // grove canopy/medallion headroom
+    var vMaxX = 0, vMaxY = 0, p = new T.Vector3();
+    var corners = [[minX,0,minZ],[maxX,0,minZ],[minX,0,maxZ],[maxX,0,maxZ],
+                   [minX,topY,minZ],[maxX,topY,minZ],[minX,topY,maxZ],[maxX,topY,maxZ]];
+    for (var c = 0; c < corners.length; c++) {
+      p.set(corners[c][0], corners[c][1] + groundY(corners[c][0], corners[c][2]), corners[c][2]);
+      p.applyMatrix4(viewM);
+      vMaxX = Math.max(vMaxX, Math.abs(p.x)); vMaxY = Math.max(vMaxY, Math.abs(p.y));
+    }
+    var halfH = Math.max(vMaxY, vMaxX / Math.max(0.4, aspect)) * 1.02;   // 2% padding — fill the frame
+    halfH = Math.max(38, halfH);
+    state._fitHalfH = halfH; state._fitAspect = aspect;
+    if (instant || reduced() || !cam.position.lengthSq()) {
+      cam.position.copy(eye); ctl.target.copy(look);
+      setOrthoHalfH(cam, halfH, aspect); cam.zoom = 1; cam.updateProjectionMatrix(); ctl.update();
     } else {
+      setOrthoHalfH(cam, halfH, aspect);
       state._tween = { fromE: cam.position.clone(), toE: eye,
-        fromT: ctl.target.clone(), toT: look, t: 0, dur: 1.2 };
+        fromT: ctl.target.clone(), toT: look, t: 0, dur: 1.1 };
     }
   }
 
@@ -1347,13 +1661,9 @@
       if (!this.ok()) return;
       this.data = data; this.mode = "overview"; this.curPillar = null;
       this._install(buildScene(data, "overview"));
-      // frame foreground → path → temple, from a high vantage behind the active grove. On a
-      // NARROW (portrait/mobile) frame, pull back + up so the temple stays in the upper third.
-      var narrow = (this.canvas.clientWidth || 800) < 560;
-      var h = narrow ? 42 : 34, d = narrow ? 66 : 52;
-      var ai = this.state.activeIndex, L = this.state.laid[ai];
-      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, h, d, true);
-      else restNear(this.state, { x: 0, y: 0, z: 34 }, h + 4, d + 8, true);
+      // FIT the whole map (all groves + temple) into the default framing (spec §1).
+      var w = this.canvas.clientWidth || 800, h = this.canvas.clientHeight || 600;
+      fitOrtho(this.state, w / Math.max(1, h), true);
     },
 
     // Build the drill-in CONCEPT sub-forest for a pillar (same lush assembly as overview).
@@ -1364,11 +1674,10 @@
       if (!this.ok()) return;
       this.data = data; this.mode = "grove"; this.curPillar = pillar;
       this._install(buildScene(data, "grove"));
-      // aim a modest distance ahead so the sub-forest recedes into the wood, not a void
-      var far = this.state.laid.length ? this.state.laid[this.state.laid.length - 1].z - 30 : -60;
-      this.state.templeZ = far;
-      var ai = this.state.activeIndex, L = this.state.laid[ai];
-      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, 32, 56, true);
+      // fit the concept sub-forest into frame (no temple in the drill-in).
+      this.state.templeZ = null;
+      var w = this.canvas.clientWidth || 800, h = this.canvas.clientHeight || 600;
+      fitOrtho(this.state, w / Math.max(1, h), true);
     },
 
     _install: function (state) {
@@ -1380,24 +1689,163 @@
       try { state.composer = makeComposer(this.renderer, state.scene, state.cam, w, h); }
       catch (e) { state.composer = null; }
       this.state = state;
+      this._buildLabels();
+      this._buildHud();
       this._resize();
       this._wirePick();
+      this._syncLabels();
       if (this.visible) this._start();
     },
 
-    // Constrained orbit is via OrbitControls; these expose the HUD zoom buttons.
+    // Create a DOM overlay layer + one permanent LABEL per grove (spec §9). Labels are
+    // billboarded via camera projection each frame (_syncLabels), so they always face the
+    // viewer and sit above their node — DOM text, not scene textures (crisper, restyleable).
+    _buildLabels: function () {
+      var frame = this.frame; if (!frame) return;
+      if (!this._labelLayer) {
+        var layer = document.createElement("div");
+        layer.className = "forest-labels";
+        layer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:4;overflow:hidden";
+        frame.appendChild(layer); this._labelLayer = layer;
+      }
+      // rebuild label elements for the current scene's groves
+      this._labelLayer.innerHTML = "";
+      this._labels = [];
+      var laid = this.state.laid || [];
+      for (var i = 0; i < laid.length; i++) {
+        var gd = laid[i].grove;
+        var el = document.createElement("div");
+        el.className = "forest-label" + (gd._active ? " here" : "") + " st-" + (gd.status || "");
+        var name = gd.pillar || gd.name || "";
+        el.innerHTML = (gd._active ? '<span class="fl-here">YOU ARE HERE</span>' : '')
+          + '<span class="fl-name">' + _escHtml(name) + '</span>';
+        this._labelLayer.appendChild(el);
+        this._labels.push({ el: el, idx: i, active: !!gd._active, w: 0, h: 0 });
+      }
+    },
+
+    // Project each grove's label anchor to screen and place/fade the DOM labels. Collision/
+    // fade strategy for MANY nodes (spec §9 + scale update): always show the active grove +
+    // its path neighbours + any hovered/selected node at full opacity; for the rest, hide on
+    // heavy overlap (labels live in the dark bands between canopies). The minimap carries the
+    // full set, so hiding some overview labels never loses information.
+    _syncLabels: function () {
+      var st = this.state; if (!st || !this._labels) return;
+      var cam = st.cam, cv = this.canvas;
+      var W = cv.clientWidth || 1, H = cv.clientHeight || 1;
+      var pick = st.pickables, laid = st.laid;
+      // map laid-index → its label anchor (grove tree pickable carries labelY)
+      var anchors = {};
+      for (var p = 0; p < pick.length; p++) if (pick[p].labelY != null) {
+        // find its laid index by matching grove
+        for (var q = 0; q < laid.length; q++) if (laid[q].grove === pick[p].grove) { anchors[q] = pick[p]; break; }
+      }
+      var v = new T.Vector3();
+      var ai = st.activeIndex;
+      var hov = this._hoverIdx != null ? this._hoverIdx : -1;
+      // Priority (spec §9 + scale update): active is always shown, then hovered/selected, then
+      // path neighbours of the active grove, then mastered landmarks, then the rest. Compute
+      // all projected rects, then greedily accept HIGH→LOW priority, hiding overlaps — so the
+      // shown labels never collide and the important ones always win. The minimap carries the
+      // full set, so hiding some is lossless.
+      var cand = [];
+      for (var i = 0; i < this._labels.length; i++) {
+        var L = this._labels[i], a = anchors[L.idx];
+        if (!a) { L.el.style.opacity = "0"; continue; }
+        v.set(a.x, a.labelY, a.z).project(cam);
+        if (v.z > 1) { L.el.style.opacity = "0"; continue; }
+        var sx = (v.x * 0.5 + 0.5) * W, sy = (-v.y * 0.5 + 0.5) * H;
+        if (sx < -60 || sx > W + 60 || sy < -30 || sy > H + 40) { L.el.style.opacity = "0"; continue; }
+        if (!L.w) { L.w = L.el.offsetWidth || 80; L.h = L.el.offsetHeight || 18; }
+        var st2 = laid[L.idx].grove.status;
+        var prio = L.active ? 100
+          : (L.idx === hov || L.idx === this._selIdx) ? 92
+          : (Math.abs(L.idx - ai) === 1) ? 84
+          : (st2 === "blossoming") ? 66
+          : (st2 === "unlocked") ? 52 : 40;
+        cand.push({ L: L, x: sx, y: sy - L.h * 0.5, w: L.w, h: L.h, prio: prio });
+      }
+      cand.sort(function (p, q) { return q.prio - p.prio; });
+      var placed = [];
+      for (var c2 = 0; c2 < cand.length; c2++) {
+        var C = cand[c2], show = true;
+        if (C.prio < 100) {
+          for (var k = 0; k < placed.length; k++) {
+            var o = placed[k];
+            if (Math.abs(C.x - o.x) < (C.w + o.w) * 0.5 + 4 && Math.abs(C.y - o.y) < (C.h + o.h) * 0.5 + 3) {
+              show = false; break;
+            }
+          }
+        }
+        if (show) {
+          C.L.el.style.transform = "translate(-50%,-100%) translate(" + C.x.toFixed(1) + "px," + C.y.toFixed(1) + "px)";
+          C.L.el.style.opacity = C.prio >= 84 ? "1" : "0.88";
+          placed.push(C);
+        } else {
+          C.L.el.style.opacity = "0";
+        }
+      }
+      this._syncHud();
+    },
+
+    // Build the diegetic HUD (spec §13): compass rose + minimap + legend, styled in the app's
+    // gold-on-dark ornament language (the DOM/CSS lives in the mapframe; here we just draw the
+    // minimap dots each frame). We create a <canvas> minimap once.
+    _buildHud: function () {
+      if (this._miniCanvas) return;
+      var mini = document.getElementById("forest-mini");
+      if (mini) { this._miniCanvas = mini; }
+    },
+    _syncHud: function () {
+      var mini = this._miniCanvas, st = this.state; if (!mini || !st) return;
+      var laid = st.laid || [];
+      var ctx = mini.getContext("2d");
+      var W = mini.width, H = mini.height;
+      ctx.clearRect(0, 0, W, H);
+      if (!laid.length) return;
+      // bounds
+      var minX = 1e9, maxX = -1e9, minZ = 1e9, maxZ = -1e9;
+      for (var i = 0; i < laid.length; i++) {
+        minX = Math.min(minX, laid[i].x); maxX = Math.max(maxX, laid[i].x);
+        minZ = Math.min(minZ, laid[i].z); maxZ = Math.max(maxZ, laid[i].z);
+      }
+      if (st.templeZ != null) minZ = Math.min(minZ, st.templeZ);
+      var pad = 12;
+      var sx = (maxX > minX) ? (W - pad * 2) / (maxX - minX) : 1;
+      var sz = (maxZ > minZ) ? (H - pad * 2) / (maxZ - minZ) : 1;
+      var s = Math.min(sx, sz);
+      function px(x, z) { return [pad + (x - minX) * s + (W - pad * 2 - (maxX - minX) * s) / 2,
+                                   pad + (maxZ - z) * s]; }
+      // path polyline
+      ctx.strokeStyle = "rgba(231,182,75,0.5)"; ctx.lineWidth = 1.4; ctx.beginPath();
+      for (var j = 0; j < laid.length; j++) { var pt = px(laid[j].x, laid[j].z); j ? ctx.lineTo(pt[0], pt[1]) : ctx.moveTo(pt[0], pt[1]); }
+      ctx.stroke();
+      // temple marker
+      if (st.templeZ != null) { var tp = px(0, st.templeZ);
+        ctx.fillStyle = "#f7d98a"; ctx.beginPath(); ctx.moveTo(tp[0], tp[1] - 4); ctx.lineTo(tp[0] + 3, tp[1] + 2); ctx.lineTo(tp[0] - 3, tp[1] + 2); ctx.closePath(); ctx.fill(); }
+      // grove dots, coloured by state
+      for (var k = 0; k < laid.length; k++) {
+        var g = laid[k].grove, pp = px(laid[k].x, laid[k].z);
+        var col = g._active ? "#57d3ce" : g.status === "blossoming" ? "#e7b64b"
+          : g.status === "locked" ? "#6a7590" : "#84c778";
+        ctx.fillStyle = col;
+        ctx.beginPath(); ctx.arc(pp[0], pp[1], g._active ? 3.4 : 2.4, 0, 6.283); ctx.fill();
+        if (g._active) { ctx.strokeStyle = "rgba(87,211,206,0.7)"; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.arc(pp[0], pp[1], 5.5, 0, 6.283); ctx.stroke(); }
+      }
+    },
+
+    // Orthographic zoom is via cam.zoom; these expose the HUD zoom buttons.
     zoom: function (mult) {
       if (!this.state) return;
       var c = this.state.controls, cam = this.state.cam;
-      var dir = cam.position.clone().sub(c.target);
-      var d = dir.length() / mult;
-      d = Math.max(c.minDistance, Math.min(c.maxDistance, d));
-      cam.position.copy(c.target).add(dir.setLength(d)); c.update();
+      cam.zoom = Math.max(c.minZoom, Math.min(c.maxZoom, cam.zoom * mult));
+      cam.updateProjectionMatrix(); c.update();
     },
     zoomReset: function () {
       if (!this.state) return;
-      var ai = this.state.activeIndex, L = this.state.laid[ai];
-      if (L) restNear(this.state, { x: L.x, y: groundY(L.x, L.z), z: L.z }, 26, 46, false);
+      var w = this.canvas.clientWidth || 800, h = this.canvas.clientHeight || 600;
+      fitOrtho(this.state, w / Math.max(1, h), false);
     },
 
     setVisible: function (on) {
@@ -1420,8 +1868,13 @@
       var w = this.canvas.clientWidth || (this.frame ? this.frame.clientWidth : 800);
       var h = this.canvas.clientHeight || (this.frame ? this.frame.clientHeight : 600);
       this.renderer.setSize(w, h, false);
-      this.state.cam.aspect = w / Math.max(1, h); this.state.cam.updateProjectionMatrix();
+      var aspect = w / Math.max(1, h), cam = this.state.cam;
+      // orthographic: re-fit the frustum to the new aspect so nothing crops on resize.
+      if (cam.isOrthographicCamera) {
+        setOrthoHalfH(cam, this.state._fitHalfH || cam.userData.halfH || 60, aspect);
+      } else { cam.aspect = aspect; cam.updateProjectionMatrix(); }
       if (this.state.composer) this.state.composer.setSize(w, h);
+      if (this._syncLabels) this._syncLabels();
     },
 
     _tick: function () {
@@ -1439,12 +1892,22 @@
         if (k >= 1) st._tween = null;
       }
 
+      // medallions + you-are-here always billboard to face the camera (readable at any yaw).
+      var camQ = st.cam.quaternion;
+      if (st.medallions) for (var md = 0; md < st.medallions.length; md++) st.medallions[md].grp.quaternion.copy(camQ);
+
       if (!calm) {
-        // gentle idle camera drift so the scene always breathes (brief §4); user input via
-        // OrbitControls damping overrides it while dragging.
-        st.controls.autoRotate = true;
+        // the map camera stays put (no idle orbit — it would fight fit-to-bounds + labels);
+        // life comes from wind, particles, lantern flicker and medallion pulse instead.
+        st.controls.autoRotate = false;
         // drive the shared WIND uniform on every toon material (height-masked sway in-shader)
         for (var wu = 0; wu < _windUniforms.length; wu++) _windUniforms[wu].value = t;
+        // medallion beacon pulse — active pulses brightest so the eye finds "you are here".
+        for (var mp = 0; mp < (st.medallions ? st.medallions.length : 0); mp++) {
+          var M = st.medallions[mp]; if (!M.grp.userData.halo) continue;
+          var pb = M.state === "active" ? 0.5 : M.state === "blossoming" ? 0.34 : 0.28;
+          M.grp.userData.halo.material.opacity = pb + Math.sin(t * (M.state === "active" ? 2.4 : 1.4) + mp) * 0.12;
+        }
         // extra whole-canopy sway on the hero milestone trees for readable life up close
         for (var i = 0; i < st.pickables.length; i++) {
           var tr = st.pickables[i].obj, cp = tr.userData.canopy;
@@ -1545,6 +2008,8 @@
       st.controls.update();
       if (st.composer) st.composer.render(dt);
       else this.renderer.render(st.scene, st.cam);
+      // keep DOM labels + minimap pinned to their projected nodes (throttled a touch when calm)
+      this._syncLabels();
     },
 
     // Raycast clicks → the shared popover (grove in overview; concept in drill-in).
@@ -1591,6 +2056,8 @@
     _disposeScene: function () {
       if (!this.state) return;
       if (window.hideNodePop) window.hideNodePop();
+      if (this._labelLayer) this._labelLayer.innerHTML = "";
+      this._labels = null; this._hoverIdx = null; this._selIdx = null;
       var st = this.state;
       if (st.controls) st.controls.dispose();
       if (st.composer) { try { st.composer.renderTarget1.dispose(); st.composer.renderTarget2.dispose();

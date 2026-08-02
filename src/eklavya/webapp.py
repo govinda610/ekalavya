@@ -1128,21 +1128,60 @@ body.reduce-motion *{animation:none !important}
  background:rgba(6,9,20,.5);border:1px solid var(--line-soft);padding:6px 12px;border-radius:5px;cursor:pointer;transition:.16s}
 .ttab:hover{color:var(--gold-bright)} .ttab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .ttab:disabled{opacity:.4;cursor:default}
-/* the map fills the pane in a gold-hairline frame; the SVG scales to width (no overflow) */
-.mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
- box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
+/* FULL-BLEED the 3D canvas (spec §13): the scene fills the content area and fades into the
+   chrome with an edge mask — no floating rounded box / hard border framing a screensaver. */
+.mapframe{flex:1;min-height:0;overflow:hidden;display:flex;background:#0d1122;position:relative;
+ border-radius:8px;box-shadow:inset 0 0 0 1px var(--line-soft),0 24px 60px -30px rgba(0,0,0,.7)}
+/* soft inner vignette so the canvas melts into the panel instead of a hard cut */
+.mapframe::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:3;border-radius:8px;
+ box-shadow:inset 0 0 90px 10px rgba(10,13,28,.55)}
+/* ---- diegetic HUD: minimap + compass + legend (gold-on-dark, app font) ---- */
+.maphud{position:absolute;z-index:6;pointer-events:none}
+.maphud-tl{top:12px;left:12px;display:flex;flex-direction:column;gap:8px}
+.mini-panel{background:linear-gradient(180deg,rgba(12,16,30,.86),rgba(8,11,22,.82));
+ border:1px solid var(--line-gold);border-radius:8px;padding:7px 8px 6px;backdrop-filter:blur(4px);
+ box-shadow:0 12px 30px -18px rgba(0,0,0,.8)}
+.mini-title{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.18em;text-transform:uppercase;
+ color:var(--gold);opacity:.85;margin:0 0 4px 1px}
+#forest-mini{display:block;width:150px;height:120px}
+.map-legend{display:flex;flex-direction:column;gap:3px;background:linear-gradient(180deg,rgba(12,16,30,.8),rgba(8,11,22,.76));
+ border:1px solid var(--line-soft);border-radius:8px;padding:7px 9px;backdrop-filter:blur(4px);
+ font-family:var(--f-mono);font-size:9px;letter-spacing:.05em;color:var(--parch-dim)}
+.map-legend span{display:flex;align-items:center;gap:6px}
+.map-legend .lg{width:8px;height:8px;border-radius:50%;flex:none}
+.map-legend .lg.gold{background:#e7b64b;box-shadow:0 0 5px #e7b64b}
+.map-legend .lg.teal{background:#57d3ce;box-shadow:0 0 5px #57d3ce}
+.map-legend .lg.green{background:#84c778}
+.map-legend .lg.lock{background:#6a7590}
+.map-compass{position:absolute;left:14px;bottom:14px;z-index:6;opacity:.9;pointer-events:none;
+ filter:drop-shadow(0 2px 6px rgba(0,0,0,.6))}
+/* ---- permanent grove LABELS projected over the canvas (spec §9) ---- */
+.forest-label{position:absolute;top:0;left:0;will-change:transform,opacity;transition:opacity .25s;
+ display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center;white-space:nowrap;
+ pointer-events:none;transform-origin:center bottom}
+.forest-label .fl-name{font-family:var(--f-title);font-size:12px;letter-spacing:.04em;color:var(--parch);
+ padding:2px 9px;border-radius:5px;background:linear-gradient(180deg,rgba(10,14,26,.82),rgba(8,11,22,.7));
+ border:1px solid var(--line-soft);box-shadow:0 6px 16px -10px rgba(0,0,0,.9),0 0 0 1px rgba(0,0,0,.3)}
+.forest-label.st-blossoming .fl-name{color:var(--gold-bright);border-color:rgba(231,182,75,.4)}
+.forest-label.st-active .fl-name{color:#bff3ee;border-color:rgba(87,211,206,.55);
+ background:linear-gradient(180deg,rgba(10,26,30,.9),rgba(8,18,24,.8))}
+.forest-label.st-locked .fl-name{color:var(--parch-mute);opacity:.85}
+.forest-label .fl-here{font-family:var(--f-mono);font-size:8px;letter-spacing:.2em;color:#7ff2ea;
+ text-shadow:0 0 8px rgba(87,211,206,.8)}
+.forest-label.here{z-index:2}
 .mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
 /* the 3D forest canvas fills the frame; WebGL owns the pixels, HUD floats over it */
 .mapframe canvas#forest3d{display:block;width:100%;height:100%;flex:1;min-height:0;touch-action:none;cursor:grab}
 .mapframe canvas#forest3d:active{cursor:grabbing}
 .forest3d-fallback{margin:auto;padding:40px 30px;max-width:460px;text-align:center;
  font-family:var(--f-body);font-size:14px;line-height:1.6;color:var(--parch-dim)}
-/* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
-.mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
-.mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
-  background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
-  display:grid;place-items:center;backdrop-filter:blur(3px)}
-.mapzoom button:hover{border-color:var(--gold)}
+/* zoom controls — small brass-rimmed circular buttons in the corner (spec §13) */
+.mapzoom{position:absolute;bottom:14px;right:14px;display:flex;flex-direction:column;gap:7px;z-index:6}
+.mapzoom button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line-gold);
+  background:radial-gradient(circle at 40% 35%,rgba(40,34,26,.9),rgba(8,11,22,.88));color:var(--gold-bright);
+  font-size:15px;line-height:1;cursor:pointer;display:grid;place-items:center;backdrop-filter:blur(3px);
+  box-shadow:0 4px 12px -6px rgba(0,0,0,.8),inset 0 1px 0 rgba(231,182,75,.15)}
+.mapzoom button:hover{border-color:var(--gold);color:#fff6df}
 /* mobile: the 3D forest is the star — give it (almost) the full viewport height, and
    tighten the panel padding / header so the scene isn't a short letterbox. */
 @media(max-width:820px){
@@ -1156,8 +1195,8 @@ body.reduce-motion *{animation:none !important}
    below (quest banner, node popover, zoom/back buttons) remain as DOM. Motion is
    gated inside the scene by _reduced(); the body.reduce-motion class still drives
    the rest of the app. */
-/* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
-.mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
+/* a small quest banner (top-right of the canvas — clear of the minimap top-left) */
+.mapquest{position:absolute;top:12px;right:60px;max-width:260px;z-index:5;
  background:linear-gradient(180deg,rgba(10,16,30,.92),rgba(8,12,22,.9));
  border:1px solid var(--line-gold);border-radius:9px;padding:9px 12px;backdrop-filter:blur(4px);
  box-shadow:0 14px 34px -20px rgba(0,0,0,.8)}
@@ -1537,9 +1576,25 @@ body.reduce-motion *{animation:none !important}
       </div>
     </div>
     <div class="mapframe"><canvas id="forest3d" role="img" aria-label="Enchanted 3D forest of mastery: milestone groves on a glowing winding path toward a golden temple."></canvas>
+      <!-- diegetic HUD (spec §13): compass rose + minimap + legend, gold-on-dark ornament -->
+      <div class="maphud maphud-tl">
+        <div class="mini-panel">
+          <div class="mini-title">Forest Map</div>
+          <canvas id="forest-mini" width="150" height="120"></canvas>
+        </div>
+        <div class="map-legend">
+          <span><i class="lg gold"></i>Mastered</span>
+          <span><i class="lg teal"></i>You are here</span>
+          <span><i class="lg green"></i>Available</span>
+          <span><i class="lg lock"></i>Locked</span>
+        </div>
+      </div>
+      <div class="map-compass" aria-hidden="true">
+        <svg viewBox="0 0 48 48" width="48" height="48"><circle cx="24" cy="24" r="21" fill="none" stroke="rgba(231,182,75,.35)" stroke-width="1"/><circle cx="24" cy="24" r="15" fill="none" stroke="rgba(231,182,75,.18)" stroke-width="1"/><path d="M24 5 L28 24 L24 20 L20 24 Z" fill="#f7d98a"/><path d="M24 43 L20 24 L24 28 L28 24 Z" fill="rgba(231,182,75,.4)"/><text x="24" y="12" text-anchor="middle" font-size="7" fill="#f7d98a" font-family="serif">N</text></svg>
+      </div>
       <div class="mapzoom">
         <button id="mapback" onclick="forestBack()" title="Back to the forest" hidden>←</button>
-        <button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Recenter on you">⟲</button></div>
+        <button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Reset view">⟲</button></div>
       <div class="mapquest" id="mapquest" hidden></div>
       <div class="nodepop" id="nodepop" hidden></div>
     </div>
