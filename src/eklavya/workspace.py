@@ -45,12 +45,12 @@ def _is_forbidden(file_path: str) -> bool:
         return True
     if resolved.is_relative_to(p.home.resolve()):
         return True  # backups, checkpointer, other app internals — off limits
-    if config.MULTIUSER:
-        # Deployed multi-user: reads are confined to THIS user's own tree. Anything
-        # outside it — other users' homes, the shared users.db, the host — is off
-        # limits. (External code comes in via a GitHub link, not host reads.)
+    if config.DEPLOYED:
+        # Deployed: reads are confined to THIS user's own tree. Anything outside it —
+        # other users' homes, the shared users.db, the host — is off limits. (External
+        # code comes in via a GitHub link, not host reads.)
         return True
-    # Single-user self-host: read the host broadly, minus the secret dirs.
+    # Local self-host: read the host broadly, minus the secret dirs.
     home = Path.home()
     return any(resolved.is_relative_to((home / f).resolve()) for f in _FORBIDDEN)
 
@@ -85,15 +85,15 @@ def build_backend():
                 return _DENY_MSG
             return await super().aread(file_path, *args, **kwargs)
 
-    # Single-user reads the whole host home (so you can point it at your real code), with
-    # virtual_mode=False + the _is_forbidden guard on read. MULTI-USER is different: the
+    # Local self-host reads the whole host home (so you can point it at your real code),
+    # with virtual_mode=False + the _is_forbidden guard on read. DEPLOYED is different: the
     # read override only guards `read`, but ls/glob/grep/download route through the backend
     # directly — so we MUST confine at the backend with virtual_mode=True rooted at the
     # user's own home. Without this, an absolute-path search escapes the tenant's tree and
     # can read the shared users.db / other tenants (cross-tenant breach). Belt-and-braces:
     # _is_forbidden still guards read() in both modes.
-    read_root = config.paths().home if config.MULTIUSER else Path.home()
+    read_root = config.paths().home if config.DEPLOYED else Path.home()
     return CompositeBackend(
-        default=ReadOnlyHost(root_dir=str(read_root), virtual_mode=config.MULTIUSER),
+        default=ReadOnlyHost(root_dir=str(read_root), virtual_mode=config.DEPLOYED),
         routes={"/workspace/": FilesystemBackend(root_dir=str(workspace_dir()), virtual_mode=True)},
     )

@@ -10,7 +10,9 @@ from the signature, and we can unit-test them directly without any LLM.
 
 from __future__ import annotations
 
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from . import config
 from .config import ensure_home
@@ -166,8 +168,40 @@ def add_curriculum(concept: str, prereqs: str = "", pillar: str = "") -> str:
     return f"curriculum: '{concept}' added"
 
 
+def _guard_destructive(op: str) -> None:
+    """Protect the learner's real store from accidental wipes by stray scripts or agents.
+
+    Two layers, in order:
+      1. REFUSE when NO account is bound to the context and the op would land on the retired
+         ``~/.eklavya`` fallback home — the exact way an unscoped script clobbers real data —
+         unless ``EKLAVYA_ALLOW_DESTRUCTIVE=1`` signals deliberate intent. Real runs always
+         bind an account first (CLI/TUI resolve one; the web binds the session's user); test
+         runs that pin a temp ``EKLAVYA_HOME``/``EKLAVYA_DATA_ROOT`` never match, so they pass.
+      2. ALWAYS take a recovery snapshot first, so any authorised destructive change is
+         one ``eklavya revert`` away. Best-effort: a backup failure must never itself
+         block a legitimate op, but a hard refusal above always wins.
+    """
+    bound = config._current_home.get() is not None
+    home = config.paths().home
+    allow = os.environ.get("EKLAVYA_ALLOW_DESTRUCTIVE", "0") not in ("0", "", "false", "False")
+    if not bound and home == (Path.home() / ".eklavya") and not allow:
+        raise RuntimeError(
+            f"Refusing {op}: it would modify the real single-user store at {home} with no "
+            "user home bound. Bind a user home / set EKLAVYA_DATA_ROOT (multi-user), or set "
+            "EKLAVYA_ALLOW_DESTRUCTIVE=1 to override deliberately."
+        )
+    try:
+        from .backups import snapshot
+        snapshot(f"before {op}")  # unconditional: always back up before a destructive wipe
+    except Exception:
+        pass  # never let a backup hiccup block a legitimate operation
+
+
 def clear_curriculum() -> str:
-    """Wipe the curriculum graph — use before drafting a fresh one."""
+    """Wipe the curriculum graph — use before drafting a fresh one.
+
+    Guarded: refuses to touch the real single-user store unbound, and snapshots first."""
+    _guard_destructive("clear_curriculum")
     conn = connect()
     try:
         conn.execute("DELETE FROM curriculum")
@@ -566,7 +600,7 @@ def get_questions(topic: str = "", company: str = "", role: str = "",
     return _clip("\n".join(lines))
 
 
-def save_artifact(title: str, kind: str, content: str) -> str:
+def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
     """Save a durable artifact to the learner's Canvas / Scriptorium library.
 
     Use this to keep something the learner will want to revisit: a written lesson, a
@@ -576,11 +610,16 @@ def save_artifact(title: str, kind: str, content: str) -> str:
     kind is one of: 'markdown' (a written lesson), 'code' (a code file/snippet),
     'html' (a self-contained HTML page/widget), or 'viz' (an SVG/interactive visual).
     content is the raw artifact body (markdown text, source code, or HTML/SVG markup).
-    Returns a short confirmation with the artifact's id.
+    pillar is the pillar/topic this belongs to (e.g. "Python Fundamentals", "LLM & Deep
+    Learning Internals") — pass it so the artifact files under the right pillar in the
+    library; it's auto-linked to the current chat either way. Returns a confirmation with the id.
     """
-    from . import artifacts
+    from . import artifacts, report
 
-    a = artifacts.create(title, kind, content)
+    # If the guru didn't name a pillar, fall back to the one currently in focus, so artifacts
+    # still file themselves correctly instead of landing under "General".
+    tag = (pillar or "").strip() or report.active_pillar()
+    a = artifacts.create(title, kind, content, pillar=tag)
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 
@@ -662,7 +701,9 @@ from .resume import read_resume  # noqa: E402
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
 #   • save_artifact — keep a durable lesson/code/HTML/visual in the learner's Canvas
-#     library (the Scriptorium) so a good explanation the guru writes isn't lost.
+#     library (the Scriptorium) so a good explanation the guru writes isn't lost. For
+#     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
+#     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
 AGENT_TOOLS = [
     grade_and_record, web_search, read_github, read_resume, get_questions, add_question,
     record_attempt, save_baseline, suggest_focus,

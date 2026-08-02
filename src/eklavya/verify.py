@@ -63,6 +63,11 @@ Do NOT flag — these are NOT issues:
 employer, skills, goals, history, or plan. The tutor can see the learner's PROFILE \
 and progress data (above), which is authoritative and may exceed what you know. \
 NEVER flag a claim about the learner as wrong or as "unverifiable"/"no profile available";
+  - ANY reference to the CONVERSATION SO FAR that you cannot see — "your 2nd/3rd attempt", \
+"as we discussed", "earlier you wrote", "you tried X before", what was covered last session. \
+You are shown ONLY the latest turn; the tutor has the FULL thread + progress data, so its \
+account of prior turns, attempt counts, and history is authoritative. NEVER contradict it, \
+and never call something the "first attempt" or say the tutor is misremembering the session;
   - questions the tutor asks the learner;
   - code or claims the tutor deliberately presents as a BUG, a wrong example, or \
 "what NOT to do";

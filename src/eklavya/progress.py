@@ -183,8 +183,18 @@ def stats() -> dict:
     try:
         xp = int(_get(conn, "xp", "0"))
         streak = int(_get(conn, "streak", "0"))
+        last = _get(conn, "last_active")
     finally:
         conn.close()
+    # Report the streak LIVE: it's only alive if the last active day was today or yesterday
+    # (you can still continue it today). After a longer gap it's already broken — even though
+    # touch_streak only rewrites the stored value on the next activity. Don't show a stale streak.
+    if streak and last:
+        try:
+            if (date.today() - date.fromisoformat(last)).days > 1:
+                streak = 0
+        except ValueError:
+            pass
     return {"xp": xp, "streak": streak, "level": level_for(xp),
             "calibration": calibration()}
 

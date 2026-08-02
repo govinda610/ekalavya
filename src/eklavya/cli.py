@@ -25,10 +25,36 @@ app = typer.Typer(
 )
 console = Console()
 
+# Commands that manage/inspect accounts directly and must NOT trigger the auto-bind (which
+# would resolve/create a local account): the account-session verbs + the deployment admin
+# verbs (which operate on the shared users.db / migration, not a single bound home), and
+# ``serve`` (the web app binds each request's own account via the auth middleware — a CLI
+# pre-bind would be wrong, and would wrongly refuse to start on an ambiguous multi-account
+# machine).
+_NO_BIND = {"login", "logout", "whoami", "adduser", "listusers", "approve", "migrate",
+            "version", "serve"}
+
 
 @app.callback(invoke_without_command=True)
-def _root(ctx: typer.Context) -> None:
-    """Bare `eklavya`: onboard on the first run, else jump straight into practice."""
+def _root(
+    ctx: typer.Context,
+    user: str = typer.Option(None, "--user", "-u", help="account to run as (email or uid); "
+                             "defaults to your local account"),
+) -> None:
+    """Bind the account for this invocation, then dispatch.
+
+    Runs before every subcommand: it resolves the local account (``--user`` / EKLAVYA_USER /
+    stored default / sole account / first-run) and binds it so all per-account state (db,
+    profile, checkpoints) routes to it. ``login``/``logout``/``whoami`` bind it themselves.
+    """
+    # Stash the requested account so the self-binding account verbs (login/whoami) honour the
+    # `--user` flag too — they run before their own body and re-resolve, so they read it here.
+    ctx.obj = user
+    # Account-management + deployment-admin commands manage/inspect accounts directly (they
+    # must NOT auto-create or bind a local account); everything else runs as a bound account.
+    if ctx.invoked_subcommand in _NO_BIND:
+        return
+    _bind_account(user)
     if ctx.invoked_subcommand is not None:
         return
     init_db()
@@ -37,6 +63,31 @@ def _root(ctx: typer.Context) -> None:
         onboard(provider=None)
     else:
         tui(minutes=30, provider=None, guard=True)
+
+
+def _bind_account(user: str | None = None) -> str:
+    """Resolve + bind the account for the CLI/TUI (set the contextvar, create its home).
+    Returns the bound uid (the home basename when EKLAVYA_HOME pins the home directly).
+
+    Precedence mirrors the web middleware: an explicit ``--user`` wins; otherwise, when the
+    EKLAVYA_HOME "which home" override is set (tests / ad-hoc runs), bind that home directly
+    rather than resolving a data-root account; otherwise resolve the local default account.
+    """
+    import os
+
+    if not user and os.environ.get("EKLAVYA_HOME"):
+        home = config._default_home()
+        config.set_current_home(home)
+        config.ensure_home()
+        return home.name
+    try:
+        uid = config.resolve_local_user(user)
+    except (LookupError, ValueError) as exc:
+        console.print(f"[red]✗[/red] {exc}")
+        raise typer.Exit(1)
+    config.set_current_home(config.user_home(uid))
+    config.ensure_home()
+    return uid
 
 
 def _first_run() -> bool:
@@ -577,6 +628,44 @@ def listusers() -> None:
         badge = status if status == "active" else f"[yellow]{status}[/]"
         table.add_row(r["email"], badge, (r["created_at"] or "")[:16])
     console.print(table)
+
+
+@app.command()
+def login(
+    ctx: typer.Context,
+    user: str = typer.Argument(None, help="account email or uid to set as this machine's "
+                               "default (omit to log in your sole/first-run account)"),
+) -> None:
+    """Set the account the CLI/TUI runs as by default (remembered on this machine).
+
+    With no argument this logs in your local account (creating a frictionless one on first
+    run). Pass an email/uid (positional or via ``--user``) to switch the stored default to an
+    existing account.
+    """
+    uid = _bind_account(user or ctx.obj)
+    config.set_default_user(uid)
+    from . import auth
+    u = auth.get_user(uid)
+    who = (u.get("email") if u else None) or uid
+    console.print(f"[green]✓[/green] logged in as [bold]{who}[/]  ([dim]{uid}[/])")
+
+
+@app.command()
+def whoami(ctx: typer.Context) -> None:
+    """Show the account the CLI/TUI is currently running as."""
+    uid = _bind_account(ctx.obj)
+    from . import auth
+    u = auth.get_user(uid)
+    who = (u.get("email") if u else None) or uid
+    console.print(f"[bold]{who}[/]  ([dim]{uid}[/])")
+    console.print(f"[dim]home:[/] {config.user_home(uid)}")
+
+
+@app.command()
+def logout() -> None:
+    """Forget this machine's default account (a later command re-resolves / prompts)."""
+    config.clear_default_user()
+    console.print("[green]✓[/green] logged out — the default account was cleared.")
 
 
 @app.command()

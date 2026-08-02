@@ -74,6 +74,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
         "updated_at TEXT NOT NULL DEFAULT (datetime('now')))"
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_artifacts_updated ON artifacts(updated_at DESC)")
+    # Associate each artifact with the chat that made it (thread_id) and the pillar it belongs
+    # to (for a pillar-grouped Scriptorium). Additive; NULL on artifacts made before this.
+    art_cols = {r["name"] for r in conn.execute("PRAGMA table_info(artifacts)")}
+    if "thread_id" not in art_cols:
+        conn.execute("ALTER TABLE artifacts ADD COLUMN thread_id TEXT")
+    if "pillar" not in art_cols:
+        conn.execute("ALTER TABLE artifacts ADD COLUMN pillar TEXT")
 
     # Tier-1 effectiveness: the FROZEN benchmark tables (see schema.sql). Additive — create
     # them on databases made by a version that predates the benchmark, then seed the starter

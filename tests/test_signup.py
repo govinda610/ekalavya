@@ -12,7 +12,7 @@ from eklavya import auth, config  # noqa: E402
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
     monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")
     monkeypatch.setenv("EKLAVYA_DATA_ROOT", tempfile.mkdtemp(prefix="eklavya-signup-root-"))

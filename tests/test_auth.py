@@ -24,7 +24,7 @@ def mu(monkeypatch):
     monkeypatch.setenv("EKLAVYA_DATA_ROOT", str(root))
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
     monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")  # TestClient uses http, not https
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     auth._fails.clear()  # throttle is process-global; start clean
     yield root
     auth._fails.clear()
@@ -262,19 +262,20 @@ def test_throttle_ignores_xff_when_proxy_not_trusted(mu, monkeypatch):
     assert "Too+many+attempts" in r.headers["location"]
 
 
-# --- single-user mode stays auth-free --------------------------------------
+# --- local self-host: frictionless (auto-login), auth still mounted --------
 
-def test_single_user_mode_has_no_auth(monkeypatch):
-    """Default (MULTIUSER off): no middleware, no /login, routes work without a session."""
+def test_local_self_host_auto_logs_in(monkeypatch):
+    """Local (DEPLOYED off): auth IS mounted, but a solo user is auto-logged-in against the
+    bound home, so app + api routes work without ever visiting the login form."""
     from eklavya import config
 
-    assert config.MULTIUSER is False
+    assert config.DEPLOYED is False
     tmp = tempfile.mkdtemp(prefix="eklavya-su-")
-    monkeypatch.setenv("EKLAVYA_HOME", tmp)
+    monkeypatch.setenv("EKLAVYA_HOME", tmp)  # the "which home" override binds directly
     c = TestClient(_app(), follow_redirects=False)
     assert c.get("/").status_code == 200            # no redirect to /login
-    assert c.get("/api/stats").status_code == 200   # no 401
-    assert c.get("/login").status_code == 404        # the login route isn't mounted
+    assert c.get("/api/stats").status_code == 200   # no 401 — auto-logged-in
+    assert c.get("/login").status_code == 200        # the login route now exists (always on)
 
 
 async def test_contextvar_propagates_into_threadpool():
@@ -300,7 +301,7 @@ def test_secret_required_in_multiuser(monkeypatch):
     """Multi-user with no EKLAVYA_SECRET_KEY fails loudly at app construction."""
     from eklavya import config
 
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     monkeypatch.setenv("EKLAVYA_DATA_ROOT", tempfile.mkdtemp(prefix="eklavya-nosecret-"))
     monkeypatch.delenv("EKLAVYA_SECRET_KEY", raising=False)
     with pytest.raises(RuntimeError):

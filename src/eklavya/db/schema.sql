@@ -219,6 +219,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
     kind        TEXT NOT NULL DEFAULT 'markdown',   -- markdown | code | html | viz
     content     TEXT NOT NULL DEFAULT '',
     pinned      INTEGER NOT NULL DEFAULT 0,
+    thread_id   TEXT,                               -- the chat that created it (NULL = ad-hoc)
+    pillar      TEXT,                               -- the pillar it belongs to (for grouping)
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );

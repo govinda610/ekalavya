@@ -46,12 +46,13 @@ def get_checkpointer():
 # --- chats index (sidebar metadata) ----------------------------------------
 
 def current_user_id() -> str | None:
-    """The id owning the current context, or None in single-user mode.
+    """The id owning the current context, or None when ownership isn't enforced.
 
-    Single-user leaves ``chats.user_id`` NULL (one user, no ownership enforcement).
-    Multi-user (Phase 3) resolves the id from the home dir bound by auth middleware.
+    A local self-host has a single account, so ``chats.user_id`` stays NULL and there is no
+    cross-user ownership to enforce. A deployed install resolves the id from the per-user
+    home the auth middleware bound (``…/users/<uid>``) so threads carry their owner.
     """
-    if not config.MULTIUSER:
+    if not config.DEPLOYED:
         return None
     return config.paths().home.name  # user home is …/users/<uid>
 
@@ -78,11 +79,11 @@ def touch_chat(thread_id: str, mode: str | None = None, title: str | None = None
 def owns_thread(thread_id: str) -> bool:
     """True if the current user may serve/resume/rename this thread.
 
-    Single-user (user_id NULL, contextvar unset): always True. Multi-user: True only
+    Local self-host (user_id NULL, one account): always True. Deployed: True only
     when the row's owner matches the current user, or the thread has no row yet (a
     brand-new thread the caller is about to create). A thread owned by someone else
     returns False → callers should 404 (don't confirm existence)."""
-    if not config.MULTIUSER:
+    if not config.DEPLOYED:
         return True
     conn = connect()
     try:

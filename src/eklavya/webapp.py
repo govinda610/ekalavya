@@ -94,22 +94,23 @@ def create_app():
 
     from . import config
 
-    # Single-user: initialise the one implicit user's db up front, as before. Multi-user:
-    # there is no single home at construction time — each user's db is initialised on their
-    # first login (see _mount_auth), so we must NOT touch the default home here.
-    if not config.MULTIUSER:
-        init_db()
+    # The web app is always account-backed: there is no single home at construction time —
+    # each user's db is initialised when their session first binds a home (login / local
+    # auto-login), so we must NOT touch any default home here.
     provider = pick(None)
-    # Agents cached per (user_id, mode). In single-user mode user_id is a constant, so
-    # this is one agent per mode exactly as before; in multi-user each user gets their own
-    # (built against their own checkpointer/workspace via the contextvar at build time).
+    # Agents cached per (user_id, mode) — each user gets their own, built against their own
+    # checkpointer/workspace via the contextvar at build time.
     agents: dict = {}
     _TOOLS = {"onboard": ONBOARDING_TOOLS, "aiinterview": AIINTERVIEW_TOOLS}
 
-    _SINGLE_USER = "_single"  # the implicit single-user id in single-user mode
-
     def _current_user_id() -> str:
-        return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
+        return config.paths().home.name  # the bound account's home is …/users/<uid>
+
+    def _current_email() -> str | None:
+        """The logged-in user's email — for the account menu."""
+        from . import auth
+        u = auth.get_user(_current_user_id())
+        return u.get("email") if u else None
 
     def _active_provider():
         """The provider to use for this user: their saved Settings choice if it's
@@ -150,7 +151,18 @@ def create_app():
     # Shared design-system stylesheet (Option E cinematic-forest) — one served file that
     # every screen (SPA, dashboard, journey, profile in their iframes, login) links to.
     _STATIC_DIR = Path(__file__).parent / "static"
-    app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
+
+    class _CorsStatic(StaticFiles):
+        """Serve /static with `Access-Control-Allow-Origin: *`. These are public assets, and the
+        sandboxed viz iframe (an opaque 'null' origin) must be able to load them — fonts in
+        particular are CORS-checked, so KaTeX's webfonts fail there without this header."""
+
+        async def get_response(self, path, scope):
+            response = await super().get_response(path, scope)
+            response.headers.setdefault("Access-Control-Allow-Origin", "*")
+            return response
+
+    app.mount("/static", _CorsStatic(directory=str(_STATIC_DIR)), name="static")
 
     def _require_owner(thread_id: str) -> None:
         """404 if the current user doesn't own this thread (no-op in single-user mode).
@@ -166,6 +178,15 @@ def create_app():
     def index() -> str:
         return _INDEX
 
+    # Client-only SPA views (Forest / Library / Settings have no server render) used to 404 on a
+    # direct URL or refresh. Serve the SPA for them too; a small on-load hook reads the path and
+    # opens the matching view. (Dashboard/Journey/Effectiveness/Profile already have real routes.)
+    @app.get("/forest", response_class=HTMLResponse)
+    @app.get("/library", response_class=HTMLResponse)
+    @app.get("/settings", response_class=HTMLResponse)
+    def spa_view() -> str:
+        return _INDEX
+
     @app.get("/favicon.ico")
     def favicon():
         from starlette.responses import Response
@@ -177,6 +198,12 @@ def create_app():
         # in multi-user mode the auth middleware then bounces the unauthenticated visitor
         # to /login, so a single "Enter the forest" button works for both deployments.
         return _LANDING
+
+    @app.get("/about", response_class=HTMLResponse)
+    def about() -> str:
+        # Public "About Ekalavya" page (brand mode): what it is, what it stands for (the
+        # Ekalavya story), and how to use it (the loop). Reachable from the landing nav.
+        return _ABOUT
 
     @app.get("/canvas", response_class=HTMLResponse)
     def canvas() -> str:
@@ -244,12 +271,12 @@ def create_app():
             return {"provider": "Auto (balanced)",
                     "model": "rotates across " + str(len(configured)) + " provider(s)",
                     "kickoff": _KICKOFF, "configured": bool(configured),
-                    "first_run": report.is_first_run(),
+                    "first_run": report.is_first_run(), "email": _current_email(),
                     "death_on_cheat": settings.get_death_on_cheat()}
         prov = _active_provider()
         return {"provider": prov.label, "model": prov.default_model,
                 "kickoff": _KICKOFF, "configured": prov.is_configured(),
-                "first_run": report.is_first_run(),
+                "first_run": report.is_first_run(), "email": _current_email(),
                 "death_on_cheat": settings.get_death_on_cheat()}
 
     @app.get("/api/settings")
@@ -281,8 +308,14 @@ def create_app():
 
     def _events(agent, config, thread, inputs):
         """One agent run (a new turn OR a resume): route tool activity to the trace,
-        stream the reply, and pause for run_bash approval."""
+        stream the reply, and pause for run_bash approval (auto-approving safe read-only ones)."""
+        from langgraph.types import Command
+
+        from .agent import is_safe_bash
+        from .config import set_current_thread  # (the `config` param shadows the module here)
         from .verify import selfcheck
+
+        set_current_thread(thread)  # so save_artifact links what it saves to this chat
 
         try:  # the learner's message (a fresh turn) → context for the judge; "" on resume
             user_context = inputs["messages"][0]["content"] if isinstance(inputs, dict) else ""
@@ -291,32 +324,42 @@ def create_app():
         buf = []
         run_outputs = []  # actual sandbox/run tool results this turn → context for the judge
         _RUN_TOOLS = {"run_bash", "grade_and_record"}  # tools whose output is real execution
-        try:
-            for chunk, _meta in agent.stream(inputs, config=config, stream_mode="messages"):
-                # deepagents' documented routing: tool result / tool call → trace;
-                # the assistant's own text (an AI chunk with no tool call) → the bubble.
-                if getattr(chunk, "type", None) == "tool":
-                    name = getattr(chunk, "name", "") or ""
-                    content = str(chunk.content)
-                    if name in _RUN_TOOLS:  # capture what the code actually printed/returned
-                        run_outputs.append(f"[{name}] {content[:1000]}")
-                    yield json.dumps({"result": {"name": name,
-                                                 "content": content[:400]}}) + "\n"
-                elif getattr(chunk, "tool_call_chunks", None):
-                    for tc in chunk.tool_call_chunks:
-                        if tc.get("name"):
-                            yield json.dumps({"tool": tc["name"]}) + "\n"
-                else:
-                    tok = _chunk_text(chunk)
-                    if tok:
-                        buf.append(tok)
-                        yield json.dumps({"t": tok}) + "\n"
-        except Exception:  # surface a generic error to the UI; log detail server-side
-            _log.exception("stream error")
-            yield json.dumps({"t": "\n\n_(something went wrong — please try again.)_"}) + "\n"
+        # Loop the run so a run_bash that pauses for approval can be AUTO-APPROVED when it's a
+        # safe, read-only command (whitelist) — resume in place and keep streaming — while any
+        # other command still stops for the learner's explicit yes/no.
+        current = inputs
+        while True:
+            try:
+                for chunk, _meta in agent.stream(current, config=config, stream_mode="messages"):
+                    # deepagents' documented routing: tool result / tool call → trace;
+                    # the assistant's own text (an AI chunk with no tool call) → the bubble.
+                    if getattr(chunk, "type", None) == "tool":
+                        name = getattr(chunk, "name", "") or ""
+                        content = str(chunk.content)
+                        if name in _RUN_TOOLS:  # capture what the code actually printed/returned
+                            run_outputs.append(f"[{name}] {content[:1000]}")
+                        yield json.dumps({"result": {"name": name,
+                                                     "content": content[:400]}}) + "\n"
+                    elif getattr(chunk, "tool_call_chunks", None):
+                        for tc in chunk.tool_call_chunks:
+                            if tc.get("name"):
+                                yield json.dumps({"tool": tc["name"]}) + "\n"
+                    else:
+                        tok = _chunk_text(chunk)
+                        if tok:
+                            buf.append(tok)
+                            yield json.dumps({"t": tok}) + "\n"
+            except Exception:  # surface a generic error to the UI; log detail server-side
+                _log.exception("stream error")
+                yield json.dumps({"t": "\n\n_(something went wrong — please try again.)_"}) + "\n"
 
-        approval = _pending_approval(agent, config)  # paused for run_bash?
-        if approval:
+            approval = _pending_approval(agent, config)  # paused for run_bash?
+            if not approval:
+                break
+            if is_safe_bash(approval.get("command", "")):  # safe read-only → run without asking
+                yield json.dumps({"autorun": approval}) + "\n"  # trace shows it ran, no prompt
+                current = Command(resume={"decisions": [{"type": "approve"}]})
+                continue
             yield json.dumps({"approval": approval}) + "\n"
             yield json.dumps({"done": True, "paused": True}) + "\n"
             return
@@ -611,17 +654,18 @@ def create_app():
             raise HTTPException(status_code=404)
         return {"ok": True}
 
-    # --- auth (multi-user only) --------------------------------------------
-    # Everything below is mounted ONLY when EKLAVYA_MULTIUSER is on. In single-user mode
-    # nothing here runs, no middleware is added, and the app is byte-for-byte as before.
-    if config.MULTIUSER:
-        _mount_auth(app)
+    # --- auth (always on) --------------------------------------------------
+    # The web app is always account-backed: login/logout routes + the session middleware
+    # are always mounted. Locally (DEPLOYED off) the middleware auto-logs-in the resolved
+    # local account so a solo user isn't forced through the form; deployed enforces the
+    # full email+password flow (+ optional signup-approval).
+    _mount_auth(app)
 
     return app
 
 
 def _mount_auth(app) -> None:
-    """Add the login/logout routes + the auth middleware. Multi-user mode only."""
+    """Add the login/logout routes + the auth middleware."""
     from starlette.responses import HTMLResponse, RedirectResponse
 
     from . import auth, config
@@ -638,7 +682,10 @@ def _mount_auth(app) -> None:
 
     def _auth_page(start: str, error: str, notice: str = "") -> str:
         # one themed template serves both tabs; `start` picks which is active on load.
+        # `start_is_signup` lets the client reveal the auth card + jump to it straightaway when
+        # the visitor arrives on /signup (or bounces back with an error), skipping the hero scroll.
         return (_LOGIN.replace("{{start}}", start)
+                .replace("{{start_is_signup}}", "true" if start == "signup" else "false")
                 .replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
                 .replace("{{notice}}", notice and f'<div class="notice">{notice}</div>' or ""))
 
@@ -691,7 +738,7 @@ def _mount_auth(app) -> None:
         password = form.get("password") or ""
         # when the approval gate is on, new accounts land pending and must be approved
         # (`eklavya approve <email>`) before they can log in — no self-service access.
-        pending = config.MULTIUSER and config.SIGNUP_APPROVAL
+        pending = config.SIGNUP_APPROVAL
         try:
             uid = auth.create_user(email, password, status="pending" if pending else "active")
         except ValueError as exc:
@@ -718,6 +765,7 @@ def _mount_auth(app) -> None:
 _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
 <link rel="stylesheet" href="/static/fonts.css">
+<link rel="stylesheet" href="/static/katex/katex.min.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
 <style>
 /* ===== Option E · cinematic-forest practice arena (product mode) =====
@@ -785,11 +833,21 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 #prail .rail-item.on::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;border-radius:2px;
  background:linear-gradient(180deg,var(--gold-bright),var(--gold-deep));box-shadow:0 0 8px rgba(231,182,75,.5)}
 #prail .rail-item svg{flex:none}
-#prail .rail-mini-hud{margin-top:auto;padding:14px 12px 4px;position:relative}
+#prail .rail-mini-hud{margin-top:auto;padding:14px 10px 4px;position:relative;display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;transition:background .15s}
+#prail .rail-mini-hud:hover{background:rgba(231,182,75,.06)}
 #prail .rail-mini-hud::before{content:"";position:absolute;left:12px;right:12px;top:0;height:1px;
  background:linear-gradient(90deg,transparent,var(--line-gold),transparent)}
-#prail .rmh-name{font-family:var(--f-title);font-size:14px;color:var(--parch)}
+#prail .rmh-meta{flex:1;min-width:0}
+#prail .rmh-name{font-family:var(--f-title);font-size:14px;color:var(--parch);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #prail .rmh-title{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);letter-spacing:.1em;text-transform:uppercase;margin-top:3px}
+#prail .rmh-caret{color:var(--parch-dim);font-size:9px;flex:none}
+.acctmenu{position:absolute;left:12px;right:12px;bottom:72px;z-index:80;padding:13px 13px 12px;border-radius:11px;
+ background:linear-gradient(160deg,rgba(30,24,18,.98),rgba(16,12,7,.98));border:1px solid var(--line-gold);box-shadow:0 18px 44px -12px rgba(0,0,0,.78)}
+.acctmenu[hidden]{display:none}
+.acctmenu .am-hd{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--parch-dim);margin-bottom:5px}
+.acctmenu .am-email{font-family:var(--f-body);font-size:12.5px;color:var(--parch);word-break:break-all;line-height:1.35;margin-bottom:11px}
+.acctmenu .am-logout{width:100%;background:rgba(214,59,42,.13);color:var(--vermilion-glow);border:1px solid rgba(214,59,42,.5);border-radius:7px;padding:9px;font-family:var(--f-title);font-size:13px;letter-spacing:.02em;cursor:pointer;transition:background .15s}
+.acctmenu .am-logout:hover{background:rgba(214,59,42,.24)}
 #content{min-height:0;min-width:0;position:relative}
 #practice{display:grid;grid-template-columns:1fr 1fr;height:100%}
 @media(max-width:900px){#practice{grid-template-columns:1fr;grid-template-rows:1fr 1fr}}
@@ -833,7 +891,7 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 .msg.ai>*{position:relative;z-index:1}
 .msg.you{align-self:flex-end;background:linear-gradient(160deg,rgba(18,77,76,.4),rgba(8,20,20,.6));
  border:1px solid rgba(46,163,160,.35);border-radius:12px 4px 12px 12px;color:var(--parch)}
-.msg.ai .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--gold-ember);text-transform:uppercase;margin-bottom:5px}
+.msg.ai .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:#5f3d10;font-weight:600;text-transform:uppercase;margin-bottom:5px}
 .msg.you .who{font-family:var(--f-mono);letter-spacing:.16em;font-size:10px;color:var(--peacock-bright);text-transform:uppercase;margin-bottom:5px}
 .msg pre{background:rgba(20,15,8,.9) !important;border:1px solid rgba(231,182,75,.2);border-radius:8px;padding:12px;overflow-x:auto}
 .msg.you pre{background:rgba(6,9,20,.7) !important;border-color:var(--line-soft)}
@@ -921,14 +979,17 @@ button.ghost.run:hover{color:var(--peacock-bright);border-color:var(--peacock)}
 button:disabled{opacity:.42;cursor:default}
 #editor{flex:1;min-height:0;min-width:0}
 /* run output block (Run button → sandbox stdout/stderr) */
-.runout{align-self:stretch;border:1px solid var(--line-soft);border-radius:10px;background:rgba(6,9,16,.8);overflow:hidden}
-.runout .rohead{font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--parch-dim);
- padding:8px 13px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:7px}
-.runout .rohead .ok{color:var(--peacock-bright)} .runout .rohead .bad{color:var(--vermilion-glow)}
-.runout pre{margin:0;padding:11px 13px;font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
- white-space:pre-wrap;word-break:break-word;overflow-x:auto;color:var(--parch)}
-.runout pre.roerr{color:#ff9aa9;border-top:1px solid var(--line-soft)}
-.runout .roempty{padding:11px 13px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
+/* Run output, shown in the editor pane below the code (NOT the chat) — persists across
+   messages, and the output body scrolls instead of clipping. */
+.ed-run{border-bottom:1px solid var(--line-gold)}
+.ed-run[hidden]{display:none}
+.ed-run .rohead{font-family:var(--f-mono);font-size:11px;letter-spacing:.02em;color:var(--parch-dim);
+ padding:9px 14px;display:flex;align-items:center;gap:7px}
+.ed-run .rohead .ok{color:var(--peacock-bright)} .ed-run .rohead .bad{color:var(--vermilion-glow)}
+.ed-run pre{margin:0;padding:0 14px 11px;font-family:var(--f-mono);font-size:12.5px;line-height:1.5;
+ white-space:pre-wrap;word-break:break-word;color:var(--parch);max-height:34vh;overflow:auto}
+.ed-run pre.roerr{color:#ff9aa9}
+.ed-run .roempty{padding:0 14px 11px;font-family:var(--f-mono);font-size:12px;color:var(--parch-mute)}
 /* themed error card (template §5): "The arrow found no wind" + Retry */
 .errcard{align-self:stretch;display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;
  border:1px solid rgba(214,59,42,.4);border-radius:12px;background:rgba(20,8,6,.55);padding:20px 18px}
@@ -940,7 +1001,7 @@ button:disabled{opacity:.42;cursor:default}
  background:rgba(231,182,75,.08);border:1px solid var(--gold-deep);border-radius:4px;padding:8px 18px;cursor:pointer}
 .errcard button:hover{background:rgba(231,182,75,.16)}
 /* live test-arrow panel (template D's .ed-tests) — per-check pass/fail below the editor */
-.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:38%;overflow-y:auto}
+.ed-tests{border-top:1px solid var(--line-gold);background:rgba(6,9,20,.62);display:flex;flex-direction:column;flex:none;max-height:60%;overflow-y:auto}
 .ed-tests-h{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;
  font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--parch-dim)}
 .ed-tests-h .et-count{color:var(--peacock-bright);letter-spacing:.06em}
@@ -980,11 +1041,7 @@ button:disabled{opacity:.42;cursor:default}
 .selpop.on{display:inline-flex;animation:pop .18s ease}
 .selpop::after{content:"";position:absolute;bottom:-6px;left:26px;width:10px;height:10px;background:var(--stone-dark);border-right:1px solid var(--gold);border-bottom:1px solid var(--gold);transform:rotate(45deg)}
 .art-code{font-family:var(--f-mono);font-size:13px;line-height:1.7;background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:16px;white-space:pre-wrap;overflow:auto;color:var(--parch)}
-.art-html{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;background:#fff}
-.art-htmlbar{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);padding:6px 12px;background:rgba(6,9,20,.7);border-bottom:1px solid var(--line-soft)}
-.art-htmlprev{padding:20px;background:linear-gradient(160deg,#fbf6ea,#efe4c9);color:#2a2010;font-family:var(--f-serif)}
-.art-viz{border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5);padding:14px}
-.art-viz svg{width:100%;height:auto}
+.art-vizframe{width:100%;min-height:74vh;border:1px solid var(--line-soft);border-radius:8px;background:#0b0f17;display:block}
 .canvas-empty{color:var(--parch-dim);font-family:var(--f-body);text-align:center;padding:50px 20px}
 /* highlight-to-ask echo in chat (template D's .art-echo) */
 .art-echo{display:flex;gap:8px;align-items:flex-start;border-left:2px solid var(--gold);padding:8px 12px;background:rgba(231,182,75,.06);border-radius:0 6px 6px 0;margin-bottom:8px;max-width:86%;align-self:flex-end}
@@ -1028,6 +1085,12 @@ body.reduce-motion *{animation:none !important}
 .lib-pill:hover{color:var(--gold-bright)} .lib-pill.on{color:var(--gold-bright);border-color:var(--gold-deep);background:rgba(231,182,75,.1)}
 .lib-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:16px;grid-auto-rows:min-content}
 @media(max-width:900px){.lib-grid{grid-template-columns:1fr}}
+/* artifacts grouped by pillar */
+.lib-groups{display:flex;flex-direction:column;gap:26px}
+.lib-pgroup .lib-grid{margin-top:10px}
+.lib-phead{display:flex;align-items:center;gap:10px;padding-bottom:6px;border-bottom:1px solid var(--line-soft)}
+.lib-phead .lp-name{font-family:var(--f-display);font-size:16px;letter-spacing:.01em;color:var(--parch)}
+.lib-phead .lp-n{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);border:1px solid var(--line-gold);border-radius:20px;padding:1px 8px}
 .artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
  border:1px solid rgba(231,182,75,.22);border-radius:10px;
  background:linear-gradient(168deg,rgba(46,38,30,.72) 0%,rgba(28,26,42,.7) 34%,rgba(13,14,28,.82) 100%);
@@ -1063,16 +1126,69 @@ body.reduce-motion *{animation:none !important}
 .mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
  box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
 .mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
+/* the 3D forest canvas fills the frame; WebGL owns the pixels, HUD floats over it */
+.mapframe canvas#forest3d{display:block;width:100%;height:100%;flex:1;min-height:0;touch-action:none;cursor:grab}
+.mapframe canvas#forest3d:active{cursor:grabbing}
+.forest3d-fallback{margin:auto;padding:40px 30px;max-width:460px;text-align:center;
+ font-family:var(--f-body);font-size:14px;line-height:1.6;color:var(--parch-dim)}
 /* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
 .mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
 .mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
   background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
   display:grid;place-items:center;backdrop-filter:blur(3px)}
 .mapzoom button:hover{border-color:var(--gold)}
-@media(max-width:820px){.mapframe{min-height:64vh}}
-.grove{cursor:pointer;transition:.25s}
-.grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
-.grove.locked{cursor:default}.grove.locked:hover{filter:none}
+/* mobile: the 3D forest is the star — give it (almost) the full viewport height, and
+   tighten the panel padding / header so the scene isn't a short letterbox. */
+@media(max-width:820px){
+  #tree{padding:10px 10px}
+  .treehead{margin-bottom:8px}
+  .treehead .ttitle{font-size:15px}
+  .mapframe{min-height:78vh}
+}
+/* The forest is now a WebGL <canvas> (static/forest3d.js) — its scene, particles,
+   trees, path, birds and "you are here" are drawn in 3D. Only the HUD overlays
+   below (quest banner, node popover, zoom/back buttons) remain as DOM. Motion is
+   gated inside the scene by _reduced(); the body.reduce-motion class still drives
+   the rest of the app. */
+/* a small quest banner (top-left of the canvas) — where the learner is + a nudge */
+.mapquest{position:absolute;top:10px;left:12px;max-width:320px;z-index:5;
+ background:linear-gradient(180deg,rgba(10,16,30,.92),rgba(8,12,22,.9));
+ border:1px solid var(--line-gold);border-radius:9px;padding:9px 12px;backdrop-filter:blur(4px);
+ box-shadow:0 14px 34px -20px rgba(0,0,0,.8)}
+.mapquest .qh{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.14em;color:var(--parch-mute);text-transform:uppercase}
+.mapquest .qt{font-family:var(--f-title);font-size:14px;color:var(--gold-bright);margin-top:2px}
+.mapquest .qd{font-family:var(--f-body);font-size:11.5px;color:var(--parch-dim);margin-top:3px;line-height:1.4}
+/* the click-to-act node popover */
+.nodepop{position:absolute;z-index:9;width:290px;max-width:calc(100% - 24px);
+ background:linear-gradient(180deg,rgba(12,18,32,.97),rgba(9,13,24,.97));
+ border:1px solid var(--line-gold);border-radius:12px;padding:14px 15px 15px;
+ box-shadow:0 26px 60px -22px rgba(0,0,0,.85);animation:popIn .16s ease-out}
+@keyframes popIn{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:none}}
+.reduce-motion .nodepop{animation:none}
+.nodepop .npclose{position:absolute;top:8px;right:10px;background:none;border:none;color:var(--parch-mute);
+ font-size:16px;line-height:1;cursor:pointer}
+.nodepop .npclose:hover{color:var(--gold-bright)}
+.nodepop .npstat{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;display:inline-block;
+ padding:2px 8px;border-radius:20px;border:1px solid var(--line-soft)}
+.nodepop .npstat.done{color:#e7b64b;border-color:rgba(231,182,75,.5)}
+.nodepop .npstat.avail{color:#7ff2ea;border-color:rgba(127,242,234,.5)}
+.nodepop .npstat.lock{color:#a89670}
+.nodepop .nptitle{font-family:var(--f-title);font-size:16px;color:var(--parch);margin:8px 0 2px;line-height:1.25;padding-right:16px}
+.nodepop .npsub{font-family:var(--f-mono);font-size:10px;color:var(--parch-mute)}
+.nodepop .npsec{margin-top:10px}
+.nodepop .npsec .lbl{font-family:var(--f-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--parch-mute)}
+.nodepop .npchips{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.nodepop .npchip{font-family:var(--f-body);font-size:11px;padding:3px 8px;border-radius:14px;
+ border:1px solid var(--line-soft);color:var(--parch-dim)}
+.nodepop .npchip.done{color:#e7b64b;border-color:rgba(231,182,75,.35)}
+.nodepop .npchip.miss{color:#e79b8a;border-color:rgba(231,155,138,.35)}
+.nodepop .npact{width:100%;margin-top:13px;font-family:var(--f-title);font-size:13px;font-weight:600;
+ border:none;border-radius:7px;padding:10px;cursor:pointer;color:#2a1c07;
+ background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep))}
+.nodepop .npact.revise{background:linear-gradient(180deg,#8fe6df,#57d3ce 55%,#2ea3a0);color:#04201e}
+.nodepop .npact:hover{filter:brightness(1.08)}
+.nodepop .npact.locked{background:rgba(90,74,52,.4);color:var(--parch-mute);cursor:default}
+.nodepop .npact.locked:hover{filter:none}
 .treeempty{margin:auto;padding:50px;text-align:center;max-width:440px;color:var(--parch-dim)}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
@@ -1112,6 +1228,21 @@ body.reduce-motion *{animation:none !important}
 #penaltybtn{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-gold);
  border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
 #penaltybtn:hover{border-color:var(--gold-deep)}
+.timerwrap{position:relative;display:inline-flex}
+#timerbtn,#wrapbtn{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);background:rgba(6,9,20,.5);border:1px solid var(--line-gold);border-radius:4px;padding:7px 11px;cursor:pointer;margin-right:4px;transition:.16s}
+#timerbtn:hover,#wrapbtn:hover{color:var(--gold-bright);border-color:var(--gold-deep)}
+#timerbtn.on{color:var(--gold-bright);border-color:var(--gold)}
+.tmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:80;min-width:186px;padding:11px;border-radius:10px;
+ background:linear-gradient(160deg,rgba(30,24,18,.98),rgba(16,12,7,.98));border:1px solid var(--line-gold);box-shadow:0 16px 40px -12px rgba(0,0,0,.75)}
+.tmenu[hidden]{display:none}
+.tmenu .tm-h{font-family:var(--f-mono);font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--parch-dim);margin-bottom:8px}
+.tmenu .tm-row{display:flex;gap:6px;margin-bottom:8px}
+.tmenu .tm-row button{flex:1;font-family:var(--f-mono);font-size:12px;color:var(--parch);background:rgba(231,182,75,.08);border:1px solid var(--line-soft);border-radius:6px;padding:7px 0;cursor:pointer}
+.tmenu .tm-row button:hover{background:rgba(231,182,75,.2);border-color:var(--gold-deep)}
+.tmenu .tm-custom{width:100%;font-family:var(--f-body);font-size:12px;color:var(--parch-dim);background:none;border:1px dashed var(--line-soft);border-radius:6px;padding:7px;cursor:pointer;margin-bottom:6px}
+.tmenu .tm-custom:hover{color:var(--parch);border-color:var(--gold-deep)}
+.tmenu .tm-stop{width:100%;font-family:var(--f-mono);font-size:11px;color:var(--vermilion-glow);background:rgba(214,59,42,.1);border:1px solid rgba(214,59,42,.4);border-radius:6px;padding:7px;cursor:pointer}
+.sysline{align-self:center;font-family:var(--f-mono);font-size:11.5px;color:var(--gold-ember);background:rgba(231,182,75,.06);border:1px solid var(--line-soft);border-radius:20px;padding:6px 16px;margin:4px 0}
 #penaltybtn.off{color:var(--vermilion-glow);border-color:rgba(214,59,42,.5)}
 #drawerscrim{position:fixed;inset:0;z-index:900;background:rgba(2,6,12,.62);opacity:0;pointer-events:none;transition:opacity .22s;backdrop-filter:blur(1.5px)}
 #drawerscrim.open{opacity:1;pointer-events:auto}
@@ -1278,6 +1409,16 @@ body.reduce-motion *{animation:none !important}
   <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
   <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
+  <span class="timerwrap">
+    <button id="timerbtn" onclick="toggleTimerMenu(event)" title="Optional focus timer — never ends the session on its own">⏱ Timer</button>
+    <div id="timermenu" class="tmenu" hidden>
+      <div class="tm-h">Focus timer · optional</div>
+      <div class="tm-row"><button onclick="startTimer(15)">15m</button><button onclick="startTimer(25)">25m</button><button onclick="startTimer(45)">45m</button><button onclick="startTimer(60)">60m</button></div>
+      <button class="tm-custom" onclick="customTimer()">Custom…</button>
+      <button class="tm-stop" onclick="stopTimer()">Stop timer</button>
+    </div>
+  </span>
+  <button id="wrapbtn" onclick="endSession()" title="Finish this session — the guru summarizes and saves your progress">⏹ Wrap up</button>
   <div class="hud" id="hud"></div>
   <div class="who" id="who"></div>
 </header>
@@ -1293,7 +1434,15 @@ body.reduce-motion *{animation:none !important}
     <div class="rail-item" data-rail="effect" onclick="railGo('effect')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 12 h4 l3 7 4-14 3 7 h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Effectiveness</div>
     <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
     <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
-    <div class="rail-mini-hud"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title">Vana-Dhanurdhara</div></div>
+    <div class="rail-mini-hud" id="acctbtn" role="button" tabindex="0" title="Account & sign out" onclick="toggleAcct(event)">
+      <div class="rmh-meta"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title" id="railtitle">Vana-Dhanurdhara</div></div>
+      <span class="rmh-caret">▴</span>
+    </div>
+    <div class="acctmenu" id="acctmenu" hidden>
+      <div class="am-hd">Signed in as</div>
+      <div class="am-email" id="am_email">—</div>
+      <form method="post" action="/logout"><button type="submit" class="am-logout">⎋ Log out</button></form>
+    </div>
   </nav>
   <div id="content">
   <div id="practice">
@@ -1354,6 +1503,7 @@ body.reduce-motion *{animation:none !important}
       </div>
       <div id="editor"></div>
       <div class="ed-tests hidden" id="edtests">
+        <div class="ed-run" id="edrun" hidden></div>
         <div class="ed-tests-h"><span>Test arrows</span><span class="et-count" id="etcount"><b>0</b> / 0 strike</span></div>
         <div class="et-list" id="etlist"></div>
         <div class="ed-tests-f"><span class="et-hint" id="ethint">Run your code — each check becomes an arrow that strikes or misses.</span>
@@ -1380,8 +1530,12 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg>
-      <div class="mapzoom"><button onclick="forestZoom(1.3)" title="Zoom in">＋</button><button onclick="forestZoom(0.77)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Reset">⟲</button></div>
+    <div class="mapframe"><canvas id="forest3d" role="img" aria-label="Enchanted 3D forest of mastery: milestone groves on a glowing winding path toward a golden temple."></canvas>
+      <div class="mapzoom">
+        <button id="mapback" onclick="forestBack()" title="Back to the forest" hidden>←</button>
+        <button onclick="forestZoom(1.25)" title="Zoom in">＋</button><button onclick="forestZoom(0.8)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Recenter on you">⟲</button></div>
+      <div class="mapquest" id="mapquest" hidden></div>
+      <div class="nodepop" id="nodepop" hidden></div>
     </div>
   </div>
   <div id="library"></div>
@@ -1439,6 +1593,21 @@ body.reduce-motion *{animation:none !important}
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- Three.js + post-processing (vendored locally, works offline) drive the 3D Forest.
+     Load order matters: core → shader chunks → composer/passes → controls → scene. -->
+<script src="/static/three.min.js"></script>
+<script src="/static/CopyShader.js"></script>
+<script src="/static/LuminosityHighPassShader.js"></script>
+<script src="/static/EffectComposer.js"></script>
+<script src="/static/RenderPass.js"></script>
+<script src="/static/ShaderPass.js"></script>
+<script src="/static/UnrealBloomPass.js"></script>
+<script src="/static/OrbitControls.js"></script>
+<script src="/static/forest3d.js"></script>
+<!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
+     AMD module instead of setting window.katex — so: no defer, and above the loader. -->
+<script src="/static/katex/katex.min.js"></script>
+<script src="/static/katex/contrib/auto-render.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
@@ -1472,6 +1641,7 @@ function showView(v){
   if(v==='effect') document.getElementById('effectframe').src='/effectiveness';  // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
+  else if(window.forestSetVisible) forestSetVisible(false);   // pause rAF + free the GPU when the forest is hidden
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
 }
@@ -1536,17 +1706,24 @@ function loadLibrary(){
     const filters=['','markdown','code','viz','html'];
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
     const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
-    let cards;
-    if(!list.length){ cards="<div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div>"; }
-    else { cards=list.map((a,i)=>libCard(a, a.pinned && i===0)).join(''); }
+    let body;
+    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and save it to your Canvas.</div></div>"; }
+    else {
+      // group by pillar (each artifact files under its pillar; unfiled ones sit under 'General', last)
+      const groups={};
+      list.forEach(a=>{ const p=(a.pillar||'').trim()||'General'; (groups[p]=groups[p]||[]).push(a); });
+      const names=Object.keys(groups).sort((x,y)=> x==='General'?1 : (y==='General'?-1 : x.localeCompare(y)));
+      body="<div class='lib-groups'>"+names.map(p=>
+        "<div class='lib-pgroup'><div class='lib-phead'><span class='lp-name'>"+esc(p)+"</span><span class='lp-n'>"+groups[p].length+"</span></div>"+
+        "<div class='lib-grid'>"+groups[p].map(a=>libCard(a,false)).join('')+"</div></div>").join('')+"</div>";
+    }
     document.getElementById('library').innerHTML=
      "<div class='lib'><div class='lib-top'>"+
-     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — kept for revision.</div></div>"+
+     "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by pillar, kept for revision.</div></div>"+
      "<span style='flex:1'></span>"+
      "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
      "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
-     "<div class='lib-filters'>"+pills+"</div>"+
-     "<div class='lib-grid'>"+cards+"</div></div>";
+     "<div class='lib-filters'>"+pills+"</div>"+body+"</div>";
     const si=document.getElementById('libsearch');
     si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
     si.focus(); si.setSelectionRange(si.value.length, si.value.length);
@@ -1559,7 +1736,18 @@ function togglePin(id, on){ fetch('/api/artifacts/'+id,{method:'PATCH',headers:{
 function openArtifact(id){ showView('practice'); openCanvas(id); }
 
 /* ===== Canvas — the Editor↔Canvas tab (template E) ===== */
-let _artifacts=[], _curArt=null, _selText='';
+let _artifacts=[], _curArt=null, _selText='', _maxArtId=0;
+// When the guru saves a NEW artifact during a turn, surface it: swap the right pane from the
+// editor to the Canvas and open it. The learner can toggle back to the editor any time (the
+// ▤ Editor / ✦ Canvas control is unchanged). Baseline _maxArtId at load so pre-existing
+// artifacts don't trigger a switch; only something created after this point does.
+function pingCanvas(){
+  fetch('/api/artifacts').then(r=>r.json()).then(list=>{
+    const top=list.length?Math.max.apply(null,list.map(a=>a.id)):0;
+    if(top>_maxArtId){ _maxArtId=top; _artifacts=list; _curArt=top; showPane('canvas'); }
+  }).catch(()=>{});
+}
+fetch('/api/artifacts').then(r=>r.json()).then(l=>{ _maxArtId=l.length?Math.max.apply(null,l.map(a=>a.id)):0; }).catch(()=>{});
 function showPane(p){
   const col=document.querySelector('#practice .col:not(.chat)');
   const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
@@ -1585,19 +1773,57 @@ function selectArtifact(id){ _curArt=id;
   document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
   const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
 }
+// vizShell — wrap a bare viz fragment in a self-contained doc that preloads Chart.js (from
+// our OWN /static, so it works offline and inside the opaque-origin sandbox — a same-origin
+// subresource load is allowed even without allow-same-origin) and themes it to the Canvas.
+function vizShell(bodyHtml){
+  var origin=location.origin;
+  return "<!doctype html><html><head><meta charset='utf-8'>"
+   +"<meta name='viewport' content='width=device-width,initial-scale=1'>"
+   +"<link rel='stylesheet' href='"+origin+"/static/katex/katex.min.css'>"
+   +"<script src='"+origin+"/static/chart.umd.min.js'><\/script>"
+   +"<script defer src='"+origin+"/static/katex/katex.min.js'><\/script>"
+   +"<script defer src='"+origin+"/static/katex/contrib/auto-render.min.js'><\/script>"
+   +"<script>try{Chart.defaults.color='#cfc9ba';Chart.defaults.borderColor='rgba(255,255,255,.09)';"
+   +"Chart.defaults.maintainAspectRatio=false;Chart.defaults.animation=false;}catch(e){}<\/script>"
+   +"<style>:root{color-scheme:dark}*{box-sizing:border-box}.katex{color:#f2ede0}"
+   +"body{margin:0;padding:16px 18px;background:#0b0f17;color:#e8e6df;"
+   +"font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.5}"
+   +"h1,h2,h3{font-weight:700;color:#f2ede0;margin:.1em 0 .5em;letter-spacing:-.01em}"
+   +"p{color:#b9b3a3;margin:6px 0 14px;line-height:1.6}p em,p b{color:#e8e6df}"
+   +"label{color:#e7b64b;font-size:12px;letter-spacing:.03em;margin-right:8px}"
+   +"input[type=range]{accent-color:#e7b64b;max-width:340px;height:20px;vertical-align:middle}"
+   +"button{background:rgba(231,182,75,.14);color:#f2ede0;border:1px solid rgba(231,182,75,.4);"
+   +"border-radius:7px;padding:6px 14px;font-size:13px;cursor:pointer;font-family:inherit;margin:4px 6px 4px 0}"
+   +"button:hover{background:rgba(231,182,75,.24)}a{color:#7fd7c4}"
+   +"</style></head><body>"+bodyHtml
+   +"<script>window.addEventListener('load',function(){try{renderMathInElement(document.body,"
+   +"{delimiters:[{left:'$$',right:'$$',display:true},{left:'$',right:'$',display:false}],throwOnError:false});}catch(e){}});<\/script>"
+   +"</body></html>";
+}
 function renderArtifact(a){
   const body=document.getElementById('canvasbody');
   if(!a){ body.innerHTML="<div class='canvas-empty'>—</div>"; return; }
   if(a.kind==='code'){
     body.innerHTML="<div class='art-code' data-selectable='1'>"+esc(a.content)+"</div>";
-  } else if(a.kind==='html'){
-    body.innerHTML="<div class='art-html'><div class='art-htmlbar'>"+esc(a.title)+" · rendered</div>"+
-      "<div class='art-htmlprev'>"+DOMPurify.sanitize(a.content)+"</div></div>";
-  } else if(a.kind==='viz'){
-    body.innerHTML="<div class='art-viz'>"+DOMPurify.sanitize(a.content,{USE_PROFILES:{svg:true,svgFilters:true,html:true}})+"</div>";
+  } else if(a.kind==='viz' || a.kind==='html'){
+    // Render in a LOCKED sandbox iframe: scripts run (Chart.js sliders, an HTML page's own JS)
+    // but 'allow-scripts' WITHOUT 'allow-same-origin' means an opaque origin, so the content's
+    // JS can't touch the app's cookies, storage, or same-origin API. A full HTML doc is used
+    // as-is (so 'html' artifacts are real, self-contained HTML files/pages); a bare 'viz'
+    // fragment is wrapped in the Chart.js shell.
+    var raw=a.content||'';
+    var full=/<!doctype|<html[\\s>]/i.test(raw);
+    var doc=(a.kind==='viz' && !full) ? vizShell(raw) : raw;
+    var f=document.createElement('iframe');
+    f.className='art-vizframe'; f.setAttribute('sandbox','allow-scripts');
+    f.setAttribute('referrerpolicy','no-referrer'); f.setAttribute('loading','lazy');
+    body.innerHTML=''; body.appendChild(f); f.srcdoc=doc;
+    return;  // no highlight-to-ask inside the cross-origin frame; keep the popover out
   } else {  // markdown lesson
     body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
     body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
+    typesetMath(body);  // render LaTeX in a saved lesson
   }
   body.appendChild(document.getElementById('selpop'));  // keep the popover inside the scroll box
 }
@@ -1642,199 +1868,176 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-/* ===== Data-driven FOREST MAP (replaces the Mermaid skill tree) =====
-   Renders the /api/forest data as the template's forest map: groves as trees on a
-   winding path, styled by mastery, with a gold 'travelled' path up to the active
-   grove and the clay statue of Droṇa overseeing. Clicking a grove drills into that
-   pillar's concepts as a smaller sub-forest (same visual language). */
-const SVGNS='http://www.w3.org/2000/svg';
+/* ===== Data-driven 3D FOREST OF MASTERY (real-time WebGL, Three.js) =====
+   The forest is a live 3D scene (src/eklavya/static/forest3d.js): a night woodland
+   under a warm moon, a glowing winding path past ornate milestone-trees (one per
+   curriculum PILLAR, in learning order) climbing toward a golden temple. Status
+   drives each grove's look; the active grove wears a teal "YOU ARE HERE" ring and
+   the camera rests near it. Clicking a grove reuses the popover below; flying into
+   a grove reveals its concepts as a short sub-forest. Everything is generated from
+   /api/forest each load, so the scene grows with the curriculum. This file keeps
+   the DATA fetch + the shared popover; forest3d.js owns all the geometry. */
+const SVGNS='http://www.w3.org/2000/svg';   // still used by the ceremony rays below
 let _curFocus=null;             // active pillar name, for the drill-in default
-function _svgEl(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
+let _forestView='overview';     // 'overview' | pillar-name — remembered for the ⟲ + resize
+let _forestData=null;           // the last-loaded /api/forest payload (for the popover)
 function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
+function _reduced(){return document.body.classList.contains('reduce-motion')
+  || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);}
 
-// A cubic path threading the layout points bottom→top (Catmull-Rom → Bézier), so
-// the trail winds smoothly whatever the point count. `upto` clips it to the first
-// `upto` points (the travelled/gold portion).
-function _pathThrough(pts,upto){
-  const p=(upto==null?pts:pts.slice(0,upto));
-  if(p.length<1) return '';
-  if(p.length<2) return 'M'+p[0].x+','+p[0].y;
-  let d='M'+p[0].x+','+p[0].y;
-  for(let i=0;i<p.length-1;i++){
-    const p0=p[i-1]||p[i], p1=p[i], p2=p[i+1], p3=p[i+2]||p2;
-    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
-    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
-    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2.x+','+p2.y;
-  }
-  return d;
+
+// ===== 3D forest lifecycle: mount the WebGL scene + drive it from /api/forest =====
+// The heavy lifting (geometry, lights, particles, camera, raycast) lives in
+// static/forest3d.js as window.Forest3D. Here we just fetch data, hand it over,
+// and keep the canvas visible only while the Forest tab is showing (rAF paused +
+// GL disposed otherwise, per the perf contract).
+function _forestMount(){
+  const cv=document.getElementById('forest3d');
+  const frame=document.querySelector('.mapframe');
+  if(!cv||!window.Forest3D) return false;
+  if(!Forest3D.mounted){ Forest3D.mount(cv,frame); }
+  return Forest3D.ok();
+}
+// Pause/dispose when leaving the Forest view; resume when it returns. Called by showView.
+function forestSetVisible(on){ if(window.Forest3D&&Forest3D.mounted) Forest3D.setVisible(on); }
+
+
+// ===== the node click-to-act popover =====
+function hideNodePop(){const p=document.getElementById('nodepop');if(p)p.hidden=true;}
+// Place the popover near the clicked node (screen coords), clamped inside the frame.
+function _showNodePop(html,evt){
+  const pop=document.getElementById('nodepop'), frame=document.querySelector('.mapframe');
+  pop.innerHTML=html; pop.hidden=false;
+  const fr=frame.getBoundingClientRect(), pr=pop.getBoundingClientRect();
+  let x=(evt?evt.clientX-fr.left:fr.width/2)+14, y=(evt?evt.clientY-fr.top:fr.height/2)-10;
+  x=Math.max(10,Math.min(fr.width-pr.width-10,x));
+  y=Math.max(10,Math.min(fr.height-pr.height-10,y));
+  pop.style.left=x+'px'; pop.style.top=y+'px';
+  const cb=pop.querySelector('.npclose'); if(cb) cb.onclick=hideNodePop;
+}
+// Kick off (or revise) practice on a concept → switch to the chat view and stream it.
+function forestDive(name){ hideNodePop(); showView('practice');
+  stream("Let's work on "+name+" now."); }
+function forestRevise(name){ hideNodePop(); showView('practice');
+  stream("I want to revise "+name+" — I've covered it before; quiz me and refresh the key ideas."); }
+window.forestDive=forestDive; window.forestRevise=forestRevise;
+
+function _statPill(s){return s==='done'?'<span class="npstat done">◆ mastered</span>'
+  :s==='avail'?'<span class="npstat avail">○ available</span>':'<span class="npstat lock">— locked</span>';}
+function _chips(names,cls){return (names&&names.length)
+  ? '<div class="npchips">'+names.map(n=>'<span class="npchip '+(cls||'')+'">'+_esc(_short(n,26))+'</span>').join('')+'</div>'
+  : '<div class="npchips"><span class="npchip" style="opacity:.6">—</span></div>';}
+
+// Build the popover for a CONCEPT node (drill-in). statusOf resolves any prereq's status.
+function _openConceptPop(cc,statusOf,evt){
+  const missing=(cc.prereqs||[]).filter(p=>statusOf(p)!=='done');
+  const done=(cc.prereqs||[]).filter(p=>statusOf(p)==='done');
+  let act='';
+  if(cc.status==='done')
+    act='<button class="npact revise" onclick="forestRevise('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">↻ Revise this</button>';
+  else if(cc.status==='avail')
+    act='<button class="npact" onclick="forestDive('+JSON.stringify(cc.name).replace(/"/g,'&quot;')+')">➤ Dive in</button>';
+  else
+    act='<button class="npact locked" disabled>🔒 Finish its prerequisites first</button>';
+  const html=
+    '<button class="npclose">×</button>'+_statPill(cc.status)+
+    '<div class="nptitle">'+_esc(cc.name)+'</div>'+
+    (cc.status==='lock'
+      ? '<div class="npsec"><div class="lbl">Still needed</div>'+_chips(missing,'miss')+'</div>'
+      : '<div class="npsec"><div class="lbl">Builds on</div>'+_chips(done.length?done:(cc.prereqs||[]),done.length?'done':'')+'</div>')+
+    '<div class="npsec"><div class="lbl">Unlocks next</div>'+_chips(cc.unlocks)+'</div>'+
+    act;
+  _showNodePop(html,evt);
 }
 
-// One grove tree (art lifted from Ekalavya-Template-v2 §4), colored by status.
-function _groveNode(g,pt,opts){
-  opts=opts||{};
-  const label=opts.label!=null?opts.label:g.pillar;
-  const meta=opts.meta!=null?opts.meta:(g.status==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
-    :g.status==='active'?'○ ACTIVE · '+g.done+'/'+g.total
-    :g.status==='locked'?'— LOCKED':(g.done+'/'+g.total));
-  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+g.status});
-  if(!opts.clickable===false && g.status!=='locked' && opts.onClick) grp.style.cursor='pointer';
-  const st=g.status;
-  if(st==='blossoming'){
-    grp.appendChild(_svgEl('circle',{r:44,fill:'url(#glampM)',opacity:.75}));
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
-    grp.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
-    grp.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
-  }else if(st==='active'){
-    grp.appendChild(_svgEl('circle',{r:50,fill:'none',stroke:'#57d3ce','stroke-width':2,'stroke-dasharray':'4 6',opacity:.9}));  // ring
-    grp.appendChild(_svgEl('circle',{r:44,fill:'#2ea3a0',opacity:.10}));
-    grp.appendChild(_svgEl('path',{d:'M0 34V4',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
-  }else if(st==='unlocked'){
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
-  }else{                                                                          // locked bare sapling
-    grp.setAttribute('opacity',.5);
-    grp.appendChild(_svgEl('path',{d:'M0 30V6',stroke:'#5a4a34','stroke-width':4}));
-    grp.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
-  }
-  const lc=(st==='blossoming')?'#f0e3c6':(st==='active')?'#dcefe6':(st==='unlocked')?'#f0e3c6':'#a89670';
-  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='unlocked')?'#52a061':'#a89670';
-  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':14,fill:lc});
-  t1.textContent=_short(label,20); grp.appendChild(t1);
-  const t2=_svgEl('text',{x:0,y:st==='locked'?66:82,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc});
-  t2.textContent=meta; grp.appendChild(t2);
-  const tt=_svgEl('title'); tt.textContent=g.pillar+' — '+g.done+'/'+g.total+' · '+st; grp.appendChild(tt);
-  if(opts.onClick && st!=='locked') grp.addEventListener('click',opts.onClick);
-  return grp;
-}
-
-// Statue of Droṇa (upper-right ridge) — lifted verbatim.
-function _statue(x,y){
-  const g=_svgEl('g',{transform:'translate('+x+','+y+')',opacity:.85});
-  g.appendChild(_svgEl('rect',{x:-26,y:86,width:52,height:14,rx:3,fill:'#7a4a2c'}));
-  g.appendChild(_svgEl('path',{d:'M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z',fill:'#a8482a'}));
-  g.appendChild(_svgEl('circle',{cx:0,cy:-6,r:13,fill:'#b9764a'}));
-  const dots=_svgEl('g',{fill:'#f2e7cc',opacity:.7});
-  [[-8,34],[8,34],[0,52],[-9,66],[9,66]].forEach(([cx,cy])=>dots.appendChild(_svgEl('circle',{cx,cy,r:1.3})));
-  g.appendChild(dots);
-  const t=_svgEl('text',{x:0,y:112,'text-anchor':'middle','font-family':'Tiro Devanagari Hindi','font-size':13,fill:'#e7b64b'});
-  t.textContent='गुरु द्रोण'; g.appendChild(t);
-  return g;
-}
-
-function _mapDefs(){
-  const defs=_svgEl('defs',{});
-  defs.innerHTML=
-    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".6" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
-   +'<pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>'
-   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>';
-  return defs;
-}
-
-function _paintMap(svg,pts,travelledUpto){
-  const vb=svg.viewBox.baseVal, W=vb.width, H=vb.height;
-  svg.textContent='';
-  svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mdot)'}));
-  // full winding path (dashed clay), then the travelled gold portion up to the active grove
-  const full=_pathThrough(pts,null);
-  if(full) svg.appendChild(_svgEl('path',{d:full,fill:'none',stroke:'#a8482a','stroke-width':6,'stroke-linecap':'round','stroke-dasharray':'2 14',opacity:.55}));
-  if(travelledUpto>=1){
-    const gold=_pathThrough(pts,travelledUpto);
-    if(gold) svg.appendChild(_svgEl('path',{d:gold,fill:'none',stroke:'#e7b64b','stroke-width':4,'stroke-linecap':'round','stroke-dasharray':'2 14'}));
-  }
-  svg.appendChild(_statue(W-140,90));
-}
-
-function _legend(svg,items){
-  const vb=svg.viewBox.baseVal;
-  const g=_svgEl('g',{transform:'translate(28,'+(vb.height-18)+')','font-family':'JetBrains Mono','font-size':10});
-  let x=0;
-  items.forEach(([col,lab])=>{
-    g.appendChild(_svgEl('circle',{cx:x+6,cy:-3,r:5,fill:col}));
-    const t=_svgEl('text',{x:x+16,y:1,fill:'#c3b291'});t.textContent=lab;g.appendChild(t);
-    x+=16+lab.length*7+34;
-  });
-  svg.appendChild(g);
-}
+// ===== drive the 3D forest from /api/forest =====
+// showForest / showGrove fetch the data-driven map and hand it to window.Forest3D,
+// which builds the WebGL scene. The tabs, sub-line and quest banner mirror the
+// current view; the popover + Dive-in/Revise wiring is unchanged (shared helpers).
 
 async function showForest(){
-  const svg=document.getElementById('forestsvg');
+  _forestView='overview';
   document.getElementById('tabForest').classList.add('on');
   document.getElementById('tabTrack').classList.remove('on');
-  document.getElementById('treesub').textContent='groves on a winding path · a tap enters a grove';
-  svg.setAttribute('viewBox','0 0 900 640'); svg.textContent='';
+  const mb=document.getElementById('mapback'); if(mb) mb.hidden=true;
+  document.getElementById('mapquest').hidden=true; hideNodePop();
+  if(!_forestMount()){ return; }               // WebGL fallback handled inside mount()
+  Forest3D.setVisible(true);
   try{
     const c=await (await fetch('/api/forest')).json();
-    if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
+    _forestData=c;
+    if(c.empty){ _forestEmpty(); document.getElementById('tabTrack').disabled=true; return; }
     _curFocus=c.active;
     document.getElementById('tabTrack').disabled=!_curFocus;
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    // travelled = up to and including the active grove along the walk order
-    let upto=c.groves.findIndex(g=>g.status==='active')+1;
-    if(upto<=0) upto=c.groves.filter(g=>g.status==='blossoming').length;
-    _paintMap(svg,pts,upto);
-    c.groves.forEach((g,i)=>{
-      if(!pts[i]) return;
-      svg.appendChild(_groveNode(g,pts[i],{onClick:()=>showGrove(g.pillar)}));
-    });
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
-  }catch(e){ _emptyMap(svg,'could not load the forest map.'); }
+    const nMast=c.groves.filter(g=>g.status==='blossoming').length;
+    document.getElementById('treesub').textContent=
+      c.groves.length+' groves · '+nMast+' mastered · wander the wood, tap a grove to enter';
+    // tag the active grove so the 3D scene can place the "YOU ARE HERE" ring + rest the camera
+    c.groves.forEach(g=>{ g._active = (g.pillar===c.active); });
+    Forest3D.renderOverview(c);
+    _questBanner(c.active?'Current grove':'Your forest',
+      c.active||'—', c.active?'Tap it to explore its concepts, or dive straight in.':'Tap any grove to explore.');
+  }catch(e){ _forestEmpty('could not load the forest map.'); }
 }
 
-// Drill-in: one grove's concepts as a smaller sub-forest (same visual language).
+// Overview grove popover: summary + "enter grove" (drill-in). Unchanged behaviour.
+function _openGrovePop(g,evt){
+  const act='<button class="npact" onclick="showGrove('+JSON.stringify(g.pillar).replace(/"/g,'&quot;')+');hideNodePop()">▶ Enter grove</button>';
+  const st=g.status==='blossoming'?'done':g.status==='locked'?'lock':'avail';
+  const html='<button class="npclose">×</button>'+_statPill(st)+
+    '<div class="nptitle">'+_esc(g.pillar)+'</div>'+
+    '<div class="npsub">'+g.done+' / '+g.total+' concepts mastered</div>'+
+    '<div class="npsec"><div class="lbl">'+(g.status==='blossoming'?'A blossoming grove':g.status==='active'?'Your current focus':g.status==='locked'?'Locked — grow its roots first':'Open to explore')+'</div></div>'+act;
+  _showNodePop(html,evt);
+}
+window._openGrovePop=_openGrovePop; window._openConceptPop=_openConceptPop;
+
+// Drill-in: one grove's concepts as its own little SUB-FOREST in 3D. Each concept is a
+// tree along a short sub-path; clicking one opens the concept popover (Dive-in/Revise).
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
-  const svg=document.getElementById('forestsvg');
+  _forestView=pillar;
   document.getElementById('tabForest').classList.remove('on');
   document.getElementById('tabTrack').classList.add('on');
   document.getElementById('tabTrack').disabled=false;
-  svg.textContent='';
+  const mb=document.getElementById('mapback'); if(mb) mb.hidden=false;
+  hideNodePop();
+  if(!_forestMount()){ return; }
+  Forest3D.setVisible(true);
   try{
     const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
-    if(c.empty){ _emptyMap(svg); return; }
-    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    const done=c.concepts.filter(x=>x.status==='done').length;
-    _paintMap(svg,pts,done);
-    // map a concept's status onto a grove-status so the same tree art applies
-    const S={done:'blossoming',avail:'active',lock:'locked'};
-    c.concepts.forEach((cc,i)=>{
-      if(!pts[i]) return;
-      const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
-      const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
-      svg.appendChild(_groveNode(g,pts[i],{label:cc.name,meta:meta}));
-    });
-    // a back-to-overview control drawn in-canvas (also on the ◆ tab)
-    const back=_svgEl('g',{transform:'translate(70,40)','class':'grove',style:'cursor:pointer'});
-    back.addEventListener('click',showForest);
-    const bt=_svgEl('text',{x:0,y:0,'font-family':'JetBrains Mono','font-size':12,fill:'#e7b64b'});
-    bt.textContent='← overview'; back.appendChild(bt); svg.appendChild(back);
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked']]);
-  }catch(e){ _emptyMap(svg,'could not load this grove.'); }
+    _forestData=c;
+    if(c.empty){ _forestEmpty(); return; }
+    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← back to the forest';
+    Forest3D.renderGrove(c, pillar);
+    _questBanner('Inside '+_short(pillar,22), c.grove.done+' / '+c.grove.total+' mastered',
+      'A path through this grove\'s concepts. Tap a leafed tree to dive in.');
+  }catch(e){ _forestEmpty('could not load this grove.'); }
 }
 
-function _emptyMap(svg,msg){
-  svg.setAttribute('viewBox','0 0 900 560'); svg.textContent='';
-  svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:900,height:560,fill:'url(#mapbg)'}));
-  const t=_svgEl('text',{x:450,y:270,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
-  t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
-  svg.appendChild(t);
+// The ← HUD button: from a drilled-in grove back to the whole forest.
+function forestBack(){ showForest(); }
+window.forestBack=forestBack;
+
+// A small "where you are" banner over the canvas (top-left).
+function _questBanner(head,title,desc){
+  const q=document.getElementById('mapquest');
+  q.innerHTML='<div class="qh">'+_esc(head)+'</div><div class="qt">'+_esc(title)+'</div><div class="qd">'+_esc(desc)+'</div>';
+  q.hidden=false;
+}
+
+// HUD zoom buttons → the 3D camera (constrained dolly toward/away from the target).
+function forestZoom(m){ if(window.Forest3D) Forest3D.zoom(m); }
+function forestZoomReset(){ if(window.Forest3D) Forest3D.zoomReset(); }
+window.forestZoom=forestZoom; window.forestZoomReset=forestZoomReset;
+
+// Empty / error state — a quiet message in the frame (no scene to build).
+function _forestEmpty(msg){
+  document.getElementById('mapquest').hidden=true;
+  _questBanner('The forest', 'Not planted yet',
+    msg||'Finish onboarding and Ekalavya will plant your groves.');
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
@@ -1972,6 +2175,16 @@ function addMsg(role, html){
   document.getElementById('log').appendChild(m); scroll(); return body;
 }
 function scroll(){const l=document.getElementById('log'); l.scrollTop=l.scrollHeight;}
+// Typeset LaTeX math ($…$ inline, $$…$$ / \[…\] display) with KaTeX — the tutor teaches
+// math/stats/ML, so equations must render, not show as raw source. Skips code/pre so a '$'
+// in code isn't mangled. Works on a detached element (KaTeX walks text nodes).
+function typesetMath(el){
+  if(!el || !window.renderMathInElement) return;
+  try{ renderMathInElement(el, {delimiters:[
+    {left:'$$',right:'$$',display:true}, {left:'\\[',right:'\\]',display:true},
+    {left:'\\(',right:'\\)',display:false}, {left:'$',right:'$',display:false}
+  ], throwOnError:false, ignoredTags:['script','noscript','style','textarea','pre','code']}); }catch(e){}
+}
 function renderMd(text){
   const html = DOMPurify.sanitize(marked.parse(text));  // never trust model output in the DOM
   const tmp=document.createElement('div'); tmp.innerHTML=html;
@@ -1980,6 +2193,7 @@ function renderMd(text){
       const d=el('mermaid'); d.textContent=c.textContent; c.closest('pre').replaceWith(d);
     } else { try{hljs.highlightElement(c);}catch(e){} }
   });
+  typesetMath(tmp);  // render any LaTeX before returning the HTML
   return tmp.innerHTML;
 }
 
@@ -2068,6 +2282,8 @@ async function consume(res, ui){
       else if(o.tool){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
       else if(o.result){ traceLine(ui.tb,'res','✓ '+prettyTool(o.result.name)); }
+      else if(o.autorun){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
+        traceLine(ui.tb,'call','⚡ ran (auto) · '+((o.autorun.command||'command').slice(0,80))); ui.sum.textContent='ran a safe command…'; scroll(); }
       else if(o.approval){ await askApproval(ui, o.approval); }
     }
   }
@@ -2113,6 +2329,7 @@ async function stream(text, code){
     ui.m.remove(); showWelcome('Nothing came back — check that a provider key is set, then hit ↻ New.');
   } else { ui.m.style.display=''; finalizeMsg(ui); }
   refreshHud();
+  pingCanvas();  // if the guru saved a new artifact this turn, surface it in the Canvas
   if(queued){ const q=queued; queued=null;                     // a message typed mid-stream
     turns.push(q); attachEdit(q); renderTurnCtl(); stream(q.text); }
   else if(queuedSubmit){ queuedSubmit=false; submitCode(); }   // a code submit clicked mid-stream
@@ -2187,18 +2404,22 @@ function sendChat(){
   stream(t, attach);
 }
 
-function addRunOut(label){
-  const d=el('runout'); d.innerHTML='<div class="rohead">'+label+'</div>';
-  document.getElementById('log').appendChild(d); scroll(); return d;
-}
 function esc(s){ return (s||'').replace(/</g,'&lt;'); }
-function renderRunOut(box, r){
+// Run output renders in the editor pane (#edrun, below the code) — it persists across chat
+// messages and its body scrolls (max-height) instead of being clipped or lost in the log.
+function showRunPane(headHtml){
+  const box=document.getElementById('edrun');
+  box.innerHTML='<div class="rohead">'+headHtml+'</div>'; box.hidden=false;
+  document.getElementById('edtests').classList.remove('hidden');
+}
+function renderRunPane(r){
   const head = r.ok ? '<span class="ok">▶ ran</span>' : '<span class="bad">▶ exit '+r.exit_code+'</span>';
-  let html = '<div class="rohead">'+head+' · '+r.seconds+'s</div>';
-  if(r.stdout) html += '<pre class="rostd">'+esc(r.stdout)+'</pre>';
-  if(r.stderr) html += '<pre class="roerr">'+esc(r.stderr)+'</pre>';
-  if(!r.stdout && !r.stderr) html += '<div class="roempty">(no output)</div>';
-  box.innerHTML = html; scroll();
+  let html='<div class="rohead">'+head+' · '+(r.seconds||'0')+'s</div>';
+  if(r.stdout) html+='<pre class="rostd">'+esc(r.stdout)+'</pre>';
+  if(r.stderr) html+='<pre class="roerr">'+esc(r.stderr)+'</pre>';
+  if(!r.stdout && !r.stderr) html+='<div class="roempty">(no output)</div>';
+  const box=document.getElementById('edrun'); box.innerHTML=html; box.hidden=false;
+  document.getElementById('edtests').classList.remove('hidden');
 }
 // Parse a run's output into "test arrows" for the .ed-tests panel. Recognises the common
 // self-check shapes learners print: "✓/✗ name", "PASS/FAIL: name", "name ... ok",
@@ -2235,12 +2456,12 @@ function renderTests(r){
 }
 async function runCode(){
   if(!editor) return; const code=editor.getValue(); if(!code.trim()) return;
-  const box=addRunOut('<span class="dim">▶ running…</span>');
+  showRunPane('<span class="dim">▶ running…</span>');
   try{
     const r=await (await fetch('/api/run',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({code})})).json();
-    renderRunOut(box, r); renderTests(r);
-  }catch(e){ box.remove(); addErrorCard("Couldn't run your code — the sandbox didn't answer. Try again.", runCode); }
+    renderRunPane(r); renderTests(r);
+  }catch(e){ renderRunPane({ok:false, exit_code:'—', seconds:'0', stderr:"Couldn't reach the sandbox — try again."}); }
 }
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
@@ -2330,6 +2551,8 @@ function newSession(){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   turns=[]; renderTurnCtl();
   if(editor) editor.setValue(STUB);
+  const et=document.getElementById('edtests'); if(et) et.classList.add('hidden');   // drop stale run output
+  const er=document.getElementById('edrun'); if(er){ er.hidden=true; er.innerHTML=''; }
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   showPane('editor');  // a fresh session starts on the editor, not a stale canvas
   applyMode(); syncModeLabel();
@@ -2358,15 +2581,7 @@ function closeModes(){ document.getElementById('modes').classList.remove('on'); 
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
-// ===== forest-map zoom/pan (it was tiny/unreadable on mobile) =====
-let _fz=1;
-function _applyFz(){
-  const s=document.getElementById('forestsvg'); if(!s) return;
-  s.style.transform='scale('+_fz+')';
-  const f=s.closest('.mapframe'); if(f) f.style.overflow=_fz>1.01?'auto':'hidden';
-}
-function forestZoom(m){ _fz=Math.max(1,Math.min(4,_fz*m)); _applyFz(); }
-function forestZoomReset(){ _fz=1; _applyFz(); }
+// (forest pan/zoom/orbit is handled by the 3D scene — see forestZoom/Forest3D above.)
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
@@ -2423,10 +2638,48 @@ function deleteChat(id, title){
 
 // render the provider chip as a compact label (verbose "rotates across N" → tooltip only)
 function setWho(c){
+  const ae=document.getElementById('am_email'); if(ae) ae.textContent=c.email||'(local session)';
   const el=document.getElementById('who'); if(!el) return;
   if(!c.configured){ el.textContent='no provider key'; el.title='no provider key set'; return; }
   const short=(c.provider||'').replace(/\s*\(.*?\)\s*/,'').trim()||'Auto';
   el.textContent=short; el.title=c.provider+' · '+c.model;
+}
+// bottom-left account menu: who you're signed in as + Log out
+function toggleAcct(e){ if(e) e.stopPropagation(); const m=document.getElementById('acctmenu'); if(m) m.hidden=!m.hidden; }
+document.addEventListener('click', function(e){ const m=document.getElementById('acctmenu'), b=document.getElementById('acctbtn');
+  if(m && !m.hidden && b && !b.contains(e.target) && !m.contains(e.target)) m.hidden=true; });
+
+// ===== optional focus timer (cosmetic — a self-discipline aid; NEVER auto-ends the session) =====
+let _timerLeft=0, _timerId=null;
+function _fmtT(s){ const m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+function toggleTimerMenu(e){ if(e) e.stopPropagation(); const m=document.getElementById('timermenu'); if(m) m.hidden=!m.hidden; }
+function _updTimer(){ document.getElementById('timerbtn').innerHTML='⏱ '+_fmtT(Math.max(0,_timerLeft)); }
+function startTimer(mins){
+  document.getElementById('timermenu').hidden=true;
+  clearInterval(_timerId); _timerLeft=Math.round(mins*60); _updTimer();
+  document.getElementById('timerbtn').classList.add('on');
+  _timerId=setInterval(function(){ _timerLeft--; _updTimer();
+    if(_timerLeft<=0){ clearInterval(_timerId); _timerId=null; _timerDone(); } }, 1000);
+}
+function stopTimer(){ clearInterval(_timerId); _timerId=null; _timerLeft=0;
+  const b=document.getElementById('timerbtn'); b.innerHTML='⏱ Timer'; b.classList.remove('on');
+  document.getElementById('timermenu').hidden=true; }
+function customTimer(){ const v=prompt('Focus timer — how many minutes?','25'); const m=parseInt(v,10);
+  if(m>0 && m<=240) startTimer(m); }
+function _timerDone(){
+  const b=document.getElementById('timerbtn'); b.innerHTML='⏱ time’s up'; b.classList.remove('on');
+  clearWelcome(); const n=el('sysline');
+  n.textContent='⏱ Your focus timer is up — keep going, or hit ⏹ Wrap up (or say “I’m done”) whenever you’re ready.';
+  document.getElementById('log').appendChild(n); scroll();
+}
+document.addEventListener('click', function(e){ const m=document.getElementById('timermenu'), w=document.querySelector('.timerwrap');
+  if(m && !m.hidden && w && !w.contains(e.target)) m.hidden=true; });
+// ⏹ Wrap up — let the learner end the session on demand; the guru summarizes + saves for next time
+function endSession(){
+  if(streaming){ return; }
+  clearWelcome();
+  stream("I'm done for today. Please wrap up the session: summarize what we covered and what I "
+    +"learned, note where I struggled, save my progress and a hook for next time, then sign off warmly.");
 }
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
@@ -2434,8 +2687,14 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
-  stream(c.kickoff[mode]);
+  stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
+  // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
+  // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname];
+  if(_deep) showView(_deep);
+  else if(!c.first_run && location.pathname==='/') showView('tree');
 });
+// deep-link handling for client-only routes now runs inside the /api/config callback above.
 </script></body></html>"""
 
 
@@ -2839,20 +3098,23 @@ _HERO_JS = r"""<script>
 
 
 # --- login page (multi-user) -----------------------------------------------
-# Apple-style scroll auth: the page OPENS on a full-viewport HERO over a FIXED animated Option E
-# scene (the lone archer looses arrows at a distant target — miss, miss, hit + celebration),
-# which keeps running behind everything; scrolling down floats a GLASSMORPHIC login/signup card
-# CENTERED over the same still-visible scene. Reuses the shared design system (/static/eklavya.css).
-# The form action, field names, autofocus, {{start}}/{{error}} slots and the Log in / Sign up tab
-# toggle are all preserved for the auth flow + tests. The scene JS is injected before </body>.
+# Apple-style scroll auth: the page OPENS on the RICH Option E hero (giant gold wordmark, the
+# poetic outsider tagline, the four chips — identical to /welcome) over a FIXED animated Option E
+# scene (the lone archer looses arrows at a distant target — miss, miss, hit + celebration). The
+# scene keeps running behind everything and NEVER reloads; scrolling down (or clicking ↓ enter the
+# forest / the nav "Log in") slides a GLASSMORPHIC login/signup card UP over the SAME still-visible
+# scene. Reuses the shared design system (/static/eklavya.css) and the Option E hero classes.
+# The form action, field names, {{start}}/{{error}} slots and the Log in / Sign up tab toggle are
+# all preserved for the auth flow + tests. The scene JS is injected before </body>.
 _LOGIN = (r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Sign in</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/eklavya.css">
 <style>
 /* Apple-style scroll: a FIXED full-viewport animated Option E scene, content scrolls above it.
-   The hero opens on the brand; scrolling floats a glassmorphic auth card centered over the SAME
-   still-running scene (visible around/through the frosted glass). */
+   The hero opens on the RICH brand (Option E hero); scrolling slides a glassmorphic auth card UP
+   over the SAME still-running scene (visible around/through the frosted glass). ONE .scene-fixed
+   instance is rendered → the background is byte-identical in both states and never reloads. */
 html{scroll-behavior:smooth}
 body{min-height:100vh;margin:0;padding:0;background:var(--void)}
 /* 1) FIXED background layer — the animated scene fills the viewport and stays put on scroll */
@@ -2863,49 +3125,69 @@ body{min-height:100vh;margin:0;padding:0;background:var(--void)}
   background:linear-gradient(180deg,rgba(10,13,28,.34) 0%,rgba(10,13,28,.20) 42%,rgba(10,13,28,.58) 100%)}
 /* 2) scrolling content above the scene */
 .scroll{position:relative;z-index:1}
-.sec{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+/* a thin brand bar floating over the top of the hero (transparent, never competes with the wordmark) */
+.land-nav{position:absolute;top:0;left:0;right:0;z-index:5;border-bottom:0;background:transparent;padding:20px clamp(26px,6vw,90px)}
+/* HERO — the rich Option E hero, full-viewport, copy pinned to the bottom-left like docs/design/E_merged */
+.auth-hero{position:relative;min-height:100svh;display:flex;flex-direction:column;justify-content:flex-end}
+.auth-hero .hero-copy{max-width:1000px}
+/* AUTH — a full-viewport section that slides its glassmorphic card UP over the same scene */
+.auth-sec{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;
   padding:56px 22px;text-align:center}
-/* HERO */
-.hero-brand{display:flex;align-items:center;gap:14px;font-family:var(--f-display);
-  font-size:clamp(30px,6vw,54px);letter-spacing:.14em;color:var(--gold-bright);
-  text-shadow:0 2px 30px rgba(10,13,28,.6)}
-.hero-tagline{margin:22px 0 6px;font-family:var(--f-serif);font-style:italic;
-  font-size:clamp(17px,2.6vw,24px);color:var(--parch);max-width:640px}
-.hero-sub{font-family:var(--f-body);color:var(--parch-dim);max-width:560px;
-  font-size:clamp(14px,1.8vw,17px);line-height:1.55}
-.hero-cta{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:20px}
-.scrollcue{font-family:var(--f-mono);font-size:12px;letter-spacing:.22em;text-transform:uppercase;
-  color:var(--parch-mute);text-decoration:none;animation:bob 2.2s ease-in-out infinite}
-@keyframes bob{0%,100%{transform:translateY(0);opacity:.7}50%{transform:translateY(7px);opacity:1}}
-/* AUTH — the glassmorphic card floating over the scene */
 .glass{width:100%;max-width:460px;text-align:left;
-  background:rgba(10,13,28,.55);backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+  background:rgba(10,13,28,.55);backdrop-filter:blur(16px) saturate(1.25);-webkit-backdrop-filter:blur(16px) saturate(1.25);
   border:1px solid var(--line-gold);border-radius:18px;
   box-shadow:0 24px 70px -20px rgba(0,0,0,.7),0 1px 0 rgba(247,217,138,.08) inset;
-  padding:34px 34px 30px}
+  padding:34px 34px 30px;
+  /* rest state for the slide-up reveal (JS toggles .in when the card scrolls into view) */
+  opacity:0;transform:translateY(38px);transition:opacity .7s cubic-bezier(.2,.7,.3,1),transform .7s cubic-bezier(.2,.7,.3,1)}
+.glass.in{opacity:1;transform:none}
 .glass form{display:flex;flex-direction:column}
 .err{font-family:var(--f-mono);font-size:12px;letter-spacing:.02em;color:var(--vermilion-glow);
   border:1px solid rgba(214,59,42,.4);background:rgba(143,35,24,.16);border-radius:4px;
   padding:9px 12px;margin:0 0 16px}
-@media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.sec{padding:44px 16px}}
+/* honour reduced-motion: no slide, no bob — the card is simply present */
+@media(prefers-reduced-motion:reduce){.glass{opacity:1;transform:none;transition:none}}
+@media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.auth-sec{padding:44px 16px}}
 </style></head><body>
 <div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
 <div class="scene-scrim"></div>
 <div class="scroll">
-  <section class="sec" id="hero">
-    <div class="hero-brand">
-      <svg width="30" height="36" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg>
-      EKALAVYA
+  <!-- thin brand bar; "Log in" scrolls to the auth card over the same scene -->
+  <div class="land-nav">
+    <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
+    <div class="links"><a href="/about" style="color:inherit;text-decoration:none">The Method</a><a href="/about" style="color:inherit;text-decoration:none">Manifesto</a></div>
+    <span style="flex:1"></span>
+    <a class="btn btn-ghost" style="padding:9px 18px" href="#auth">Log in</a>
+  </div>
+
+  <!-- ============================================================
+       HERO — the RICH Option E hero (identical to /welcome), over the
+       FIXED animated scene. docs/design/E_merged/index.html · hero-copy.
+       ============================================================ -->
+  <header class="auth-hero" id="hero">
+    <!-- rotating yantra behind (from Option E) -->
+    <svg class="hero-yantra" viewBox="0 0 400 400" aria-hidden="true">
+      <g class="spin" fill="none" stroke="#e7b64b" stroke-width="1">
+        <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="70"/>
+      </g>
+    </svg>
+    <div class="hero-copy">
+      <div class="hero-tag">The Merge — Cinematic Forest</div>
+      <h1 class="eka">EKALAVYA</h1>
+      <div class="eka-deva">एकलव्य · स्वाध्याय</div>
+      <p class="hero-sub">The <b>hall was closed</b> to him — so he walked into the forest, raised a statue of the guru who refused him, and taught himself to outshoot the princes. An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b></p>
+      <div class="hero-meta">
+        <span>Guru: <b>the statue</b></span>
+        <span>Arena: <b>the forest</b></span>
+        <span>Path: <b>svādhyāya</b> · self-study</span>
+        <span>Dakshinā: <b>the thumb</b></span>
+      </div>
     </div>
-    <div class="hero-tagline">the archer who taught himself</div>
-    <div class="hero-sub">The hall was closed to him — so he taught himself to outshoot the princes.</div>
-    <div class="hero-cta">
-      <a class="btn btn-gold" href="#auth" style="padding:12px 26px">Log in / Sign up</a>
-      <a class="scrollcue" href="#auth">↓ enter</a>
-    </div>
-  </section>
-  <section class="sec" id="auth">
-    <div class="glass">
+    <!-- ↓ scrolls the auth card UP over the same scene (no page/scene reload) -->
+    <a class="scrollcue" href="#auth" style="text-decoration:none">↓ enter the forest</a>
+  </header>
+  <section class="auth-sec" id="auth">
+    <div class="glass auth-form">
       <div class="auth-tabs" role="tablist" aria-label="Authentication mode">
         <span class="on" id="tab-login" role="tab" tabindex="0" aria-selected="true" onclick="authMode('login')">Log in</span>
         <span id="tab-signup" role="tab" tabindex="0" aria-selected="false" onclick="authMode('signup')">Sign up</span>
@@ -2958,6 +3240,28 @@ document.getElementById('authform').addEventListener('submit',function(e){
     if(msg){ e.preventDefault(); const el=document.getElementById('client-err'); el.textContent=msg; el.style.display='block'; }
   }
 });
+// Slide-up reveal: the glass card fades + rises the first time it scrolls into view — the
+// FIXED scene behind it never moves or reloads. If the page should open ON the auth card
+// (arriving on /signup, an explicit #auth link, or a bounced-back error/notice), reveal it
+// straightaway, scroll it into view over the same scene, and focus the first field.
+(function(){
+  const card=document.querySelector('.glass');
+  const auth=document.getElementById('auth');
+  // a SERVER-rendered error/notice means the visitor already submitted — jump to the card.
+  // (Ignore the always-present, hidden #client-err validation placeholder.)
+  const hasMsg=[...card.querySelectorAll('.err, .notice')].some(el=>el.id!=='client-err' && el.textContent.trim());
+  const openOnAuth = location.hash==='#auth' || {{start_is_signup}} || hasMsg;
+  if(openOnAuth){
+    card.classList.add('in');
+    auth.scrollIntoView({block:'center'});   // over the SAME fixed scene — no reload
+    document.getElementById('email').focus({preventScroll:true});
+  } else if('IntersectionObserver' in window){
+    const io=new IntersectionObserver(function(es){
+      es.forEach(function(en){ if(en.isIntersecting){ card.classList.add('in'); io.disconnect(); } });
+    },{threshold:.35});
+    io.observe(card);
+  } else { card.classList.add('in'); }  // no-IO fallback: just show it
+})();
 authMode('{{start}}');
 </script>
 """ + _HERO_JS + r"""
@@ -2977,55 +3281,56 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — the archer who taught himself</title>
 """ + _HEAD + r"""
 <style>body{padding:0;min-height:100vh}
-/* fixed animated Option E scene behind the whole landing — the brand entry matches the auth hero */
-.scene-fixed{position:fixed;inset:0;z-index:0;overflow:hidden}
-.scene-fixed svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.scene-scrim{position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(10,13,28,.5) 0%,rgba(10,13,28,.4) 40%,rgba(10,13,28,.74) 100%)}
-/* landing content floats above the scene; drop its own opaque ground so the scene shows through */
-.landing{min-height:100vh;position:relative;z-index:1;background:none!important}
+/* the landing sits ON the hero itself — the animated Option E scene fills the hero band,
+   the copy is pinned to the bottom, exactly as in docs/design/E_merged/index.html. The
+   shared .landing indigo ground carries the section below the hero (feature cards). */
+/* a fixed brand bar floats over the top of the full-bleed hero (Option E has no nav; we add a
+   thin one for auth entry, kept transparent so it never competes with the giant wordmark) */
+.land-nav{position:absolute;top:0;left:0;right:0;z-index:5;border-bottom:0;background:transparent;padding:20px clamp(26px,6vw,90px)}
 </style></head><body>
-<div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
-<div class="scene-scrim"></div>
 <div class="landing">
   <div class="land-nav">
     <div class="brand"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
-    <div class="links"><span>The Method</span><span>Skill Forest</span><span>Manifesto</span></div>
+    <div class="links"><a href="/about" style="color:inherit;text-decoration:none">The Method</a><a href="/about#loop" style="color:inherit;text-decoration:none">Skill Forest</a><a href="/about" style="color:inherit;text-decoration:none">Manifesto</a></div>
     <span style="flex:1"></span>
     <a class="btn btn-ghost" style="padding:9px 18px" href="/login">Log in</a>
     <a class="btn btn-stone" style="padding:9px 20px" href="/signup">Begin your svādhyāya</a>
   </div>
-  <div class="land-hero">
-    <div>
-      <div class="hero-tag" style="margin-bottom:16px">एकलव्य · the archer who taught himself</div>
-      <h1 class="land-h1">The hall was closed to him.<br><span class="em">So he taught himself to outshoot the princes.</span></h1>
-      <p class="land-lead">An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b> It grades what you can do <i>unaided</i> — no hints you didn't earn, no pasted answers, just the string drawn until the arrow flies true.</p>
-      <div class="btn-row">
-        <a class="btn btn-gold" href="/">Enter the forest — free</a>
-        <a class="btn btn-stone" href="/welcome#method">See the method</a>
-      </div>
-      <div class="land-proof">
-        <div class="pp"><div class="v">197</div><div class="k">skill nodes</div></div>
-        <div class="pp"><div class="v">unaided</div><div class="k">honest grading</div></div>
-        <div class="pp"><div class="v">17</div><div class="k">learning groves</div></div>
+
+  <!-- ============================================================
+       HERO — FULL-BLEED · DYNAMIC (Option E, ported verbatim)
+       docs/design/E_merged/index.html · <header class="hero"> …
+       ============================================================ -->
+  <header class="hero">
+    <!-- rotating yantra behind (from Option E) -->
+    <svg class="hero-yantra" viewBox="0 0 400 400" aria-hidden="true">
+      <g class="spin" fill="none" stroke="#e7b64b" stroke-width="1">
+        <circle cx="200" cy="200" r="190"/><circle cx="200" cy="200" r="150"/><circle cx="200" cy="200" r="110"/><circle cx="200" cy="200" r="70"/>
+      </g>
+    </svg>
+
+    <!-- the full-bleed cinematic scene: lone Bhil archer + clay Droṇa + spinning sun + flying
+         arrow + target. Top-anchored (xMidYMin slice) so more of the scene reads, like Option E. -->
+    <div class="hero-scene">""" + _hero_scene("xMidYMin slice") + r"""</div>
+
+    <!-- feathers the scene into the copy ground (Option E's hero-scrim) -->
+    <div class="hero-scrim"></div>
+
+    <div class="hero-copy">
+      <div class="hero-tag">The Merge — Cinematic Forest</div>
+      <h1 class="eka">EKALAVYA</h1>
+      <div class="eka-deva">एकलव्य · स्वाध्याय</div>
+      <p class="hero-sub">The <b>hall was closed</b> to him — so he walked into the forest, raised a statue of the guru who refused him, and taught himself to outshoot the princes. An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught.</b></p>
+      <div class="hero-meta">
+        <span>Guru: <b>the statue</b></span>
+        <span>Arena: <b>the forest</b></span>
+        <span>Path: <b>svādhyāya</b> · self-study</span>
+        <span>Dakshinā: <b>the thumb</b></span>
       </div>
     </div>
-    <div class="land-art">
-      <svg viewBox="0 0 460 340" preserveAspectRatio="xMidYMid slice" style="width:100%;height:100%;display:block" aria-label="A lone archer before a stone idol under a spinning sun.">
-        <defs><linearGradient id="lskyA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#101528"/><stop offset="1" stop-color="#0a0d1c"/></linearGradient>
-          <radialGradient id="lsunA" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff3c8"/><stop offset=".6" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></radialGradient>
-          <radialGradient id="groundglow" cx="50%" cy="30%" r="70%"><stop offset="0" stop-color="rgba(231,182,75,.28)"/><stop offset="1" stop-color="rgba(231,182,75,0)"/></radialGradient>
-          <linearGradient id="goldStroke" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".5" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient></defs>
-        <rect width="460" height="340" fill="url(#lskyA)"/>
-        <circle cx="380" cy="72" r="40" fill="url(#lsunA)"/>
-        <g stroke="#f7d98a" stroke-width="1.6" opacity=".7"><path d="M380 18 v14 M380 112 v14 M326 72 h14 M420 72 h14 M342 34 l10 10 M408 100 l10 10 M418 34 l-10 10 M352 100 l-10 10"/></g>
-        <ellipse cx="230" cy="272" rx="230" ry="42" fill="url(#groundglow)" opacity=".8"/>
-        <g transform="translate(96,150)"><rect x="-22" y="76" width="44" height="14" rx="2" fill="#4a3f36"/><path d="M0,4 C-13,4 -18,20 -16,38 L-14,74 L14,74 L16,38 C18,20 13,4 0,4Z" fill="#7e6a5a"/><circle cx="0" cy="-8" r="12" fill="#9a8574"/></g>
-        <g transform="translate(210,170)"><path d="M-1,0 C-11,0 -13,12 -11,24 L-9,58 L13,58 L13,24 C14,12 9,0 -1,0Z" fill="#2f6b3c"/><path d="M-7,-9 C-8,-16 -3,-19 3,-19 C9,-19 11,-14 11,-9 C11,-4 7,0 1,0 C-4,0 -7,-4 -7,-9Z" fill="#b9764a"/><circle cx="6" cy="-10" r="1.3" fill="#241a0e"/><path d="M-4,-17 C-11,-22 -16,-25 -20,-28" stroke="#d63b2a" stroke-width="2.4" stroke-linecap="round"/><path d="M40,-28 C66,-5 66,33 40,50" fill="none" stroke="url(#goldStroke)" stroke-width="3"/><line x1="40" y1="-28" x2="40" y2="50" stroke="#f2e7cc" stroke-width="1"/><path d="M2,14 C22,10 34,10 40,12" stroke="#2f6b3c" stroke-width="5.5" stroke-linecap="round"/></g>
-        <g transform="translate(410,190)"><line x1="0" y1="10" x2="0" y2="90" stroke="#b8862f" stroke-width="2.4"/><circle r="24" fill="#151b0f" stroke="#e7b64b" stroke-width="1.6"/><circle r="16" fill="none" stroke="#f2e7cc" stroke-width="1.4"/><circle r="7" fill="#d63b2a"/><g><line x1="-52" y1="0" x2="-2" y2="0" stroke="#e8dcc0" stroke-width="1.8"/><path d="M2 0 l-8 -4 l2 4 l-2 4z" fill="#f7d98a"/><path d="M-52 0 l-7 -4 l3 4 l-3 4z" fill="#57d3ce"/></g></g>
-      </svg>
-    </div>
-  </div>
+    <!-- the CTA: "enter the forest" leads into the app (multi-user → /login) -->
+    <a class="scrollcue" href="/" style="text-decoration:none">↓ enter the forest</a>
+  </header>
   <div class="land-feats" id="method">
     <div class="frame feat big"><div class="corner-tr"></div><div class="corner-bl"></div>
       <div class="fi"><svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#f7d98a" stroke-width="1.6"/><line x1="4" y1="12" x2="20" y2="12" stroke="#f7d98a" stroke-width="1.6"/><path d="M20 12 l-5 -3 M20 12 l-5 3" stroke="#f7d98a" stroke-width="1.6"/></svg></div>
@@ -3039,6 +3344,122 @@ _LANDING = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
   </div>
 </div>
 """ + _HERO_JS + r"""
+</body></html>"""
+
+
+# --- About Ekalavya (public, brand mode) -----------------------------------
+# A static page in Option E's typography: WHAT it is, WHAT it stands for (the Ekalavya story),
+# and HOW to use it (the loop: practice → drills graded unaided → forest/mastery → effectiveness).
+# Reachable from the landing/login nav ("The Method" / "Manifesto"). Reuses the shared Option E
+# design-system classes (.wrap, .eyebrow, h2.sec, .sec-sub, .frame, .divider, .dotrule, footer).
+_ABOUT = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — About the method</title>
+""" + _HEAD + r"""
+<style>body{padding:0}
+/* a slim About hero: the gold wordmark on the uniform indigo ground (no scene — this is a read page) */
+.about-nav{display:flex;align-items:center;gap:14px;padding:20px clamp(26px,6vw,90px);border-bottom:1px solid var(--line-soft)}
+.about-hero{padding:clamp(56px,9vw,110px) clamp(26px,6vw,90px) clamp(30px,5vw,60px);max-width:1000px}
+.about-hero .hero-tag{margin-bottom:18px}
+.about-hero h1.eka{font-size:clamp(46px,8vw,104px)}
+/* the how-to loop: four numbered steps on a winding gold thread */
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:8px}
+.loop .step{padding:22px 22px 24px;position:relative}
+.loop .step .n{font-family:var(--f-display);font-weight:800;font-size:30px;color:transparent;
+  background:linear-gradient(180deg,#fff6df,var(--gold) 60%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;
+  font-variant-numeric:tabular-nums;line-height:1}
+.loop .step h4{font-family:var(--f-title);font-size:18px;color:var(--parch);margin:12px 0 6px}
+.loop .step p{font-family:var(--f-body);font-size:14px;color:var(--parch-dim);margin:0;line-height:1.55}
+.loop .step .deva{font-family:var(--f-deva);font-size:14px;color:var(--gold-bright);margin-top:8px}
+@media(max-width:820px){.loop{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){.loop{grid-template-columns:1fr}}
+/* the story reads as one flowing column of serif prose */
+.story{max-width:70ch}
+.story p{font-family:var(--f-body);font-size:17px;color:var(--parch-dim);line-height:1.7;margin:0 0 18px}
+.story p b{color:var(--parch);font-weight:600}
+.story .pull{font-family:var(--f-serif);font-style:italic;font-size:clamp(20px,2.6vw,28px);color:var(--gold-bright);
+  line-height:1.4;margin:26px 0;padding-left:20px;border-left:2px solid var(--gold-deep)}
+.stands{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;margin-top:8px}
+.stands .frame{padding:24px 26px}
+.stands h4{font-family:var(--f-title);font-size:19px;color:var(--gold-bright);margin:0 0 6px}
+.stands p{font-family:var(--f-body);font-size:15px;color:var(--parch-dim);margin:0;line-height:1.6}
+@media(max-width:640px){.stands{grid-template-columns:1fr}}
+</style></head><body>
+<div class="landing">
+  <!-- thin brand bar, mirrors the landing/login nav -->
+  <div class="about-nav">
+    <div class="brand" style="font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--gold-bright);letter-spacing:.08em;display:flex;align-items:center;gap:9px"><svg width="22" height="26" viewBox="0 0 58 76"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="3.4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.4"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2" stroke-linecap="round"/></svg> EKALAVYA</div>
+    <span style="flex:1"></span>
+    <a class="btn btn-ghost" style="padding:9px 18px" href="/welcome">Home</a>
+    <a class="btn btn-stone" style="padding:9px 20px" href="/login">Enter the forest</a>
+  </div>
+
+  <!-- HERO — the gold wordmark + the one-line claim -->
+  <header class="about-hero">
+    <div class="hero-tag">About the method</div>
+    <h1 class="eka">EKALAVYA</h1>
+    <div class="eka-deva">एकलव्य · स्वाध्याय · self-study</div>
+    <p class="hero-sub">An AI coding tutor for <b>the self-taught, the boundary-crossers, the ones told they couldn't be taught</b> — built to grade what you can do <b>unaided</b>, and to grow that unaided ability the honest way.</p>
+  </header>
+
+  <!-- 1 · WHAT IT IS -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">01</span> What it is</div>
+    <h2 class="sec">A guru that refuses to do the work for you</h2>
+    <p class="sec-sub">Most AI tutors hand you the answer. Ekalavya does the opposite: it is a Socratic coding guru that teaches, sets drills, and then <b>grades what you can do on your own</b> — separating your real, portable skill from what the AI carried for you.</p>
+    <div class="story">
+      <p>Ekalavya is a terminal-and-web coding tutor. It authors lessons, diagrams, and interactive visuals into a canvas you keep; it walks you along a <b>forest of mastery</b> — learning groves on a winding path rather than a flat wall of nodes; and after every session it shows you, honestly, whether you are actually getting better.</p>
+      <p>Its one non-negotiable: it measures your <b>unaided accuracy</b> and keeps it separate from AI-assisted work. Paste a full answer and the round is lost — the streak breaks, merit drops. Type it yourself and you reclaim it. The point is not to look productive; it is to <b>become</b> capable.</p>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- 2 · WHAT IT STANDS FOR — the story -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">02</span> What it stands for · the story</div>
+    <h2 class="sec">The hall was closed to him — so he taught himself</h2>
+    <div class="story">
+      <p>In the Mahābhārata, <b>Ekalavya</b> is a forest-dwelling Bhil boy who wants to learn archery from Droṇa, the greatest teacher of the age. Droṇa refuses him — he is an outsider, born outside the circle allowed to be taught.</p>
+      <p>So Ekalavya walks back into the forest, shapes a <b>clay statue</b> of the guru who turned him away, and practises before it, alone, until he can outshoot the very princes the hall was built for. When Droṇa discovers this self-taught mastery, he demands his fee — <b>dakshinā</b> — and asks for Ekalavya's right thumb, so the outsider can never surpass his favoured student. Ekalavya gives it, without a word.</p>
+      <p class="pull">A story of a boundary-crosser who was denied a teacher, taught himself anyway, and was made to pay for it.</p>
+      <p>We keep the discipline and the devotion — and we refuse the ending. This tutor is the statue turned kind: the guru you were denied, rebuilt to <b>teach you rather than break you</b>. It stands for the self-taught, and it is engineered so that what you earn here is <b>yours to keep</b> — no thumb owed.</p>
+    </div>
+    <div class="stands">
+      <div class="frame"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <h4>Merit you can carry</h4><p>Your unaided score is portable proof of skill — not a number inflated by the model doing your thinking.</p></div>
+      <div class="frame"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <h4>Honesty over comfort</h4><p>It tells you when you only <i>think</i> you know something — the calibration gap between confidence and truth.</p></div>
+    </div>
+  </section>
+  <div class="divider"></div>
+
+  <!-- 3 · HOW TO USE IT — the loop -->
+  <section class="wrap">
+    <div class="eyebrow"><span class="num">03</span> How to use it · the loop</div>
+    <h2 class="sec">Practise · graded unaided · walk the forest · check the trend</h2>
+    <p class="sec-sub">One simple loop, repeated. Each turn of it moves a grove from locked to lit, and moves your real ability up.</p>
+    <div class="loop">
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">01</div><h4>Practise in the Arena</h4><p>The guru sets a drill and teaches around it — lessons and visuals authored into your canvas as you go.</p><div class="deva">अभ्यास · practice</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">02</div><h4>Graded unaided</h4><p>Solve it yourself and your unaided accuracy is recorded; lean on the AI and that round is scored as assisted, kept separate.</p><div class="deva">स्वाध्याय · self-study</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">03</div><h4>Walk the forest</h4><p>Mastered skills light up groves on the winding path; the next grove unlocks only when the last is truly yours.</p><div class="deva">वन · the forest</div></div>
+      <div class="frame step"><div class="corner-tr"></div><div class="corner-bl"></div>
+        <div class="n">04</div><h4>Check the trend</h4><p>Effectiveness answers one question — <i>am I getting better?</i> — with your unaided trend, dependency gap, and ability curve.</p><div class="deva">प्रगति · progress</div></div>
+    </div>
+    <div class="dotrule" style="margin-top:34px"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="btn-row" style="justify-content:center;margin-top:26px">
+      <a class="btn btn-gold" href="/login">Enter the forest — begin</a>
+      <a class="btn btn-stone" href="/welcome">Back to home</a>
+    </div>
+  </section>
+
+  <footer>
+    <div class="fw">EKALAVYA</div>
+    <div class="fd">विद्या ददाति विनयम् — knowledge gives humility</div>
+    <div class="fm">एकलव्य · स्वाध्याय · an AI coding tutor for the self-taught</div>
+  </footer>
+</div>
 </body></html>"""
 
 

@@ -29,27 +29,39 @@ def _norm_kind(kind: str) -> str:
 
 
 def _row(r) -> dict:
+    keys = r.keys()
     return {
         "id": r["id"],
         "title": r["title"],
         "kind": r["kind"],
         "content": r["content"],
         "pinned": bool(r["pinned"]),
+        "thread_id": r["thread_id"] if "thread_id" in keys else None,
+        "pillar": r["pillar"] if "pillar" in keys else None,
         "created_at": r["created_at"],
         "updated_at": r["updated_at"],
     }
 
 
-def create(title: str, kind: str = "markdown", content: str = "") -> dict:
-    """Create a new artifact and return it (with its assigned id)."""
+def create(title: str, kind: str = "markdown", content: str = "",
+           thread_id: str | None = None, pillar: str | None = None) -> dict:
+    """Create a new artifact and return it (with its assigned id).
+
+    `thread_id` links it to the chat that made it (defaults to the chat in flight, so the
+    guru's save_artifact calls auto-associate); `pillar` tags it for the pillar-grouped
+    library. Both optional — an ad-hoc artifact just has them NULL."""
+    from . import config
+
     title = (title or "Untitled").strip() or "Untitled"
+    thread_id = thread_id or config.current_thread()
+    pillar = (pillar or "").strip() or None
     now = _now()
     conn = connect()
     try:
         cur = conn.execute(
-            "INSERT INTO artifacts(title, kind, content, created_at, updated_at) "
-            "VALUES(?, ?, ?, ?, ?)",
-            (title, _norm_kind(kind), content or "", now, now),
+            "INSERT INTO artifacts(title, kind, content, thread_id, pillar, created_at, updated_at) "
+            "VALUES(?, ?, ?, ?, ?, ?, ?)",
+            (title, _norm_kind(kind), content or "", thread_id, pillar, now, now),
         )
         conn.commit()
         return get(cur.lastrowid)  # type: ignore[arg-type]
@@ -67,14 +79,18 @@ def get(artifact_id: int) -> dict | None:
         conn.close()
 
 
-def list_artifacts(kind: str | None = None, query: str | None = None) -> list[dict]:
-    """List artifacts newest-first, pinned ones first. Optional filter by kind and/or
-    a case-insensitive search over title + content."""
+def list_artifacts(kind: str | None = None, query: str | None = None,
+                   pillar: str | None = None) -> list[dict]:
+    """List artifacts newest-first, pinned ones first. Optional filter by kind, pillar,
+    and/or a case-insensitive search over title + content."""
     sql = "SELECT * FROM artifacts"
     where, params = [], []
     if kind:
         where.append("kind = ?")
         params.append(_norm_kind(kind))
+    if pillar:
+        where.append("pillar = ?")
+        params.append(pillar)
     if query:
         where.append("(title LIKE ? OR content LIKE ?)")
         like = f"%{query.strip()}%"
