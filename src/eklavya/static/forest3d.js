@@ -100,7 +100,8 @@
   function familyHue(u, seed) {
     var c = rampHue(u);
     var r = rng(seed >>> 0 || 1);
-    c.offsetHSL((r() - 0.5) * 0.04, (r() - 0.5) * 0.06, (r() - 0.5) * 0.05);
+    // saturate a touch so the region hue reads clearly on the canopy, + small per-grove jitter.
+    c.offsetHSL((r() - 0.5) * 0.05, 0.12 + (r() - 0.5) * 0.06, (r() - 0.5) * 0.05);
     return c.getHex();
   }
 
@@ -1535,7 +1536,7 @@
     // ACES filmic tone mapping. Exposure a touch under 1 (spec §2: 0.85–1.0) keeps the night
     // moody and stops emitters clipping to white.
     r.toneMapping = T.ACESFilmicToneMapping;
-    r.toneMappingExposure = 0.92;
+    r.toneMappingExposure = 0.98;
     if (T.sRGBEncoding != null) r.outputEncoding = T.sRGBEncoding;
     return r;
   }
