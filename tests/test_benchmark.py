@@ -13,6 +13,10 @@ import pytest  # noqa: E402
 from eklavya import benchmark, effectiveness  # noqa: E402
 from eklavya.db import connect, init_db  # noqa: E402
 
+# The frozen bank now spans the coding starter bank + the per-subject (maths/stats)
+# deterministic starters — see benchmark.seed_items (subject framework §4.4).
+_TOTAL_ITEMS = len(benchmark._STARTER_ITEMS) + len(benchmark._SUBJECT_STARTER_ITEMS)
+
 
 @pytest.fixture(autouse=True)
 def fresh_db():
@@ -34,7 +38,7 @@ def test_seed_populates_bank():
         n = conn.execute("SELECT COUNT(*) c FROM benchmark_items").fetchone()["c"]
     finally:
         conn.close()
-    assert n == len(benchmark._STARTER_ITEMS) > 0
+    assert n == _TOTAL_ITEMS > 0
 
 
 def test_seed_is_idempotent():
@@ -58,7 +62,7 @@ def test_init_db_idempotent_no_duplicate_items():
         n = conn.execute("SELECT COUNT(*) c FROM benchmark_items").fetchone()["c"]
     finally:
         conn.close()
-    assert n == len(benchmark._STARTER_ITEMS)
+    assert n == _TOTAL_ITEMS
 
 
 # --- item selection --------------------------------------------------------
@@ -165,7 +169,7 @@ def test_record_assessment_persists_rows_and_theta():
 def test_history_shape_and_rising():
     empty = benchmark.history()
     assert empty["n_assessments"] == 0 and empty["current_theta"] is None
-    assert empty["slope"] is None and empty["bank_size"] == len(benchmark._STARTER_ITEMS)
+    assert empty["slope"] is None and empty["bank_size"] == _TOTAL_ITEMS
 
     _sit(lambda d: d <= 2, context="baseline")   # weak sitting
     _sit(lambda d: d <= 4, context="later")       # stronger sitting
@@ -182,7 +186,7 @@ def test_summary_includes_benchmark():
     s = effectiveness.summary()
     assert "benchmark" in s
     assert s["benchmark"]["n_assessments"] == 0
-    assert s["benchmark"]["bank_size"] == len(benchmark._STARTER_ITEMS)
+    assert s["benchmark"]["bank_size"] == _TOTAL_ITEMS
 
 
 def test_render_shows_theta_panel():
@@ -190,3 +194,58 @@ def test_render_shows_theta_panel():
     html = effectiveness.render()
     assert "Benchmark ability (θ)" in html
     assert "frozen" in html.lower()
+
+
+# --- P5: per-subject benchmarks + θ ----------------------------------------
+
+def test_select_items_is_scoped_to_subject():
+    conn = connect()
+    try:
+        maths = benchmark.select_items(conn, n=6, subject="maths")
+        stats = benchmark.select_items(conn, n=6, subject="stats")
+    finally:
+        conn.close()
+    assert maths and all(it["subject"] == "maths" for it in maths)
+    assert stats and all(it["subject"] == "stats" for it in stats)
+    # answer types are the deterministic ones (never essay in the ruler)
+    assert all(it["answer_type"] in {"numeric", "symbolic", "choice"} for it in maths)
+
+
+def test_per_subject_theta_is_separate():
+    conn = connect()
+    try:
+        maths = benchmark.select_items(conn, n=5, subject="maths")
+    finally:
+        conn.close()
+    outs = [{"item_id": it["id"], "difficulty": it["difficulty"], "correct": True, "seconds": 4.0}
+            for it in maths]
+    benchmark.record_assessment(outs, context="m1", subject="maths")
+    m = benchmark.history(subject="maths")
+    c = benchmark.history(subject="coding")
+    assert m["n_assessments"] == 1 and m["current_theta"] is not None
+    assert c["n_assessments"] == 0  # coding ruler untouched — one ruler per subject
+    # the per-subject bank size is just that subject's items
+    assert m["bank_size"] == sum(1 for s, *_ in benchmark._SUBJECT_STARTER_ITEMS if s == "maths")
+
+
+def test_essays_are_excluded_from_the_theta_ruler():
+    conn = connect()
+    try:
+        conn.execute(
+            "INSERT INTO benchmark_items(subject, pillar, difficulty, prompt, answer, grader, "
+            "answer_type) VALUES('maths', 'Essays', 2, 'Discuss infinity.', 'ref', 'rubric', 'essay')")
+        conn.commit()
+        items = benchmark.select_items(conn, n=20, subject="maths")
+    finally:
+        conn.close()
+    assert all(it["answer_type"] != "essay" for it in items)
+
+
+def test_subject_histories_and_starter_status():
+    hist = benchmark.subject_histories()
+    assert "coding" in hist and "maths" in hist and "stats" in hist
+    status = benchmark.starter_bank_status()
+    assert status["coding"] == len(benchmark._STARTER_ITEMS)
+    assert status["maths"] > 0 and status["stats"] > 0
+    # ml / cs_theory are documented stubs (no objective starters seeded yet)
+    assert status.get("ml", 0) == 0 and status.get("cs_theory", 0) == 0

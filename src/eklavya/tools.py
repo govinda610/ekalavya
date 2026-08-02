@@ -806,56 +806,63 @@ def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
     return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
 
 
-def assessment_items(n: int = 8) -> str:
-    """Draw a fresh rotating set of ~n items from the FROZEN benchmark for an assessment.
+def assessment_items(n: int = 8, subject: str = DEFAULT_SUBJECT) -> str:
+    """Draw a fresh rotating set of ~n items from ONE subject's FROZEN benchmark for an
+    assessment.
 
     Tier-1 only (the `eklavya assess` loop). Returns the items to administer AI-off — each
-    with its id, difficulty (1..5), the prompt to pose, and the private `answer` KEY you
-    grade against. The key is for YOUR grading ONLY — never reveal, hint at, or teach it
-    during the sitting. Items are spread across difficulty and pillar and avoid ones seen in
-    the last couple of sittings. Pose them one at a time, record correctness with
-    `record_assessment` at the end.
+    with its id, difficulty (1..5), answer_type (code|numeric|symbolic|choice|...), the
+    prompt to pose, the private `answer` KEY, and any tolerance/rubric for grading. The key
+    is for YOUR grading ONLY — never reveal, hint at, or teach it during the sitting. Items
+    are spread across difficulty and pillar and avoid ones seen in the last couple of
+    sittings. Grade objective items with grade_and_record_subject; record the whole sitting
+    with `record_assessment` at the end. `subject` defaults to coding.
     """
     import json
 
     from . import benchmark
 
+    subject = (subject or DEFAULT_SUBJECT).strip()
     conn = connect()
     try:
-        items = benchmark.select_items(conn, n=n)
+        items = benchmark.select_items(conn, n=n, subject=subject)
     finally:
         conn.close()
     if not items:
-        return "no benchmark items available"
+        return f"no benchmark items available for subject '{subject}'"
     return json.dumps([
-        {"item_id": it["id"], "difficulty": it["difficulty"],
-         "pillar": it["pillar"], "prompt": it["prompt"], "answer": it["answer"]}
+        {"item_id": it["id"], "difficulty": it["difficulty"], "subject": it["subject"],
+         "answer_type": it["answer_type"], "pillar": it["pillar"], "prompt": it["prompt"],
+         "answer": it["answer"], "tolerance": it["tolerance"], "rubric": it["rubric"]}
         for it in items
     ])
 
 
-def record_assessment(outcomes: list, context: str = "") -> str:
-    """Persist a completed frozen assessment and compute the ability score θ (Tier-1).
+def record_assessment(outcomes: list, context: str = "", subject: str = DEFAULT_SUBJECT) -> str:
+    """Persist a completed frozen assessment for ONE subject and compute its ability score θ.
 
     Call this ONCE, at the very end of an `assess` sitting, after every item has been posed
     and objectively judged. `outcomes` is a list of dicts, one per administered item:
-    {"item_id": <int>, "difficulty": <1..5>, "correct": <true|false>, "seconds": <float>}.
+    {"item_id": <int>, "difficulty": <1..5>, "correct": <true|false>, "seconds": <float>,
+    "score": <0..1, optional partial credit>}. θ is per-subject (one ruler per subject).
     `context` is an optional short note ("baseline", "week 4"). Returns the θ estimate and
     the score. Never teach or hint during the sitting — this only records what happened.
     """
     from . import benchmark
 
+    subject = (subject or DEFAULT_SUBJECT).strip()
     norm = [
         {"item_id": int(o["item_id"]), "difficulty": int(o["difficulty"]),
-         "correct": bool(o["correct"]), "seconds": o.get("seconds")}
+         "correct": bool(o["correct"]), "seconds": o.get("seconds"), "score": o.get("score"),
+         "criteria_json": o.get("criteria_json")}
         for o in outcomes
     ]
     if not norm:
         return "no outcomes to record"
-    res = benchmark.record_assessment(norm, context=context)
+    res = benchmark.record_assessment(norm, context=context, subject=subject)
     theta = res["theta"]
     theta_txt = f"{theta:+.2f}" if theta is not None else "—"
-    return (f"assessment #{res['assessment_id']} recorded: θ = {theta_txt} "
+    return (f"assessment #{res['assessment_id']} recorded ({subject}): θ = {theta_txt} "
             f"({res['n_correct']}/{res['n_items']} correct on the frozen benchmark)")
 
 
