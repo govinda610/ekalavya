@@ -32,7 +32,11 @@ tui = ["textual>=0.80"]
 # The served web app; multi-user auth (argon2 hashing + signed-cookie sessions) rides
 # with it since it's only reachable via the browser deployment.
 web = ["fastapi>=0.115", "uvicorn>=0.30", "argon2-cffi>=23.1", "itsdangerous>=2.0",
-       "python-multipart>=0.0.9", "pypdf>=4"]
+       "python-multipart>=0.0.9", "pypdf>=4",
+       # Pin Starlette to the current working version: the per-request contextvar tenant
+       # isolation (config._current_home) is version-fragile — a Starlette release that
+       # changes how it copies/propagates the request context could silently break it.
+       "starlette==1.3.1"]
 mcp = ["mcp>=1.0"]
 
 [project.scripts]

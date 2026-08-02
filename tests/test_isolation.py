@@ -279,6 +279,83 @@ def test_sibling_prefix_cannot_bypass_workspace_check(monkeypatch):
         assert workspace._is_forbidden(str(evil / "secret.txt")) is True
 
 
+def test_concurrent_two_tenants_writes_land_in_the_right_home(monkeypatch):
+    """DEPLOYED, two tenants interleaved on separate threads: every write must land in the
+    thread's own home. The per-request contextvar binding (config._current_home) is copied
+    into each worker via config.run_user_task, so concurrent turns must NOT bleed across
+    tenants even when they run at the same time.
+
+    This is the version-fragile isolation the Starlette pin protects — a load-style regression
+    guard that exercises the contextvar propagation directly.
+    """
+    import threading
+
+    monkeypatch.setattr(config, "DEPLOYED", True)
+    data_root = Path(tempfile.mkdtemp(prefix="eklavya-conc-"))
+    home_a = data_root / "users" / "uid-a"
+    home_b = data_root / "users" / "uid-b"
+
+    # seed both tenants' homes/dbs up front (each on its own bound context)
+    for h in (home_a, home_b):
+        from eklavya.config import _current_home
+
+        tok = _current_home.set(h)
+        try:
+            config.ensure_home()
+            init_db()
+        finally:
+            _current_home.reset(tok)
+
+    start = threading.Barrier(2)
+    errors: list[str] = []
+
+    def run_turn(home: Path, uid: str, xp: int, pillar: str):
+        """Simulate one tenant's turn: bind their home, then interleave several writes."""
+        from eklavya.config import _current_home
+
+        def _work():
+            start.wait()  # force the two turns to overlap in time
+            for i in range(20):
+                tools.set_baseline_rating(pillar, "debugging", "familiar")
+                progress.award_xp(xp, label=f"{uid}-{i}")
+                # read back inside the same context: must only ever see our own state
+                conn = connect()
+                try:
+                    names = {r["name"] for r in conn.execute("SELECT name FROM pillars")}
+                finally:
+                    conn.close()
+                if names - {pillar}:
+                    errors.append(f"{uid} saw foreign pillars: {names - {pillar}}")
+
+        # bind this tenant's home, then run the work in a context COPY (run_user_task) —
+        # exactly how the web dispatches a turn off the request context.
+        tok = _current_home.set(home)
+        try:
+            config.run_user_task(_work)
+        finally:
+            _current_home.reset(tok)
+
+    ta = threading.Thread(target=run_turn, args=(home_a, "uid-a", 10, "PillarA"))
+    tb = threading.Thread(target=run_turn, args=(home_b, "uid-b", 7, "PillarB"))
+    ta.start(); tb.start()
+    ta.join(); tb.join()
+
+    assert not errors, errors
+
+    # each tenant's totals reflect only their own 20 writes — no cross-tenant bleed.
+    from eklavya.config import _current_home
+
+    for home, xp, pillar in ((home_a, 10, "PillarA"), (home_b, 7, "PillarB")):
+        tok = _current_home.set(home)
+        try:
+            assert progress.stats()["xp"] == xp * 20
+            assert pillar in tools.mastery_summary()
+            other = "PillarB" if pillar == "PillarA" else "PillarA"
+            assert other not in tools.mastery_summary()
+        finally:
+            _current_home.reset(tok)
+
+
 def test_single_user_still_reads_host_broadly(monkeypatch):
     """Regression: the self-host single-user path keeps broad host reads (minus secrets)."""
     from eklavya import workspace
