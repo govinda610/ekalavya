@@ -26,6 +26,7 @@ achievements) are reused verbatim so the look and the numbers stay identical.
 
 from __future__ import annotations
 
+import bisect
 import html
 from datetime import date, timedelta
 
@@ -34,6 +35,86 @@ from .dashboard import (
     AXIS_COLOR, _BOW, _CSS, _achievements, _calibration, _cell, _icon,
     _pct, _rank, _rank_ring,
 )
+from .db import connect
+
+
+# --- badge tiers -------------------------------------------------------------
+# Each achievement earns a rarity from how hard its goal is — rendered as a
+# distinct emblem colour + border/glow. Earned badges bloom to full colour; the
+# rest stay dim silhouettes with a live progress ring toward the next unlock.
+_TIER = {
+    "On Fire":       ("common", "streak"),
+    "Week Warrior":  ("rare",   "streak"),
+    "Unbroken":      ("epic",   "streak"),
+    "Adept":         ("rare",   "level"),
+    "Master":        ("epic",   "level"),
+    "First Mastery": ("common", "mastery"),
+    "Sharpened":     ("epic",   "mastery"),
+    "Initiate":      ("common", "session"),
+    "Devoted":       ("rare",   "session"),
+}
+_TIER_RANK = {"epic": 0, "rare": 1, "common": 2}
+_TIER_COLOR = {                       # (rim, glow) on-brand: gold=epic, teal=rare, bronze=common
+    "epic":   ("#f7d98a", "231,182,75"),
+    "rare":   ("#57d3ce", "87,211,206"),
+    "common": ("#c98b4b", "201,139,75"),
+}
+
+# session-mode → (icon, styled label) for the chronicle activity feed
+_MODE_META = {
+    "practice":   ("target",  "Practice"),
+    "mock":       ("user",    "Mock interview"),
+    "aiinterview": ("scale",  "AI-on interview"),
+    "gauntlet":   ("sword",   "The Gauntlet"),
+    "blitz":      ("flame",   "Blitz"),
+    "boss":       ("crown",   "Boss fight"),
+    "takehome":   ("scroll",  "Take-home"),
+    "onboard":    ("compass", "Onboarding"),
+}
+
+
+def _session_ledger_xp(rows: list[dict]) -> dict[str, int]:
+    """XP actually earned during each session, straight from the rewards ledger.
+
+    ``sessions.xp`` is only backfilled when a sitting is explicitly wrapped up
+    (``end_session``); an open or never-wrapped sitting stores 0 even though the
+    learner earned XP — which is why the chronicle showed "+0 XP" on live rows.
+    Here we sum the XP rewards whose timestamp falls inside each sitting's window
+    [started_at, next-session-start) so every row shows real earned XP. Keyed by
+    ``started_at`` (what the chronicle already has in hand).
+
+    Timestamps are PARSED, not string-compared: sessions store an aware ISO stamp
+    (``...T..+00:00``) while rewards default to SQLite ``datetime('now')`` (naive,
+    space-separated) — comparing those as strings misattributes rewards, so we sort
+    on parsed UTC datetimes."""
+    from .progress import _parse_ts
+
+    conn = connect()
+    try:
+        sess = conn.execute(
+            "SELECT started_at FROM sessions WHERE started_at IS NOT NULL"
+        ).fetchall()
+        rewards = conn.execute(
+            "SELECT amount, created_at FROM rewards WHERE kind IN ('xp','penalty') "
+            "AND created_at IS NOT NULL"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    # sorted (parsed-datetime, raw-start-string) bounds; skip unparseable stamps
+    bounds = sorted((dt, s["started_at"]) for s in sess
+                    if (dt := _parse_ts(s["started_at"])) is not None)
+    starts_dt = [b[0] for b in bounds]
+    earned: dict[str, int] = {s["started_at"]: 0 for s in sess}
+    for r in rewards:
+        ts = _parse_ts(r["created_at"])
+        if ts is None:
+            continue
+        # the sitting a reward belongs to is the latest one that started at or before it
+        i = bisect.bisect_right(starts_dt, ts) - 1
+        if i >= 0:
+            earned[bounds[i][1]] += (r["amount"] or 0)
+    return earned
 
 
 def _clarity(cal: dict) -> int | None:
@@ -432,6 +513,111 @@ def _subject_strip(subject: str, d: dict) -> str:
     </section>"""
 
 
+# --- achievement badges + chronicle feed ------------------------------------
+
+def _badge_ring(pct: int, rgb: str) -> str:
+    """A circular progress ring (r=26, C≈163) — richer than the old thin bar."""
+    C = 163.4
+    off = f"{C * (1 - pct / 100):.1f}"
+    return (
+        f'<svg class="bring" viewBox="0 0 60 60" aria-hidden="true">'
+        f'<circle cx="30" cy="30" r="26" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="4"/>'
+        f'<circle class="bring-arc" cx="30" cy="30" r="26" fill="none" stroke="rgba({rgb},.85)" '
+        f'stroke-width="4" stroke-linecap="round" stroke-dasharray="{C}" stroke-dashoffset="{off}" '
+        f'transform="rotate(-90 30 30)"/></svg>'
+    )
+
+
+def _badges(achs: list[dict]) -> str:
+    """Achievements as real game BADGES: a distinctive emblem, a rarity tier
+    (epic/rare/common via colour + glow), a circular progress ring for the locked
+    ones, and an obviously-different full-colour "unlocked" state. Earned float to
+    the front, then hardest tier first — so the trophy shelf reads at a glance."""
+    if not achs:
+        return '<div class="bempty muted">No badges yet — your first session earns one.</div>'
+
+    def _sortkey(a):
+        tier, _ = _TIER.get(a["title"], ("common", ""))
+        return (0 if a["earned"] else 1, _TIER_RANK[tier], -(a["cur"] / max(a["goal"], 1)))
+
+    n_earned = sum(1 for a in achs if a["earned"])
+    cells = ""
+    for a in sorted(achs, key=_sortkey):
+        tier, _ = _TIER.get(a["title"], ("common", ""))
+        rim, rgb = _TIER_COLOR[tier]
+        title = html.escape(a["title"])
+        desc = html.escape(a["desc"])
+        if a["earned"]:
+            cells += (
+                f'<div class="badge earned tier-{tier}" style="--rim:{rim};--rgb:{rgb}" '
+                f'title="{title} · {desc} · {tier}">'
+                f'<div class="bemblem"><div class="bemblem-in">{_icon(a["icon"], 26)}</div>'
+                f'<span class="btick">{_icon("trend", 11)}</span></div>'
+                f'<div class="bmeta"><b>{title}</b><span class="bdesc">{desc}</span>'
+                f'<span class="btag">{tier} · unlocked</span></div></div>'
+            )
+        else:
+            pct = round(100 * a["cur"] / a["goal"]) if a["goal"] else 0
+            cells += (
+                f'<div class="badge locked tier-{tier}" style="--rim:{rim};--rgb:{rgb}" '
+                f'title="{title} · {desc} · {a["cur"]}/{a["goal"]} · {tier}">'
+                f'<div class="bemblem">{_badge_ring(pct, rgb)}'
+                f'<div class="bemblem-in">{_icon(a["icon"], 24)}</div></div>'
+                f'<div class="bmeta"><b>{title}</b><span class="bdesc">{desc}</span>'
+                f'<span class="btag">{a["cur"]}/{a["goal"]} · {pct}%</span></div></div>'
+            )
+    total = len(achs)
+    tally = (f'<div class="btally"><b>{n_earned}</b> of {total} unlocked · '
+             '<span class="muted">gold epic · teal rare · bronze common</span></div>')
+    return f'{tally}<div class="badgegrid">{cells}</div>'
+
+
+def _chronicle(sessions: list[dict]) -> str:
+    """A richer activity feed (not a bare table): a session-type emblem per row,
+    the mode name styled, XP as a prominent pill, plus tags — duration, the day,
+    and how the XP was sourced. XP is taken LIVE from the rewards ledger so open /
+    never-wrapped sittings no longer show a false "+0 XP"."""
+    if not sessions:
+        return '<div class="chron-empty muted">No sessions yet — your first sitting appears here.</div>'
+
+    ledger = _session_ledger_xp(sessions)
+    rows = ""
+    for x in sessions:
+        mode = x["mode"] or "practice"
+        icon, label = _MODE_META.get(mode, ("target", mode.capitalize()))
+        started = (x["started_at"] or "")
+        day = html.escape(started[:10])
+        clock = html.escape(started[11:16])
+        planned = x["planned_min"]
+        dur = f'{int(planned)} min' if planned else "—"
+
+        stored = int(x["xp"] or 0)
+        live = int(ledger.get(started, 0))
+        xp = live if live else stored          # live ledger wins; stored is the fallback
+        # note when the row is showing live-ledger XP a still-open sitting never stored
+        live_flag = (live and not stored)
+        xp_cls = "xp-pos" if xp > 0 else ("xp-neg" if xp < 0 else "xp-zero")
+        sign = "+" if xp >= 0 else ""
+
+        tags = (f'<span class="ctag">{_icon("hourglass", 11)} {dur}</span>'
+                f'<span class="ctag">{_icon("calendar", 11)} {day}</span>')
+        if live_flag:
+            tags += '<span class="ctag ctag-live" title="counted live from the XP ledger">live</span>'
+
+        rows += (
+            f'<div class="crow">'
+            f'  <div class="cemblem mode-{mode}">{_icon(icon, 18)}</div>'
+            f'  <div class="cbody">'
+            f'    <div class="cline"><span class="cmode">{html.escape(label)}</span>'
+            f'      <span class="cwhen">{clock}</span></div>'
+            f'    <div class="ctags">{tags}</div>'
+            f'  </div>'
+            f'  <div class="cxp {xp_cls}">{sign}{xp}<span>XP</span></div>'
+            f'</div>'
+        )
+    return f'<div class="chronfeed">{rows}</div>'
+
+
 # --- journey band (timeline + achievements + heatmap + XP curve + chronicle) -
 
 def _journey_band(ov: dict) -> str:
@@ -449,17 +635,7 @@ def _journey_band(ov: dict) -> str:
     else:
         timeline = '<span class="muted">Your journey begins with your first session.</span>'
 
-    ach_html = ""
-    for a in achs:
-        if a["earned"]:
-            ach_html += (f'<div class="ach"><div class="aico">{_icon(a["icon"], 22)}</div>'
-                         f'<div><b>{a["title"]}</b><span class="muted">{a["desc"]}</span></div></div>')
-        else:
-            pct = round(100 * a["cur"] / a["goal"])
-            ach_html += (f'<div class="ach lock"><div class="aico">{_icon("lock", 22)}</div>'
-                         f'<div><b>{a["title"]}</b><span class="muted">{a["desc"]}</span>'
-                         f'<div class="pbar"><div class="pfill" style="width:{pct}%"></div></div>'
-                         f'<span class="muted">{a["cur"]}/{a["goal"]}</span></div></div>')
+    ach_html = _badges(achs)
 
     today = date.today()
     start = today - timedelta(days=today.weekday() + 7 * 11)
@@ -474,13 +650,7 @@ def _journey_band(ov: dict) -> str:
     spark = _spark([p[1] for p in curve], "#e7b64b",
                    empty="your XP curve starts with your first graded drill")
 
-    sessions = "".join(
-        f'<tr><td>{html.escape((x["started_at"] or "")[:16])}</td>'
-        f'<td>{html.escape(x["mode"] or "practice")}</td>'
-        f'<td>{html.escape(str(x["planned_min"] or ""))} min</td>'
-        f'<td class="xp">+{int(x["xp"] or 0)} XP</td></tr>'
-        for x in ov["sessions"]
-    ) or '<tr><td colspan="4" class="muted">No sessions yet.</td></tr>'
+    chronicle = _chronicle(ov["sessions"])
 
     return f"""
   <section class="ov-band">
@@ -498,7 +668,7 @@ def _journey_band(ov: dict) -> str:
       <section class="card ov-ach"><h2>{_icon("medal")} Achievements</h2>
         <div class="achgrid">{ach_html}</div></section>
       <section class="card ov-chron"><h2>{_icon("scroll")} Chronicle</h2>
-        <table class="chron">{sessions}</table></section>
+        {chronicle}</section>
     </div>
   </section>"""
 
@@ -631,4 +801,95 @@ _OVCSS = """
   background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);border-radius:9px}
 .ov-empty .ov-dash{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--parch-mute);line-height:1;flex:none}
 .ov-empty>span:last-child{font-family:var(--f-body);font-size:13px;line-height:1.45;color:var(--parch-dim)}
+
+/* ===== HUD polish: hero medallion pulse + credibility hover ===== */
+.ov-hero{overflow:hidden}
+.ov-hero .rank-medallion{position:relative}
+.ov-hero .rank-medallion::after{content:"";position:absolute;inset:-6px;border-radius:50%;
+  background:radial-gradient(circle,rgba(231,182,75,.22),transparent 70%);z-index:-1;
+  animation:ovHalo 4.5s ease-in-out infinite}
+@keyframes ovHalo{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:.9;transform:scale(1.06)}}
+.ov-cred{transition:transform .2s cubic-bezier(.22,.7,.25,1),border-color .2s,box-shadow .2s}
+.ov-cred:hover{transform:translateY(-2px);box-shadow:var(--panel-inner-lift),0 10px 22px -14px rgba(0,0,0,.7)}
+.chip{transition:transform .18s cubic-bezier(.22,.7,.25,1),border-color .18s,color .18s}
+.chip:hover{transform:translateY(-1px);border-color:var(--gold-deep);color:var(--gold-bright)}
+
+/* ===== Achievement BADGES — a trophy shelf, not a checklist ===== */
+.ov-ach .btally{font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);margin:-4px 0 14px}
+.ov-ach .btally b{font-family:var(--f-display);font-size:16px;color:var(--gold-bright);font-weight:800}
+.badgegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(196px,1fr));gap:13px}
+.badge{position:relative;display:flex;gap:13px;align-items:center;border-radius:14px;padding:13px 15px;
+  background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);
+  transition:transform .2s cubic-bezier(.22,.7,.25,1),box-shadow .2s,border-color .2s;overflow:hidden}
+/* the emblem: a coin-like disc that carries the tier colour */
+.bemblem{position:relative;width:52px;height:52px;flex:none;display:grid;place-items:center}
+.bemblem-in{position:absolute;inset:9px;border-radius:50%;display:grid;place-items:center;
+  border:1.5px solid var(--rim);background:radial-gradient(circle at 50% 32%,rgba(var(--rgb),.18),rgba(6,9,20,.55));}
+.bemblem-in .ic{color:var(--rim)}
+.bring{position:absolute;inset:0;width:52px;height:52px}
+.bring-arc{transition:stroke-dashoffset .8s cubic-bezier(.22,.7,.25,1)}
+/* LOCKED: dim silhouette + the progress ring toward the next unlock */
+.badge.locked{filter:grayscale(.35);opacity:.82}
+.badge.locked .bemblem-in{background:rgba(6,9,20,.5)}
+.badge.locked .bemblem-in .ic{color:var(--parch-mute)}
+.badge.locked .btag{color:var(--parch-mute)}
+/* EARNED: full colour, a tier-tinted rim glow, and an unlocked flourish tick */
+.badge.earned{border-color:color-mix(in srgb,var(--rim) 55%,transparent);
+  background:linear-gradient(150deg,rgba(var(--rgb),.14),var(--panel-inner));
+  box-shadow:var(--panel-inner-lift),0 0 22px -8px rgba(var(--rgb),.55),inset 0 0 24px -18px rgba(var(--rgb),.9)}
+.badge.earned .bemblem-in{border-width:2px;background:radial-gradient(circle at 50% 30%,rgba(var(--rgb),.34),rgba(6,9,20,.55));
+  box-shadow:0 0 16px -4px rgba(var(--rgb),.7),inset 0 0 10px -4px rgba(var(--rgb),.9)}
+.badge.earned .btag{color:var(--rim)}
+.btick{position:absolute;right:-1px;bottom:-1px;width:17px;height:17px;border-radius:50%;
+  display:grid;place-items:center;background:var(--rim);box-shadow:0 0 8px -1px rgba(var(--rgb),.9)}
+.btick .ic{color:#12100a;width:11px;height:11px;stroke-width:2.4}
+.badge:hover{transform:translateY(-3px);border-color:var(--rim);
+  box-shadow:var(--panel-inner-lift),0 10px 24px -12px rgba(var(--rgb),.6)}
+.bmeta{min-width:0;display:flex;flex-direction:column;gap:1px}
+.bmeta b{font-family:var(--f-title);font-size:13.5px;color:var(--parch);line-height:1.15}
+.badge.earned .bmeta b{color:var(--gold-bright)}
+.bdesc{font-family:var(--f-mono);font-size:10.5px;color:var(--parch-dim);line-height:1.3}
+.btag{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.05em;text-transform:uppercase;margin-top:3px}
+.bempty{font-family:var(--f-mono);font-size:12px;padding:14px 0}
+/* a gentle sheen crossing the epic earned coins — pure flourish, motion-gated */
+.badge.earned.tier-epic .bemblem::before{content:"";position:absolute;inset:0;border-radius:50%;
+  background:conic-gradient(from 0deg,transparent 0deg,rgba(255,255,255,.28) 24deg,transparent 60deg);
+  animation:ovSheen 5s linear infinite;pointer-events:none;mix-blend-mode:screen}
+@keyframes ovSheen{to{transform:rotate(360deg)}}
+
+/* ===== Chronicle — a richer activity feed ===== */
+.chronfeed{display:flex;flex-direction:column;gap:9px}
+.crow{display:flex;align-items:center;gap:13px;padding:10px 13px;border-radius:12px;
+  background:var(--panel-inner);box-shadow:var(--panel-inner-lift);border:1px solid var(--line-soft);
+  border-left:3px solid var(--gold-deep);transition:transform .16s cubic-bezier(.22,.7,.25,1),border-color .16s}
+.crow:hover{transform:translateX(2px);border-left-color:var(--gold)}
+.cemblem{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;
+  color:var(--gold-bright);background:radial-gradient(circle at 50% 32%,rgba(231,182,75,.16),rgba(6,9,20,.5));
+  border:1px solid var(--line-gold)}
+.cemblem .ic{color:var(--gold-bright)}
+/* mode-tinted emblems so the feed reads by shape AND colour */
+.cemblem.mode-boss{color:var(--vermilion-glow);border-color:rgba(214,59,42,.4);
+  background:radial-gradient(circle at 50% 32%,rgba(214,59,42,.16),rgba(6,9,20,.5))}
+.cemblem.mode-boss .ic{color:var(--vermilion-glow)}
+.cemblem.mode-blitz,.cemblem.mode-gauntlet{color:var(--peacock-bright);border-color:rgba(87,211,206,.4);
+  background:radial-gradient(circle at 50% 32%,rgba(87,211,206,.15),rgba(6,9,20,.5))}
+.cemblem.mode-blitz .ic,.cemblem.mode-gauntlet .ic{color:var(--peacock-bright)}
+.cbody{flex:1;min-width:0}
+.cline{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.cmode{font-family:var(--f-title);font-size:13.5px;color:var(--parch)}
+.cwhen{font-family:var(--f-mono);font-size:10.5px;color:var(--parch-mute);flex:none}
+.ctags{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+.ctag{font-family:var(--f-mono);font-size:10px;color:var(--parch-dim);display:inline-flex;align-items:center;gap:4px;
+  background:rgba(6,9,20,.4);border:1px solid var(--line-soft);border-radius:20px;padding:2px 8px}
+.ctag .ic{width:11px;height:11px;color:var(--parch-mute)}
+.ctag-live{color:var(--peacock-bright);border-color:rgba(87,211,206,.4)}
+/* XP: a prominent pill, not a table cell */
+.cxp{flex:none;font-family:var(--f-display);font-size:19px;font-weight:800;font-variant-numeric:tabular-nums;
+  line-height:1;padding:8px 12px;border-radius:10px;display:flex;align-items:baseline;gap:3px;
+  color:var(--gold-bright);background:rgba(231,182,75,.10);border:1px solid var(--line-gold)}
+.cxp span{font-family:var(--f-mono);font-size:9px;font-weight:500;letter-spacing:.08em;color:var(--parch-mute)}
+.cxp.xp-neg{color:var(--vermilion-glow);background:rgba(214,59,42,.10);border-color:rgba(214,59,42,.35)}
+.cxp.xp-zero{color:var(--parch-mute);background:rgba(6,9,20,.4);border-color:var(--line-soft)}
+.chron-empty{font-family:var(--f-mono);font-size:12px;padding:14px 0}
+@media(max-width:420px){.cxp{font-size:16px;padding:7px 10px}.cemblem{width:34px;height:34px}}
 """

@@ -15,7 +15,7 @@ os.environ["EKLAVYA_PROFILE"] = str(Path(_TMP) / "profile.md")
 
 import pytest  # noqa: E402
 
-from eklavya import overview_view, progress, tools  # noqa: E402
+from eklavya import overview_view, progress, report, tools  # noqa: E402
 from eklavya.db import init_db  # noqa: E402
 from eklavya.webapp import create_app  # noqa: E402
 
@@ -67,6 +67,34 @@ def test_per_subject_strip_appears():
     # at least one active subject → at least one per-subject strip with its θ/verdict/strengths
     assert "subject-strip" in html
     assert "Strengths" in html and "Invest here" in html
+
+
+def test_badges_and_chronicle_are_richer():
+    """The journey band renders game BADGES (tier + ring) and a chronicle FEED
+    (not a bare table) — the superset landmarks still pass, just richer markup."""
+    _seed()
+    html = overview_view.render()
+    assert "badgegrid" in html and "chronfeed" in html
+    assert "tier-" in html          # rarity treatment present
+    assert "cxp" in html            # XP shown as a prominent pill, not a table cell
+
+
+def test_chronicle_xp_is_live_not_stored_zero():
+    """The chronicle credits XP from the rewards ledger, so an OPEN sitting that
+    never called end_session (stored xp=0) still shows the XP it earned — the
+    "+0 XP on every row" bug. Also guards the session/reward timestamp-format
+    mismatch (aware ISO vs SQLite datetime('now')) that a naive string compare
+    would get wrong."""
+    tools.add_pillar("Python")
+    progress.start_session(30, "boss")           # a sitting we deliberately never wrap up
+    tools.record_attempt("Python", "recall", "generators", 3, True, 10.0)
+    tools.record_attempt("Python", "debugging", "closures", 2, True, 20.0)
+
+    sessions = report.recent_sessions()
+    assert sessions and int(sessions[0]["xp"] or 0) == 0   # stored xp not backfilled yet
+    ledger = overview_view._session_ledger_xp(sessions)
+    live = ledger.get(sessions[0]["started_at"], 0)
+    assert live > 0, "open sitting should surface its ledger XP, not a false +0"
 
 
 def test_progress_route_serves():
