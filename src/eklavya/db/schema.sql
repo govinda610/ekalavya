@@ -260,10 +260,14 @@ CREATE TABLE IF NOT EXISTS artifacts (
     pinned      INTEGER NOT NULL DEFAULT 0,
     thread_id   TEXT,                               -- the chat that created it (NULL = ad-hoc)
     pillar      TEXT,                               -- the pillar it belongs to (for grouping)
+    rel_path    TEXT,                               -- workspace-relative file path for file-backed artifacts (dedupe key)
+    content_hash TEXT,                              -- content hash of the imported file (skip re-import when unchanged)
     created_at  TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_artifacts_updated ON artifacts(updated_at DESC);
+-- The UNIQUE(rel_path) index is created in store._migrate (AFTER the guarded ADD COLUMN),
+-- so it works on both fresh DBs and older ones that predate the rel_path column.
 
 -- === Tier-1 effectiveness: a FROZEN benchmark the tutor never teaches from ===
 -- (docs/EFFECTIVENESS_MEASUREMENT.md §3). A walled item bank + periodic AI-off

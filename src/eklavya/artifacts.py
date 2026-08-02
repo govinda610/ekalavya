@@ -38,18 +38,23 @@ def _row(r) -> dict:
         "pinned": bool(r["pinned"]),
         "thread_id": r["thread_id"] if "thread_id" in keys else None,
         "pillar": r["pillar"] if "pillar" in keys else None,
+        "rel_path": r["rel_path"] if "rel_path" in keys else None,
+        "content_hash": r["content_hash"] if "content_hash" in keys else None,
         "created_at": r["created_at"],
         "updated_at": r["updated_at"],
     }
 
 
 def create(title: str, kind: str = "markdown", content: str = "",
-           thread_id: str | None = None, pillar: str | None = None) -> dict:
+           thread_id: str | None = None, pillar: str | None = None,
+           rel_path: str | None = None, content_hash: str | None = None) -> dict:
     """Create a new artifact and return it (with its assigned id).
 
-    `thread_id` links it to the chat that made it (defaults to the chat in flight, so the
-    guru's save_artifact calls auto-associate); `pillar` tags it for the pillar-grouped
-    library. Both optional — an ad-hoc artifact just has them NULL."""
+    `thread_id` links it to the chat that made it (defaults to the chat in flight, so a
+    file the guru writes mid-turn auto-associates); `pillar` tags it for the pillar-grouped
+    library. `rel_path`/`content_hash` are set for FILE-BACKED artifacts the import bridge
+    upserts from workspace/artifacts/ (the dedupe key + change-detection hash). All optional
+    — an ad-hoc artifact just has them NULL."""
     from . import config
 
     title = (title or "Untitled").strip() or "Untitled"
@@ -59,12 +64,24 @@ def create(title: str, kind: str = "markdown", content: str = "",
     conn = connect()
     try:
         cur = conn.execute(
-            "INSERT INTO artifacts(title, kind, content, thread_id, pillar, created_at, updated_at) "
-            "VALUES(?, ?, ?, ?, ?, ?, ?)",
-            (title, _norm_kind(kind), content or "", thread_id, pillar, now, now),
+            "INSERT INTO artifacts(title, kind, content, thread_id, pillar, rel_path, "
+            "content_hash, created_at, updated_at) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (title, _norm_kind(kind), content or "", thread_id, pillar, rel_path,
+             content_hash, now, now),
         )
         conn.commit()
         return get(cur.lastrowid)  # type: ignore[arg-type]
+    finally:
+        conn.close()
+
+
+def get_by_rel_path(rel_path: str) -> dict | None:
+    """Return the file-backed artifact for a workspace-relative path, or None. Used by the
+    import bridge to dedupe re-scans (one artifact row per file)."""
+    conn = connect()
+    try:
+        r = conn.execute("SELECT * FROM artifacts WHERE rel_path = ?", (rel_path,)).fetchone()
+        return _row(r) if r else None
     finally:
         conn.close()
 
@@ -106,7 +123,8 @@ def list_artifacts(kind: str | None = None, query: str | None = None,
 
 
 def update(artifact_id: int, *, title: str | None = None, kind: str | None = None,
-           content: str | None = None, pinned: bool | None = None) -> dict | None:
+           content: str | None = None, pinned: bool | None = None,
+           pillar: str | None = None, content_hash: str | None = None) -> dict | None:
     """Patch the given fields on an artifact. Only the fields passed are changed.
     Returns the updated artifact, or None if it doesn't exist."""
     sets, params = [], []
@@ -122,6 +140,12 @@ def update(artifact_id: int, *, title: str | None = None, kind: str | None = Non
     if pinned is not None:
         sets.append("pinned = ?")
         params.append(int(bool(pinned)))
+    if pillar is not None:
+        sets.append("pillar = ?")
+        params.append(pillar.strip() or None)
+    if content_hash is not None:
+        sets.append("content_hash = ?")
+        params.append(content_hash)
     if not sets:
         return get(artifact_id)
     sets.append("updated_at = ?")

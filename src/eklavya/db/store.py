@@ -81,6 +81,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE artifacts ADD COLUMN thread_id TEXT")
     if "pillar" not in art_cols:
         conn.execute("ALTER TABLE artifacts ADD COLUMN pillar TEXT")
+    # File-backed artifacts (Anthropic-artifacts style): the tutor writes a file into
+    # workspace/artifacts/<pillar>/<name>.<ext> and the import bridge upserts it here.
+    # `rel_path` is the dedupe key (workspace-relative), `content_hash` skips re-imports
+    # when nothing changed. Additive; NULL on artifacts made in the DB directly.
+    if "rel_path" not in art_cols:
+        conn.execute("ALTER TABLE artifacts ADD COLUMN rel_path TEXT")
+    if "content_hash" not in art_cols:
+        conn.execute("ALTER TABLE artifacts ADD COLUMN content_hash TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_artifacts_relpath "
+        "ON artifacts(rel_path) WHERE rel_path IS NOT NULL"
+    )
 
     # Tier-1 effectiveness: the FROZEN benchmark tables (see schema.sql). Additive — create
     # them on databases made by a version that predates the benchmark, then seed the starter

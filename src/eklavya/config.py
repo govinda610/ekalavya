@@ -78,7 +78,7 @@ def set_current_home(home: Path | str) -> None:
 
 # --- the current chat thread (contextvar) ----------------------------------
 # The web app binds this to the chat thread in flight before it runs the agent, so a tool
-# called mid-turn (e.g. save_artifact) can associate what it saves with the originating chat
+# called mid-turn (e.g. the artifact import bridge) can associate what it saves with the chat
 # without threading the id through every call. Unset (None) in the CLI/TUI / ad-hoc contexts.
 _current_thread: ContextVar[str | None] = ContextVar("eklavya_thread", default=None)
 
@@ -249,6 +249,11 @@ def ensure_home() -> Path:
     p = paths()
     p.home.mkdir(parents=True, exist_ok=True)
     p.workspace.mkdir(parents=True, exist_ok=True)
+    # The artifacts drop-folder: the tutor writes lessons/widgets/visuals as files here
+    # (artifacts/<pillar-slug>/<name>.<ext>) with its normal write_file tool, and the
+    # import bridge auto-imports them into the Scriptorium. Create it up front so the
+    # agent always has a place to write.
+    (p.workspace / "artifacts").mkdir(parents=True, exist_ok=True)
     return p.home
 
 
