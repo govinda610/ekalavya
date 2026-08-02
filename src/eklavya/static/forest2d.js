@@ -365,22 +365,6 @@
   }
   function cssEsc(s) { return (s || '').replace(/["\\]/g, '\\$&'); }
 
-  // Subtle CURSOR PARALLAX — near layers shift a hair more than far ones as the pointer
-  // moves, so the scene feels alive & 3-D. rAF-throttled, pointer-only, reduced-motion-off.
-  function wireParallax(svg, layers, reduced) {
-    return;  // DISABLED: cursor parallax moved the whole map/far layers too aggressively
-    if (reduced || !window.matchMedia || !window.matchMedia('(pointer:fine)').matches) return;
-    let tx = 0, ty = 0, raf = 0;
-    const apply = () => { raf = 0; layers.forEach(({ node, k }) => { node.setAttribute('transform', 'translate(' + (tx * k).toFixed(2) + ',' + (ty * k).toFixed(2) + ')'); }); };
-    svg.addEventListener('pointermove', e => {
-      const r = svg.getBoundingClientRect(); if (!r.width) return;
-      tx = ((e.clientX - r.left) / r.width - 0.5) * 2;   // -1 … 1
-      ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
-      if (!raf) raf = requestAnimationFrame(apply);
-    });
-    svg.addEventListener('pointerleave', () => { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(apply); });
-  }
-
   // Pause ALL ambient motion (SMIL + CSS) whenever the Forest map is OFF-SCREEN or the tab is
   // hidden, so the animation cost is only paid while the learner is actually looking at it.
   // Uses the SVG's own SMIL clock (pause/unpauseAnimations) + a CSS class that freezes the CSS
@@ -2792,7 +2776,6 @@
       // both shifts are only a few viewBox units → imperceptible to click targets.
       wireHover(svg);
       wireCreatureProximity(svg, reduced);
-      wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
       _lastSvg = svg;
       if (reduced) svg.classList.add('reduced');
@@ -2862,7 +2845,6 @@
       paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase(), nextIdx);
       wireHover(svg);
       wireCreatureProximity(svg, reduced);
-      wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
       _lastSvg = svg;
       if (reduced) svg.classList.add('reduced');

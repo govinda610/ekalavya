@@ -211,13 +211,6 @@ def create_app():
         # Ekalavya story), and how to use it (the loop). Reachable from the landing nav.
         return _ABOUT
 
-    @app.get("/canvas", response_class=HTMLResponse)
-    def canvas() -> str:
-        # Canvas & Artifacts shell (product mode). A styled scaffold today — the guru
-        # authors durable artifacts (lessons, code, framed HTML, interactive visuals) with
-        # a highlight-to-ask popover. Full wiring to the agent is a later task.
-        return _CANVAS
-
     @app.get("/progress", response_class=HTMLResponse)
     def progress_overview() -> str:
         # The unified Overview (#83): a complete superset of Dashboard + Journey +
@@ -1620,14 +1613,13 @@ function looksPasted(code, biggest){
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
-// view switching — driven by BOTH the header tabs and the ashram left rail.
-// The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings; the header
-// tabs share these targets. Dashboard+Journey+Effectiveness are now ONE unified Overview.
+// view switching — driven by the ashram left rail + the mobile bottom-nav.
+// The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings.
+// Dashboard+Journey+Effectiveness are now ONE unified Overview.
 function showView(v){
   const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
-  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
@@ -1635,7 +1627,6 @@ function showView(v){
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
 }
-document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
 function railGo(v){ showView(v); }
 
 // Keyboard a11y: primary click-only controls (segmented tabs, artifact/library pills, artifact
@@ -3371,54 +3362,5 @@ _ABOUT = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
     <div class="fd">विद्या ददाति विनयम् — knowledge gives humility</div>
     <div class="fm">एकलव्य · स्वाध्याय · an AI coding tutor for the self-taught</div>
   </footer>
-</div>
-</body></html>"""
-
-
-# --- canvas / artifacts shell (product mode, scaffold) ---------------------
-_CANVAS = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Canvas</title>
-""" + _HEAD + r"""
-<style>body{padding:26px 20px 60px}.canvas-wrap{max-width:1080px;margin:0 auto}
-.pa-right{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;box-shadow:var(--sh-deep)}</style></head><body>
-<div class="canvas-wrap">
-  <div class="screen-label" style="margin-bottom:12px">Canvas &amp; Artifacts <b>· the guru writes, you keep it</b> <span class="mode-badge product">product mode</span></div>
-  <div class="pa-right">
-    <div class="pa-toolbar">
-      <div class="seg" role="tablist" aria-label="Right pane"><span role="tab">▤ Editor</span><span class="on" role="tab" aria-selected="true">✦ Canvas</span></div>
-      <span class="grow"></span>
-      <span class="tbtn">+ New artifact</span><span class="tbtn submit">↓ Save to library</span>
-    </div>
-    <div class="canvas">
-      <div class="canvas-tabs">
-        <span class="artpill on"><span class="k">◆</span> Recursion, illustrated</span>
-        <span class="artpill"><span class="k">▶</span> tree_traversal.py</span>
-        <span class="artpill"><span class="k">◈</span> call-stack visual</span>
-        <span class="artpill"><span class="k">□</span> preview.html</span>
-      </div>
-      <div class="canvas-body">
-        <div class="art-md">
-          <h3>Recursion, illustrated</h3>
-          <div class="adeva">पुनरावृत्ति · the return upon itself</div>
-          <p>A recursive function trusts a <b>smaller copy of itself</b> to solve the smaller problem, then combines. Every recursion needs two things: a <b>base case</b> that stops the descent, and a step that moves <b>toward</b> it.</p>
-          <p>In tree traversal, the <i>order</i> you visit the parent decides everything. In post-order you defer the parent until <span class="selraw">both children are done</span> — which is how you free a subtree or compute its size bottom-up.</p>
-          <!-- highlight-to-ask: selecting any phrase raises this popover to ask the guru about it -->
-          <div class="selpop selpop-below" style="left:34px;top:190px">Ask about this ✦</div>
-          <div class="callout">"You are not writing a loop that repeats. You are writing a promise that trusts a smaller you." — the stone guru</div>
-          <div style="margin:18px 0 6px;font-family:var(--f-mono);font-size:10px;letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--vermilion-glow)">◈ interactive · call-depth vs. work</div>
-          <svg viewBox="0 0 460 170" style="width:100%;border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5)" aria-label="An interactive chart of recursion call depth versus total work.">
-            <defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient></defs>
-            <g stroke="rgba(231,182,75,.12)" stroke-width="1"><line x1="30" y1="30" x2="440" y2="30"/><line x1="30" y1="80" x2="440" y2="80"/><line x1="30" y1="130" x2="440" y2="130"/></g>
-            <g fill="url(#barGrad)"><rect x="46" y="118" width="26" height="12" rx="3"/><rect x="106" y="100" width="26" height="30" rx="3"/><rect x="166" y="74" width="26" height="56" rx="3"/><rect x="226" y="52" width="26" height="78" rx="3"/><rect x="286" y="66" width="26" height="64" rx="3"/><rect x="346" y="96" width="26" height="34" rx="3"/><rect x="406" y="116" width="26" height="14" rx="3"/></g>
-            <path d="M59 120 C120 92 150 60 239 44 C300 34 340 70 419 118" fill="none" stroke="#57d3ce" stroke-width="2"/>
-            <circle cx="239" cy="44" r="5" fill="#f7d98a" stroke="#101528" stroke-width="1.5"/>
-            <text x="239" y="30" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#f7d98a">n=4 · peak depth</text>
-            <g font-family="JetBrains Mono" font-size="8" fill="#a89670"><text x="59" y="148">n1</text><text x="239" y="148">n4</text><text x="419" y="148">n7</text></g>
-          </svg>
-          <p style="font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);margin-top:8px">Charts, diagrams, and interactive widgets render right here — so Ekalavya can teach a subject <b style="color:var(--gold-bright);font-family:var(--f-body)">visually</b>, not just in prose. <i>(Full authoring wiring lands in a later task.)</i></p>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 </body></html>"""
