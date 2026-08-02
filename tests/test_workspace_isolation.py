@@ -28,7 +28,7 @@ def two_tenants(monkeypatch):
     (home_a / "workspace").mkdir(parents=True)
     (home_a / "workspace" / "mine.txt").write_text("tenant A's own file")
 
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     from eklavya.config import _current_home
     token = _current_home.set(home_a)
     try:
@@ -67,7 +67,7 @@ def test_single_user_backend_stays_read_broad():
     token = _current_home.set(None)
     try:
         with pytest.MonkeyPatch.context() as mp:
-            mp.setattr(config, "MULTIUSER", False)
+            mp.setattr(config, "DEPLOYED", False)
             backend = workspace.build_backend()
             assert backend.default.virtual_mode is False
     finally:

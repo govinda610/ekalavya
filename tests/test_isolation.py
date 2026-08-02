@@ -154,13 +154,13 @@ def test_backups_snapshot_the_right_user():
 # --- thread ownership (multi-user) ------------------------------------------
 
 def test_thread_ownership_blocks_cross_user(monkeypatch):
-    """With MULTIUSER on, a chat row stamped with a different owner is not owned.
+    """When deployed, a chat row stamped with a different owner is not owned.
 
     (Per-user DBs already isolate; this ownership check is the explicit defense-in-depth
     guard for a row that *does* resolve in the current DB but belongs to someone else —
     e.g. a future shared/consolidated table. We simulate that by stamping the row's
     user_id directly, then querying ownership as a different user.)"""
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     data_root = Path(tempfile.mkdtemp(prefix="eklavya-mu-"))
     home_a = data_root / "users" / "uid-a"
 
@@ -190,7 +190,7 @@ def test_webapp_returns_404_for_foreign_thread(monkeypatch):
 
     from eklavya.webapp import create_app
 
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     # multi-user create_app() now mounts auth: needs a signing secret + a data root so the
     # session's uid resolves to the home we seed. Sign a cookie for uid-x directly.
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
@@ -237,7 +237,7 @@ def test_webapp_returns_404_for_foreign_thread(monkeypatch):
 
 def test_ownership_is_noop_in_single_user():
     # default single-user mode: no ownership enforcement (user_id stays NULL)
-    assert config.MULTIUSER is False
+    assert config.DEPLOYED is False
     with as_user(HOME_A):
         chatstore.touch_chat("single-thread", mode="practice")
         assert chatstore.owns_thread("single-thread") is True
@@ -252,7 +252,7 @@ def test_multiuser_read_is_confined_to_own_tree(monkeypatch):
     home, the shared users.db, or the host — only this user's own workspace."""
     from eklavya import workspace
 
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     with as_user(HOME_A):
         # own workspace: allowed
         assert workspace._is_forbidden(str(HOME_A / "workspace" / "profile.md")) is False
@@ -270,7 +270,7 @@ def test_sibling_prefix_cannot_bypass_workspace_check(monkeypatch):
     """F5: `workspace-evil` must not pass the `workspace` prefix check."""
     from eklavya import workspace
 
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     with as_user(HOME_A):
         ws = HOME_A / "workspace"
         evil = ws.parent / (ws.name + "-evil")  # e.g. .../workspace-evil
@@ -283,7 +283,7 @@ def test_single_user_still_reads_host_broadly(monkeypatch):
     """Regression: the self-host single-user path keeps broad host reads (minus secrets)."""
     from eklavya import workspace
 
-    assert config.MULTIUSER is False
+    assert config.DEPLOYED is False
     with as_user(HOME_A):
         # a normal host file is readable in single-user mode
         assert workspace._is_forbidden(str(Path.home() / "somefile.txt")) is False

@@ -13,7 +13,7 @@ from eklavya import auth, config  # noqa: E402
 
 @pytest.fixture
 def client(monkeypatch):
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     monkeypatch.setattr(config, "SIGNUP_APPROVAL", True)
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
     monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")
@@ -61,7 +61,7 @@ def test_pending_cookie_is_rejected_by_middleware(client):
 
 
 def test_approval_off_logs_in_directly(monkeypatch):
-    monkeypatch.setattr(config, "MULTIUSER", True)
+    monkeypatch.setattr(config, "DEPLOYED", True)
     monkeypatch.setattr(config, "SIGNUP_APPROVAL", False)
     monkeypatch.setenv("EKLAVYA_SECRET_KEY", "test-secret-please-ignore-0123456789abcdef")
     monkeypatch.setenv("EKLAVYA_INSECURE_COOKIES", "1")
