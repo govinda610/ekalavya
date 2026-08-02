@@ -1830,6 +1830,7 @@ async function showGrove(pillar){
 // Dive from a grove's concept node straight into the Practice arena, seeded on it.
 function diveIntoConcept(concept,pillar){
   showView('practice');
+  newSession(false);            // fresh chat for this topic (no auto-kickoff), not the last-open one
   const ta=document.getElementById('chatin');
   const ask="Let's practise “"+concept+"” from "+pillar+". Give me one drill to start.";
   if(ta){ ta.value=ask; ta.focus(); }
@@ -2345,7 +2346,7 @@ function sendAssist(){
 }
 document.getElementById('assin').addEventListener('keydown',e=>{if(e.key==='Enter')sendAssist();});
 
-function newSession(){
+function newSession(kickoff=true){
   mode=document.getElementById('mode').value; thread=crypto.randomUUID(); biggestPaste=0; lastSentCode='';
   turns=[]; renderTurnCtl();
   if(editor) editor.setValue(STUB);
@@ -2354,7 +2355,7 @@ function newSession(){
   document.getElementById('log').innerHTML=''; document.getElementById('asslog').innerHTML=''; showWelcome();
   showPane('editor');  // a fresh session starts on the editor, not a stale canvas
   applyMode(); syncModeLabel();
-  fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
+  if(kickoff) fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); });
 }
 
 // ===== visual game-mode chooser (the modes were buried in a 30px dropdown) =====

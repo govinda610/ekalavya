@@ -184,23 +184,12 @@
       '<filter id="soft" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="6"/></filter>',
       '<filter id="soft2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>',
       '<filter id="soft1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>',
-      '<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-      // CREATURE RIM-LIGHT: a soft dark drop-halo hugging the silhouette (so animals read
-      // against dense foliage) plus a faint pale rim, then the creature on top. Cheap: one
-      // blur + two offsets. Applied to every creature group.
-      '<filter id="critRim" x="-45%" y="-45%" width="190%" height="190%">' +
-        '<feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="halo"/>' +
-        '<feFlood flood-color="#05100e" flood-opacity="0.7" result="dk"/>' +
-        '<feComposite in="dk" in2="halo" operator="in" result="darkHalo"/>' +
-        '<feFlood flood-color="#dff4ea" flood-opacity="0.55" result="lt"/>' +
-        '<feComposite in="lt" in2="SourceAlpha" operator="in" result="rimFull"/>' +
-        '<feOffset in="rimFull" dx="-0.8" dy="-1.1" result="rimHi"/>' +
-        '<feComposite in="SourceAlpha" in2="rimHi" operator="out" result="rim"/>' +
-        '<feMerge><feMergeNode in="darkHalo"/><feMergeNode in="rim"/><feMergeNode in="SourceGraphic"/></feMerge>' +
-      '</filter>',
-      // spirit-creature glow: a coloured luminous bloom around a luminous creature.
-      '<filter id="critGlow" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
-      '<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .04 0"/></filter>'
+      '<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+      // NOTE: the per-creature `critRim` rim-light and `critGlow` spirit-bloom FILTERS were the
+      // map's single biggest render cost (a multi-primitive blur+flood+composite chain applied
+      // to every one of ~90 creatures over large regions). They're removed: creatures now rely
+      // on the dark `critShade` contrast-vignette + coloured aura gradients already drawn beneath
+      // them, so they still separate from foliage and spirit-animals still glow — with no filters.
     ].join('');
     return d;
     function grad(id, x1, y1, x2, y2, stops) {
@@ -223,6 +212,9 @@
     // one shared stylesheet per rendered map (scoped by the ids/classes we emit).
     const style = el('style', {}, svg);
     style.textContent = [
+      // when the map is off-screen / tab hidden, freeze every CSS keyframe animation (the SMIL
+      // clock is paused separately) so ambient motion costs nothing while unseen.
+      'svg.anim-paused *{animation-play-state:paused !important}',
       // groves are the primary target: pointer + smooth transitions on the interactive parts
       '.grove:not(.locked){cursor:pointer}',
       '.grove .lbl{transition:opacity .18s ease}',
@@ -352,6 +344,27 @@
     svg.addEventListener('pointerleave', () => { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(apply); });
   }
 
+  // Pause ALL ambient motion (SMIL + CSS) whenever the Forest map is OFF-SCREEN or the tab is
+  // hidden, so the animation cost is only paid while the learner is actually looking at it.
+  // Uses the SVG's own SMIL clock (pause/unpauseAnimations) + a CSS class that freezes the CSS
+  // keyframes. Reduced-motion maps have no motion, so we no-op there.
+  function wireVisibilityPause(svg, reduced) {
+    if (reduced) return;
+    let paused = false;
+    const pause = () => { if (paused) return; paused = true; try { svg.pauseAnimations(); } catch (e) {} svg.classList.add('anim-paused'); };
+    const play = () => { if (!paused) return; paused = false; try { svg.unpauseAnimations(); } catch (e) {} svg.classList.remove('anim-paused'); };
+    const onVis = () => { if (document.hidden) pause(); else if (onScreen) play(); };
+    let onScreen = true;
+    if ('IntersectionObserver' in window) {
+      const io = new IntersectionObserver(entries => {
+        onScreen = entries[0].isIntersecting;
+        if (!onScreen || document.hidden) pause(); else play();
+      }, { threshold: 0.01 });
+      io.observe(svg);
+    }
+    document.addEventListener('visibilitychange', onVis);
+  }
+
   // ============================================================================
   // BACKGROUND LAYERS — sky, moon/stars, hills, temple, mist
   // ============================================================================
@@ -359,10 +372,12 @@
     el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#skyG)' }, g);
     // stars
     const r = rng('stars'); const stars = el('g', {}, g);
-    for (let i = 0; i < 90; i++) {
+    for (let i = 0; i < 76; i++) {
       const x = r() * VB.w, y = r() * VB.h * 0.42, rad = 0.5 + r() * 1.3, o = 0.25 + r() * 0.55;
       const s = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: '#f4ecd6', opacity: o.toFixed(2) }, stars);
-      if (!reduced) anim(s, 'opacity', o.toFixed(2), (o * 0.35).toFixed(2), (2.5 + r() * 4).toFixed(1) + 's');
+      // only a TWINKLING SUBSET animates (every 3rd) — 90 simultaneous opacity-tweens up in the
+      // sky forced scattered repaints for little visual gain; the rest are static points.
+      if (!reduced && i % 3 === 0) anim(s, 'opacity', o.toFixed(2), (o * 0.35).toFixed(2), (2.5 + r() * 4).toFixed(1) + 's');
     }
     // soft constellation arc across the night — a few sacred asterisms joined by hairlines
     const cg = el('g', { opacity: 0.5 }, g);
@@ -501,7 +516,9 @@
   // Long soft god-rays raking down from the temple across the whole forest (drawn ABOVE
   // the ground so the beams read over the trees — the reference art's signature light).
   function paintGodRays(g, tp, reduced) {
-    const rays = el('g', { opacity: 0.5, filter: 'url(#soft2)', 'pointer-events': 'none',
+    // the big full-map god-ray cone: its fill already fades to transparent (rayG), so the
+    // large-region soft2 blur was redundant cost — dropped.
+    const rays = el('g', { opacity: 0.5, 'pointer-events': 'none',
       transform: 'translate(' + tp.x + ',' + (tp.y + 30) + ')' }, g);
     for (let i = -3; i <= 3; i++) {
       const spread = i * 92, top = i * 20;
@@ -539,8 +556,9 @@
     const rim = shade(T[3], 0.05 + tone * 0.28);
     const trunkCol = shade('#241c26', tone * 0.18);
     const t = el('g', { transform: 'scale(' + sc.toFixed(2) + ')' }, parent);
-    // cast shadow pooled at the base
-    el('ellipse', { cx: 2, cy: 26, rx: 24, ry: 7, fill: '#08120e', opacity: 0.45, filter: 'url(#soft1)' }, t);
+    // cast shadow pooled at the base (soft-edged via low opacity; no per-tree blur FILTER —
+    // this fires once per tree across the whole forest, so a live blur here was very costly).
+    el('ellipse', { cx: 2, cy: 26, rx: 22, ry: 6, fill: '#08120e', opacity: 0.34 }, t);
     const crown = el('g', {}, t);
     if (kind === 'willow') {
       // weeping willow — low twisted trunk + drooping fronds
@@ -585,18 +603,22 @@
     crown.appendChild(rot);
     return t;
 
-    // a painterly cloud of overlapping leaf-lobes: dark belly first, body, then a lit crown
+    // a painterly cloud of overlapping leaf-lobes: dark belly first, body, then a lit crown.
+    // Lobe counts are trimmed (slightly larger radii compensate) — this loop runs once PER
+    // tree across the whole forest, so shaving a few circles here removes thousands of DOM
+    // nodes map-wide while the massed silhouette looks the same.
     function lobes(g2, cy, spread, n, vscale) {
-      for (let k = 0; k < n; k++) {
-        const cx = (r() - 0.5) * spread, y = cy + (r() - 0.5) * spread * 0.5 * vscale, rad = 11 + r() * 13;
+      const nb = Math.max(2, Math.round(n * 0.7));      // belly/body lobes (was n)
+      for (let k = 0; k < nb; k++) {
+        const cx = (r() - 0.5) * spread, y = cy + (r() - 0.5) * spread * 0.5 * vscale, rad = 12 + r() * 14;
         el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: belly, opacity: 0.9 }, g2);
       }
-      for (let k = 0; k < n; k++) {
-        const cx = (r() - 0.5) * spread * 0.9, y = cy - 3 + (r() - 0.5) * spread * 0.45 * vscale, rad = 10 + r() * 12;
+      for (let k = 0; k < nb; k++) {
+        const cx = (r() - 0.5) * spread * 0.9, y = cy - 3 + (r() - 0.5) * spread * 0.45 * vscale, rad = 11 + r() * 13;
         el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: body, opacity: 0.95 }, g2);
       }
       // lit crown catching the temple key light (upper-left biased)
-      for (let k = 0; k < Math.max(2, n - 3); k++) {
+      for (let k = 0; k < Math.max(2, n - 4); k++) {
         const cx = -spread * 0.2 + (r() - 0.5) * spread * 0.6, y = cy - 8 - r() * spread * 0.3, rad = 6 + r() * 8;
         el('circle', { cx: cx.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: lit, opacity: 0.7 }, g2);
       }
@@ -615,15 +637,18 @@
     el('rect', { x: 0, y: 290, width: VB.w, height: VB.h - 290, fill: 'url(#floorLight)', opacity: 0.9 }, g);
     // ATMOSPHERIC DEPTH HAZE — soft cool bands of mist behind the far foliage so distant
     // bands recede (blue-green) and nearer ones read warmer/clearer, giving layered depth.
+    // atmospheric depth haze — soft cool bands. These span the FULL width, so a big-region
+    // feGaussianBlur (soft2) here was one of the priciest filters on the map; at this low
+    // opacity a plain translucent band reads the same, so we drop the live blur.
     for (let i = 0; i < 5; i++) {
       const t = i / 4, y = 300 + t * 200;
-      el('rect', { x: 0, y: y - 30, width: VB.w, height: 64, fill: 'rgba(120,170,190,' + (0.11 - t * 0.02).toFixed(3) + ')', filter: 'url(#soft2)' }, g);
+      el('rect', { x: 0, y: y - 30, width: VB.w, height: 64, fill: 'rgba(120,170,190,' + (0.09 - t * 0.02).toFixed(3) + ')' }, g);
     }
-    // soft canopy-shadow pools on the floor (depth)
+    // soft canopy-shadow pools on the floor (depth) — low-opacity ellipses, no per-pool blur.
     const rp = rng('pools');
-    for (let i = 0; i < 22; i++) {
+    for (let i = 0; i < 16; i++) {
       const x = rp() * VB.w, y = 380 + rp() * (VB.h - 440), rad = 44 + rp() * 96;
-      el('ellipse', { cx: x.toFixed(0), cy: y.toFixed(0), rx: rad.toFixed(0), ry: (rad * 0.36).toFixed(0), fill: rp() > 0.5 ? shade(C.groundLit, -0.14) : C.groundDeep, opacity: 0.22, filter: 'url(#soft2)' }, g);
+      el('ellipse', { cx: x.toFixed(0), cy: y.toFixed(0), rx: rad.toFixed(0), ry: (rad * 0.36).toFixed(0), fill: rp() > 0.5 ? shade(C.groundLit, -0.14) : C.groundDeep, opacity: 0.16 }, g);
     }
     // ---- understorey scatter: ferns, grass tufts, flowers, mushrooms, logs -------------
     understorey(g, reduced);
@@ -669,7 +694,7 @@
   function understorey(g, reduced) {
     const r = rng('under'); const layer = el('g', {}, g);
     // grass/fern band hugging the treeline so trunks meet foliage, not a hard line
-    for (let i = 0; i < 120; i++) {
+    for (let i = 0; i < 80; i++) {
       const x = r() * VB.w, y = 340 + r() * (VB.h - 400);
       const near = (y - 340) / (VB.h - 400);          // 0 far … 1 near
       const h = (6 + r() * 14) * (0.5 + near);
@@ -740,7 +765,7 @@
     if (!reduced) anim(spirit, 'opacity', '0.8', '0.4', '6s');
     const halo = el('circle', { class: 'sage-aura', cx: 0, cy: -20, r: 16, fill: 'none', stroke: C.goldBright, 'stroke-width': 1.2, opacity: 0.55, 'pointer-events': 'none' }, gg);
     if (!reduced) anim(halo, 'opacity', '0.6', '0.22', '5s');
-    const body = el('g', { filter: 'url(#critRim)' }, gg);
+    const body = el('g', {}, gg);
     el('ellipse', { cx: 0, cy: 8, rx: 26, ry: 6, fill: '#0a1712', opacity: 0.5 }, body);        // ground shadow
     // crossed-leg base
     el('path', { d: 'M-24,6 Q0,-2 24,6 Q0,13 -24,6 Z', fill: '#16281f' }, body);
@@ -766,7 +791,7 @@
       const aura = el('ellipse', { class: 'crit-aura', cx: -4, cy: -6, rx: fanned ? 44 : 34, ry: 30, fill: 'url(#spiritTeal)', opacity: 0.75, 'pointer-events': 'none' }, wrap);
       if (!reduced) anim(aura, 'opacity', '0.85', '0.45', '3s');
     }
-    const gg = el('g', { filter: 'url(#critRim)' }, wrap);
+    const gg = el('g', {}, wrap);
     const eye = (fx, fy, rr) => {   // one ocellus "eye" feather tip
       el('ellipse', { cx: fx.toFixed(1), cy: fy.toFixed(1), rx: (rr * 1.15).toFixed(1), ry: rr.toFixed(1), fill: spirit ? '#57d3ce' : '#1f8f78', opacity: 0.9 }, tail);
       el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.62).toFixed(1), fill: spirit ? '#7fb0e0' : '#2f5fa0', opacity: 0.95 }, tail);
@@ -841,17 +866,24 @@
       const aura = el('ellipse', { class: 'crit-aura', cx: 0, cy: -12, rx: rx * 1.9, ry: rx * 1.7, fill: 'url(#' + auraId + ')', opacity: 0.9, 'pointer-events': 'none' }, wrap);
       if (!reduced) anim(aura, 'opacity', '0.95', '0.5', (2.6 + (rx % 5) * 0.4).toFixed(1) + 's');
       const ffCol = spirit === 'teal' ? '#bdf4ec' : '#ffe9ad';
+      const haloId = spirit === 'teal' ? 'nodeTeal' : 'nodeGold';
       const fr = rng((cls || 'sp') + rx + x);
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 3; i++) {   // 3 (was 4); soft radial-gradient motes, no live-blur FILTER
         const a = fr() * Math.PI * 2, rr = rx * (0.9 + fr() * 0.9);
         const fx = Math.cos(a) * rr, fy = -12 + Math.sin(a) * rr * 0.7;
-        const f = el('circle', { class: 'crit-spark', cx: fx.toFixed(1), cy: fy.toFixed(1), r: (0.9 + fr() * 0.8).toFixed(1), fill: ffCol, opacity: 0.9, filter: 'url(#glow)', 'pointer-events': 'none' }, wrap);
+        // pre-baked halo (cheap radial gradient) + a tiny bright core — same sparkle look, no filter
+        const f = el('g', { class: 'crit-spark', transform: 'translate(' + fx.toFixed(1) + ',' + fy.toFixed(1) + ')', 'pointer-events': 'none' }, wrap);
+        el('circle', { r: (3 + fr() * 2).toFixed(1), fill: 'url(#' + haloId + ')', opacity: 0.7 }, f);
+        el('circle', { r: (0.9 + fr() * 0.8).toFixed(1), fill: ffCol }, f);
         if (!reduced) { anim(f, 'opacity', '0.95', '0.2', (1.3 + fr() * 1.6).toFixed(1) + 's');
           animT(f, '0,0', ((fr() - 0.5) * 14).toFixed(0) + ',' + (-6 - fr() * 10).toFixed(0), (4 + fr() * 4).toFixed(1) + 's'); }
       }
     }
-    // the actual creature art goes in a rim-lit sub-group so the silhouette gets its edge.
-    const gg = el('g', { filter: spirit ? 'url(#critGlow)' : 'url(#critRim)' }, wrap);
+    // the actual creature art group. The dark `critShade` vignette drawn above already
+    // separates the silhouette from foliage, so we skip the expensive per-creature rim-light
+    // FILTER (feGaussian+feFlood+feComposite ×N was the map's #1 render cost). Spirit animals
+    // keep no live blur either — their coloured aura gradient (drawn above) reads on its own.
+    const gg = el('g', {}, wrap);
     gg._wrap = wrap;
     return gg;
   }
@@ -1005,7 +1037,7 @@
     const gg = el('g', { class: 'crit crit-perched', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
     el('rect', { x: -10, y: -14, width: 22, height: 22, fill: 'transparent', 'pointer-events': 'all' }, gg);
     el('ellipse', { cx: 0, cy: 2, rx: 9, ry: 4, fill: 'url(#critShade)', 'pointer-events': 'none' }, gg);
-    const b = el('g', { class: 'crit-perched-body amb', filter: 'url(#critRim)' }, gg);
+    const b = el('g', { class: 'crit-perched-body amb' }, gg);
     el('line', { x1: -6, y1: 6, x2: 6, y2: 6, stroke: '#2a2018', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, b);  // twig
     el('path', { d: 'M-2,4 q-8,-2 -9,-9', fill: 'none', stroke: c[0], 'stroke-width': 2.4, 'stroke-linecap': 'round' }, b);  // tail
     el('ellipse', { cx: 1, cy: -2, rx: 5, ry: 6, fill: c[0] }, b);   // body
@@ -1058,7 +1090,7 @@
     const rx = 120 * scale, ry = 40 * scale;
     const gg = el('g', { class: 'pond' }, g);
     // bank rim / wet stone
-    el('ellipse', { cx: cx, cy: cy + 4, rx: rx + 14, ry: ry + 8, fill: '#0c1c18', opacity: 0.6, filter: 'url(#soft1)' }, gg);
+    el('ellipse', { cx: cx, cy: cy + 4, rx: rx + 14, ry: ry + 8, fill: '#0c1c18', opacity: 0.5 }, gg);
     // luminous water
     el('ellipse', { class: 'pond-water', cx: cx, cy: cy, rx: rx, ry: ry, fill: 'url(#pondG)' }, gg);
     el('ellipse', { cx: cx, cy: cy, rx: rx, ry: ry, fill: 'none', stroke: C.teal, 'stroke-width': 1, opacity: 0.4 }, gg);
@@ -1145,7 +1177,7 @@
     const nearOf = y => Math.min(1, Math.max(0, (y - tempY) / (VB.h - tempY)));
     // CSS-breeze budget: cap how many trees rock via CSS (on top of the SMIL-swaying subset)
     // so the breeze feels pervasive but the total animating element count stays bounded (60fps).
-    let breezeBudget = reduced ? 0 : 40;
+    let breezeBudget = reduced ? 0 : 24;
     const treeKinds = ['banyan', 'round', 'willow', 'peepal', 'round', 'banyan', 'peepal'];
     // a small planting helper so every source (grid / segments / temple) makes matched trees
     function plant(x, y, rr, opts) {
@@ -1177,10 +1209,12 @@
     const gr = rng('treegrid');
     for (let y = 316; y <= VB.h - 30; ) {
       const near = nearOf(y);
-      // finer, denser lattice far away (small trees) → coarser near (big trees fill more)
-      const rowStep = lerp(30, 50, near);
-      const cols = Math.round(lerp(15, 9, near));
-      const skip = lerp(0.06, 0.2, near);               // fewer gaps up top
+      // finer, denser lattice far away (small trees) → coarser near (big trees fill more).
+      // Grid loosened a step (fewer rows/cols) — with the bigger-radius, lower-lobe trees the
+      // canopy still reads fully even; this is the biggest single DOM-count reduction.
+      const rowStep = lerp(44, 66, near);
+      const cols = Math.round(lerp(10, 6, near));
+      const skip = lerp(0.1, 0.24, near);               // fewer gaps up top
       const inset = lerp(2, 56, 1 - near);              // still plant out to the frame edges
       for (let c = 0; c <= cols; c++) {
         if (gr() < skip) continue;
@@ -1220,7 +1254,7 @@
     // can look thin). Trees hug both sides of the temple and fill the upper corners.
     if (temple) {
       const rt = rng('templegrove');
-      for (let i = 0; i < 38; i++) {
+      for (let i = 0; i < 26; i++) {
         const side = i % 2 ? 1 : -1;
         const spread = 80 + rt() * 340;
         const x = temple.x + side * spread;
@@ -1228,20 +1262,20 @@
         plant(x, y, rt, { baseScale: 0.44 + rt() * 0.34 });
       }
       // two staggered low bands of small trees straight across just under the temple horizon
-      for (let x = 30; x < VB.w - 30; x += 50) plant(x + (rt() - 0.5) * 26, temple.y + 148 + (rt() - 0.5) * 24, rt, { baseScale: 0.42 + rt() * 0.24 });
-      for (let x = 56; x < VB.w - 30; x += 58) plant(x + (rt() - 0.5) * 26, temple.y + 196 + (rt() - 0.5) * 24, rt, { baseScale: 0.44 + rt() * 0.26 });
+      for (let x = 30; x < VB.w - 30; x += 64) plant(x + (rt() - 0.5) * 26, temple.y + 148 + (rt() - 0.5) * 24, rt, { baseScale: 0.42 + rt() * 0.24 });
+      for (let x = 56; x < VB.w - 30; x += 72) plant(x + (rt() - 0.5) * 26, temple.y + 196 + (rt() - 0.5) * 24, rt, { baseScale: 0.44 + rt() * 0.26 });
     }
 
     // (3) understorey tufts + wildflowers filling the ground everywhere (uniform count). A
     // bounded subset of the near-foreground tufts get a CSS `.gbreeze` wave (staggered), so
     // the grass bobs in the breeze — capped so the total animator count stays 60fps-safe.
     const ru = rng('bandunder');
-    const uStep = 58;
-    let grassBreeze = reduced ? 0 : 34;
-    for (let y = 320; y <= VB.h - 14; y += 40) {
+    const uStep = 70;                                    // coarser grass lattice (was 58)
+    let grassBreeze = reduced ? 0 : 28;
+    for (let y = 320; y <= VB.h - 14; y += 50) {         // coarser rows (was 40)
       const near = nearOf(y);
       for (let x = 20; x < VB.w - 20; x += uStep) {
-        if (ru() < 0.35) continue;
+        if (ru() < 0.4) continue;
         const px = x + (ru() - 0.5) * uStep, py = y + (ru() - 0.5) * 26;
         if (px < 8 || px > VB.w - 8) continue;
         const h = (4 + ru() * 11) * (0.55 + near * 0.8);
@@ -1291,7 +1325,7 @@
     // ground-level fauna low; canopy fauna (swinging monkeys, perched birds) go higher.
     // AMBIENT budget: mark only a bounded subset of creatures as self-animating (staggered
     // phases) so the scene feels alive without animating the whole cast — keeps it 60fps.
-    let ambBudget = reduced ? 0 : 26;
+    let ambBudget = reduced ? 0 : 18;
     function markAmbient(node) {
       if (!node || ambBudget <= 0 || r() > 0.62) return;   // ~62% of placed creatures, capped
       ambBudget--;
@@ -1372,15 +1406,17 @@
       }
     }
 
-    // bird-FLOCKS: several across the sky + a couple weaving lower between the canopies.
-    for (let i = 0; i < 6; i++) flock(layer, 90 + i * 200, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
-    for (let i = 0; i < 3; i++) flock(layer, 200 + i * 340, tempY + 200 + (i % 2) * 90, 0.8 + (i % 2) * 0.3, 'flklow' + i, reduced);
+    // bird-FLOCKS: several across the sky + a couple weaving lower between the canopies. Each
+    // flock's animateMotion sweeps a large region every frame (costly repaints), so the count
+    // is trimmed — the sky still has flocks in motion, just fewer big swept invalidations.
+    for (let i = 0; i < 4; i++) flock(layer, 120 + i * 300, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
+    for (let i = 0; i < 2; i++) flock(layer, 260 + i * 480, tempY + 200 + (i % 2) * 90, 0.8 + (i % 2) * 0.3, 'flklow' + i, reduced);
 
     // apsara-wisps — soft luminous motes drifting through mid/upper map (enchantment).
     for (let i = 0; i < 8; i++) {
       const fx = 0.1 + (i / 7) * 0.8;
       const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / 7) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
-      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3.5 + r() * 3).toFixed(1), fill: 'url(#spiritTeal)', opacity: 0.55, filter: 'url(#soft1)', 'pointer-events': 'none' }, layer);
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3.5 + r() * 3).toFixed(1), fill: 'url(#spiritTeal)', opacity: 0.55, 'pointer-events': 'none' }, layer);
       if (!reduced) { anim(w, 'opacity', '0.6', '0.16', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 70).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
@@ -1545,10 +1581,11 @@
     if (!full) return;
     el('path', { d: full, fill: 'none', stroke: C.pathGlow, 'stroke-width': 40, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.18, filter: 'url(#soft2)' }, g);
     el('path', { d: full, fill: 'none', stroke: C.pathEdge, 'stroke-width': 20, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.30, filter: 'url(#soft)' }, g);
-    el('path', { d: full, fill: 'none', stroke: 'url(#pathFlow)', 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.62 }, g);
-    el('path', { d: full, fill: 'none', stroke: '#f4f7e0', 'stroke-width': 3.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.5 }, g);
-    // dim dashed remainder (what's left to walk)
-    el('path', { d: full, fill: 'none', stroke: 'rgba(235,240,215,.42)', 'stroke-width': 3, 'stroke-linecap': 'round', 'stroke-dasharray': '1 16' }, g);
+    el('path', { d: full, fill: 'none', stroke: 'url(#pathFlow)', 'stroke-width': 9, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.68 }, g);
+    el('path', { d: full, fill: 'none', stroke: '#f4f7e0', 'stroke-width': 3.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: 0.55 }, g);
+    // dashed remainder (the route AHEAD, into the upcoming/locked groves) — lifted a touch so
+    // the learner can read the way forward at a glance, without overpowering the travelled gold.
+    el('path', { d: full, fill: 'none', stroke: 'rgba(210,244,236,.6)', 'stroke-width': 3.2, 'stroke-linecap': 'round', 'stroke-dasharray': '2 14' }, g);
     // travelled portion — bright luminous gold-white core with flowing dashes
     if (travelledUpto >= 1) {
       const upto = Math.min(river.length, riverIdx(travelledUpto - 1) + 1);
@@ -1564,7 +1601,7 @@
     // bead-markers at each grove along the trail (ref A)
     for (let i = 0; i < ptsE.length; i++) {
       const done = i < travelledUpto;
-      el('circle', { cx: ptsE[i].x, cy: ptsE[i].y, r: 2.6, fill: done ? C.goldBright : 'rgba(235,240,215,.55)' }, g);
+      el('circle', { cx: ptsE[i].x, cy: ptsE[i].y, r: done ? 2.6 : 2.8, fill: done ? C.goldBright : 'rgba(200,240,232,.72)' }, g);
     }
   }
 
@@ -1609,15 +1646,16 @@
     // ground ring — a lotus-MANDALA / RANGOLI decal at the grove's foot (spec: sacred
     // medallion). Locked groves keep only the faint austere ring (a bare sapling shrine).
     const ringCol = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
-    el('ellipse', { cx: 0, cy: 30, rx: 46, ry: 15, fill: 'none', stroke: ringCol, 'stroke-width': 1.5, opacity: st === 'locked' ? 0.3 : 0.55 }, inner);
-    el('ellipse', { cx: 0, cy: 30, rx: 30, ry: 9, fill: 'none', stroke: ringCol, 'stroke-width': 1, opacity: st === 'locked' ? 0.2 : 0.35, 'stroke-dasharray': '3 5' }, inner);
+    el('ellipse', { cx: 0, cy: 30, rx: 46, ry: 15, fill: 'none', stroke: ringCol, 'stroke-width': 1.5, opacity: st === 'locked' ? 0.44 : 0.55 }, inner);
+    el('ellipse', { cx: 0, cy: 30, rx: 30, ry: 9, fill: 'none', stroke: ringCol, 'stroke-width': 1, opacity: st === 'locked' ? 0.3 : 0.35, 'stroke-dasharray': '3 5' }, inner);
     if (st !== 'locked') rangoli(inner, ringCol, st, opts.reduced);
 
     if (st === 'locked') {
-      // bare frost-blue sapling at ~55% scale feel
-      const t = el('g', { opacity: 0.55, transform: 'scale(.8)' }, inner);
-      el('path', { d: 'M0,30 V-2', stroke: '#46525e', 'stroke-width': 4, 'stroke-linecap': 'round' }, t);
-      el('path', { d: 'M0,6 l-14,-12 M0,6 l14,-12 M0,18 l-11,-9 M0,18 l11,-9', stroke: '#46525e', 'stroke-width': 3, 'stroke-linecap': 'round' }, t);
+      // bare frost-blue sapling — lifted a touch (opacity + slightly brighter stroke) so the
+      // LOCKED groves waiting ahead read as visible future waypoints, not near-invisible.
+      const t = el('g', { opacity: 0.72, transform: 'scale(.8)' }, inner);
+      el('path', { d: 'M0,30 V-2', stroke: '#5a6874', 'stroke-width': 4, 'stroke-linecap': 'round' }, t);
+      el('path', { d: 'M0,6 l-14,-12 M0,6 l14,-12 M0,18 l-11,-9 M0,18 l11,-9', stroke: '#5a6874', 'stroke-width': 3, 'stroke-linecap': 'round' }, t);
     } else {
       // a hover "bloom" halo (revealed by CSS on hover; invisible otherwise)
       el('circle', { class: 'g-bloom', cx: 0, cy: -18, r: 66, fill: st === 'blossoming' ? 'url(#nodeGold)' : 'url(#nodeTeal)', opacity: 0 }, inner);
@@ -1718,9 +1756,9 @@
     const rim = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
     const fill = st === 'blossoming' ? 'rgba(231,182,75,.9)' : st === 'active' ? 'rgba(18,77,76,.85)' : st === 'unlocked' ? 'rgba(10,20,26,.8)' : 'rgba(20,26,32,.7)';
     const m = el('g', { class: 'g-medallion', transform: 'translate(0,' + y + ')' }, grp);
-    const rr = el('circle', { r: 15, fill: fill, stroke: rim, 'stroke-width': 2, opacity: st === 'locked' ? 0.5 : 1 }, m);
+    const rr = el('circle', { r: 15, fill: fill, stroke: rim, 'stroke-width': 2, opacity: st === 'locked' ? 0.68 : 1 }, m);
     if (st === 'active' && !reduced) anim(rr, 'stroke-width', '2', '3.4', '1.8s');
-    const glyphCol = st === 'blossoming' ? '#3a2a08' : st === 'locked' ? '#5a6672' : C.goldBright;
+    const glyphCol = st === 'blossoming' ? '#3a2a08' : st === 'locked' ? '#75828e' : C.goldBright;
     const gl = el('text', { x: 0, y: 5, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 14, fill: glyphCol }, m);
     gl.textContent = glyphFor(name);
   }
@@ -1795,16 +1833,20 @@
   function paintLife(g, pts, activeIdx, reduced) {
     // fireflies clustered near the path & light — denser, varied size/colour/flicker
     const r = rng('flies'); const ff = el('g', {}, g);
-    for (let i = 0; i < 54; i++) {
+    for (let i = 0; i < 40; i++) {   // 40 (was 54); each a pre-baked halo+core, no live-blur FILTER
       const anchor = pts[Math.floor(r() * pts.length)] || { x: VB.w / 2, y: VB.h / 2 };
       const x = anchor.x + (r() - 0.5) * 150, y = anchor.y + (r() - 0.5) * 110;
       const col = [C.gold, C.goldBright, '#bfe9a0', C.teal][Math.floor(r() * 4)];
+      const teal = col === C.teal;
       const rad = 0.6 + r() * 1.8;
-      const f = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: col, opacity: 0.9, filter: 'url(#glow)' }, ff);
+      // soft radial-gradient halo (cheap) around a tiny bright dot — same firefly glow, no #glow filter
+      const f = el('g', { transform: 'translate(' + x.toFixed(1) + ',' + y.toFixed(1) + ')' }, ff);
+      el('circle', { r: (rad * 3 + 2).toFixed(1), fill: 'url(#' + (teal ? 'nodeTeal' : 'nodeGold') + ')', opacity: 0.55 }, f);
+      el('circle', { r: rad.toFixed(1), fill: col, opacity: 0.95 }, f);
       if (!reduced) {
         anim(f, 'opacity', '0.9', '0.15', (1.4 + r() * 2.2).toFixed(1) + 's');
         const dx = (r() - 0.5) * 40, dy = (r() - 0.5) * 34;
-        animT(f, x.toFixed(0) + ',' + y.toFixed(0), (x + dx).toFixed(0) + ',' + (y + dy).toFixed(0), (5 + r() * 5).toFixed(1) + 's');
+        animT(f, '0,0', dx.toFixed(0) + ',' + dy.toFixed(0), (5 + r() * 5).toFixed(1) + 's');
       }
     }
     // spirit-wisps — a few larger, soft, slow motes drifting along the trail
@@ -1812,12 +1854,13 @@
       const a = pts[Math.min(pts.length - 1, Math.floor((i + 1) / 5 * pts.length))] || pts[0];
       if (!a) break;
       const wx = a.x + (r() - 0.5) * 40, wy = a.y - 30 - r() * 20;
-      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (4 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.55, filter: 'url(#soft1)' }, ff);
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (4 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.55 }, ff);
       if (!reduced) { anim(w, 'opacity', '0.55', '0.15', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 60).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
-    // 3 gliding birds on looping arcs across the sky band
-    if (!reduced) for (let i = 0; i < 3; i++) bird(g, 200 + i * 340, 150 + i * 26, 22 + i * 6, 'bird' + i);
+    // 2 gliding birds on looping arcs across the sky band (each sweeps a wide region; the
+    // flocks above already carry the sky's motion, so 2 is plenty).
+    if (!reduced) for (let i = 0; i < 2; i++) bird(g, 240 + i * 460, 150 + i * 26, 22 + i * 6, 'bird' + i);
     // player avatar at the active node (lantern-carrying silhouette) — scale + "where am I"
     const ap = pts[activeIdx] || pts[0];
     if (ap) {
@@ -1942,11 +1985,13 @@
   // ============================================================================
   function prep(svg) {
     svg.setAttribute('viewBox', '0 0 ' + VB.w + ' ' + VB.h);
-    // slice (cover) on wide screens for a full-bleed vista; on narrow/portrait screens
-    // use meet so the corner HUD (minimap, compass) and frame stay on-screen and legible.
-    const box = svg.getBoundingClientRect ? svg.getBoundingClientRect() : { width: 1200, height: 760 };
-    const wide = box.width && box.height ? (box.width / box.height) >= (VB.w / VB.h) * 0.82 : true;
-    svg.setAttribute('preserveAspectRatio', wide ? 'xMidYMid slice' : 'xMidYMid meet');
+    // ALWAYS `meet` (contain) so the ENTIRE map fits inside the panel with nothing clipped —
+    // the whole vertical story reads top→bottom: mandir → every grove row → the bottom labels
+    // and the diegetic HUD (minimap, compass, title cartouche, GROVES-MASTERED progress bar),
+    // which all live near the viewBox edges. `slice` used to crop those bottom rows / the HUD
+    // on wide-short panels (the reported clipping); `meet` guarantees the full composition on
+    // desktop AND mobile. A little letterbox is acceptable; the frame/vignette blend into it.
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     while (svg.firstChild) svg.removeChild(svg.firstChild);
   }
 
@@ -2016,6 +2061,7 @@
       // both shifts are only a few viewBox units → imperceptible to click targets.
       wireHover(svg);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
+      wireVisibilityPause(svg, reduced);
       return c;
     }).catch(() => { empty(svg, 'could not load the forest map.'); return null; });
   }
@@ -2078,6 +2124,7 @@
       paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase());
       wireHover(svg);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
+      wireVisibilityPause(svg, reduced);
       return c;
     }).catch(() => { empty(svg, 'could not load this grove.'); return null; });
     function metaC(s) { return s === 'done' ? '✦ mastered' : s === 'avail' ? '◇ available' : '— locked'; }
