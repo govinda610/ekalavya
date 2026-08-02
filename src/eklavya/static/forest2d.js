@@ -1225,7 +1225,6 @@
     el('circle', { cx: -3.4, cy: -13, r: 2, fill: eyeCol }, gg); el('circle', { cx: 3.4, cy: -13, r: 2, fill: eyeCol }, gg);
     el('circle', { cx: -3.4, cy: -13, r: 0.9, fill: '#08120e' }, gg); el('circle', { cx: 3.4, cy: -13, r: 0.9, fill: '#08120e' }, gg);
     el('path', { d: 'M0,-11 l-1.4,3 l2.8,0 Z', fill: '#c88a3a' }, gg);   // beak
-    if (!reduced) { const bl = el('rect', { x: -6, y: -15, width: 12, height: 0.1, fill: 'none' }, gg); }   // (blink handled via eye halo elsewhere)
     return gg._wrap;
   }
 
@@ -1653,7 +1652,6 @@
     // one delegated pointer handler (wireCreatureProximity) can react without per-node listeners.
     function tagReactive(node, role) {
       if (!node) return;
-      const b = node.getBBox ? null : null;   // (bbox unreliable headless; use placement centre)
       node.setAttribute('data-react', role);
     }
 
@@ -2399,7 +2397,6 @@
     opts = opts || {};
     const svg = opts.svg || _lastSvg;
     if (!svg || !pillar) return false;
-    const grp = svg.querySelector('.grove'); // fallback
     const target = Array.prototype.slice.call(svg.querySelectorAll('.grove')).find(n => n._pillar === pillar);
     if (!target || !target._nodePt) return false;
     const reduced = svg.classList.contains('reduced') || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
