@@ -1,8 +1,7 @@
 """Request-time auth for the multi-user (served) deployment.
 
-One Starlette middleware does two things per request, and only when ``config.MULTIUSER``
-is on (in single-user mode it is never mounted, so the code path is byte-for-byte the
-old one):
+The web app is always account-backed, so this middleware runs on every deployment. It does
+two things per request:
 
   1. **Resolve the user.** Read the signed session cookie (it carries just the uid),
      verify its signature, and bind that user's home into ``config.set_current_home`` for
@@ -13,8 +12,7 @@ old one):
      bits stay open.
 
 Sessions are signed cookies — there is no server-side sessions table (§0.5). The signing
-secret comes from ``EKLAVYA_SECRET_KEY``; in multi-user mode we fail loudly at startup if
-it is unset. The cookie is ``HttpOnly`` + ``SameSite=Strict`` (which stands in for CSRF
+secret comes from ``EKLAVYA_SECRET_KEY``; the web app fails loudly at startup if it is unset. The cookie is ``HttpOnly`` + ``SameSite=Strict`` (which stands in for CSRF
 tokens, §0.5) + ``Secure`` (togglable off for local http dev via ``EKLAVYA_INSECURE_COOKIES=1``).
 """
 
@@ -46,13 +44,35 @@ _SECURITY_HEADERS = {
 
 
 def _secret() -> str:
+    """The cookie-signing secret.
+
+    Deployed: ``EKLAVYA_SECRET_KEY`` is mandatory (fail loudly at startup if unset). Local
+    self-host: if unset we persist a random machine-local secret at the data root so the
+    solo user isn't forced to configure one — sessions still survive restarts.
+    """
     secret = os.environ.get("EKLAVYA_SECRET_KEY", "")
-    if not secret:
+    if secret:
+        return secret
+    if config.DEPLOYED:
         raise RuntimeError(
-            "EKLAVYA_SECRET_KEY must be set in multi-user mode "
+            "EKLAVYA_SECRET_KEY must be set when EKLAVYA_DEPLOYED is on "
             "(a 32+ byte random value used to sign session cookies)."
         )
-    return secret
+    return _local_secret()
+
+
+def _local_secret() -> str:
+    """A stable, random secret for local self-host, created once and persisted at the data
+    root (so it survives restarts). Never used when a real EKLAVYA_SECRET_KEY is set."""
+    import secrets
+
+    path = config.data_root() / "secret_key"
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value = secrets.token_hex(32)
+    path.write_text(value, encoding="utf-8")
+    return value
 
 
 def _signer():
@@ -96,10 +116,7 @@ def read_uid(request: Request) -> str | None:
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
-    """Resolve the session → set the per-user contextvar → gate unauthenticated access.
-
-    Only mounted when ``config.MULTIUSER`` is on.
-    """
+    """Resolve the session → set the per-user contextvar → gate unauthenticated access."""
 
     async def dispatch(self, request: Request, call_next):
         from . import auth
@@ -116,9 +133,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 uid = None
 
         if uid is not None:
-            # bind this user's home for the whole request context (Phase 1 isolation)
+            # bind this user's home for the whole request context (per-user isolation)
             config.set_current_home(config.user_home(uid))
             return self._secure(await call_next(request))
+
+        # Local self-host (not deployed): no session yet → auto-log-in so a solo user isn't
+        # forced through the login form. Deployed skips this and enforces the full auth flow.
+        #   - EKLAVYA_HOME override present → bind that home directly (the "which home" knob
+        #     tests + ad-hoc runs use); no account lookup, no cookie.
+        #   - else → bind the resolved local default account and remember it via a cookie.
+        if not config.DEPLOYED:
+            if os.environ.get("EKLAVYA_HOME"):
+                config.set_current_home(config._default_home())
+                config.ensure_home()
+                self._init_db()
+                return self._secure(await call_next(request))
+            local_uid = self._local_uid()
+            if local_uid is not None:
+                config.set_current_home(config.user_home(local_uid))
+                config.ensure_home()
+                self._init_db()
+                resp = await call_next(request)
+                issue_session(resp, local_uid)  # remember it for subsequent requests
+                return self._secure(resp)
 
         # unauthenticated
         if path in _OPEN_PATHS or path.startswith("/static/"):
@@ -126,6 +163,22 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/"):
             return self._secure(JSONResponse({"detail": "authentication required"}, status_code=401))
         return self._secure(RedirectResponse("/login", status_code=303))
+
+    @staticmethod
+    def _init_db() -> None:
+        from .db import init_db
+
+        init_db()
+
+    @staticmethod
+    def _local_uid() -> str | None:
+        """Resolve the local default account for auto-login, or None if it can't be
+        determined unambiguously (e.g. several accounts, none designated) — then the normal
+        login form is shown instead of guessing."""
+        try:
+            return config.resolve_local_user()
+        except (LookupError, ValueError):
+            return None
 
     @staticmethod
     def _secure(response):

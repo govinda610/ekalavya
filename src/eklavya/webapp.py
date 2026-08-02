@@ -94,27 +94,20 @@ def create_app():
 
     from . import config
 
-    # Single-user: initialise the one implicit user's db up front, as before. Multi-user:
-    # there is no single home at construction time — each user's db is initialised on their
-    # first login (see _mount_auth), so we must NOT touch the default home here.
-    if not config.MULTIUSER:
-        init_db()
+    # The web app is always account-backed: there is no single home at construction time —
+    # each user's db is initialised when their session first binds a home (login / local
+    # auto-login), so we must NOT touch any default home here.
     provider = pick(None)
-    # Agents cached per (user_id, mode). In single-user mode user_id is a constant, so
-    # this is one agent per mode exactly as before; in multi-user each user gets their own
-    # (built against their own checkpointer/workspace via the contextvar at build time).
+    # Agents cached per (user_id, mode) — each user gets their own, built against their own
+    # checkpointer/workspace via the contextvar at build time.
     agents: dict = {}
     _TOOLS = {"onboard": ONBOARDING_TOOLS, "aiinterview": AIINTERVIEW_TOOLS}
 
-    _SINGLE_USER = "_single"  # the implicit single-user id in single-user mode
-
     def _current_user_id() -> str:
-        return config.paths().home.name if config.MULTIUSER else _SINGLE_USER
+        return config.paths().home.name  # the bound account's home is …/users/<uid>
 
     def _current_email() -> str | None:
-        """The logged-in user's email (multi-user only) — for the account menu."""
-        if not config.MULTIUSER:
-            return None
+        """The logged-in user's email — for the account menu."""
         from . import auth
         u = auth.get_user(_current_user_id())
         return u.get("email") if u else None
@@ -661,17 +654,18 @@ def create_app():
             raise HTTPException(status_code=404)
         return {"ok": True}
 
-    # --- auth (multi-user only) --------------------------------------------
-    # Everything below is mounted ONLY when EKLAVYA_MULTIUSER is on. In single-user mode
-    # nothing here runs, no middleware is added, and the app is byte-for-byte as before.
-    if config.MULTIUSER:
-        _mount_auth(app)
+    # --- auth (always on) --------------------------------------------------
+    # The web app is always account-backed: login/logout routes + the session middleware
+    # are always mounted. Locally (DEPLOYED off) the middleware auto-logs-in the resolved
+    # local account so a solo user isn't forced through the form; deployed enforces the
+    # full email+password flow (+ optional signup-approval).
+    _mount_auth(app)
 
     return app
 
 
 def _mount_auth(app) -> None:
-    """Add the login/logout routes + the auth middleware. Multi-user mode only."""
+    """Add the login/logout routes + the auth middleware."""
     from starlette.responses import HTMLResponse, RedirectResponse
 
     from . import auth, config
@@ -744,7 +738,7 @@ def _mount_auth(app) -> None:
         password = form.get("password") or ""
         # when the approval gate is on, new accounts land pending and must be approved
         # (`eklavya approve <email>`) before they can log in — no self-service access.
-        pending = config.MULTIUSER and config.SIGNUP_APPROVAL
+        pending = config.SIGNUP_APPROVAL
         try:
             uid = auth.create_user(email, password, status="pending" if pending else "active")
         except ValueError as exc:
