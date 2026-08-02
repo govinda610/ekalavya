@@ -328,10 +328,13 @@
   function buildTemple() {
     var g = new T.Group();
     var mat = new T.MeshStandardMaterial({
-      color: COL.goldBright, emissive: COL.gold, emissiveIntensity: 1.6,
+      // emissive pulled back so the shikhara tiers read as gold DETAIL (banded by the flat
+      // shading) rather than a white silhouette; still glowing, still the horizon anchor.
+      color: COL.goldBright, emissive: COL.gold, emissiveIntensity: 0.85,
       roughness: 0.28, metalness: 0.45, flatShading: true, fog: false,
     });
-    var brightMat = new T.MeshBasicMaterial({ color: 0xfff0c0, fog: false });   // doorway/finials glow
+    // warm amber (not near-white) so the doorway/finials glow keeps colour instead of clipping.
+    var brightMat = new T.MeshBasicMaterial({ color: 0xffdf9a, fog: false });   // doorway/finials glow
     // tiered base platform (two steps)
     var p1 = new T.Mesh(new T.BoxGeometry(46, 3, 30), mat); p1.position.y = 1.5; g.add(p1);
     var p2 = new T.Mesh(new T.BoxGeometry(38, 3, 24), mat); p2.position.y = 4.5; g.add(p2);
@@ -358,9 +361,10 @@
     // a glowing arched DOORWAY at the base of the central tower (the destination beckons)
     var door = new T.Mesh(new T.PlaneGeometry(6, 9), brightMat);
     door.position.set(0, 10, 11.2); g.add(door);
-    var doorGlow = glowSprite(0xfff0c8, 22, 0.7, true); doorGlow.position.set(0, 10, 12); g.add(doorGlow);
-    // a strong warm beacon light + a layered halo so the temple blazes on the horizon
-    var glow = new T.PointLight(0xffd98a, 2.2, 200, 2.0); glow.position.y = topY * 0.5; g.add(glow);
+    var doorGlow = glowSprite(0xffe6b4, 20, 0.45, true); doorGlow.position.set(0, 10, 12); g.add(doorGlow);
+    // a warm beacon light + a layered halo so the temple glows on the horizon (dialed back
+    // from the previous blazing value that clipped the whole temple to white).
+    var glow = new T.PointLight(0xffd98a, 1.3, 200, 2.0); glow.position.y = topY * 0.5; g.add(glow);
     g.userData.mats = [mat, brightMat]; g.userData.topY = topY;
     return g;
   }
@@ -434,8 +438,9 @@
       var sub = [];
       for (var i = 0; i <= n; i++) sub.push(curve.getPoint(t0 + (t1 - t0) * i / n));
       var c2 = new T.CatmullRomCurve3(sub);
-      // broad soft under-glow (bleeds light onto the ground either side)
-      var gmat = new T.MeshBasicMaterial({ color: edge, transparent: true, opacity: op * 0.26,
+      // broad soft under-glow (bleeds light onto the ground either side) — kept gentle so
+      // it lights the ground without the additive layers summing to white near the camera.
+      var gmat = new T.MeshBasicMaterial({ color: edge, transparent: true, opacity: op * 0.16,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
       var geo0 = new T.TubeGeometry(c2, n, width * 2.2, 10, false); geo0.scale(1, 0.05, 1);
       var m0 = new T.Mesh(geo0, gmat); m0.position.y += 0.15; g.add(m0);
@@ -446,16 +451,19 @@
       var m = new T.Mesh(geo, mat); m.position.y += 0.4; g.add(m);
       // a bright inner stripe running down the middle (the flowing-energy core) — kept
       // slimmer + gentler so it reads as a glow, not a blown-out white streak up close.
-      var smat = new T.MeshBasicMaterial({ color: 0xfff6e0, transparent: true, opacity: op * 0.55,
+      // Warm gold (not near-white) + low additive opacity so it keeps colour instead of clipping.
+      var smat = new T.MeshBasicMaterial({ color: 0xffe6b0, transparent: true, opacity: op * 0.3,
         blending: T.AdditiveBlending, depthWrite: false, fog: false });
       var geoS = new T.TubeGeometry(c2, n, width * 0.24, 8, false); geoS.scale(1, 0.22, 1);
       var mS = new T.Mesh(geoS, smat); mS.position.y += 0.55; g.add(mS);
       g.userData.disposables = (g.userData.disposables || []).concat([geo0, gmat, geo, mat, geoS, smat]);
       return m;
     }
-    // traveled (warm gold, bright HDR → blooms) → ahead (luminous teal toward the temple)
-    ribbon(0, travT, COL.gold, 1.7, 0xffd98a, 3.4, 0.96);
-    if (travT < 1) ribbon(travT, 1, COL.teal, 1.5, COL.tealBright, 3.0, 0.88);
+    // traveled (warm gold) → ahead (luminous teal toward the temple). Emissive kept well
+    // below full-white so the ribbon glows + blooms but keeps its gold→teal gradient and
+    // inner-stripe detail instead of clipping to a flat white river near the camera.
+    ribbon(0, travT, COL.gold, 0.85, 0xffd98a, 3.4, 0.9);
+    if (travT < 1) ribbon(travT, 1, COL.teal, 0.8, COL.tealBright, 3.0, 0.82);
     g.userData.curve = curve;
     return g;
   }
@@ -871,13 +879,20 @@
 
     // --- lights: warm ambient + a moon key ABOVE-FRONT (lights tree fronts) + a warm rim
     //     from the temple side. The front key is the fix for trees reading as dark cutouts. -
-    scene.add(new T.HemisphereLight(0xd0bce0, 0x40364e, 1.35));  // bright warm-violet ambient
+    // bright warm-violet ambient; the GROUND term is lifted to a warmer, lighter mauve so
+    // backlit tree UNDERSIDES keep a touch of warm colour instead of going pure black (the
+    // refs have no black tree faces). A gentle wrap fill from below-front does the same.
+    scene.add(new T.HemisphereLight(0xd0bce0, 0x5a4a66, 1.45));
     var moon = new T.DirectionalLight(0xf4f0ff, 1.5);            // strong key, high + toward camera
     moon.position.set(40, 120, 150); scene.add(moon);           // +Z → lights the camera-facing foliage
     var warmRim = new T.DirectionalLight(0xffca80, 1.0);         // warm rim from the temple/horizon
     warmRim.position.set(0, 50, -140); scene.add(warmRim);
     var coolFill = new T.DirectionalLight(0x9fb8e0, 0.4);        // gentle cool side fill for form
     coolFill.position.set(-90, 40, 40); scene.add(coolFill);
+    // a low WARM wrap fill from below-front so the shaded, camera-facing tree undersides keep
+    // a warm glow instead of crushing to black (a cheap half-lambert stand-in via a soft light).
+    var wrapFill = new T.DirectionalLight(0xffcaa0, 0.35);
+    wrapFill.position.set(0, 8, 90); scene.add(wrapFill);
 
     // --- moon disc + haze, high over the far ridge (up-right of the temple) ----
     var moonGroup = new T.Group();
@@ -991,11 +1006,15 @@
       scene.add(piece);
       pickables.push({ obj: tree, grove: gd, x: L.x, y: gy, z: L.z, piece: piece });
 
-      // soft aura HALO behind lit trees (subtle — bloom lifts it without washing the tree)
+      // soft aura HALO behind lit trees (subtle — bloom lifts it without washing the tree).
+      // Smaller + fainter than before, and auras on groves NEAR the camera (foreground, high
+      // +Z) shrink & dim further so the near grove aura + path + ground-light don't sum into a
+      // central white blob. `nearK` → 1 far from the camera, → ~0.4 for the closest grove.
       if (!st.bare) {
-        var aura = glowSprite(st.glow, 30 * scale, 0.22);
+        var nearK = 1 - 0.6 * Math.max(0, Math.min(1, (L.z - (templeZ + 40)) / 120));
+        var aura = glowSprite(st.glow, 20 * scale * (0.7 + 0.3 * nearK), 0.13 * nearK);
         aura.position.set(L.x, gy + 12 * scale, L.z - 2);
-        scene.add(aura); auras.push({ sp: aura, status: gd.status });
+        scene.add(aura); auras.push({ sp: aura, status: gd.status, nearK: nearK });
       }
       // hanging LANTERN(s) from each lit grove; a real warm light on the nearest few.
       if (!st.bare) {
@@ -1078,13 +1097,14 @@
       blending: T.AdditiveBlending, depthWrite: false });
     var ring2 = new T.Mesh(ring2Geo, ring2Mat); ring2.rotation.x = Math.PI / 2; ring2.position.y = 0.5;
     g.add(ring2);
-    // ground glow disc filling the ring (soft, additive — no edges)
-    var disc = glowSprite(COL.teal, 26, 0.3); disc.position.y = 1.2;
+    // ground glow disc filling the ring (soft, additive — no edges). Kept small + faint so
+    // it reads as a halo on the earth, not a central sunburst in the drill-in view.
+    var disc = glowSprite(COL.teal, 20, 0.18); disc.position.y = 1.2;
     disc.material.rotation = 0; g.add(disc);
     // a faint upward glow column made of stacked fading sprites (soft, edgeless)
     var col = new T.Group();
     for (var i = 0; i < 4; i++) {
-      var sp = glowSprite(COL.tealBright, 16 - i * 2, 0.16 - i * 0.03);
+      var sp = glowSprite(COL.tealBright, 13 - i * 2, 0.10 - i * 0.02);
       sp.position.y = 6 + i * 7; col.add(sp);
     }
     g.add(col);
@@ -1181,7 +1201,7 @@
     // ACES filmic tone mapping — the single biggest flat→cinematic upgrade. Exposure
     // tuned against the rendered scene (a touch under 1 keeps the night moody).
     r.toneMapping = T.ACESFilmicToneMapping;
-    r.toneMappingExposure = 1.12;
+    r.toneMappingExposure = 1.0;
     if (T.sRGBEncoding != null) r.outputEncoding = T.sRGBEncoding;
     return r;
   }
@@ -1222,10 +1242,11 @@
   function makeComposer(renderer, scene, cam, w, h) {
     var composer = new T.EffectComposer(renderer);
     composer.addPass(new T.RenderPass(scene, cam));
-    // strength moderate, radius soft, threshold HIGH so only the truly bright emitters
-    // (path, lanterns, temple, fireflies, rings) bloom — the lit tree crowns keep their
-    // silhouette instead of washing to a white blob.
-    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.42, 0.7, 1.0);
+    // strength gentle, radius soft, threshold HIGH so bloom HALOS the true emitters
+    // (path, lanterns, temple, fireflies, rings) instead of flooding the midtones to white.
+    // Lowered strength + raised threshold from the previous pass, which stacked into a
+    // central white blob near the camera.
+    var bloom = new T.UnrealBloomPass(new T.Vector2(w, h), 0.28, 0.7, 1.25);
     composer.addPass(bloom);
     var grade = new T.ShaderPass(GradeShader);
     grade.renderToScreen = true;
@@ -1417,11 +1438,12 @@
           var tr = st.pickables[i].obj, cp = tr.userData.canopy;
           if (cp) cp.rotation.z = Math.sin(t * 0.8 + i) * 0.03;
         }
-        // aura pulse (soft halo behind lit groves)
+        // aura pulse (soft halo behind lit groves) — scaled by nearK so foreground auras stay
+        // faint and never pulse back up into the central white blob.
         for (var a = 0; a < st.auras.length; a++) {
           var au = st.auras[a];
-          var base = au.status === "active" ? 0.28 : au.status === "blossoming" ? 0.24 : 0.18;
-          au.sp.material.opacity = base + Math.sin(t * 1.6 + a) * 0.08;
+          var base = au.status === "active" ? 0.17 : au.status === "blossoming" ? 0.15 : 0.11;
+          au.sp.material.opacity = (base + Math.sin(t * 1.6 + a) * 0.05) * (au.nearK != null ? au.nearK : 1);
         }
         // you-are-here ring pulse (breathes) + soft glow shimmer
         if (st.youHere) {
@@ -1429,7 +1451,7 @@
           var s = 1 + Math.sin(t * 1.6) * 0.05;
           yh.ring.scale.set(s, s, s);
           if (yh.ring2) yh.ring2.material.opacity = 0.28 + Math.sin(t * 1.6) * 0.1;
-          if (yh.glow) yh.glow.material.opacity = 0.26 + Math.sin(t * 1.6) * 0.08;
+          if (yh.glow) yh.glow.material.opacity = 0.15 + Math.sin(t * 1.6) * 0.05;
         }
         // hanging lanterns bob-flicker (glow + real light intensity)
         for (var ln = 0; ln < st.lanterns.length; ln++) {
