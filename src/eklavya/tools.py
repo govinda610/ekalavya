@@ -907,8 +907,9 @@ def assessment_items(n: int = 8, subject: str = DEFAULT_SUBJECT) -> str:
     prompt to pose, the private `answer` KEY, and any tolerance/rubric for grading. The key
     is for YOUR grading ONLY — never reveal, hint at, or teach it during the sitting. Items
     are spread across difficulty and pillar and avoid ones seen in the last couple of
-    sittings. Grade objective items with grade_and_record_subject; record the whole sitting
-    with `record_assessment` at the end. `subject` defaults to coding.
+    sittings. Grade EVERY item with `grade_assessment_item` (objective, sandbox/deterministic
+    — it does NOT touch the teaching grid), then record the whole sitting with
+    `record_assessment` at the end. `subject` defaults to coding.
     """
     import json
 
@@ -928,6 +929,54 @@ def assessment_items(n: int = 8, subject: str = DEFAULT_SUBJECT) -> str:
          "answer": it["answer"], "tolerance": it["tolerance"], "rubric": it["rubric"]}
         for it in items
     ])
+
+
+def grade_assessment_item(answer: str, answer_type: str, key: str, tests: str = "",
+                          tolerance: str = "") -> str:
+    """OBJECTIVELY grade ONE frozen-benchmark item during an assessment sitting.
+
+    This is the assessment-only grader: it decides pass/fail with the SAME ground-truth
+    machinery the teaching graders use — the code sandbox for `answer_type="code"`, the
+    deterministic graders (numeric/symbolic/units/choice) otherwise — but it deliberately
+    records NOTHING here. It does NOT touch the teaching grid: no Elo, no XP, no streak, no
+    attempt row. That keeps the frozen benchmark a non-circular ruler — sitting it must not
+    move the very numbers it measures. Collect each verdict and pass them all to
+    `record_assessment` at the end, which writes ONLY to the assessments/responses tables.
+
+    - answer:      the learner's answer, verbatim.
+    - answer_type: code | numeric | symbolic | units | choice.
+    - key:         the item's objective `answer` key (from `assessment_items`).
+    - tests:       for a code item, the test snippet to run the learner's code against.
+    - tolerance:   optional JSON for a numeric item, e.g. '{"abs": 0.01}'.
+
+    Returns a compact JSON string: {"correct": <bool>, "score": <0..1>, "detail": "..."}.
+    For a genuinely non-deterministic item (proof/interpretation with only a rubric) this
+    returns an error verdict — such items are not part of the objective θ ruler.
+    """
+    import json
+
+    atype = (answer_type or "").strip()
+    if atype == "code":
+        from .sandbox import run_tests
+
+        if not (tests or "").strip():
+            return json.dumps({"correct": False, "score": 0.0,
+                               "detail": "no tests supplied for a code item"})
+        r = run_tests(answer, tests)
+        return json.dumps({"correct": bool(r.ok), "score": 1.0 if r.ok else 0.0,
+                           "detail": f"sandbox {'pass' if r.ok else 'fail'} ({r.seconds:.2f}s)"})
+
+    from . import graders
+
+    if atype not in graders.DETERMINISTIC_TYPES:
+        return json.dumps({"correct": False, "score": 0.0,
+                           "detail": f"'{atype}' is not objectively gradable; excluded from θ"})
+    try:
+        res = graders.grade(answer, {"answer_type": atype, "answer": key, "tolerance": tolerance})
+    except ValueError as e:
+        return json.dumps({"correct": False, "score": 0.0, "detail": f"grading error: {e}"})
+    return json.dumps({"correct": res.score >= PASS_THRESHOLD, "score": res.score,
+                       "detail": res.detail})
 
 
 def record_assessment(outcomes: list, context: str = "", subject: str = DEFAULT_SUBJECT) -> str:
@@ -1003,7 +1052,10 @@ ONBOARDING_TOOLS = AGENT_TOOLS
 SESSION_TOOLS = AGENT_TOOLS
 AIINTERVIEW_TOOLS = AGENT_TOOLS
 
-# Tier-1 assessment: a DELIBERATELY MINIMAL toolset — pull frozen items, grade code if
-# needed, record the sitting. No suggest_focus, no teaching aids: the assessment must not
-# adapt to or teach the learner (that's what keeps the benchmark a non-circular ruler).
-ASSESSMENT_TOOLS = [assessment_items, grade_and_record, grade_and_record_subject, record_assessment]
+# Tier-1 assessment: a DELIBERATELY MINIMAL toolset — pull frozen items, grade each item
+# OBJECTIVELY (sandbox/deterministic) WITHOUT touching the teaching grid, record the sitting.
+# grade_and_record / grade_and_record_subject are excluded on purpose: they award Elo/XP/
+# streak, which would let the frozen benchmark contaminate the very ratings it measures.
+# grade_assessment_item records nothing; record_assessment writes ONLY to assessments/
+# responses. No suggest_focus, no teaching aids — that keeps the benchmark a non-circular ruler.
+ASSESSMENT_TOOLS = [assessment_items, grade_assessment_item, record_assessment]

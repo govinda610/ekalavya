@@ -775,10 +775,12 @@ FLOW:
 
 2. ADMINISTER one item at a time, easy→hard, exactly as given:
    - Pose ONLY the item's `prompt`. Wait for their answer. Do not comment on correctness.
-   - For a coding item, you MAY use `grade_and_record` ONLY to run their code against tests
-     to get an objective pass/fail — never to teach. For short-answer items, judge their
-     answer against the item's `answer` key yourself (objective match / does it capture the
-     key idea?). Record whether they were correct (true/false) and roughly how long they took.
+   - GRADE every item with `grade_assessment_item(answer, answer_type, key, tests?, tolerance?)`
+     — it decides pass/fail OBJECTIVELY (the sandbox for a code item, a deterministic grader
+     for numeric/symbolic/units/choice) and returns {"correct", "score", "detail"}. Do NOT
+     judge a short-answer yourself and do NOT use the teaching graders here — this tool records
+     nothing to the mastery grid, which is what keeps the benchmark honest. Note the correct
+     flag and roughly how long they took.
    - Then move straight to the next item. No debrief between items.
 
 3. CLOSE: once every item is done, call `record_assessment(outcomes, context)` ONCE with
