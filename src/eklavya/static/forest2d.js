@@ -158,6 +158,14 @@
       radial('pondG', 50, 42, 62, [[0, 'rgba(120,224,214,.5)'], [0.4, 'rgba(46,163,160,.34)'], [0.8, 'rgba(18,77,76,.5)'], [1, 'rgba(9,26,26,.7)']]),
       // diya / oil-lamp flame — a warm ember teardrop of light
       radial('diyaG', 50, 55, 60, [[0, '#fff2c4'], [0.35, C.goldBright], [0.7, 'rgba(231,182,75,.4)'], [1, 'rgba(217,122,60,0)']]),
+      // --- CREATURE CONTRAST + ENCHANTMENT halos -----------------------------
+      // soft DARK vignette placed UNDER a creature so its silhouette separates from busy
+      // foliage (the pop-against-background cue). Deepest at centre, fading to nothing.
+      radial('critShade', 50, 55, 60, [[0, 'rgba(4,8,10,.55)'], [0.55, 'rgba(6,12,12,.34)'], [1, 'rgba(6,12,12,0)']]),
+      // warm-gold SPIRIT aura (luminous deer / peacock / lantern-bearer)
+      radial('spiritGold', 50, 50, 60, [[0, 'rgba(255,244,204,.85)'], [0.35, 'rgba(247,217,138,.5)'], [0.7, 'rgba(231,182,75,.16)'], [1, 'rgba(231,182,75,0)']]),
+      // cool-teal SPIRIT aura (luminous naga / apsara / ghost-elephant)
+      radial('spiritTeal', 50, 50, 60, [[0, 'rgba(214,251,244,.85)'], [0.35, 'rgba(120,224,214,.5)'], [0.7, 'rgba(87,211,206,.16)'], [1, 'rgba(87,211,206,0)']]),
       // divine radiance behind the temple shikhara (sacred sunburst glow)
       radial('divineG', 50, 50, 60, [[0, 'rgba(255,244,210,.55)'], [0.35, 'rgba(247,217,138,.28)'], [0.7, 'rgba(231,182,75,.10)'], [1, 'rgba(231,182,75,0)']]),
       // lotus / rangoli petal sheen
@@ -177,6 +185,21 @@
       '<filter id="soft2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="14"/></filter>',
       '<filter id="soft1" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="2.2"/></filter>',
       '<filter id="glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
+      // CREATURE RIM-LIGHT: a soft dark drop-halo hugging the silhouette (so animals read
+      // against dense foliage) plus a faint pale rim, then the creature on top. Cheap: one
+      // blur + two offsets. Applied to every creature group.
+      '<filter id="critRim" x="-45%" y="-45%" width="190%" height="190%">' +
+        '<feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="halo"/>' +
+        '<feFlood flood-color="#05100e" flood-opacity="0.7" result="dk"/>' +
+        '<feComposite in="dk" in2="halo" operator="in" result="darkHalo"/>' +
+        '<feFlood flood-color="#dff4ea" flood-opacity="0.55" result="lt"/>' +
+        '<feComposite in="lt" in2="SourceAlpha" operator="in" result="rimFull"/>' +
+        '<feOffset in="rimFull" dx="-0.8" dy="-1.1" result="rimHi"/>' +
+        '<feComposite in="SourceAlpha" in2="rimHi" operator="out" result="rim"/>' +
+        '<feMerge><feMergeNode in="darkHalo"/><feMergeNode in="rim"/><feMergeNode in="SourceGraphic"/></feMerge>' +
+      '</filter>',
+      // spirit-creature glow: a coloured luminous bloom around a luminous creature.
+      '<filter id="critGlow" x="-90%" y="-90%" width="280%" height="280%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
       '<filter id="paper"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .04 0"/></filter>'
     ].join('');
     return d;
@@ -237,15 +260,55 @@
       '  .crit-guru:hover .sage-aura{animation:pulse 1.6s ease-in-out infinite}',
       '  .flock-g{transition:transform .3s ease; transform-box:fill-box}',
       '  .flock-g:hover{transform:translateY(-3px)}',
+      '  .crit-perched:hover .crit-perched-body{animation:hop .4s ease-in-out infinite}',
       '  .pond:hover .pond-ripple{animation-duration:2.4s !important}',
-      '  .lotus-bloom{transition:transform .4s ease; transform-origin:center}',
-      '  .pond:hover .lotus-bloom{transform:scale(1.5)}',
+      '  .lotus-bloom{transition:transform .4s ease; transform-box:fill-box; transform-origin:center}',
+      '  .lotus-breathe{animation:breathe 6s ease-in-out infinite; animation-delay:var(--ph,0s)}',
+      '  .pond:hover .lotus-bloom{animation:none; transform:scale(1.5)}',   // hover overrides breathe
+      '  @keyframes breathe{0%,100%{transform:scale(0.82)}50%{transform:scale(1.15)}}',
       '  .diya-flame{transition:transform .2s ease; transform-box:fill-box; transform-origin:center bottom}',
       '  .diya:hover .diya-flame{animation:flick .3s ease-in-out infinite}',
+      // ================= AMBIENT (always-on) micro-life ===================
+      // A deterministic SUBSET of creatures carry `.ambient` (capped, so we never animate the
+      // whole cast at once) + an inline `--ph` phase so the loops are staggered/organic. All
+      // use transform/opacity only (compositor-friendly) and live inside this reduced-motion
+      // media block, so prefers-reduced-motion stops every bit of it. `fill-box` keeps each
+      // part rotating about its own geometry regardless of the creature's placement transform.
+      '  .amb,.amb-body{transform-box:fill-box}',
+      '  .crit-deer.ambient .deer-head{animation:graze 5.5s ease-in-out infinite; animation-delay:var(--ph,0s); transform-origin:left bottom}',
+      '  .crit-deer.ambient .deer-tail{animation:flick2 2.6s ease-in-out infinite; animation-delay:var(--ph,0s)}',
+      '  .crit-peacock.ambient .peacock-tail{animation:shimmer 4.5s ease-in-out infinite; animation-delay:var(--ph,0s); transform-origin:right center}',
+      '  .crit-monkey.ambient .amb-body{animation:bob 2.8s ease-in-out infinite; animation-delay:var(--ph,0s)}',
+      '  .crit-monkey-swing.ambient .amb-body{animation:swingm 3.2s ease-in-out infinite; animation-delay:var(--ph,0s); transform-origin:center top}',
+      '  .crit-naga.ambient .naga-hood{animation:slither 4s ease-in-out infinite; animation-delay:var(--ph,0s); transform-origin:center bottom}',
+      '  .crit-elephant.ambient .amb-body{animation:esway 6s ease-in-out infinite; animation-delay:var(--ph,0s)}',
+      '  .crit-elephant.ambient .eleph-trunk{animation:trunk 5s ease-in-out infinite; animation-delay:var(--ph,0s); transform-origin:left top}',
+      '  .crit-perched.ambient .crit-perched-body{animation:tweet 3.4s ease-in-out infinite; animation-delay:var(--ph,0s)}',
+      // FLORA breeze: a bounded subset of trees + understorey sway. Trees get `.breeze`,
+      // grass/ferns get `.gbreeze` — both staggered by inline --ph.
+      '  .breeze{animation:treesway 6.5s ease-in-out infinite; animation-delay:var(--ph,0s); transform-box:fill-box; transform-origin:center bottom}',
+      '  .gbreeze{animation:grasswave 4.2s ease-in-out infinite; animation-delay:var(--ph,0s); transform-box:fill-box; transform-origin:center bottom}',
+      // hovering a tree rustles it harder (faster, wider sway); hovering a flock scatters it.
+      '  .tree-breeze:hover{animation:treerustle 0.6s ease-in-out infinite; cursor:default}',
+      '  .flock:hover .flock-bird{animation:scatter 0.5s ease-out forwards}',
+      '  @keyframes treerustle{0%,100%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}}',
+      '  @keyframes scatter{to{transform:translate(var(--sx,4px),var(--sy,-3px))}}',
       '  @keyframes spin{to{transform:rotate(360deg)}}',
       '  @keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}',
       '  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:.85}}',
       '  @keyframes flick{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.28) translateY(-1px)}}',
+      '  @keyframes graze{0%,72%,100%{transform:rotate(0)}84%{transform:rotate(24deg)}}',   // head dips to graze
+      '  @keyframes flick2{0%,88%,100%{transform:rotate(0)}94%{transform:rotate(-14deg)}}',  // tail flick
+      '  @keyframes shimmer{0%,100%{transform:scaleX(1) scaleY(1)}50%{transform:scaleX(1.05) scaleY(1.03)}}',
+      '  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.2px)}}',
+      '  @keyframes swingm{0%,100%{transform:rotate(-7deg)}50%{transform:rotate(7deg)}}',
+      '  @keyframes slither{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}',
+      '  @keyframes esway{0%,100%{transform:translateX(-1px) rotate(-1deg)}50%{transform:translateX(1px) rotate(1deg)}}',
+      '  @keyframes trunk{0%,100%{transform:rotate(0)}50%{transform:rotate(-10deg)}}',
+      '  @keyframes tweet{0%,80%,100%{transform:translateY(0)}90%{transform:translateY(-1.6px)}}',
+      '  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
+      '  @keyframes treesway{0%,100%{transform:rotate(-1.1deg)}50%{transform:rotate(1.1deg)}}',
+      '  @keyframes grasswave{0%,100%{transform:skewX(-4deg)}50%{transform:skewX(4deg)}}',
       '}'
     ].join('');
   }
@@ -665,165 +728,292 @@
     return gg;
   }
 
-  // a serene meditating GURU/sage silhouette in lotus posture, faint aureole (echo of alt5).
+  // a serene meditating GURU/sage silhouette in lotus posture, glowing aureole (echo of alt5).
   function guru(parent, x, y, s, reduced) {
     s = s || 1;
     const gg = el('g', { class: 'crit crit-guru', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
-    el('rect', { x: -22, y: -34, width: 44, height: 46, fill: 'transparent', 'pointer-events': 'all' }, gg);   // hit-area
-    const halo = el('circle', { class: 'sage-aura', cx: 0, cy: -14, r: 20, fill: 'url(#nodeGold)', opacity: 0.35 }, gg);
-    if (!reduced) anim(halo, 'opacity', '0.4', '0.18', '5s');
-    el('ellipse', { cx: 0, cy: 6, rx: 20, ry: 5, fill: '#0a1712', opacity: 0.5 }, gg);        // ground shadow
+    el('rect', { x: -28, y: -42, width: 56, height: 56, fill: 'transparent', 'pointer-events': 'all' }, gg);   // hit-area
+    // contrast pool so the sage separates from foliage
+    el('ellipse', { cx: 0, cy: -12, rx: 30, ry: 26, fill: 'url(#critShade)', 'pointer-events': 'none' }, gg);
+    // luminous golden aureole (spirit halo behind the head/shoulders)
+    const spirit = el('circle', { cx: 0, cy: -18, r: 26, fill: 'url(#spiritGold)', opacity: 0.7, 'pointer-events': 'none' }, gg);
+    if (!reduced) anim(spirit, 'opacity', '0.8', '0.4', '6s');
+    const halo = el('circle', { class: 'sage-aura', cx: 0, cy: -20, r: 16, fill: 'none', stroke: C.goldBright, 'stroke-width': 1.2, opacity: 0.55, 'pointer-events': 'none' }, gg);
+    if (!reduced) anim(halo, 'opacity', '0.6', '0.22', '5s');
+    const body = el('g', { filter: 'url(#critRim)' }, gg);
+    el('ellipse', { cx: 0, cy: 8, rx: 26, ry: 6, fill: '#0a1712', opacity: 0.5 }, body);        // ground shadow
     // crossed-leg base
-    el('path', { d: 'M-18,4 Q0,-2 18,4 Q0,10 -18,4 Z', fill: '#12201a' }, gg);
+    el('path', { d: 'M-24,6 Q0,-2 24,6 Q0,13 -24,6 Z', fill: '#16281f' }, body);
     // torso + shoulders (robed)
-    el('path', { d: 'M-11,2 C-12,-12 -6,-20 0,-20 C6,-20 12,-12 11,2 Z', fill: '#16241d' }, gg);
+    el('path', { d: 'M-15,4 C-16,-16 -8,-27 0,-27 C8,-27 16,-16 15,4 Z', fill: '#1c3226' }, body);
     // saffron shawl accent
-    el('path', { d: 'M-9,-2 C-6,-12 6,-12 9,-2', fill: 'none', stroke: C.ember, 'stroke-width': 2, opacity: 0.7 }, gg);
-    el('circle', { cx: 0, cy: -24, r: 5, fill: '#1a2a22' }, gg);                                // head
-    el('circle', { cx: 0, cy: -25, r: 1.2, fill: C.gold, opacity: 0.8 }, gg);                   // tilak/bindu
+    el('path', { d: 'M-12,-3 C-8,-16 8,-16 12,-3', fill: 'none', stroke: C.ember, 'stroke-width': 2.4, opacity: 0.8 }, body);
+    el('circle', { cx: 0, cy: -32, r: 6.5, fill: '#243a2e' }, body);                             // head
+    el('circle', { cx: 0, cy: -33, r: 1.5, fill: C.gold, opacity: 0.9 }, body);                  // tilak/bindu
     return gg;
   }
 
   // a PEACOCK (mor) — the iconic bird: a jewelled teal body with an S-curved neck & crest,
   // and a long SPREADING TRAIN of eye-feathers (ocelli) behind it. `fanned` shows the full
   // display fan; otherwise a graceful trailing train. Reads unmistakably as a peacock.
-  function peacock(parent, x, y, s, dir, reduced, fanned) {
+  function peacock(parent, x, y, s, dir, reduced, fanned, spirit) {
     s = s || 1; dir = dir || 1;
-    const gg = el('g', { class: 'crit crit-peacock', transform: 'translate(' + x + ',' + y + ') scale(' + (s * dir) + ',' + s + ')' }, parent);
-    el('rect', { x: -48, y: -34, width: 72, height: 50, fill: 'transparent', 'pointer-events': 'all' }, gg);   // hit-area
+    const wrap = el('g', { class: 'crit crit-peacock' + (spirit ? ' crit-spirit' : ''), transform: 'translate(' + x + ',' + y + ') scale(' + (s * dir) + ',' + s + ')' }, parent);
+    el('rect', { x: -56, y: -40, width: 84, height: 58, fill: 'transparent', 'pointer-events': 'all' }, wrap);   // hit-area
+    // contrast pool under the bird so its jewelled body reads against foliage
+    el('ellipse', { cx: -6, cy: -4, rx: fanned ? 42 : 34, ry: 26, fill: 'url(#critShade)', 'pointer-events': 'none' }, wrap);
+    if (spirit) {
+      const aura = el('ellipse', { class: 'crit-aura', cx: -4, cy: -6, rx: fanned ? 44 : 34, ry: 30, fill: 'url(#spiritTeal)', opacity: 0.75, 'pointer-events': 'none' }, wrap);
+      if (!reduced) anim(aura, 'opacity', '0.85', '0.45', '3s');
+    }
+    const gg = el('g', { filter: 'url(#critRim)' }, wrap);
     const eye = (fx, fy, rr) => {   // one ocellus "eye" feather tip
-      el('ellipse', { cx: fx.toFixed(1), cy: fy.toFixed(1), rx: (rr * 1.15).toFixed(1), ry: rr.toFixed(1), fill: '#1f8f78', opacity: 0.85 }, tail);
-      el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.62).toFixed(1), fill: '#2f5fa0', opacity: 0.9 }, tail);
+      el('ellipse', { cx: fx.toFixed(1), cy: fy.toFixed(1), rx: (rr * 1.15).toFixed(1), ry: rr.toFixed(1), fill: spirit ? '#57d3ce' : '#1f8f78', opacity: 0.9 }, tail);
+      el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.62).toFixed(1), fill: spirit ? '#7fb0e0' : '#2f5fa0', opacity: 0.95 }, tail);
       el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.3).toFixed(1), fill: C.goldBright }, tail);
     };
     const tail = el('g', { class: 'peacock-tail' }, gg);
+    const shaftCol = spirit ? '#57d3ce' : '#146a66';
     if (fanned) {
       // full display fan sweeping up & out behind the body (a wide arc of eye-feathers)
-      const shafts = 11;
+      const shafts = 13;
       for (let i = 0; i < shafts; i++) {
-        const a = (-95 + (i / (shafts - 1)) * 190) * Math.PI / 180;   // -95°..+95°
-        const len = 40 + Math.cos(a) * 8;
+        const a = (-98 + (i / (shafts - 1)) * 196) * Math.PI / 180;   // -98°..+98°
+        const len = 52 + Math.cos(a) * 10;
         const ex = -6 + Math.sin(a) * len, ey = -4 - Math.cos(a) * len;
         el('path', { d: 'M-4,2 Q' + (ex * 0.5 - 2).toFixed(1) + ',' + (ey * 0.5).toFixed(1) + ' ' + ex.toFixed(1) + ',' + ey.toFixed(1),
-          fill: 'none', stroke: '#146a66', 'stroke-width': 1, opacity: 0.5 }, tail);
-        eye(ex, ey, 3.2 - Math.abs(i - (shafts - 1) / 2) * 0.18);
+          fill: 'none', stroke: shaftCol, 'stroke-width': 1.2, opacity: 0.55 }, tail);
+        eye(ex, ey, 4 - Math.abs(i - (shafts - 1) / 2) * 0.18);
       }
     } else {
       // graceful trailing TRAIN — long curved feathers streaming behind (to the left)
-      const feathers = 7;
+      const feathers = 8;
       for (let i = 0; i < feathers; i++) {
-        const spread = (i - (feathers - 1) / 2) * 6;      // vertical spread of the train
-        const len = 40 + (feathers - i) * 3;
-        const ex = -len, ey = 8 + spread;
+        const spread = (i - (feathers - 1) / 2) * 7;      // vertical spread of the train
+        const len = 52 + (feathers - i) * 4;
+        const ex = -len, ey = 10 + spread;
         el('path', { d: 'M-5,2 Q' + (-len * 0.5).toFixed(1) + ',' + (spread * 0.5 - 2).toFixed(1) + ' ' + ex.toFixed(1) + ',' + ey.toFixed(1),
-          fill: 'none', stroke: '#146a66', 'stroke-width': 1.1, opacity: 0.55 }, tail);
-        eye(ex, ey, 2.8);
+          fill: 'none', stroke: shaftCol, 'stroke-width': 1.3, opacity: 0.6 }, tail);
+        eye(ex, ey, 3.4);
       }
       // a few barb wisps for softness
-      for (let i = 0; i < 4; i++) el('path', { d: 'M-6,4 Q-' + (24 + i * 8) + ',' + (10 + i * 3) + ' -' + (40 + i * 8) + ',' + (16 + i * 4), fill: 'none', stroke: '#1f8f78', 'stroke-width': 0.6, opacity: 0.4 }, tail);
+      for (let i = 0; i < 4; i++) el('path', { d: 'M-6,4 Q-' + (30 + i * 9) + ',' + (12 + i * 3) + ' -' + (50 + i * 9) + ',' + (20 + i * 4), fill: 'none', stroke: spirit ? '#7fe6df' : '#1f8f78', 'stroke-width': 0.7, opacity: 0.45 }, tail);
     }
     // plump teal body
-    el('ellipse', { cx: 4, cy: 2, rx: 9, ry: 7, fill: '#124d4c' }, gg);
-    el('ellipse', { cx: 5, cy: 0, rx: 6, ry: 4, fill: '#1a7d78', opacity: 0.7 }, gg);            // breast sheen
+    const bodyCol = spirit ? '#2f8478' : '#124d4c', sheenCol = spirit ? '#7fe6df' : '#1a7d78';
+    el('ellipse', { cx: 5, cy: 2, rx: 11, ry: 8.5, fill: bodyCol }, gg);
+    el('ellipse', { cx: 6, cy: 0, rx: 7, ry: 5, fill: sheenCol, opacity: 0.75 }, gg);            // breast sheen
     // S-curved neck rising forward-right
-    el('path', { d: 'M11,-1 C18,-4 19,-13 16,-18', fill: 'none', stroke: '#146a66', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, gg);
-    el('circle', { cx: 16, cy: -19, r: 3.2, fill: '#1a7d78' }, gg);                              // head
-    el('path', { d: 'M18,-19 l3,-0.5', stroke: C.gold, 'stroke-width': 1.2, 'stroke-linecap': 'round' }, gg);   // beak
-    el('circle', { cx: 15.5, cy: -19.5, r: 0.7, fill: '#08120e' }, gg);                          // eye
+    el('path', { d: 'M13,-1 C22,-5 23,-16 19,-22', fill: 'none', stroke: spirit ? '#57d3ce' : '#146a66', 'stroke-width': 5, 'stroke-linecap': 'round' }, gg);
+    el('circle', { cx: 19, cy: -23, r: 4, fill: sheenCol }, gg);                                 // head
+    el('path', { d: 'M22,-23 l4,-0.6', stroke: C.gold, 'stroke-width': 1.5, 'stroke-linecap': 'round' }, gg);   // beak
+    el('circle', { cx: 18, cy: -23.5, r: 0.9, fill: '#08120e' }, gg);                            // eye
     // fan crest (3 dotted plumes)
     for (let k = -1; k <= 1; k++) {
-      el('line', { x1: 16, y1: -22, x2: 16 + k * 2.4, y2: -28, stroke: '#1a7d78', 'stroke-width': 0.8 }, gg);
-      el('circle', { cx: 16 + k * 2.4, cy: -28.5, r: 1.1, fill: C.teal }, gg);
+      el('line', { x1: 19, y1: -27, x2: 19 + k * 3, y2: -34, stroke: sheenCol, 'stroke-width': 1 }, gg);
+      el('circle', { cx: 19 + k * 3, cy: -34.5, r: 1.4, fill: spirit ? '#d6fbf4' : C.teal }, gg);
     }
     // legs
-    el('path', { d: 'M2,8 l-1,5 M7,8 l1,5', stroke: '#2a2018', 'stroke-width': 1, 'stroke-linecap': 'round' }, gg);
-    return gg;
+    el('path', { d: 'M3,10 l-1,6 M9,10 l1,6', stroke: '#2a2018', 'stroke-width': 1.2, 'stroke-linecap': 'round' }, gg);
+    return wrap;
   }
 
   // ---- more Indic mythological LIFE (readable silhouettes at map scale, on-palette) ----
-  function critterBase(parent, x, y, s, dir, shadowRx, cls) {
-    const gg = el('g', { class: 'crit' + (cls ? ' ' + cls : ''), transform: 'translate(' + x + ',' + y + ') scale(' + (s * (dir || 1)) + ',' + s + ')' }, parent);
-    // invisible hit-area so the WHOLE creature is hoverable/tappable (thin silhouettes have
-    // little fillable area). A transparent fill still receives pointer events.
-    el('rect', { x: -(shadowRx || 16) - 6, y: -34, width: (shadowRx || 16) * 2 + 12, height: 44, fill: 'transparent', 'pointer-events': 'all' }, gg);
-    el('ellipse', { cx: 0, cy: 5, rx: shadowRx || 16, ry: 4, fill: '#08120e', opacity: 0.4 }, gg);
-    return gg;
-  }
-
-  // a DEER / chital — slender body, arched neck, small antlers, dappled back.
-  function deer(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 15, 'crit-deer');
-    el('path', { d: 'M-13,3 L-13,-6 M-6,3 L-6,-7 M6,2 L6,-7 M12,2 L12,-7', stroke: '#2a2018', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);  // legs
-    el('path', { d: 'M-14,-7 C-8,-14 8,-14 13,-8 L11,-3 C4,-6 -6,-6 -13,-3 Z', fill: '#5a4326' }, gg);   // body
-    for (let i = 0; i < 4; i++) el('circle', { cx: -8 + i * 5, cy: -9 + (i % 2) * 2, r: 0.9, fill: C.goldBright, opacity: 0.7 }, gg);  // dapples
-    // head + neck + antlers as one group (lifts on hover) — origin at the neck base (12,-8)
-    const head = el('g', { class: 'deer-head' }, gg);
-    el('path', { d: 'M12,-8 C16,-12 17,-18 15,-22', fill: 'none', stroke: '#5a4326', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, head);  // neck
-    el('circle', { cx: 15, cy: -23, r: 3, fill: '#6a5030' }, head);                                        // head
-    el('path', { d: 'M15,-25 l-2,-5 M17,-25 l2,-5', stroke: C.gold, 'stroke-width': 1, 'stroke-linecap': 'round' }, head);  // antlers
-    return gg;
-  }
-
-  // a NAGA — sacred serpent coiled with a raised hood, jewelled teal scales.
-  function naga(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 18, 'crit-naga');
-    el('path', { d: 'M-16,3 q-6,-8 2,-11 q10,-4 14,3 q4,7 -3,10 q-9,3 -13,-2', fill: 'none', stroke: '#146a66', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // coil
-    // rising body + hood sway together on hover (origin at coil top ~6,-4)
-    const hood = el('g', { class: 'naga-hood' }, gg);
-    el('path', { d: 'M8,-4 C14,-10 12,-20 6,-26', fill: 'none', stroke: '#1a7d78', 'stroke-width': 4, 'stroke-linecap': 'round' }, hood);  // rising body
-    el('path', { d: 'M6,-26 q-7,-4 -3,-11 q7,4 3,11 M6,-26 q7,-4 3,-11 q-7,4 -3,11', fill: '#124d4c', stroke: C.teal, 'stroke-width': 0.8 }, hood);  // hood
-    el('circle', { cx: 5, cy: -30, r: 1.2, fill: C.goldBright }, hood); el('circle', { cx: 9, cy: -30, r: 1.2, fill: C.goldBright }, hood);  // eyes
-    return gg;
-  }
-
-  // an ELEPHANT (gaja) — rounded body, trunk, tusks, big ear; a bindi on the brow.
-  function elephant(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 26, 'crit-elephant');
-    el('path', { d: 'M-16,3 L-16,-6 M-7,3 L-7,-7 M7,3 L7,-7 M15,3 L15,-6', stroke: '#2b2a34', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // legs
-    el('ellipse', { cx: -2, cy: -12, rx: 20, ry: 14, fill: '#39384a' }, gg);                              // body
-    el('circle', { cx: 16, cy: -14, r: 10, fill: '#3f3e52' }, gg);                                        // head
-    el('path', { d: 'M9,-16 q-8,3 -6,10', fill: '#2b2a38', opacity: 0.9 }, gg);                           // ear
-    el('path', { class: 'eleph-trunk', d: 'M24,-11 C30,-6 29,2 26,7', fill: 'none', stroke: '#3f3e52', 'stroke-width': 4.5, 'stroke-linecap': 'round' }, gg);  // trunk
-    el('path', { d: 'M22,-6 l5,6 M25,-7 l4,7', stroke: '#e9e2cf', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);  // tusks
-    el('circle', { cx: 16, cy: -18, r: 1.4, fill: C.ember, opacity: 0.85 }, gg);                          // bindi
-    el('path', { d: 'M-14,-20 q6,-5 12,0', fill: 'none', stroke: C.gold, 'stroke-width': 1, opacity: 0.6 }, gg);  // caparison hint
-    return gg;
-  }
-
-  // a MONKEY (vanara) — small hunched body + long curling tail, perched.
-  function monkey(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 9, 'crit-monkey');
-    el('path', { d: 'M-2,2 q-12,2 -14,-6 q-2,-8 6,-8', fill: 'none', stroke: '#4a3a2a', 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);  // tail
-    el('ellipse', { cx: 0, cy: -6, rx: 7, ry: 8, fill: '#4a3a2a' }, gg);                                  // body
-    el('circle', { cx: 2, cy: -15, r: 4.2, fill: '#5a4632' }, gg);                                        // head
-    el('circle', { cx: 2, cy: -15, r: 2.4, fill: '#caa878' }, gg);                                        // face
-    el('circle', { cx: -1, cy: -19, r: 1.4, fill: '#4a3a2a' }, gg); el('circle', { cx: 5, cy: -19, r: 1.4, fill: '#4a3a2a' }, gg);  // ears
-    return gg;
-  }
-
-  // a walking PILGRIM (yatri) — robed figure with a staff, mid-stride along a path.
-  function pilgrim(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 8, 'crit-pilgrim');
-    el('path', { d: 'M-3,4 L-5,-6 M3,4 L2,-6', stroke: '#17130f', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // legs stride
-    el('path', { d: 'M0,-6 C-6,-6 -6,2 -4,4 L4,4 C6,2 6,-6 0,-6 Z', fill: '#2a2118' }, gg);               // robe
-    el('path', { d: 'M0,-6 C-4,-14 4,-14 0,-6', fill: '#33281c' }, gg);                                   // torso
-    el('circle', { cx: 0, cy: -17, r: 3, fill: '#2a2018' }, gg);                                          // head
-    el('line', { x1: 6, y1: -20, x2: 7, y2: 5, stroke: C.goldEmber, 'stroke-width': 1.4 }, gg);           // staff
-    el('circle', { cx: 6, cy: -20, r: 1.6, fill: 'url(#diyaG)' }, gg);                                    // lamp/knot on staff
-    return gg;
-  }
-
-  // a small FLOCK of birds — V-strokes gliding; used across the sky band, per-band.
-  function flock(parent, x, y, s, seed, reduced) {
-    const r = rng(seed); const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
-    const inner = el('g', { class: 'flock-g' }, gg);   // hover-flutter target (drift SMIL on gg)
-    const n = 3 + Math.floor(r() * 3);
-    for (let i = 0; i < n; i++) {
-      const bx = (r() - 0.5) * 40, by = (r() - 0.5) * 16, sz = 4 + r() * 3;
-      el('path', { d: 'M' + bx.toFixed(1) + ',' + by.toFixed(1) + ' q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0',
-        fill: 'none', stroke: 'rgba(230,220,190,.5)', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, inner);
+  // Every creature is wrapped in a POP layer: a soft dark ground-vignette + a rim-light
+  // filter so it separates cleanly from the dense foliage. `spirit` ('gold'|'teal') adds a
+  // luminous enchanted aura + swirling fireflies for the magical spirit-animals. The returned
+  // group is the DRAW group (filtered); shade/halo sit beneath it in the wrapper.
+  function critterBase(parent, x, y, s, dir, shadowRx, cls, spirit, reduced) {
+    const rx = shadowRx || 16;
+    // wrapper carries placement; holds (a) hit-area, (b) contrast pool, (c) optional aura,
+    // (d) the filtered creature draw-group. The `crit` class + kind class live here for hover.
+    const wrap = el('g', { class: 'crit' + (cls ? ' ' + cls : '') + (spirit ? ' crit-spirit' : ''),
+      transform: 'translate(' + x + ',' + y + ') scale(' + (s * (dir || 1)) + ',' + s + ')' }, parent);
+    // invisible hit-area so the WHOLE creature is hoverable/tappable.
+    el('rect', { x: -rx - 8, y: -38, width: rx * 2 + 16, height: 50, fill: 'transparent', 'pointer-events': 'all' }, wrap);
+    // CONTRAST: a broad soft dark vignette under the creature so its silhouette reads against
+    // busy leaves (the single biggest "pop" cue) + a crisp cast shadow at the feet.
+    el('ellipse', { cx: 0, cy: -6, rx: rx * 1.5, ry: rx * 1.1, fill: 'url(#critShade)', 'pointer-events': 'none' }, wrap);
+    el('ellipse', { cx: 0, cy: 6, rx: rx, ry: 4, fill: '#06100c', opacity: 0.5 }, wrap);
+    // ENCHANTED aura (spirit animals only): coloured luminous bloom + a few swirling fireflies.
+    if (spirit) {
+      const auraId = spirit === 'teal' ? 'spiritTeal' : 'spiritGold';
+      const aura = el('ellipse', { class: 'crit-aura', cx: 0, cy: -12, rx: rx * 1.9, ry: rx * 1.7, fill: 'url(#' + auraId + ')', opacity: 0.9, 'pointer-events': 'none' }, wrap);
+      if (!reduced) anim(aura, 'opacity', '0.95', '0.5', (2.6 + (rx % 5) * 0.4).toFixed(1) + 's');
+      const ffCol = spirit === 'teal' ? '#bdf4ec' : '#ffe9ad';
+      const fr = rng((cls || 'sp') + rx + x);
+      for (let i = 0; i < 4; i++) {
+        const a = fr() * Math.PI * 2, rr = rx * (0.9 + fr() * 0.9);
+        const fx = Math.cos(a) * rr, fy = -12 + Math.sin(a) * rr * 0.7;
+        const f = el('circle', { class: 'crit-spark', cx: fx.toFixed(1), cy: fy.toFixed(1), r: (0.9 + fr() * 0.8).toFixed(1), fill: ffCol, opacity: 0.9, filter: 'url(#glow)', 'pointer-events': 'none' }, wrap);
+        if (!reduced) { anim(f, 'opacity', '0.95', '0.2', (1.3 + fr() * 1.6).toFixed(1) + 's');
+          animT(f, '0,0', ((fr() - 0.5) * 14).toFixed(0) + ',' + (-6 - fr() * 10).toFixed(0), (4 + fr() * 4).toFixed(1) + 's'); }
+      }
     }
-    if (!reduced) animT(gg, '0,0', ((r() > 0.5 ? 30 : -30)) + ',' + (-8) + '', (18 + r() * 10).toFixed(0) + 's');
+    // the actual creature art goes in a rim-lit sub-group so the silhouette gets its edge.
+    const gg = el('g', { filter: spirit ? 'url(#critGlow)' : 'url(#critRim)' }, wrap);
+    gg._wrap = wrap;
+    return gg;
+  }
+
+  // a DEER / chital — slender body, arched neck, antlers, dappled back. `spirit` makes it a
+  // luminous golden ghost-deer (the enchanted-forest signature).
+  function deer(parent, x, y, s, dir, spirit, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 19, 'crit-deer', spirit, reduced);
+    const bodyCol = spirit ? '#f2dca0' : '#6a4e2c', litCol = spirit ? '#fff2c8' : '#8a6a3c', legCol = spirit ? '#caa860' : '#2a2018';
+    el('path', { d: 'M-15,4 L-15,-8 M-7,4 L-7,-9 M7,3 L7,-9 M14,3 L14,-8', stroke: legCol, 'stroke-width': 2.1, 'stroke-linecap': 'round' }, gg);  // legs
+    el('path', { d: 'M-16,-9 C-9,-17 9,-17 15,-10 L13,-4 C5,-7 -7,-7 -15,-4 Z', fill: bodyCol }, gg);   // body
+    el('path', { d: 'M-14,-11 C-8,-16 6,-16 12,-11', fill: 'none', stroke: litCol, 'stroke-width': 1.4, opacity: 0.7 }, gg);  // lit back
+    el('path', { class: 'deer-tail amb', d: 'M-15,-4 q-3,3 -2,7', stroke: legCol, 'stroke-width': 1.8, fill: 'none', 'stroke-linecap': 'round' }, gg);  // tail (flicks)
+    for (let i = 0; i < 5; i++) el('circle', { cx: -9 + i * 5, cy: -11 + (i % 2) * 2.5, r: 1.1, fill: spirit ? '#fff8e0' : C.goldBright, opacity: 0.85 }, gg);  // dapples
+    // head + neck + antlers as one group (lifts on hover) — origin at the neck base
+    const head = el('g', { class: 'deer-head' }, gg);
+    el('path', { d: 'M14,-10 C19,-15 20,-22 17,-27', fill: 'none', stroke: bodyCol, 'stroke-width': 3.6, 'stroke-linecap': 'round' }, head);  // neck
+    el('circle', { cx: 17, cy: -28, r: 3.6, fill: litCol }, head);                                        // head
+    el('path', { d: 'M17,-30 l-1,-6 M16,-32 l-3,-3 M19,-30 l1,-6 M20,-32 l3,-3', stroke: spirit ? '#fff2c8' : C.gold, 'stroke-width': 1.2, 'stroke-linecap': 'round' }, head);  // branched antlers
+    el('circle', { cx: 15.6, cy: -28.5, r: 0.7, fill: '#08120e' }, head);   // eye
+    el('path', { d: 'M20,-28 l2.5,-0.6', stroke: spirit ? '#fff2c8' : '#3a2c1a', 'stroke-width': 1.1, 'stroke-linecap': 'round' }, head);   // muzzle
+    return gg._wrap;
+  }
+
+  // a NAGA — sacred serpent coiled with a raised hood, jewelled teal scales. `spirit` gives
+  // a luminous teal spirit-serpent.
+  function naga(parent, x, y, s, dir, spirit, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 22, 'crit-naga', spirit, reduced);
+    const coilCol = spirit ? '#57d3ce' : '#146a66', bodyCol = spirit ? '#7fe6df' : '#1a7d78', hoodCol = spirit ? '#2f8478' : '#124d4c';
+    el('path', { d: 'M-20,4 q-7,-10 3,-14 q13,-5 18,4 q5,9 -4,13 q-11,4 -16,-3', fill: 'none', stroke: coilCol, 'stroke-width': 5, 'stroke-linecap': 'round' }, gg);  // coil
+    el('path', { d: 'M-16,1 q6,-4 12,-1', fill: 'none', stroke: spirit ? '#d6fbf4' : C.teal, 'stroke-width': 1.2, opacity: 0.6 }, gg);  // scale sheen
+    // rising body + hood sway together on hover
+    const hood = el('g', { class: 'naga-hood' }, gg);
+    el('path', { d: 'M10,-5 C17,-13 15,-25 8,-33', fill: 'none', stroke: bodyCol, 'stroke-width': 5, 'stroke-linecap': 'round' }, hood);  // rising body
+    el('path', { d: 'M8,-33 q-9,-5 -4,-14 q9,5 4,14 M8,-33 q9,-5 4,-14 q-9,5 -4,14', fill: hoodCol, stroke: spirit ? '#d6fbf4' : C.teal, 'stroke-width': 1 }, hood);  // flared hood
+    el('circle', { cx: 8, cy: -35, r: 2.4, fill: bodyCol }, hood);   // head
+    el('circle', { cx: 6.5, cy: -36, r: 1.1, fill: C.goldBright }, hood); el('circle', { cx: 9.5, cy: -36, r: 1.1, fill: C.goldBright }, hood);  // eyes
+    el('path', { d: 'M8,-33 l0,-3', stroke: C.ember, 'stroke-width': 0.8 }, hood);  // flicking tongue base
+    el('path', { d: 'M8,-37 l-1.4,-2.5 M8,-37 l1.4,-2.5', stroke: C.ember, 'stroke-width': 0.9, 'stroke-linecap': 'round' }, hood);  // forked tongue
+    return gg._wrap;
+  }
+
+  // an ELEPHANT (gaja) — rounded body, trunk, tusks, big ear; a bindi on the brow. `spirit`
+  // gives a luminous teal spirit-elephant.
+  function elephant(parent, x, y, s, dir, spirit, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 30, 'crit-elephant', spirit, reduced);
+    gg.setAttribute('class', 'amb-body');   // gentle body sway (+ trunk animates separately)
+    const legCol = spirit ? '#3f8f88' : '#2b2a34', bodyCol = spirit ? '#57b8b0' : '#3d3c50', headCol = spirit ? '#6ac6bd' : '#454458', earCol = spirit ? '#3f8f88' : '#2b2a38';
+    el('path', { d: 'M-18,4 L-18,-7 M-8,4 L-8,-8 M8,4 L8,-8 M17,4 L17,-7', stroke: legCol, 'stroke-width': 4.6, 'stroke-linecap': 'round' }, gg);  // legs
+    el('ellipse', { cx: -2, cy: -14, rx: 23, ry: 16, fill: bodyCol }, gg);                                // body
+    el('ellipse', { cx: -6, cy: -20, rx: 15, ry: 9, fill: spirit ? '#7fe0d8' : '#4a4960', opacity: 0.55 }, gg);  // lit back
+    el('circle', { cx: 19, cy: -16, r: 11.5, fill: headCol }, gg);                                        // head
+    el('path', { d: 'M10,-18 q-10,3 -7,12', fill: earCol, opacity: 0.92 }, gg);                           // ear
+    el('path', { class: 'eleph-trunk', d: 'M28,-12 C35,-7 34,3 30,9', fill: 'none', stroke: headCol, 'stroke-width': 5.2, 'stroke-linecap': 'round' }, gg);  // trunk
+    el('path', { d: 'M25,-6 l6,7 M29,-7 l5,8', stroke: '#f2ecdb', 'stroke-width': 1.7, 'stroke-linecap': 'round' }, gg);  // tusks
+    el('circle', { cx: 21, cy: -19, r: 1.1, fill: '#08120e' }, gg);   // eye
+    el('circle', { cx: 19, cy: -21, r: 1.6, fill: C.ember, opacity: 0.9 }, gg);                           // bindi
+    el('path', { d: 'M-16,-23 q7,-6 14,0', fill: 'none', stroke: spirit ? '#d6fbf4' : C.gold, 'stroke-width': 1.2, opacity: 0.7 }, gg);  // caparison hint
+    return gg._wrap;
+  }
+
+  // a MONKEY (vanara) — hunched body, long curling tail, limbs + a clear face. `swing` hangs
+  // it by one arm (for the canopy monkeys); otherwise it sits/perches on the ground.
+  function monkey(parent, x, y, s, dir, swing) {
+    const gg = critterBase(parent, x, y, s, dir, 13, 'crit-monkey' + (swing ? ' crit-monkey-swing' : ''));
+    gg.setAttribute('class', 'amb-body');   // whole body bobs / swings ambiently
+    const furDk = '#4a3a2a', furLt = '#6a5238', face = '#d8b888';
+    if (swing) {
+      // hangs from a branch above by one raised arm; body dangles, tail curls up
+      el('path', { d: 'M0,-22 q1,-8 -4,-11', fill: 'none', stroke: furDk, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // raised gripping arm
+      el('path', { d: 'M2,-2 q9,3 12,-4 q3,-8 -4,-11', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // curling tail up
+      el('ellipse', { cx: 0, cy: -10, rx: 6.5, ry: 9, fill: furDk }, gg);                                 // body
+      el('path', { d: 'M-4,-8 q-6,4 -5,11 M4,-8 q4,6 1,12', fill: 'none', stroke: furDk, 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);  // dangling legs
+    } else {
+      el('path', { d: 'M-3,3 q-14,3 -16,-7 q-2,-9 7,-9', fill: 'none', stroke: furDk, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // long tail
+      el('ellipse', { cx: 0, cy: -8, rx: 8, ry: 10, fill: furDk }, gg);                                   // body
+      el('ellipse', { cx: 0, cy: -6, rx: 5, ry: 7, fill: furLt, opacity: 0.6 }, gg);                      // belly
+      el('path', { d: 'M-5,-2 q-4,4 -2,8 M5,-2 q4,4 2,8', fill: 'none', stroke: furDk, 'stroke-width': 2.2, 'stroke-linecap': 'round' }, gg);  // arms/legs
+    }
+    const head = el('g', { class: 'monkey-head' }, gg);
+    el('circle', { cx: 2, cy: -19, r: 5.4, fill: furLt }, head);                                          // head
+    el('circle', { cx: 2, cy: -18, r: 3.2, fill: face }, head);                                           // face
+    el('circle', { cx: -2.4, cy: -22, r: 1.8, fill: furDk }, head); el('circle', { cx: 6.4, cy: -22, r: 1.8, fill: furDk }, head);  // ears
+    el('circle', { cx: 0.4, cy: -19, r: 0.7, fill: '#20180f' }, head); el('circle', { cx: 3.6, cy: -19, r: 0.7, fill: '#20180f' }, head);  // eyes
+    return gg._wrap;
+  }
+
+  // a walking PILGRIM (yatri) — robed figure with a staff, mid-stride along a path. `lantern`
+  // makes them hold a glowing lamp aloft (a lantern-bearer walking the night path).
+  function pilgrim(parent, x, y, s, dir, lantern, reduced) {
+    const gg = critterBase(parent, x, y, s, dir, 11, 'crit-pilgrim', lantern ? 'gold' : null, reduced);
+    const robe = '#33281c', robeLt = '#4a3a24';
+    el('path', { d: 'M-4,6 L-6,-8 M4,6 L3,-8', stroke: '#1a1510', 'stroke-width': 3, 'stroke-linecap': 'round' }, gg);  // legs stride
+    el('path', { d: 'M0,-8 C-8,-8 -8,3 -6,6 L6,6 C8,3 8,-8 0,-8 Z', fill: robe }, gg);                    // robe
+    el('path', { d: 'M-6,-6 C-4,0 4,0 6,-6', fill: 'none', stroke: C.ember, 'stroke-width': 1.6, opacity: 0.7 }, gg);  // saffron sash
+    el('path', { d: 'M0,-8 C-5,-18 5,-18 0,-8', fill: robeLt }, gg);                                      // torso/shoulders
+    el('circle', { cx: 0, cy: -22, r: 4, fill: '#2e241a' }, gg);                                          // head
+    el('circle', { cx: 0, cy: -23, r: 1.1, fill: C.gold, opacity: 0.8 }, gg);                             // tilak
+    if (lantern) {
+      // arm raised holding a bright hanging lantern
+      el('path', { d: 'M4,-12 q8,-3 11,-9', fill: 'none', stroke: robeLt, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // arm
+      el('line', { x1: 15, y1: -21, x2: 15, y2: -16, stroke: C.goldEmber, 'stroke-width': 1 }, gg);       // hanger
+      el('circle', { cx: 15, cy: -13, r: 5.5, fill: 'url(#diyaG)' }, gg);                                 // lantern glow
+      el('circle', { cx: 15, cy: -13, r: 2, fill: '#fff3cf' }, gg);
+      el('rect', { x: 12.6, y: -15.4, width: 4.8, height: 5.2, rx: 1, fill: 'none', stroke: C.goldDeep, 'stroke-width': 0.7 }, gg);  // lantern frame
+    } else {
+      el('line', { x1: 8, y1: -26, x2: 9, y2: 6, stroke: C.goldEmber, 'stroke-width': 1.8 }, gg);         // staff
+      el('circle', { cx: 8, cy: -26, r: 2.2, fill: 'url(#diyaG)' }, gg);                                  // knot-lamp on staff
+    }
+    return gg._wrap;
+  }
+
+  // a FLOCK of birds — bolder V-glyphs gliding on a looping flight path across the sky /
+  // between canopies. Higher-contrast (light stroke + dark under-stroke) so it reads clearly
+  // against sky AND foliage. The inner group flaps its wings continuously (reduced-safe).
+  function flock(parent, x, y, s, seed, reduced) {
+    const r = rng(seed); const gg = el('g', { class: 'flock', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    // wide invisible hit-area so the flock is hoverable (scatter on hover)
+    el('rect', { x: -34, y: -18, width: 68, height: 30, fill: 'transparent', 'pointer-events': 'all' }, gg);
+    const inner = el('g', { class: 'flock-g' }, gg);   // hover + flap target (drift on gg)
+    const n = 4 + Math.floor(r() * 3);
+    const birds = [];
+    for (let i = 0; i < n; i++) {
+      const bx = (r() - 0.5) * 46, by = (r() - 0.5) * 20, sz = 5.5 + r() * 3.5;
+      const b = el('g', { class: 'flock-bird', transform: 'translate(' + bx.toFixed(1) + ',' + by.toFixed(1) + ')' }, inner);
+      const wingUp = 'M0,0 q-' + sz + ',-' + (sz * 0.6) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.6) + ' ' + (sz * 2) + ',0';
+      const wingDn = 'M0,0 q-' + sz + ',' + (sz * 0.3) + ' -' + (sz * 2) + ',0 q' + sz + ',' + (sz * 0.3) + ' ' + (sz * 2) + ',0';
+      // dark under-stroke first (contrast against sky), light stroke on top
+      el('path', { class: 'flap', d: wingUp, fill: 'none', stroke: 'rgba(6,10,20,.55)', 'stroke-width': 2.6, 'stroke-linecap': 'round', transform: 'translate(0,0.7)' }, b);
+      const w = el('path', { class: 'flap', d: wingUp, fill: 'none', stroke: 'rgba(240,232,206,.92)', 'stroke-width': 1.7, 'stroke-linecap': 'round' }, b);
+      birds.push([w, wingUp, wingDn, r]);
+      if (!reduced) w.parentNode.querySelectorAll('.flap').forEach(fp => {
+        fp.appendChild(el('animate', { attributeName: 'd', values: wingUp + ';' + wingDn + ';' + wingUp, dur: (0.5 + r() * 0.4).toFixed(2) + 's', begin: (r() * 0.4).toFixed(2) + 's', repeatCount: 'indefinite' }));
+      });
+    }
+    // looping glide across the map (SMIL animateMotion on the group)
+    if (!reduced) {
+      const dir = r() > 0.5 ? 1 : -1;
+      const mv = el('animateMotion', { dur: (26 + r() * 14).toFixed(0) + 's', repeatCount: 'indefinite',
+        path: 'M0,0 q' + (dir * 140) + ',-30 ' + (dir * 280) + ',10 q' + (dir * 140) + ',40 ' + (dir * 90) + ',-30 q' + (-dir * 260) + ',-20 ' + (-dir * 470) + ',10 Z' });
+      gg.appendChild(mv);
+    }
+    return gg;
+  }
+
+  // a single PERCHED bird on a twig — a small rounded body, tail + beak, a warm eye.
+  function perchedBird(parent, x, y, s, seed) {
+    const r = rng(seed || ('pb' + x)); s = s || 1;
+    const cols = [['#c86ba8', '#e6a0cc'], ['#57d3ce', '#a0eae4'], ['#e7b64b', '#f7d98a'], ['#d97a3c', '#f0a878']];
+    const c = cols[Math.floor(r() * cols.length)];
+    const gg = el('g', { class: 'crit crit-perched', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    el('rect', { x: -10, y: -14, width: 22, height: 22, fill: 'transparent', 'pointer-events': 'all' }, gg);
+    el('ellipse', { cx: 0, cy: 2, rx: 9, ry: 4, fill: 'url(#critShade)', 'pointer-events': 'none' }, gg);
+    const b = el('g', { class: 'crit-perched-body amb', filter: 'url(#critRim)' }, gg);
+    el('line', { x1: -6, y1: 6, x2: 6, y2: 6, stroke: '#2a2018', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, b);  // twig
+    el('path', { d: 'M-2,4 q-8,-2 -9,-9', fill: 'none', stroke: c[0], 'stroke-width': 2.4, 'stroke-linecap': 'round' }, b);  // tail
+    el('ellipse', { cx: 1, cy: -2, rx: 5, ry: 6, fill: c[0] }, b);   // body
+    el('ellipse', { cx: 2, cy: -3, rx: 3, ry: 4, fill: c[1], opacity: 0.7 }, b);  // wing sheen
+    el('circle', { cx: 4, cy: -8, r: 3, fill: c[1] }, b);   // head
+    el('path', { d: 'M7,-8 l3,0.5', stroke: C.gold, 'stroke-width': 1.2, 'stroke-linecap': 'round' }, b);  // beak
+    el('circle', { cx: 4.5, cy: -8.5, r: 0.7, fill: '#08120e' }, b);  // eye
+    el('line', { x1: -1, y1: 4, x2: -1, y2: 6.5, stroke: '#2a2018', 'stroke-width': 0.9 }, b);  // leg
     return gg;
   }
 
@@ -887,9 +1077,22 @@
       const px = cx + (r() - 0.5) * rx * 1.5, py = cy + (r() - 0.5) * ry * 1.3;
       el('ellipse', { cx: px.toFixed(0), cy: py.toFixed(0), rx: (7 + r() * 6).toFixed(0), ry: (3 + r() * 2).toFixed(0), fill: '#1e5a43', opacity: 0.7 }, gg);
     }
+    // KOI fish gliding just under the surface — warm ember/gold darts that drift & wag (SMIL,
+    // reduced-safe). Bounded to 2 per pond so the animator count stays small.
+    for (let i = 0; i < 2; i++) {
+      const kx = cx + (r() - 0.5) * rx * 0.9, ky = cy + (r() - 0.5) * ry * 0.7;
+      const koi = el('g', { transform: 'translate(' + kx.toFixed(0) + ',' + ky.toFixed(0) + ')' }, gg);
+      const kc = i % 2 ? C.ember : C.goldBright;
+      el('ellipse', { cx: 0, cy: 0, rx: 4 * scale, ry: 2 * scale, fill: kc, opacity: 0.85 }, koi);   // body
+      el('path', { d: 'M' + (-4 * scale) + ',0 l' + (-3 * scale) + ',' + (-2 * scale) + ' l0,' + (4 * scale) + ' Z', fill: kc, opacity: 0.7 }, koi);  // tail
+      el('circle', { cx: 3 * scale, cy: -0.5, r: 0.7, fill: '#3a1e10' }, koi);   // eye
+      if (!reduced) animT(koi, '0,0', ((r() - 0.5) * rx * 0.8).toFixed(0) + ',' + ((r() - 0.5) * ry * 0.6).toFixed(0), (8 + r() * 6).toFixed(1) + 's');
+    }
     for (let i = 0; i < 3; i++) {
       const px = cx + (r() - 0.5) * rx * 1.2, py = cy + (r() - 0.5) * ry;
-      const lg = el('g', { class: 'lotus-bloom', transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, gg);
+      // one lotus per pond BREATHES (opens/closes) ambiently; the others are static-but-hoverable.
+      const breathe = !reduced && i === 0;
+      const lg = el('g', { class: 'lotus-bloom' + (breathe ? ' lotus-breathe' : ''), transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')', style: '--ph:' + (-(r() * 4).toFixed(2)) + 's' }, gg);
       for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; el('path', { d: 'M0,0 Q' + (Math.cos(a) * 3).toFixed(1) + ',-5 ' + (Math.cos(a) * 6).toFixed(1) + ',' + (Math.sin(a) * 6 - 2).toFixed(1), stroke: C.magenta, 'stroke-width': 1.4, fill: 'none', opacity: 0.75 }, lg); }
       el('circle', { cx: 0, cy: 0, r: 1.8, fill: C.goldBright }, lg);
     }
@@ -940,6 +1143,9 @@
     const tempY = temple ? temple.y : 116;
     // perspective helper: how "near" a y is (0 far/top … 1 near/bottom)
     const nearOf = y => Math.min(1, Math.max(0, (y - tempY) / (VB.h - tempY)));
+    // CSS-breeze budget: cap how many trees rock via CSS (on top of the SMIL-swaying subset)
+    // so the breeze feels pervasive but the total animating element count stays bounded (60fps).
+    let breezeBudget = reduced ? 0 : 40;
     const treeKinds = ['banyan', 'round', 'willow', 'peepal', 'round', 'banyan', 'peepal'];
     // a small planting helper so every source (grid / segments / temple) makes matched trees
     function plant(x, y, rr, opts) {
@@ -954,7 +1160,14 @@
       else tintIdx = roll < 0.4 ? Math.floor(rr() * 3) : roll < 0.66 ? 3 : roll < 0.8 ? 1 : roll < 0.9 ? 2 : roll < 0.96 ? 6 : 5;
       const tone = Math.min(1, 0.4 + near * 0.45 + (rr() - 0.5) * 0.2);
       const tg = el('g', { transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')', opacity: (0.82 + rr() * 0.16).toFixed(2) }, layer);
-      forestTree(tg, scl, tone, kind, rng('t|' + x.toFixed(0) + '|' + y.toFixed(0)), !reduced && near > 0.6 && scl > 0.95 && rr() > 0.78, tintIdx);
+      const smilSway = !reduced && near > 0.6 && scl > 0.95 && rr() > 0.78;
+      // CSS BREEZE on a bounded subset of the remaining (non-SMIL) trees — the whole crown
+      // rocks gently; staggered by --ph. Inner group so the rotation composes with translate.
+      // Also a hover target: `.tree-breeze` rustles harder on pointer-over (wired in CSS).
+      const breeze = !reduced && !smilSway && breezeBudget > 0 && rr() < 0.5;
+      let host = tg;
+      if (breeze) { breezeBudget--; host = el('g', { class: 'breeze tree-breeze', style: '--ph:' + (-(rr() * 6).toFixed(2)) + 's' }, tg); }
+      forestTree(host, scl, tone, kind, rng('t|' + x.toFixed(0) + '|' + y.toFixed(0)), smilSway, tintIdx);
     }
 
     // (0) FULL-FRAME tree GRID — guarantees UNIFORM coverage of every region (top, far
@@ -1019,9 +1232,12 @@
       for (let x = 56; x < VB.w - 30; x += 58) plant(x + (rt() - 0.5) * 26, temple.y + 196 + (rt() - 0.5) * 24, rt, { baseScale: 0.44 + rt() * 0.26 });
     }
 
-    // (3) understorey tufts + wildflowers filling the ground everywhere (uniform count).
+    // (3) understorey tufts + wildflowers filling the ground everywhere (uniform count). A
+    // bounded subset of the near-foreground tufts get a CSS `.gbreeze` wave (staggered), so
+    // the grass bobs in the breeze — capped so the total animator count stays 60fps-safe.
     const ru = rng('bandunder');
     const uStep = 58;
+    let grassBreeze = reduced ? 0 : 34;
     for (let y = 320; y <= VB.h - 14; y += 40) {
       const near = nearOf(y);
       for (let x = 20; x < VB.w - 20; x += uStep) {
@@ -1031,9 +1247,14 @@
         const h = (4 + ru() * 11) * (0.55 + near * 0.8);
         const lean = (ru() - 0.5) * 6;
         const col = shade('#1f4230', -0.08 + near * 0.34 + ru() * 0.1);
-        el('path', { d: 'M0,0 q' + lean.toFixed(0) + ',' + (-h * 0.6).toFixed(0) + ' ' + (lean * 1.4).toFixed(0) + ',' + (-h).toFixed(0),
-          stroke: col, 'stroke-width': (1 + near * 1.4).toFixed(1), fill: 'none', 'stroke-linecap': 'round',
-          opacity: (0.38 + near * 0.4).toFixed(2), transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, layer);
+        const dPath = 'M0,0 q' + lean.toFixed(0) + ',' + (-h * 0.6).toFixed(0) + ' ' + (lean * 1.4).toFixed(0) + ',' + (-h).toFixed(0);
+        const wave = grassBreeze > 0 && near > 0.55 && ru() < 0.5;
+        const host = wave
+          ? (grassBreeze--, el('g', { class: 'gbreeze', style: '--ph:' + (-(ru() * 4).toFixed(2)) + 's', transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, layer))
+          : layer;
+        const gAttrs = { d: dPath, stroke: col, 'stroke-width': (1 + near * 1.4).toFixed(1), fill: 'none', 'stroke-linecap': 'round', opacity: (0.38 + near * 0.4).toFixed(2) };
+        if (!wave) gAttrs.transform = 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')';
+        el('path', gAttrs, host);
         if (ru() > 0.8) el('circle', { cx: px.toFixed(0), cy: (py - h).toFixed(0), r: (0.8 + ru() * 1.2).toFixed(1),
           fill: [C.gold, C.magenta, '#d7f0c0', C.goldBright][Math.floor(ru() * 4)], opacity: 0.55 }, layer);
       }
@@ -1065,53 +1286,102 @@
     }) && ponds.every(pd => Math.hypot(x - pd.x, y - pd.y) > 120);
 
     // try to place one creature near (cx,cy): search a few jittered spots for a clear one.
+    // Creatures are drawn NOTICEABLY BIGGER than before (they must read at map scale) and a
+    // deterministic subset become luminous SPIRIT-animals (enchanted glow). `perched` places
+    // ground-level fauna low; canopy fauna (swinging monkeys, perched birds) go higher.
+    // AMBIENT budget: mark only a bounded subset of creatures as self-animating (staggered
+    // phases) so the scene feels alive without animating the whole cast — keeps it 60fps.
+    let ambBudget = reduced ? 0 : 26;
+    function markAmbient(node) {
+      if (!node || ambBudget <= 0 || r() > 0.62) return;   // ~62% of placed creatures, capped
+      ambBudget--;
+      node.setAttribute('class', node.getAttribute('class') + ' ambient');
+      node.style.setProperty('--ph', (-(r() * 6).toFixed(2)) + 's');   // negative delay → varied phase from frame 0
+    }
     function tryPlace(cx, cy, near, kind) {
-      for (let attempt = 0; attempt < 8; attempt++) {
-        const x = cx + (r() - 0.5) * 90, y = cy + (r() - 0.5) * 40;
-        if (x < 42 || x > VB.w - 42 || y < 306 || y > VB.h - 30) continue;
+      for (let attempt = 0; attempt < 9; attempt++) {
+        const x = cx + (r() - 0.5) * 96, y = cy + (r() - 0.5) * 44;
+        if (x < 44 || x > VB.w - 44 || y < 300 || y > VB.h - 26) continue;
         if (!clearOfNodes(x, y)) continue;
-        const sc = 0.5 + near * 0.72;                 // recede with depth, but never vanish
+        // bigger overall: recede with depth but stay clearly legible even up top
+        const sc = 0.78 + near * 0.82;
         const dir = r() < 0.5 ? 1 : -1;
-        if (kind === 'peacock') peacock(layer, x, y, 0.82 * sc, dir, reduced, r() > 0.6);
-        else if (kind === 'deer') deer(layer, x, y, sc, dir);
-        else if (kind === 'monkey') monkey(layer, x, y, 0.9 * sc, dir);
-        else if (kind === 'naga') naga(layer, x, y, 0.92 * sc, dir);
-        else if (kind === 'elephant') elephant(layer, x, y, 0.92 * sc, dir);
-        else if (kind === 'guru') guru(layer, x, y, 0.95 * sc, reduced);
-        else if (kind === 'pilgrim') pilgrim(layer, x, y, 0.95 * sc, dir);
+        const spiritRoll = r();                        // ~1-in-4 of the enchantable kinds glow
+        let node = null;
+        if (kind === 'peacock') node = peacock(layer, x, y, 0.92 * sc, dir, reduced, r() > 0.5, spiritRoll > 0.72 ? 'teal' : null);
+        else if (kind === 'deer') node = deer(layer, x, y, sc, dir, spiritRoll > 0.65 ? 'gold' : null, reduced);
+        else if (kind === 'monkey') node = monkey(layer, x, y, sc, dir);
+        else if (kind === 'monkey-swing') node = monkey(layer, x, y - 6 * sc, sc * 0.95, dir, true);
+        else if (kind === 'naga') node = naga(layer, x, y, sc, dir, spiritRoll > 0.7 ? 'teal' : null, reduced);
+        else if (kind === 'elephant') node = elephant(layer, x, y, sc, dir, spiritRoll > 0.82 ? 'teal' : null, reduced);
+        else if (kind === 'guru') node = guru(layer, x, y, sc, reduced);
+        else if (kind === 'pilgrim') node = pilgrim(layer, x, y, sc, dir, spiritRoll > 0.55, reduced);
+        else if (kind === 'perched') node = perchedBird(layer, x, y, 0.9 * sc, 'pb' + x.toFixed(0) + y.toFixed(0));
+        markAmbient(node);
         return true;
       }
       return false;
     }
 
     // EVEN DISTRIBUTION over y-BANDS across the FULL height (temple → foreground). For each
-    // band we place a handful of creatures spread across the width, both sides of centre —
-    // so the temple approach is as alive as the foreground. Independent of grove positions
-    // (which cluster), yet deterministic-from-data (band count follows the map's row count).
-    const cast = ['peacock', 'deer', 'elephant', 'naga', 'monkey', 'peacock', 'deer', 'guru', 'peacock', 'pilgrim', 'elephant', 'deer'];
+    // band we place several creatures spread across the width, both sides of centre — so the
+    // temple approach is as alive as the foreground. Independent of grove positions (which
+    // cluster), yet deterministic-from-data (band count follows the map's row count). The cast
+    // is varied so every band mixes peacocks / deer / elephants / nagas / monkeys / people.
+    const cast = ['peacock', 'deer', 'monkey', 'elephant', 'naga', 'peacock', 'pilgrim', 'deer',
+                  'monkey', 'peacock', 'guru', 'naga', 'deer', 'elephant', 'monkey', 'peacock'];
     let ci = 0;
     const rows = pts.reduce((m, p) => Math.max(m, p.row || 0), 0) + 1;
-    const yTop = tempY + 150, yBot = VB.h - 60;
-    const bands = Math.max(4, rows + 1);
+    const yTop = tempY + 140, yBot = VB.h - 50;
+    const bands = Math.max(5, rows + 2);
     for (let bi = 0; bi < bands; bi++) {
       const by = yTop + (yBot - yTop) * (bi / (bands - 1));
       const near = nearOf(by);
-      const perBand = 3 + Math.round(near);            // 3 up top … 4 near the foreground
+      const perBand = 4 + Math.round(near * 2);        // 4 up top … 6 near the foreground
       for (let k = 0; k < perBand; k++) {
-        // spread across width: alternate sides, march outward from centre
-        const fx = 0.12 + (k / Math.max(1, perBand - 1)) * 0.76 + (r() - 0.5) * 0.08;
-        const cx = VB.w * Math.min(0.92, Math.max(0.08, fx));
+        // spread across width: march outward from centre, jittered
+        const fx = 0.09 + (k / Math.max(1, perBand - 1)) * 0.82 + (r() - 0.5) * 0.07;
+        const cx = VB.w * Math.min(0.93, Math.max(0.07, fx));
         tryPlace(cx, by, near, cast[ci++ % cast.length]);
       }
     }
 
-    // bird-FLOCKS across the sky/upper bands + apsara-wisps drifting through mid/upper map
-    for (let i = 0; i < 5; i++) flock(layer, 110 + i * 230, 120 + (i % 3) * 44, 0.85 + (i % 2) * 0.35, 'flk' + i, reduced);
-    for (let i = 0; i < 7; i++) {
-      const fx = 0.12 + (i / 6) * 0.76;
-      const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / 6) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
-      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.5, filter: 'url(#soft1)' }, layer);
-      if (!reduced) { anim(w, 'opacity', '0.5', '0.14', (3 + r() * 3).toFixed(1) + 's');
+    // CANOPY life — swinging monkeys + perched birds up in the tree bands (mid/upper), so the
+    // canopies are inhabited too, not just the floor. Placed higher (in the leaf zone).
+    const canopyKinds = ['monkey-swing', 'perched', 'perched', 'monkey-swing', 'perched'];
+    for (let i = 0; i < 8; i++) {
+      const fx = 0.1 + (i / 7) * 0.8 + (r() - 0.5) * 0.06;
+      const cx = VB.w * Math.min(0.92, Math.max(0.08, fx));
+      const cy = tempY + 120 + (i / 7) * (VB.h - tempY - 300) + (r() - 0.5) * 40;
+      tryPlace(cx, cy, nearOf(cy), canopyKinds[i % canopyKinds.length]);
+    }
+
+    // LANTERN-BEARERS walking the luminous trail — a couple of figures with glowing lamps set
+    // just off the path so the way to the temple has pilgrims on it (clear-of-node checked).
+    for (let i = 0; i < 2 && pts.length > 1; i++) {
+      const seg = pts[Math.min(pts.length - 2, Math.floor((0.3 + i * 0.4) * (pts.length - 1)))];
+      const nxt = pts[Math.min(pts.length - 1, pts.indexOf(seg) + 1)] || seg;
+      const mx = (seg.x + nxt.x) / 2, my = (seg.y + nxt.y) / 2;
+      for (let a = 0; a < 6; a++) {
+        const side = a % 2 ? 1 : -1;
+        const px = mx + side * (70 + a * 10), py = my + 6;
+        if (px > 50 && px < VB.w - 50 && clearOfNodes(px, py)) {
+          pilgrim(layer, px, py, 0.9 + nearOf(py) * 0.7, side < 0 ? 1 : -1, true, reduced);
+          break;
+        }
+      }
+    }
+
+    // bird-FLOCKS: several across the sky + a couple weaving lower between the canopies.
+    for (let i = 0; i < 6; i++) flock(layer, 90 + i * 200, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
+    for (let i = 0; i < 3; i++) flock(layer, 200 + i * 340, tempY + 200 + (i % 2) * 90, 0.8 + (i % 2) * 0.3, 'flklow' + i, reduced);
+
+    // apsara-wisps — soft luminous motes drifting through mid/upper map (enchantment).
+    for (let i = 0; i < 8; i++) {
+      const fx = 0.1 + (i / 7) * 0.8;
+      const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / 7) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3.5 + r() * 3).toFixed(1), fill: 'url(#spiritTeal)', opacity: 0.55, filter: 'url(#soft1)', 'pointer-events': 'none' }, layer);
+      if (!reduced) { anim(w, 'opacity', '0.6', '0.16', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 70).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
   }
