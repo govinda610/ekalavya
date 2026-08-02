@@ -191,6 +191,105 @@
   }
 
   // ============================================================================
+  // INTERACTIVITY STYLES — hover/tap affordances via CSS (GPU-cheap transforms/opacity),
+  // driven by element CLASSES so we never attach thousands of JS listeners. ALL motion is
+  // wrapped in @media (prefers-reduced-motion: no-preference); a reduced-motion visitor
+  // still gets the non-moving HIGHLIGHT (brightness/opacity) so the map stays interactive.
+  // ============================================================================
+  function injectStyles(svg) {
+    // one shared stylesheet per rendered map (scoped by the ids/classes we emit).
+    const style = el('style', {}, svg);
+    style.textContent = [
+      // groves are the primary target: pointer + smooth transitions on the interactive parts
+      '.grove:not(.locked){cursor:pointer}',
+      '.grove .lbl{transition:opacity .18s ease}',
+      // hovered/highlighted edge threads light up (JS toggles .edge-hot)
+      '.pedge{transition:opacity .2s ease, stroke-width .2s ease}',
+      '.pedge.edge-hot{opacity:.92 !important; stroke-width:2.6 !important}',
+      // creatures + ponds + diyas get a subtle pointer so they invite interaction
+      '.crit,.pond,.diya{cursor:pointer}',
+      // --- highlight (always on, even reduced-motion) ---
+      '.grove:not(.locked):hover .g-bloom{opacity:.85}',
+      '.grove:not(.locked):hover .g-medallion circle:first-of-type,.grove:not(.locked):focus .g-medallion circle:first-of-type{stroke-width:3.4}',
+      '.grove:not(.locked):hover .lbl-plate{stroke-opacity:1}',
+      '.pond:hover .pond-water{filter:brightness(1.18)}',
+      '.diya:hover .diya-glow{opacity:1}',
+      '@media (prefers-reduced-motion: no-preference){',
+      // grove: gentle lift + scale-up bloom + faster rangoli spin on hover. The inner group
+      // scales from the medallion; fill-box keeps the origin on the group's own box.
+      '  .g-inner{transition:transform .22s cubic-bezier(.2,.8,.2,1); transform-box:fill-box; transform-origin:center 70%}',
+      '  .grove:not(.locked):hover .g-inner{transform:translateY(-4px) scale(1.06)}',
+      '  .g-bloom{transition:opacity .3s ease}',
+      '  .g-rangoli{transform-box:fill-box; transform-origin:center}',
+      '  .grove:not(.locked):hover .g-rangoli{animation:spin 7s linear infinite}',
+      // creature micro-animations (only the hovered one animates) — fill-box so each part
+      // rotates about its own geometry regardless of the creature's placement transform.
+      '  .peacock-tail,.deer-head,.eleph-trunk,.naga-hood,.lotus-bloom{transform-box:fill-box}',
+      '  .peacock-tail{transition:transform .35s cubic-bezier(.2,.8,.2,1); transform-origin:right center}',
+      '  .crit-peacock:hover .peacock-tail{transform:scale(1.18)}',
+      '  .deer-head{transition:transform .3s ease; transform-origin:left bottom}',
+      '  .crit-deer:hover .deer-head{transform:rotate(-16deg)}',
+      '  .eleph-trunk{transition:transform .35s ease; transform-origin:left top}',
+      '  .crit-elephant:hover .eleph-trunk{transform:rotate(-20deg)}',
+      '  .naga-hood{transform-origin:center bottom}',
+      '  .crit-naga:hover .naga-hood{animation:sway 1.4s ease-in-out infinite}',
+      '  .sage-aura{transition:opacity .3s ease}',
+      '  .crit-guru:hover .sage-aura{animation:pulse 1.6s ease-in-out infinite}',
+      '  .flock-g{transition:transform .3s ease; transform-box:fill-box}',
+      '  .flock-g:hover{transform:translateY(-3px)}',
+      '  .pond:hover .pond-ripple{animation-duration:2.4s !important}',
+      '  .lotus-bloom{transition:transform .4s ease; transform-origin:center}',
+      '  .pond:hover .lotus-bloom{transform:scale(1.5)}',
+      '  .diya-flame{transition:transform .2s ease; transform-box:fill-box; transform-origin:center bottom}',
+      '  .diya:hover .diya-flame{animation:flick .3s ease-in-out infinite}',
+      '  @keyframes spin{to{transform:rotate(360deg)}}',
+      '  @keyframes sway{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}',
+      '  @keyframes pulse{0%,100%{opacity:.35}50%{opacity:.85}}',
+      '  @keyframes flick{0%,100%{transform:scaleY(1)}50%{transform:scaleY(1.28) translateY(-1px)}}',
+      '}'
+    ].join('');
+  }
+
+  // Delegated hover wiring: ONE set of listeners on the svg root (not per-element). When a
+  // grove is hovered/focused/tapped, light up the prerequisite EDGES connected to it (its
+  // route through the forest). Cheap: we only toggle a class on the few matching edges.
+  function wireHover(svg) {
+    const edgesFor = pillar => svg.querySelectorAll('.pedge[data-from="' + cssEsc(pillar) + '"], .pedge[data-to="' + cssEsc(pillar) + '"]');
+    let hotEdges = [];
+    const clearHot = () => { hotEdges.forEach(e => e.classList.remove('edge-hot')); hotEdges = []; };
+    const lightRoute = grove => {
+      clearHot();
+      const pillar = grove && grove._pillar;
+      if (!pillar) return;
+      hotEdges = Array.prototype.slice.call(edgesFor(pillar));
+      hotEdges.forEach(e => e.classList.add('edge-hot'));
+    };
+    const groveOf = t => { while (t && t !== svg) { if (t.classList && t.classList.contains('grove')) return t; t = t.parentNode; } return null; };
+    svg.addEventListener('mouseover', e => { const g = groveOf(e.target); if (g) lightRoute(g); });
+    svg.addEventListener('mouseout', e => { const g = groveOf(e.target); if (g && !g.contains(e.relatedTarget)) clearHot(); });
+    svg.addEventListener('focusin', e => { const g = groveOf(e.target); if (g) lightRoute(g); });
+    svg.addEventListener('focusout', clearHot);
+    // touch: a tap on a grove lights its route briefly (selection/dive-in still handled by click)
+    svg.addEventListener('touchstart', e => { const g = groveOf(e.target); if (g) lightRoute(g); }, { passive: true });
+  }
+  function cssEsc(s) { return (s || '').replace(/["\\]/g, '\\$&'); }
+
+  // Subtle CURSOR PARALLAX — near layers shift a hair more than far ones as the pointer
+  // moves, so the scene feels alive & 3-D. rAF-throttled, pointer-only, reduced-motion-off.
+  function wireParallax(svg, layers, reduced) {
+    if (reduced || !window.matchMedia || !window.matchMedia('(pointer:fine)').matches) return;
+    let tx = 0, ty = 0, raf = 0;
+    const apply = () => { raf = 0; layers.forEach(({ node, k }) => { node.setAttribute('transform', 'translate(' + (tx * k).toFixed(2) + ',' + (ty * k).toFixed(2) + ')'); }); };
+    svg.addEventListener('pointermove', e => {
+      const r = svg.getBoundingClientRect(); if (!r.width) return;
+      tx = ((e.clientX - r.left) / r.width - 0.5) * 2;   // -1 … 1
+      ty = ((e.clientY - r.top) / r.height - 0.5) * 2;
+      if (!raf) raf = requestAnimationFrame(apply);
+    });
+    svg.addEventListener('pointerleave', () => { tx = 0; ty = 0; if (!raf) raf = requestAnimationFrame(apply); });
+  }
+
+  // ============================================================================
   // BACKGROUND LAYERS — sky, moon/stars, hills, temple, mist
   // ============================================================================
   function paintSky(g, reduced) {
@@ -354,12 +453,27 @@
   // A single illustrated forest tree — layered painterly canopy with a lit crown, a
   // shaded belly, a tapering trunk and a soft cast shadow. `kind` varies the silhouette so
   // the wood reads as a mix of banyan / round / willow / spire, not one stamp repeated.
-  function forestTree(parent, sc, tone, kind, r, sway) {
+  // a spread of canopy tints — jewel greens/teals plus rarer plum/amber accents, so the
+  // forest canopy reads rich and varied while staying inside the indigo/gold/teal world.
+  // [belly, body, lit, rim] base hues; tone then lightens them for depth.
+  const CANOPY_TINTS = [
+    ['#132a22', '#1c3a30', '#3f7a58', '#6fae82'],   // classic jade (workhorse)
+    ['#122a2a', '#1a4040', '#37877f', '#63c0b0'],   // teal-cedar
+    ['#16301f', '#22482c', '#4d8f52', '#7cc077'],   // brighter emerald
+    ['#0f2a26', '#183f3a', '#2f8478', '#57d3ce'],   // peacock-teal (rarer, luminous)
+    ['#1c2836', '#2a3f52', '#4e7a8f', '#7fb0c8'],   // dusk blue-green (atmospheric, far)
+    ['#241f36', '#33304e', '#6b6ca8', '#9a8fd0'],   // plum accent (rare)
+    ['#2a2417', '#463a1f', '#9a7d3a', '#d9b45a']    // amber-olive accent (rare, warm)
+  ];
+  function forestTree(parent, sc, tone, kind, r, sway, tintIdx) {
     // tone in [0,1]: 0 = deep-shadow filler, 1 = lit near-tree. Blends toward teal-green.
-    const belly = shade('#132a22', tone * 0.10);
-    const body = shade('#1c3a30', 0.04 + tone * 0.22);
-    const lit = shade('#3f7a58', 0.05 + tone * 0.30);
-    const rim = shade('#6fae82', tone * 0.25);
+    // tintIdx (optional) picks a canopy tint; default weights toward the greens.
+    if (tintIdx == null) { const roll = r(); tintIdx = roll < 0.5 ? Math.floor(r() * 3) : roll < 0.78 ? 3 : roll < 0.9 ? 4 : roll < 0.96 ? 5 : 6; }
+    const T = CANOPY_TINTS[tintIdx % CANOPY_TINTS.length];
+    const belly = shade(T[0], tone * 0.10);
+    const body = shade(T[1], 0.04 + tone * 0.24);
+    const lit = shade(T[2], 0.06 + tone * 0.34);
+    const rim = shade(T[3], 0.05 + tone * 0.28);
     const trunkCol = shade('#241c26', tone * 0.18);
     const t = el('g', { transform: 'scale(' + sc.toFixed(2) + ')' }, parent);
     // cast shadow pooled at the base
@@ -436,6 +550,12 @@
     canopyWall(g, 360, '#12271f', 0.9, 'cwB', 26);
     // warm light pooling down the centre from the temple
     el('rect', { x: 0, y: 290, width: VB.w, height: VB.h - 290, fill: 'url(#floorLight)', opacity: 0.9 }, g);
+    // ATMOSPHERIC DEPTH HAZE — soft cool bands of mist behind the far foliage so distant
+    // bands recede (blue-green) and nearer ones read warmer/clearer, giving layered depth.
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4, y = 300 + t * 200;
+      el('rect', { x: 0, y: y - 30, width: VB.w, height: 64, fill: 'rgba(120,170,190,' + (0.11 - t * 0.02).toFixed(3) + ')', filter: 'url(#soft2)' }, g);
+    }
     // soft canopy-shadow pools on the floor (depth)
     const rp = rng('pools');
     for (let i = 0; i < 22; i++) {
@@ -534,12 +654,12 @@
   // a single oil-lamp diya: a shallow clay bowl with a warm teardrop flame + halo.
   function diya(parent, x, y, s, reduced, seed) {
     s = s || 1;
-    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    const gg = el('g', { class: 'diya', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
     el('ellipse', { cx: 0, cy: 8, rx: 12, ry: 4, fill: '#3a2417', opacity: 0.7 }, gg);          // reflection/shadow
-    el('circle', { cx: 0, cy: -1, r: 10, fill: 'url(#diyaG)', opacity: 0.9 }, gg);               // glow
+    el('circle', { class: 'diya-glow', cx: 0, cy: -1, r: 10, fill: 'url(#diyaG)', opacity: 0.9 }, gg);   // glow
     el('path', { d: 'M-7,3 Q0,9 7,3 Z', fill: '#6a3a1c' }, gg);                                  // clay bowl
     el('path', { d: 'M-7,3 Q0,7 7,3', fill: 'none', stroke: C.goldDeep, 'stroke-width': 1 }, gg);
-    const fl = el('path', { d: 'M0,-2 C-2,-6 0,-11 0,-13 C0,-11 2,-6 0,-2 Z', fill: C.goldBright }, gg);  // flame
+    const fl = el('path', { class: 'diya-flame', d: 'M0,-2 C-2,-6 0,-11 0,-13 C0,-11 2,-6 0,-2 Z', fill: C.goldBright }, gg);  // flame
     el('circle', { cx: 0, cy: -5, r: 1.6, fill: '#fff8e4' }, gg);
     if (!reduced) { const r = seed ? rng(seed) : Math.random; anim(fl, 'opacity', '1', '0.6', (1.6 + (r() || 0.4)).toFixed(1) + 's'); }
     return gg;
@@ -548,8 +668,9 @@
   // a serene meditating GURU/sage silhouette in lotus posture, faint aureole (echo of alt5).
   function guru(parent, x, y, s, reduced) {
     s = s || 1;
-    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
-    const halo = el('circle', { cx: 0, cy: -14, r: 20, fill: 'url(#nodeGold)', opacity: 0.35 }, gg);
+    const gg = el('g', { class: 'crit crit-guru', transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    el('rect', { x: -22, y: -34, width: 44, height: 46, fill: 'transparent', 'pointer-events': 'all' }, gg);   // hit-area
+    const halo = el('circle', { class: 'sage-aura', cx: 0, cy: -14, r: 20, fill: 'url(#nodeGold)', opacity: 0.35 }, gg);
     if (!reduced) anim(halo, 'opacity', '0.4', '0.18', '5s');
     el('ellipse', { cx: 0, cy: 6, rx: 20, ry: 5, fill: '#0a1712', opacity: 0.5 }, gg);        // ground shadow
     // crossed-leg base
@@ -563,65 +684,106 @@
     return gg;
   }
 
-  // a peacock silhouette perched at the treeline — jewelled teal body + fan of eye-feathers.
-  function peacock(parent, x, y, s, dir, reduced) {
+  // a PEACOCK (mor) — the iconic bird: a jewelled teal body with an S-curved neck & crest,
+  // and a long SPREADING TRAIN of eye-feathers (ocelli) behind it. `fanned` shows the full
+  // display fan; otherwise a graceful trailing train. Reads unmistakably as a peacock.
+  function peacock(parent, x, y, s, dir, reduced, fanned) {
     s = s || 1; dir = dir || 1;
-    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + (s * dir) + ',' + s + ')' }, parent);
-    // tail fan of ocellus feathers
-    const fan = el('g', {}, gg);
-    for (let i = -3; i <= 3; i++) {
-      const a = i * 15, len = 34 - Math.abs(i) * 3;
-      const ex = Math.sin(a * Math.PI / 180) * len, ey = -Math.cos(a * Math.PI / 180) * len + 4;
-      el('line', { x1: 0, y1: 4, x2: ex.toFixed(1), y2: ey.toFixed(1), stroke: C.peacock, 'stroke-width': 1, opacity: 0.55 }, fan);
-      el('circle', { cx: ex.toFixed(1), cy: ey.toFixed(1), r: 3, fill: C.peacock, opacity: 0.7 }, fan);
-      el('circle', { cx: ex.toFixed(1), cy: ey.toFixed(1), r: 1.4, fill: C.gold, opacity: 0.9 }, fan);
+    const gg = el('g', { class: 'crit crit-peacock', transform: 'translate(' + x + ',' + y + ') scale(' + (s * dir) + ',' + s + ')' }, parent);
+    el('rect', { x: -48, y: -34, width: 72, height: 50, fill: 'transparent', 'pointer-events': 'all' }, gg);   // hit-area
+    const eye = (fx, fy, rr) => {   // one ocellus "eye" feather tip
+      el('ellipse', { cx: fx.toFixed(1), cy: fy.toFixed(1), rx: (rr * 1.15).toFixed(1), ry: rr.toFixed(1), fill: '#1f8f78', opacity: 0.85 }, tail);
+      el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.62).toFixed(1), fill: '#2f5fa0', opacity: 0.9 }, tail);
+      el('circle', { cx: fx.toFixed(1), cy: fy.toFixed(1), r: (rr * 0.3).toFixed(1), fill: C.goldBright }, tail);
+    };
+    const tail = el('g', { class: 'peacock-tail' }, gg);
+    if (fanned) {
+      // full display fan sweeping up & out behind the body (a wide arc of eye-feathers)
+      const shafts = 11;
+      for (let i = 0; i < shafts; i++) {
+        const a = (-95 + (i / (shafts - 1)) * 190) * Math.PI / 180;   // -95°..+95°
+        const len = 40 + Math.cos(a) * 8;
+        const ex = -6 + Math.sin(a) * len, ey = -4 - Math.cos(a) * len;
+        el('path', { d: 'M-4,2 Q' + (ex * 0.5 - 2).toFixed(1) + ',' + (ey * 0.5).toFixed(1) + ' ' + ex.toFixed(1) + ',' + ey.toFixed(1),
+          fill: 'none', stroke: '#146a66', 'stroke-width': 1, opacity: 0.5 }, tail);
+        eye(ex, ey, 3.2 - Math.abs(i - (shafts - 1) / 2) * 0.18);
+      }
+    } else {
+      // graceful trailing TRAIN — long curved feathers streaming behind (to the left)
+      const feathers = 7;
+      for (let i = 0; i < feathers; i++) {
+        const spread = (i - (feathers - 1) / 2) * 6;      // vertical spread of the train
+        const len = 40 + (feathers - i) * 3;
+        const ex = -len, ey = 8 + spread;
+        el('path', { d: 'M-5,2 Q' + (-len * 0.5).toFixed(1) + ',' + (spread * 0.5 - 2).toFixed(1) + ' ' + ex.toFixed(1) + ',' + ey.toFixed(1),
+          fill: 'none', stroke: '#146a66', 'stroke-width': 1.1, opacity: 0.55 }, tail);
+        eye(ex, ey, 2.8);
+      }
+      // a few barb wisps for softness
+      for (let i = 0; i < 4; i++) el('path', { d: 'M-6,4 Q-' + (24 + i * 8) + ',' + (10 + i * 3) + ' -' + (40 + i * 8) + ',' + (16 + i * 4), fill: 'none', stroke: '#1f8f78', 'stroke-width': 0.6, opacity: 0.4 }, tail);
     }
-    // body + neck + crest
-    el('ellipse', { cx: 6, cy: 2, rx: 8, ry: 6, fill: '#124d4c' }, gg);
-    el('path', { d: 'M12,0 C18,-4 18,-12 15,-16', fill: 'none', stroke: '#146a66', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);
-    el('circle', { cx: 15, cy: -17, r: 3, fill: '#1a7d78' }, gg);
-    el('path', { d: 'M16,-19 l3,-4 M16,-19 l4,-2 M16,-19 l1,-5', stroke: C.teal, 'stroke-width': 0.8 }, gg);  // crest
-    el('path', { d: 'M17,-16 l4,1', stroke: C.gold, 'stroke-width': 1 }, gg);                                 // beak
+    // plump teal body
+    el('ellipse', { cx: 4, cy: 2, rx: 9, ry: 7, fill: '#124d4c' }, gg);
+    el('ellipse', { cx: 5, cy: 0, rx: 6, ry: 4, fill: '#1a7d78', opacity: 0.7 }, gg);            // breast sheen
+    // S-curved neck rising forward-right
+    el('path', { d: 'M11,-1 C18,-4 19,-13 16,-18', fill: 'none', stroke: '#146a66', 'stroke-width': 4.2, 'stroke-linecap': 'round' }, gg);
+    el('circle', { cx: 16, cy: -19, r: 3.2, fill: '#1a7d78' }, gg);                              // head
+    el('path', { d: 'M18,-19 l3,-0.5', stroke: C.gold, 'stroke-width': 1.2, 'stroke-linecap': 'round' }, gg);   // beak
+    el('circle', { cx: 15.5, cy: -19.5, r: 0.7, fill: '#08120e' }, gg);                          // eye
+    // fan crest (3 dotted plumes)
+    for (let k = -1; k <= 1; k++) {
+      el('line', { x1: 16, y1: -22, x2: 16 + k * 2.4, y2: -28, stroke: '#1a7d78', 'stroke-width': 0.8 }, gg);
+      el('circle', { cx: 16 + k * 2.4, cy: -28.5, r: 1.1, fill: C.teal }, gg);
+    }
+    // legs
+    el('path', { d: 'M2,8 l-1,5 M7,8 l1,5', stroke: '#2a2018', 'stroke-width': 1, 'stroke-linecap': 'round' }, gg);
     return gg;
   }
 
   // ---- more Indic mythological LIFE (readable silhouettes at map scale, on-palette) ----
-  function critterBase(parent, x, y, s, dir, shadowRx) {
-    const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + (s * (dir || 1)) + ',' + s + ')' }, parent);
+  function critterBase(parent, x, y, s, dir, shadowRx, cls) {
+    const gg = el('g', { class: 'crit' + (cls ? ' ' + cls : ''), transform: 'translate(' + x + ',' + y + ') scale(' + (s * (dir || 1)) + ',' + s + ')' }, parent);
+    // invisible hit-area so the WHOLE creature is hoverable/tappable (thin silhouettes have
+    // little fillable area). A transparent fill still receives pointer events.
+    el('rect', { x: -(shadowRx || 16) - 6, y: -34, width: (shadowRx || 16) * 2 + 12, height: 44, fill: 'transparent', 'pointer-events': 'all' }, gg);
     el('ellipse', { cx: 0, cy: 5, rx: shadowRx || 16, ry: 4, fill: '#08120e', opacity: 0.4 }, gg);
     return gg;
   }
 
   // a DEER / chital — slender body, arched neck, small antlers, dappled back.
   function deer(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 15);
+    const gg = critterBase(parent, x, y, s, dir, 15, 'crit-deer');
     el('path', { d: 'M-13,3 L-13,-6 M-6,3 L-6,-7 M6,2 L6,-7 M12,2 L12,-7', stroke: '#2a2018', 'stroke-width': 1.6, 'stroke-linecap': 'round' }, gg);  // legs
     el('path', { d: 'M-14,-7 C-8,-14 8,-14 13,-8 L11,-3 C4,-6 -6,-6 -13,-3 Z', fill: '#5a4326' }, gg);   // body
-    el('path', { d: 'M12,-8 C16,-12 17,-18 15,-22', fill: 'none', stroke: '#5a4326', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, gg);  // neck
-    el('circle', { cx: 15, cy: -23, r: 3, fill: '#6a5030' }, gg);                                        // head
-    el('path', { d: 'M15,-25 l-2,-5 M17,-25 l2,-5', stroke: C.gold, 'stroke-width': 1, 'stroke-linecap': 'round' }, gg);  // antlers
     for (let i = 0; i < 4; i++) el('circle', { cx: -8 + i * 5, cy: -9 + (i % 2) * 2, r: 0.9, fill: C.goldBright, opacity: 0.7 }, gg);  // dapples
+    // head + neck + antlers as one group (lifts on hover) — origin at the neck base (12,-8)
+    const head = el('g', { class: 'deer-head' }, gg);
+    el('path', { d: 'M12,-8 C16,-12 17,-18 15,-22', fill: 'none', stroke: '#5a4326', 'stroke-width': 3.2, 'stroke-linecap': 'round' }, head);  // neck
+    el('circle', { cx: 15, cy: -23, r: 3, fill: '#6a5030' }, head);                                        // head
+    el('path', { d: 'M15,-25 l-2,-5 M17,-25 l2,-5', stroke: C.gold, 'stroke-width': 1, 'stroke-linecap': 'round' }, head);  // antlers
     return gg;
   }
 
   // a NAGA — sacred serpent coiled with a raised hood, jewelled teal scales.
   function naga(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 18);
+    const gg = critterBase(parent, x, y, s, dir, 18, 'crit-naga');
     el('path', { d: 'M-16,3 q-6,-8 2,-11 q10,-4 14,3 q4,7 -3,10 q-9,3 -13,-2', fill: 'none', stroke: '#146a66', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // coil
-    el('path', { d: 'M8,-4 C14,-10 12,-20 6,-26', fill: 'none', stroke: '#1a7d78', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // rising body
-    el('path', { d: 'M6,-26 q-7,-4 -3,-11 q7,4 3,11 M6,-26 q7,-4 3,-11 q-7,4 -3,11', fill: '#124d4c', stroke: C.teal, 'stroke-width': 0.8 }, gg);  // hood
-    el('circle', { cx: 5, cy: -30, r: 1.2, fill: C.goldBright }, gg); el('circle', { cx: 9, cy: -30, r: 1.2, fill: C.goldBright }, gg);  // eyes
+    // rising body + hood sway together on hover (origin at coil top ~6,-4)
+    const hood = el('g', { class: 'naga-hood' }, gg);
+    el('path', { d: 'M8,-4 C14,-10 12,-20 6,-26', fill: 'none', stroke: '#1a7d78', 'stroke-width': 4, 'stroke-linecap': 'round' }, hood);  // rising body
+    el('path', { d: 'M6,-26 q-7,-4 -3,-11 q7,4 3,11 M6,-26 q7,-4 3,-11 q-7,4 -3,11', fill: '#124d4c', stroke: C.teal, 'stroke-width': 0.8 }, hood);  // hood
+    el('circle', { cx: 5, cy: -30, r: 1.2, fill: C.goldBright }, hood); el('circle', { cx: 9, cy: -30, r: 1.2, fill: C.goldBright }, hood);  // eyes
     return gg;
   }
 
   // an ELEPHANT (gaja) — rounded body, trunk, tusks, big ear; a bindi on the brow.
   function elephant(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 26);
+    const gg = critterBase(parent, x, y, s, dir, 26, 'crit-elephant');
     el('path', { d: 'M-16,3 L-16,-6 M-7,3 L-7,-7 M7,3 L7,-7 M15,3 L15,-6', stroke: '#2b2a34', 'stroke-width': 4, 'stroke-linecap': 'round' }, gg);  // legs
     el('ellipse', { cx: -2, cy: -12, rx: 20, ry: 14, fill: '#39384a' }, gg);                              // body
     el('circle', { cx: 16, cy: -14, r: 10, fill: '#3f3e52' }, gg);                                        // head
     el('path', { d: 'M9,-16 q-8,3 -6,10', fill: '#2b2a38', opacity: 0.9 }, gg);                           // ear
-    el('path', { d: 'M24,-11 C30,-6 29,2 26,7', fill: 'none', stroke: '#3f3e52', 'stroke-width': 4.5, 'stroke-linecap': 'round' }, gg);  // trunk
+    el('path', { class: 'eleph-trunk', d: 'M24,-11 C30,-6 29,2 26,7', fill: 'none', stroke: '#3f3e52', 'stroke-width': 4.5, 'stroke-linecap': 'round' }, gg);  // trunk
     el('path', { d: 'M22,-6 l5,6 M25,-7 l4,7', stroke: '#e9e2cf', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);  // tusks
     el('circle', { cx: 16, cy: -18, r: 1.4, fill: C.ember, opacity: 0.85 }, gg);                          // bindi
     el('path', { d: 'M-14,-20 q6,-5 12,0', fill: 'none', stroke: C.gold, 'stroke-width': 1, opacity: 0.6 }, gg);  // caparison hint
@@ -630,7 +792,7 @@
 
   // a MONKEY (vanara) — small hunched body + long curling tail, perched.
   function monkey(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 9);
+    const gg = critterBase(parent, x, y, s, dir, 9, 'crit-monkey');
     el('path', { d: 'M-2,2 q-12,2 -14,-6 q-2,-8 6,-8', fill: 'none', stroke: '#4a3a2a', 'stroke-width': 2, 'stroke-linecap': 'round' }, gg);  // tail
     el('ellipse', { cx: 0, cy: -6, rx: 7, ry: 8, fill: '#4a3a2a' }, gg);                                  // body
     el('circle', { cx: 2, cy: -15, r: 4.2, fill: '#5a4632' }, gg);                                        // head
@@ -641,7 +803,7 @@
 
   // a walking PILGRIM (yatri) — robed figure with a staff, mid-stride along a path.
   function pilgrim(parent, x, y, s, dir) {
-    const gg = critterBase(parent, x, y, s, dir, 8);
+    const gg = critterBase(parent, x, y, s, dir, 8, 'crit-pilgrim');
     el('path', { d: 'M-3,4 L-5,-6 M3,4 L2,-6', stroke: '#17130f', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);  // legs stride
     el('path', { d: 'M0,-6 C-6,-6 -6,2 -4,4 L4,4 C6,2 6,-6 0,-6 Z', fill: '#2a2118' }, gg);               // robe
     el('path', { d: 'M0,-6 C-4,-14 4,-14 0,-6', fill: '#33281c' }, gg);                                   // torso
@@ -654,11 +816,12 @@
   // a small FLOCK of birds — V-strokes gliding; used across the sky band, per-band.
   function flock(parent, x, y, s, seed, reduced) {
     const r = rng(seed); const gg = el('g', { transform: 'translate(' + x + ',' + y + ') scale(' + s + ')' }, parent);
+    const inner = el('g', { class: 'flock-g' }, gg);   // hover-flutter target (drift SMIL on gg)
     const n = 3 + Math.floor(r() * 3);
     for (let i = 0; i < n; i++) {
       const bx = (r() - 0.5) * 40, by = (r() - 0.5) * 16, sz = 4 + r() * 3;
       el('path', { d: 'M' + bx.toFixed(1) + ',' + by.toFixed(1) + ' q-' + sz + ',-' + (sz * 0.5) + ' -' + (sz * 2) + ',0 q' + sz + ',-' + (sz * 0.5) + ' ' + (sz * 2) + ',0',
-        fill: 'none', stroke: 'rgba(230,220,190,.5)', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, gg);
+        fill: 'none', stroke: 'rgba(230,220,190,.5)', 'stroke-width': 1.4, 'stroke-linecap': 'round' }, inner);
     }
     if (!reduced) animT(gg, '0,0', ((r() > 0.5 ? 30 : -30)) + ',' + (-8) + '', (18 + r() * 10).toFixed(0) + 's');
     return gg;
@@ -703,15 +866,15 @@
     const scale = 0.62 + near * 0.5;                                            // pools recede up-map
     const cx = spot ? spot.x : VB.w * 0.79, cy = spot ? spot.y : 560;
     const rx = 120 * scale, ry = 40 * scale;
-    const gg = el('g', {}, g);
+    const gg = el('g', { class: 'pond' }, g);
     // bank rim / wet stone
     el('ellipse', { cx: cx, cy: cy + 4, rx: rx + 14, ry: ry + 8, fill: '#0c1c18', opacity: 0.6, filter: 'url(#soft1)' }, gg);
     // luminous water
-    el('ellipse', { cx: cx, cy: cy, rx: rx, ry: ry, fill: 'url(#pondG)' }, gg);
+    el('ellipse', { class: 'pond-water', cx: cx, cy: cy, rx: rx, ry: ry, fill: 'url(#pondG)' }, gg);
     el('ellipse', { cx: cx, cy: cy, rx: rx, ry: ry, fill: 'none', stroke: C.teal, 'stroke-width': 1, opacity: 0.4 }, gg);
     // concentric ripples (expanding, reduced-safe)
     for (let i = 0; i < 3; i++) {
-      const rp = el('ellipse', { cx: cx, cy: cy, rx: (rx * 0.3).toFixed(0), ry: (ry * 0.3).toFixed(0), fill: 'none', stroke: 'rgba(159,230,214,.45)', 'stroke-width': 1 }, gg);
+      const rp = el('ellipse', { class: 'pond-ripple', cx: cx, cy: cy, rx: (rx * 0.3).toFixed(0), ry: (ry * 0.3).toFixed(0), fill: 'none', stroke: 'rgba(159,230,214,.45)', 'stroke-width': 1 }, gg);
       if (!reduced) {
         rp.appendChild(el('animate', { attributeName: 'rx', values: (rx * 0.2) + ';' + (rx * 0.95), dur: '6s', begin: (i * 2) + 's', repeatCount: 'indefinite' }));
         rp.appendChild(el('animate', { attributeName: 'ry', values: (ry * 0.2) + ';' + (ry * 0.95), dur: '6s', begin: (i * 2) + 's', repeatCount: 'indefinite' }));
@@ -726,7 +889,7 @@
     }
     for (let i = 0; i < 3; i++) {
       const px = cx + (r() - 0.5) * rx * 1.2, py = cy + (r() - 0.5) * ry;
-      const lg = el('g', { transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, gg);
+      const lg = el('g', { class: 'lotus-bloom', transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, gg);
       for (let k = 0; k < 6; k++) { const a = k * Math.PI / 3; el('path', { d: 'M0,0 Q' + (Math.cos(a) * 3).toFixed(1) + ',-5 ' + (Math.cos(a) * 6).toFixed(1) + ',' + (Math.sin(a) * 6 - 2).toFixed(1), stroke: C.magenta, 'stroke-width': 1.4, fill: 'none', opacity: 0.75 }, lg); }
       el('circle', { cx: 0, cy: 0, r: 1.8, fill: C.goldBright }, lg);
     }
@@ -774,63 +937,107 @@
   function paintBandFoliage(g, pts, temple, reduced) {
     if (!pts || !pts.length) return;
     const layer = el('g', {}, g);
-    // walk the meandered river so we flank the ACTUAL winding trail, incl. up to the temple
+    const tempY = temple ? temple.y : 116;
+    // perspective helper: how "near" a y is (0 far/top … 1 near/bottom)
+    const nearOf = y => Math.min(1, Math.max(0, (y - tempY) / (VB.h - tempY)));
+    const treeKinds = ['banyan', 'round', 'willow', 'peepal', 'round', 'banyan', 'peepal'];
+    // a small planting helper so every source (grid / segments / temple) makes matched trees
+    function plant(x, y, rr, opts) {
+      opts = opts || {};
+      if (x < 4 || x > VB.w - 4 || y < 300 || y > VB.h - 6) return;
+      const near = nearOf(y);
+      const scl = (opts.baseScale != null ? opts.baseScale : (0.62 + near * 0.82)) * (0.8 + rr() * 0.5);
+      const kind = treeKinds[Math.floor(rr() * treeKinds.length)];
+      // FAR trees drift toward the atmospheric dusk-blue tint; near trees stay green/jewel.
+      let tintIdx; const roll = rr();
+      if (near < 0.4) tintIdx = roll < 0.5 ? 4 : roll < 0.72 ? 1 : roll < 0.88 ? 2 : roll < 0.96 ? 3 : 5;
+      else tintIdx = roll < 0.4 ? Math.floor(rr() * 3) : roll < 0.66 ? 3 : roll < 0.8 ? 1 : roll < 0.9 ? 2 : roll < 0.96 ? 6 : 5;
+      const tone = Math.min(1, 0.4 + near * 0.45 + (rr() - 0.5) * 0.2);
+      const tg = el('g', { transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')', opacity: (0.82 + rr() * 0.16).toFixed(2) }, layer);
+      forestTree(tg, scl, tone, kind, rng('t|' + x.toFixed(0) + '|' + y.toFixed(0)), !reduced && near > 0.6 && scl > 0.95 && rr() > 0.78, tintIdx);
+    }
+
+    // (0) FULL-FRAME tree GRID — guarantees UNIFORM coverage of every region (top, far
+    // corners, the gaps between bands) so density never thins toward the temple. A jittered
+    // lattice over the whole ground plane; because far trees are SMALL, we plant MORE of them
+    // per area up top (finer rows + more columns + fewer gaps) so coverage stays even.
+    const gr = rng('treegrid');
+    for (let y = 316; y <= VB.h - 30; ) {
+      const near = nearOf(y);
+      // finer, denser lattice far away (small trees) → coarser near (big trees fill more)
+      const rowStep = lerp(30, 50, near);
+      const cols = Math.round(lerp(15, 9, near));
+      const skip = lerp(0.06, 0.2, near);               // fewer gaps up top
+      const inset = lerp(2, 56, 1 - near);              // still plant out to the frame edges
+      for (let c = 0; c <= cols; c++) {
+        if (gr() < skip) continue;
+        const fx = c / cols;
+        const x = inset + fx * (VB.w - 2 * inset) + (gr() - 0.5) * (VB.w / cols) * 0.9;
+        const yy = y + (gr() - 0.5) * rowStep * 0.5;
+        plant(x, yy, gr);
+      }
+      y += rowStep;
+    }
+
+    // (1) extra trees flanking BOTH sides of every path segment — thickens the treed
+    // CORRIDOR right along the trail (over the grid) so the path always feels embowered.
     const spine = temple ? pts.concat([{ x: temple.x, y: temple.y + 96, scale: 0.42 }]) : pts;
     const river = meander(spine);
-    // perspective helper: how "near" a y is (0 far/top … 1 near/bottom)
-    const nearOf = y => Math.min(1, Math.max(0, (y - (temple ? temple.y : 116)) / (VB.h - (temple ? temple.y : 116))));
-
-    // (1) trees flanking BOTH sides of every river segment — a continuous treed corridor
     for (let i = 0; i < river.length - 1; i++) {
       const a = river[i], b = river[i + 1];
       const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
       const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len, ny = dx / len;                  // unit perpendicular
+      const nx = -dy / len, ny = dx / len;
       const near = nearOf(my);
-      const seed = 'band|' + i;
-      const rr = rng(seed);
-      // two flanking stands (one each side); nearer bands get bigger, denser stands
+      const rr = rng('band|' + i);
       [-1, 1].forEach(sideDir => {
-        const nStands = 1 + Math.floor(rr() * 2);           // 1–2 stands per side per segment
+        const nStands = 2;                              // UNIFORM count top→bottom (size recedes)
         for (let s = 0; s < nStands; s++) {
-          const off = (52 + rr() * 60) * (0.7 + near * 0.7);   // push clear of the ~40px path halo
-          const along = (rr() - 0.5) * len * 0.6;              // slide along the segment
+          const off = (46 + rr() * 40) + near * 24;     // clear of the path halo, both ends
+          const along = (rr() - 0.5) * len * 0.7;
           const tx = mx + nx * off * sideDir + (dx / len) * along;
           const ty = my + ny * off * sideDir * 0.55 + (dy / len) * along;
-          if (tx < 6 || tx > VB.w - 6) continue;
-          const scl = (0.5 + near * 0.95) * (0.8 + rr() * 0.5);
-          const kinds = ['banyan', 'round', 'willow', 'peepal', 'round', 'banyan'];
-          const kind = kinds[Math.floor(rr() * kinds.length)];
-          const tone = Math.min(1, 0.25 + near * 0.6 + (rr() - 0.5) * 0.2);
-          const tg = el('g', { transform: 'translate(' + tx.toFixed(0) + ',' + ty.toFixed(0) + ')', opacity: (0.82 + rr() * 0.16).toFixed(2) }, layer);
-          // sway only a minority of the nearest, largest band trees (keeps SMIL count sane)
-          forestTree(tg, scl, tone, kind, rng(seed + '|' + sideDir + '|' + s), !reduced && near > 0.62 && scl > 0.9 && rr() > 0.72);
+          plant(tx, ty, rr);
         }
       });
     }
 
-    // (2) understorey tufts + wildflowers filling the ground BETWEEN the path bands so
-    // there is no empty dark space anywhere. Anchored to river points, scaled by depth.
+    // (2) TEMPLE-APPROACH grove — the top region around the shikhara gets its own dense
+    // planting (the funnel makes the path a single narrow column up there, so the grid alone
+    // can look thin). Trees hug both sides of the temple and fill the upper corners.
+    if (temple) {
+      const rt = rng('templegrove');
+      for (let i = 0; i < 38; i++) {
+        const side = i % 2 ? 1 : -1;
+        const spread = 80 + rt() * 340;
+        const x = temple.x + side * spread;
+        const y = temple.y + 64 + rt() * 170;
+        plant(x, y, rt, { baseScale: 0.44 + rt() * 0.34 });
+      }
+      // two staggered low bands of small trees straight across just under the temple horizon
+      for (let x = 30; x < VB.w - 30; x += 50) plant(x + (rt() - 0.5) * 26, temple.y + 148 + (rt() - 0.5) * 24, rt, { baseScale: 0.42 + rt() * 0.24 });
+      for (let x = 56; x < VB.w - 30; x += 58) plant(x + (rt() - 0.5) * 26, temple.y + 196 + (rt() - 0.5) * 24, rt, { baseScale: 0.44 + rt() * 0.26 });
+    }
+
+    // (3) understorey tufts + wildflowers filling the ground everywhere (uniform count).
     const ru = rng('bandunder');
-    river.forEach((p, i) => {
-      const near = nearOf(p.y);
-      const clusters = 3 + Math.floor(near * 4);
-      for (let k = 0; k < clusters; k++) {
-        const ang = ru() * Math.PI * 2, rad = 40 + ru() * 130;
-        const x = p.x + Math.cos(ang) * rad, y = p.y + Math.sin(ang) * rad * 0.5 + 14;
-        if (x < 8 || x > VB.w - 8 || y < 300 || y > VB.h - 12) continue;
-        const h = (5 + ru() * 12) * (0.5 + near);
+    const uStep = 58;
+    for (let y = 320; y <= VB.h - 14; y += 40) {
+      const near = nearOf(y);
+      for (let x = 20; x < VB.w - 20; x += uStep) {
+        if (ru() < 0.35) continue;
+        const px = x + (ru() - 0.5) * uStep, py = y + (ru() - 0.5) * 26;
+        if (px < 8 || px > VB.w - 8) continue;
+        const h = (4 + ru() * 11) * (0.55 + near * 0.8);
         const lean = (ru() - 0.5) * 6;
         const col = shade('#1f4230', -0.08 + near * 0.34 + ru() * 0.1);
         el('path', { d: 'M0,0 q' + lean.toFixed(0) + ',' + (-h * 0.6).toFixed(0) + ' ' + (lean * 1.4).toFixed(0) + ',' + (-h).toFixed(0),
-          stroke: col, 'stroke-width': (1 + near * 1.5).toFixed(1), fill: 'none', 'stroke-linecap': 'round',
-          opacity: (0.4 + near * 0.4).toFixed(2), transform: 'translate(' + x.toFixed(0) + ',' + y.toFixed(0) + ')' }, layer);
-        if (ru() > 0.72) {  // an occasional wildflower spark
-          el('circle', { cx: x.toFixed(0), cy: (y - h).toFixed(0), r: (0.8 + ru() * 1.2).toFixed(1),
-            fill: [C.gold, C.magenta, '#d7f0c0', C.goldBright][Math.floor(ru() * 4)], opacity: 0.6 }, layer);
-        }
+          stroke: col, 'stroke-width': (1 + near * 1.4).toFixed(1), fill: 'none', 'stroke-linecap': 'round',
+          opacity: (0.38 + near * 0.4).toFixed(2), transform: 'translate(' + px.toFixed(0) + ',' + py.toFixed(0) + ')' }, layer);
+        if (ru() > 0.8) el('circle', { cx: px.toFixed(0), cy: (py - h).toFixed(0), r: (0.8 + ru() * 1.2).toFixed(1),
+          fill: [C.gold, C.magenta, '#d7f0c0', C.goldBright][Math.floor(ru() * 4)], opacity: 0.55 }, layer);
       }
-    });
+    }
   }
 
   // ============================================================================
@@ -840,60 +1047,69 @@
   // so it's stable across reloads and auto-populates new pillars. Drawn over foliage,
   // under the grove nodes (nodes are painted after) so creatures never cover a label.
   // ============================================================================
-  function paintCreatures(g, pts, temple, reduced) {
+  function paintCreatures(g, pts, temple, reduced, ponds) {
     if (!pts || !pts.length) return;
     const layer = el('g', {}, g);
     const r = rng('critters');
-    const nearOf = y => Math.min(1, Math.max(0, (y - (temple ? temple.y : 116)) / (VB.h - (temple ? temple.y : 116))));
-    // is (x,y) clear of every grove medallion + its label band? (labels hang ~y+30..+78)
+    const tempY = temple ? temple.y : 116;
+    const nearOf = y => Math.min(1, Math.max(0, (y - tempY) / (VB.h - tempY)));
+    ponds = ponds || [];
+    // is (x,y) clear of every grove medallion + its label band, and off the ponds? (labels
+    // hang ~y+24..+86 below a node; ponds have their own resident fauna already)
     const clearOfNodes = (x, y) => pts.every(p => {
       const s = p.scale || 1;
       const dx = Math.abs(x - p.x), dy = y - p.y;
-      const nearBody = dx < 62 * s && dy > -80 * s && dy < 34 * s;      // canopy/medallion
-      const nearLabel = dx < 80 * s && dy > 24 * s && dy < 86 * s;      // label band
+      const nearBody = dx < 62 * s && dy > -80 * s && dy < 34 * s;
+      const nearLabel = dx < 82 * s && dy > 22 * s && dy < 88 * s;
       return !(nearBody || nearLabel);
-    });
-    // a rotating cast so every band gets varied fauna; ground-dwellers by kind
-    const ground = ['peacock', 'deer', 'peacock', 'monkey', 'naga', 'elephant', 'peacock', 'deer'];
-    let gi = 0;
-    // place ~2 ground creatures per grove point, on alternating sides, in real clearings
-    pts.forEach((p, idx) => {
-      const near = nearOf(p.y);
-      const tries = 2;
-      for (let t = 0; t < tries; t++) {
-        const side = (idx + t) % 2 === 0 ? 1 : -1;
-        let placed = false;
-        for (let attempt = 0; attempt < 6 && !placed; attempt++) {
-          const off = (70 + r() * 70);
-          const x = p.x + side * off, y = p.y + (r() - 0.5) * 30 + 20;
-          if (x < 40 || x > VB.w - 40 || y < 300 || y > VB.h - 40) continue;
-          if (!clearOfNodes(x, y)) continue;
-          const sc = (0.62 + near * 0.7);
-          const kind = ground[gi++ % ground.length];
-          const dir = side < 0 ? 1 : -1;
-          if (kind === 'peacock') peacock(layer, x, y, 0.85 * sc, dir, reduced);
-          else if (kind === 'deer') deer(layer, x, y, sc, dir);
-          else if (kind === 'monkey') monkey(layer, x, y, 0.9 * sc, dir);
-          else if (kind === 'naga') naga(layer, x, y, 0.9 * sc, dir);
-          else if (kind === 'elephant') elephant(layer, x, y, 0.9 * sc, dir);
-          placed = true;
-        }
+    }) && ponds.every(pd => Math.hypot(x - pd.x, y - pd.y) > 120);
+
+    // try to place one creature near (cx,cy): search a few jittered spots for a clear one.
+    function tryPlace(cx, cy, near, kind) {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const x = cx + (r() - 0.5) * 90, y = cy + (r() - 0.5) * 40;
+        if (x < 42 || x > VB.w - 42 || y < 306 || y > VB.h - 30) continue;
+        if (!clearOfNodes(x, y)) continue;
+        const sc = 0.5 + near * 0.72;                 // recede with depth, but never vanish
+        const dir = r() < 0.5 ? 1 : -1;
+        if (kind === 'peacock') peacock(layer, x, y, 0.82 * sc, dir, reduced, r() > 0.6);
+        else if (kind === 'deer') deer(layer, x, y, sc, dir);
+        else if (kind === 'monkey') monkey(layer, x, y, 0.9 * sc, dir);
+        else if (kind === 'naga') naga(layer, x, y, 0.92 * sc, dir);
+        else if (kind === 'elephant') elephant(layer, x, y, 0.92 * sc, dir);
+        else if (kind === 'guru') guru(layer, x, y, 0.95 * sc, reduced);
+        else if (kind === 'pilgrim') pilgrim(layer, x, y, 0.95 * sc, dir);
+        return true;
       }
-    });
-    // a few meditating SAGES + walking PILGRIMS along the trail (clear of nodes)
-    pts.forEach((p, idx) => {
-      if (idx % 3 !== 1) return;
-      const near = nearOf(p.y), side = idx % 2 ? -1 : 1;
-      const x = p.x + side * (96 + r() * 30), y = p.y + 26;
-      if (x < 40 || x > VB.w - 40 || !clearOfNodes(x, y)) return;
-      const sc = 0.7 + near * 0.5;
-      if (idx % 2) guru(layer, x, y, sc, reduced); else pilgrim(layer, x, y, sc, 1);
-    });
-    // bird-FLOCKS across the sky/upper bands + apsara-wisps drifting mid-map
-    for (let i = 0; i < 4; i++) flock(layer, 120 + i * 260, 130 + (i % 2) * 40, 0.9 + (i % 2) * 0.3, 'flk' + i, reduced);
-    for (let i = 0; i < 5; i++) {
-      const p = pts[Math.floor((i + 0.5) / 5 * pts.length)] || pts[0];
-      const wx = p.x + (r() - 0.5) * 90, wy = p.y - 40 - r() * 30;
+      return false;
+    }
+
+    // EVEN DISTRIBUTION over y-BANDS across the FULL height (temple → foreground). For each
+    // band we place a handful of creatures spread across the width, both sides of centre —
+    // so the temple approach is as alive as the foreground. Independent of grove positions
+    // (which cluster), yet deterministic-from-data (band count follows the map's row count).
+    const cast = ['peacock', 'deer', 'elephant', 'naga', 'monkey', 'peacock', 'deer', 'guru', 'peacock', 'pilgrim', 'elephant', 'deer'];
+    let ci = 0;
+    const rows = pts.reduce((m, p) => Math.max(m, p.row || 0), 0) + 1;
+    const yTop = tempY + 150, yBot = VB.h - 60;
+    const bands = Math.max(4, rows + 1);
+    for (let bi = 0; bi < bands; bi++) {
+      const by = yTop + (yBot - yTop) * (bi / (bands - 1));
+      const near = nearOf(by);
+      const perBand = 3 + Math.round(near);            // 3 up top … 4 near the foreground
+      for (let k = 0; k < perBand; k++) {
+        // spread across width: alternate sides, march outward from centre
+        const fx = 0.12 + (k / Math.max(1, perBand - 1)) * 0.76 + (r() - 0.5) * 0.08;
+        const cx = VB.w * Math.min(0.92, Math.max(0.08, fx));
+        tryPlace(cx, by, near, cast[ci++ % cast.length]);
+      }
+    }
+
+    // bird-FLOCKS across the sky/upper bands + apsara-wisps drifting through mid/upper map
+    for (let i = 0; i < 5; i++) flock(layer, 110 + i * 230, 120 + (i % 3) * 44, 0.85 + (i % 2) * 0.35, 'flk' + i, reduced);
+    for (let i = 0; i < 7; i++) {
+      const fx = 0.12 + (i / 6) * 0.76;
+      const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / 6) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
       const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3 + r() * 3).toFixed(1), fill: 'url(#nodeTeal)', opacity: 0.5, filter: 'url(#soft1)' }, layer);
       if (!reduced) { anim(w, 'opacity', '0.5', '0.14', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 70).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
@@ -1099,8 +1315,10 @@
       // curve the vine toward the path centre so it drapes rather than crosshatches
       const mx = (a.x + b.x) / 2 + (VB.w / 2 - (a.x + b.x) / 2) * 0.18;
       const my = (a.y + b.y) / 2 + 20;
-      el('path', { d: 'M' + a.x + ',' + (a.y - 52) + ' Q' + mx + ',' + my + ' ' + b.x + ',' + (b.y - 52),
+      const ep = el('path', { class: 'pedge', d: 'M' + a.x + ',' + (a.y - 52) + ' Q' + mx + ',' + my + ' ' + b.x + ',' + (b.y - 52),
         fill: 'none', stroke: stroke, 'stroke-width': w, 'stroke-dasharray': dash, opacity: op, 'stroke-linecap': 'round' }, layer);
+      // tag endpoints so hovering a grove can light up its connected route (see wireHover)
+      ep.setAttribute('data-from', e.from); ep.setAttribute('data-to', e.to);
     });
   }
 
@@ -1113,37 +1331,42 @@
     const hue = opts.hue || signatureHue(grove.pillar);
     const s = pt.scale || 1;
     const grp = el('g', { transform: 'translate(' + pt.x + ',' + pt.y + ') scale(' + s.toFixed(2) + ')', class: 'grove ' + st }, g);
-    if (opts.onClick && st !== 'locked') grp.style.cursor = 'pointer';
+    grp._pillar = grove.pillar;
+    if (opts.onClick && st !== 'locked') { grp.style.cursor = 'pointer'; grp.setAttribute('tabindex', '0'); }
+    // inner wrapper — the part that gently blooms/scales on hover (position stays on grp)
+    const inner = el('g', { class: 'g-inner' }, grp);
 
     // ground ring — a lotus-MANDALA / RANGOLI decal at the grove's foot (spec: sacred
     // medallion). Locked groves keep only the faint austere ring (a bare sapling shrine).
     const ringCol = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
-    el('ellipse', { cx: 0, cy: 30, rx: 46, ry: 15, fill: 'none', stroke: ringCol, 'stroke-width': 1.5, opacity: st === 'locked' ? 0.3 : 0.55 }, grp);
-    el('ellipse', { cx: 0, cy: 30, rx: 30, ry: 9, fill: 'none', stroke: ringCol, 'stroke-width': 1, opacity: st === 'locked' ? 0.2 : 0.35, 'stroke-dasharray': '3 5' }, grp);
-    if (st !== 'locked') rangoli(grp, ringCol, st, opts.reduced);
+    el('ellipse', { cx: 0, cy: 30, rx: 46, ry: 15, fill: 'none', stroke: ringCol, 'stroke-width': 1.5, opacity: st === 'locked' ? 0.3 : 0.55 }, inner);
+    el('ellipse', { cx: 0, cy: 30, rx: 30, ry: 9, fill: 'none', stroke: ringCol, 'stroke-width': 1, opacity: st === 'locked' ? 0.2 : 0.35, 'stroke-dasharray': '3 5' }, inner);
+    if (st !== 'locked') rangoli(inner, ringCol, st, opts.reduced);
 
     if (st === 'locked') {
       // bare frost-blue sapling at ~55% scale feel
-      const t = el('g', { opacity: 0.55, transform: 'scale(.8)' }, grp);
+      const t = el('g', { opacity: 0.55, transform: 'scale(.8)' }, inner);
       el('path', { d: 'M0,30 V-2', stroke: '#46525e', 'stroke-width': 4, 'stroke-linecap': 'round' }, t);
       el('path', { d: 'M0,6 l-14,-12 M0,6 l14,-12 M0,18 l-11,-9 M0,18 l11,-9', stroke: '#46525e', 'stroke-width': 3, 'stroke-linecap': 'round' }, t);
     } else {
+      // a hover "bloom" halo (revealed by CSS on hover; invisible otherwise)
+      el('circle', { class: 'g-bloom', cx: 0, cy: -18, r: 66, fill: st === 'blossoming' ? 'url(#nodeGold)' : 'url(#nodeTeal)', opacity: 0 }, inner);
       // signature-hued canopy: overlapping clustered volumes (a stand, not a blob)
       if (st === 'active') {
-        const glow = el('circle', { cx: 0, cy: -18, r: 60, fill: 'url(#nodeTeal)', opacity: 0.5 }, grp);
+        const glow = el('circle', { cx: 0, cy: -18, r: 60, fill: 'url(#nodeTeal)', opacity: 0.5 }, inner);
         if (!opts.reduced) anim(glow, 'opacity', '0.55', '0.28', '3.4s');
         // rotating you-are-here ring
-        const ring = el('circle', { cx: 0, cy: -18, r: 54, fill: 'none', stroke: C.teal, 'stroke-width': 2.2, 'stroke-dasharray': '6 8', opacity: 0.9 }, grp);
+        const ring = el('circle', { cx: 0, cy: -18, r: 54, fill: 'none', stroke: C.teal, 'stroke-width': 2.2, 'stroke-dasharray': '6 8', opacity: 0.9 }, inner);
         if (!opts.reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0 0 -18', to: '360 0 -18', dur: '24s', repeatCount: 'indefinite' }); ring.appendChild(rot); }
       } else if (st === 'blossoming') {
-        const glow = el('circle', { cx: 0, cy: -18, r: 52, fill: 'url(#nodeGold)', opacity: 0.5 }, grp);
+        const glow = el('circle', { cx: 0, cy: -18, r: 52, fill: 'url(#nodeGold)', opacity: 0.5 }, inner);
         if (!opts.reduced) anim(glow, 'opacity', '0.55', '0.3', '5s');
       }
-      canopy(grp, hue, st, opts.reduced, grove.pillar);
+      canopy(inner, hue, st, opts.reduced, grove.pillar);
     }
 
     // MEDALLION — the consistent hit-target + state ring + glyph (spec §9)
-    medallion(grp, st, ringCol, grove.pillar, opts.reduced);
+    medallion(inner, st, ringCol, grove.pillar, opts.reduced);
 
     // LABEL band — permanently visible, dark plate, app serif (spec §9)
     const isCurrent = st === 'active';
@@ -1198,7 +1421,10 @@
   // a lotus-mandala RANGOLI on the ground at the grove's foot — a ring of foreshortened
   // petals + kolam dots, in the grove's state colour. Drawn flat (ellipse projection).
   function rangoli(grp, col, st, reduced) {
-    const rg = el('g', { transform: 'translate(0,30)', opacity: st === 'active' ? 0.7 : 0.5 }, grp);
+    // outer group carries the ground offset; inner .g-rangoli spins about its own centre
+    // (CSS hover / SMIL) without disturbing the translate.
+    const outer = el('g', { transform: 'translate(0,30)', opacity: st === 'active' ? 0.7 : 0.5 }, grp);
+    const rg = el('g', { class: 'g-rangoli' }, outer);
     const petals = 12, RX = 40, RY = 13;
     for (let i = 0; i < petals; i++) {
       const a = (i / petals) * Math.PI * 2;
@@ -1221,7 +1447,7 @@
     const y = -58;
     const rim = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
     const fill = st === 'blossoming' ? 'rgba(231,182,75,.9)' : st === 'active' ? 'rgba(18,77,76,.85)' : st === 'unlocked' ? 'rgba(10,20,26,.8)' : 'rgba(20,26,32,.7)';
-    const m = el('g', { transform: 'translate(0,' + y + ')' }, grp);
+    const m = el('g', { class: 'g-medallion', transform: 'translate(0,' + y + ')' }, grp);
     const rr = el('circle', { r: 15, fill: fill, stroke: rim, 'stroke-width': 2, opacity: st === 'locked' ? 0.5 : 1 }, m);
     if (st === 'active' && !reduced) anim(rr, 'stroke-width', '2', '3.4', '1.8s');
     const glyphCol = st === 'blossoming' ? '#3a2a08' : st === 'locked' ? '#5a6672' : C.goldBright;
@@ -1252,7 +1478,7 @@
     const y = 44;
     const w = Math.max(70, short(title, 22).length * 6.4 + 18);
     const band = el('g', { transform: 'translate(0,' + y + ')', class: 'lbl' }, grp);
-    el('rect', { x: -w / 2, y: -1, width: w, height: isCurrent ? 34 : 30, rx: 6,
+    el('rect', { class: 'lbl-plate', x: -w / 2, y: -1, width: w, height: isCurrent ? 34 : 30, rx: 6,
       fill: 'rgba(6,9,20,.72)', stroke: isCurrent ? C.teal : 'rgba(231,182,75,.28)', 'stroke-width': isCurrent ? 1.4 : 0.8 }, band);
     if (isCurrent) {
       const yah = el('text', { x: 0, y: -8, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.16em', fill: C.teal }, band);
@@ -1480,6 +1706,7 @@
       })();
 
       defs(svg, reduced);
+      injectStyles(svg);
       const bg = el('g', {}, svg);
       paintSky(bg, reduced);
       paintHills(bg);
@@ -1487,7 +1714,8 @@
       paintMist(bg, reduced);
       paintStands(bg, reduced);
       paintBandFoliage(bg, pts, lay.temple, reduced);          // lush trees + understorey along EVERY band
-      pondSpots(pts, lay.temple).forEach((sp, i) => paintPond(bg, reduced, sp, i));  // kunds across the map
+      const ponds = pondSpots(pts, lay.temple);
+      ponds.forEach((sp, i) => paintPond(bg, reduced, sp, i));  // kunds across the map
       paintGodRays(bg, lay.temple, reduced);
 
       // edges (faint vines, drawn first/under) → then the luminous path (dominant spine)
@@ -1497,7 +1725,7 @@
       paintEdges(world, c.edges || [], posByPillar, statusByPillar);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
-      paintCreatures(world, pts, lay.temple, reduced);         // peacocks/deer/nagas/elephants/sages, all bands
+      paintCreatures(world, pts, lay.temple, reduced, ponds);  // peacocks/deer/nagas/elephants/sages, all bands
 
       // draw nodes back-to-front (far/high first) so foreground groves overlap correctly
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
@@ -1513,6 +1741,11 @@
       paintFrame(svg, reduced);
       el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#vig)', 'pointer-events': 'none' }, svg);
       paintHUD(svg, groves, pts, activeIdx, reduced, false, 'THE FOREST OF MASTERY');
+      // interactivity: delegated hover (edge routes + affordances) + subtle cursor parallax.
+      // The far background drifts a touch more than the foreground world for a gentle vista;
+      // both shifts are only a few viewBox units → imperceptible to click targets.
+      wireHover(svg);
+      wireParallax(svg, [{ node: world, k: 3 }], reduced);
       return c;
     }).catch(() => { empty(svg, 'could not load the forest map.'); return null; });
   }
@@ -1533,6 +1766,7 @@
       const activeIdx = Math.max(0, groves.findIndex(g => g.status === 'active'));
 
       defs(svg, reduced);
+      injectStyles(svg);
       const bg = el('g', {}, svg);
       paintSky(bg, reduced);
       paintHills(bg);
@@ -1540,7 +1774,8 @@
       paintMist(bg, reduced);
       paintStands(bg, reduced);
       paintBandFoliage(bg, pts, lay.temple, reduced);
-      pondSpots(pts, lay.temple).forEach((sp, i) => paintPond(bg, reduced, sp, i));
+      const ponds = pondSpots(pts, lay.temple);
+      ponds.forEach((sp, i) => paintPond(bg, reduced, sp, i));
       paintGodRays(bg, lay.temple, reduced);
 
       const world = el('g', {}, svg);
@@ -1550,7 +1785,7 @@
       paintEdges(world, c.edges || [], posByName, statusByName);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
-      paintCreatures(world, pts, lay.temple, reduced);
+      paintCreatures(world, pts, lay.temple, reduced, ponds);
 
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
@@ -1571,6 +1806,8 @@
       el('text', { x: 4, y: 2, 'font-family': 'JetBrains Mono, monospace', 'font-size': 10, fill: C.goldBright }, back).textContent = '← forest overview';
       if (opts.onBack) back.addEventListener('click', opts.onBack);
       paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase());
+      wireHover(svg);
+      wireParallax(svg, [{ node: world, k: 3 }], reduced);
       return c;
     }).catch(() => { empty(svg, 'could not load this grove.'); return null; });
     function metaC(s) { return s === 'done' ? '✦ mastered' : s === 'avail' ? '◇ available' : '— locked'; }
