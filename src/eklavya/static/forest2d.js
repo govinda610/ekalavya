@@ -64,6 +64,37 @@
   // small deterministic PRNG seeded from a string — for jittering foliage/stars
   function rng(seedStr) { let s = hash(seedStr) || 1; return function () { s ^= s << 13; s ^= s >>> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
 
+  // ---- TIME OF DAY (real local clock) ---------------------------------------
+  // The world's light + which fauna are active shift with the wall clock: dawn / day /
+  // dusk / night. Returns a phase name, a 0..1 "darkness" weight, sky tint stops, and a
+  // day/night flag the fauna casting uses (day → songbirds/peacock/deer; night →
+  // tiger/owl/fireflies/spirits, brighter diyas). Kept subtle + always legible.
+  function timeOfDay() {
+    const h = new Date().getHours();
+    if (h >= 5 && h < 8)  return { phase: 'dawn',  dark: 0.55, night: false, warm: 0.8 };
+    if (h >= 8 && h < 17) return { phase: 'day',   dark: 0.0,  night: false, warm: 0.35 };
+    if (h >= 17 && h < 20) return { phase: 'dusk', dark: 0.5,  night: false, warm: 0.9 };
+    return { phase: 'night', dark: 1.0, night: true, warm: 0.15 };
+  }
+
+  // ---- DIFFICULTY (0 easy … 1 hard) per grove, deterministic-from-data -------
+  // Combines the grove's journey ORDER (later = deeper toward the frontier temple), its
+  // STATUS (mastered/available are conquered/near; locked is the unknown ahead), and its
+  // CONCEPT COUNT (a bigger grove is a bigger challenge). Drives which fauna guard it:
+  // gentle near easy/mastered, dangerous guardians near hard/locked. Scales to any curriculum.
+  function difficultyOf(grove, idx, n) {
+    const order = n > 1 ? idx / (n - 1) : 0;                 // 0 foundations … 1 frontier
+    const size = Math.min(1, ((grove.total || 3) - 2) / 8);  // concept-count pressure
+    let statusW;
+    switch (grove.status) {
+      case 'blossoming': statusW = 0.0; break;               // mastered → tamed
+      case 'active':     statusW = 0.35; break;              // you're on it
+      case 'unlocked':   statusW = 0.5; break;               // available frontier
+      default:           statusW = 0.85; break;              // locked → perilous unknown
+    }
+    return Math.min(1, order * 0.5 + statusW * 0.35 + size * 0.15);
+  }
+
   // ---- tiny svg helpers ------------------------------------------------------
   function el(t, a, parent) { const e = document.createElementNS(NS, t); if (a) for (const k in a) e.setAttribute(k, a[k]); if (parent) parent.appendChild(e); return e; }
   function esc(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
@@ -301,6 +332,11 @@
       '  @keyframes hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}',
       '  @keyframes treesway{0%,100%{transform:rotate(-1.1deg)}50%{transform:rotate(1.1deg)}}',
       '  @keyframes grasswave{0%,100%{transform:skewX(-4deg)}50%{transform:skewX(4deg)}}',
+      // PROXIMITY reactivity: a predator the cursor nears BRISTLES — a taut alert quiver + its
+      // eye-halo flares (the guardian turns to face). Prey get an inline flee-transform in JS.
+      '  [data-react="pred"].react-on{animation:bristle .5s ease-in-out infinite}',
+      '  [data-react="pred"].react-on .crit-spark,[data-react="pred"].react-on circle[fill^="rgba(255"]{opacity:1 !important}',
+      '  @keyframes bristle{0%,100%{transform:translateY(0)}25%{transform:translateY(-0.6px) scale(1.02)}75%{transform:translateY(0.4px)}}',
       '}'
     ].join('');
   }
@@ -369,9 +405,27 @@
   // BACKGROUND LAYERS — sky, moon/stars, hills, temple, mist
   // ============================================================================
   function paintSky(g, reduced, groves) {
+    const tod = timeOfDay();
     el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#skyG)' }, g);
-    // stars
-    const r = rng('stars'); const stars = el('g', {}, g);
+    // TIME-OF-DAY grade: a full-frame wash that warms the sky at dawn/dusk, brightens it by
+    // day, and deepens it at night — blended with the progress-driven warmth (more mastered
+    // groves → a touch more golden dawn behind the temple). One cheap rect, no filter.
+    const mastered = groves && groves.length ? groves.filter(gv => gv.status === 'blossoming').length / groves.length : 0;
+    const grade = (() => {
+      if (tod.phase === 'day')  return 'rgba(150,190,210,.10)';   // bright, cool-clear
+      if (tod.phase === 'dawn') return 'rgba(247,190,110,.16)';   // warm gold low sun
+      if (tod.phase === 'dusk') return 'rgba(217,122,60,.18)';    // amber sunset
+      return 'rgba(10,14,34,.34)';                                 // deep indigo night
+    })();
+    el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: grade, 'pointer-events': 'none' }, g);
+    // progress-dawn: a warm horizon glow behind the temple that grows with mastery (the whole
+    // world subtly warming as the learner advances) — strongest by day-agnostic, gated to not
+    // wash a bright noon. cheap radial.
+    if (mastered > 0.05) el('ellipse', { cx: VB.w * 0.5, cy: 150, rx: 520, ry: 180, fill: 'rgba(247,217,138,' + (0.06 + mastered * 0.16).toFixed(2) + ')', 'pointer-events': 'none' }, g);
+    // stars — full & bright at night, faint by day (day sky isn't starless-black but the
+    // stars recede). Density unchanged (perf), opacity scaled by darkness.
+    const starOp = 0.15 + tod.dark * 0.85;
+    const r = rng('stars'); const stars = el('g', { opacity: starOp.toFixed(2) }, g);
     for (let i = 0; i < 76; i++) {
       const x = r() * VB.w, y = r() * VB.h * 0.42, rad = 0.5 + r() * 1.3, o = 0.25 + r() * 0.55;
       const s = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(1), fill: '#f4ecd6', opacity: o.toFixed(2) }, stars);
@@ -392,7 +446,9 @@
     });
     el('path', { d: cd, fill: 'none', stroke: 'rgba(247,231,197,.28)', 'stroke-width': 0.6 }, cg);
 
-    // crescent moon (upper-right, opposite the temple) haloed by a subtle lunar MANDALA
+    // the celestial body (upper-right): by DAY a warm SUN disc; at dawn/dusk/night a crescent
+    // MOON haloed by a lunar mandala. Same position + mandala, different disc — so the sky
+    // instantly reads as the right time of day.
     const mg = el('g', { transform: 'translate(' + (VB.w * 0.8) + ',96)' }, g);
     el('circle', { r: 74, fill: 'url(#moonG)' }, mg);
     // mandala halo: two dotted rings + a radiating spoke wreath (sacred geometry)
@@ -404,8 +460,14 @@
       el('line', { x1: (Math.cos(a) * r1).toFixed(1), y1: (Math.sin(a) * r1).toFixed(1), x2: (Math.cos(a) * r2).toFixed(1), y2: (Math.sin(a) * r2).toFixed(1), stroke: 'rgba(247,231,197,.45)', 'stroke-width': 0.5 }, mand);
     }
     if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '140s', repeatCount: 'indefinite' }); mand.appendChild(rot); }
-    el('circle', { r: 26, fill: '#f7ecd0' }, mg);
-    el('circle', { cx: 11, cy: -6, r: 24, fill: C.skyMid }, mg);  // crescent bite
+    if (tod.phase === 'day') {
+      // bright warm sun — a full disc with a soft corona
+      el('circle', { r: 34, fill: 'rgba(255,236,170,.5)' }, mg);
+      el('circle', { r: 24, fill: '#fff2c4' }, mg);
+    } else {
+      el('circle', { r: 26, fill: '#f7ecd0' }, mg);
+      el('circle', { cx: 11, cy: -6, r: 24, fill: C.skyMid }, mg);  // crescent bite
+    }
   }
 
   function paintHills(g) {
@@ -1505,69 +1567,148 @@
   // so it's stable across reloads and auto-populates new pillars. Drawn over foliage,
   // under the grove nodes (nodes are painted after) so creatures never cover a label.
   // ============================================================================
-  function paintCreatures(g, pts, temple, reduced, ponds) {
+  function paintCreatures(g, pts, temple, reduced, ponds, groves) {
     if (!pts || !pts.length) return;
     const layer = el('g', {}, g);
     const r = rng('critters');
+    const tod = timeOfDay();
     const tempY = temple ? temple.y : 116;
     const nearOf = y => Math.min(1, Math.max(0, (y - tempY) / (VB.h - tempY)));
     ponds = ponds || [];
-    // is (x,y) clear of every grove medallion + its label band, and off the ponds? (labels
-    // hang ~y+24..+86 below a node; ponds have their own resident fauna already)
+    const n = pts.length;
+    // per-node DIFFICULTY (0 easy … 1 hard), deterministic-from-data, for the danger mapping.
+    const diffAt = pts.map((p, i) => difficultyOf(groves && groves[i] ? groves[i] : { status: 'unlocked', total: 4 }, i, n));
+    // nearest grove's difficulty at an arbitrary (x,y) — so a creature's menace matches the
+    // grove it's guarding, wherever it stands.
+    function localDifficulty(x, y) {
+      let best = 0.4, bd = 1e9;
+      pts.forEach((p, i) => { const d = Math.hypot(x - p.x, y - p.y); if (d < bd) { bd = d; best = diffAt[i]; } });
+      return best;
+    }
+    // THICKET zones — dense-foliage pockets where big cats stalk. Derived from the darker
+    // between-band gaps (away from the path spine + node clearings): we treat the flank thirds
+    // of hard-grove rows as thickets. Returns how "thickety" a spot is (0..1).
+    function thicketAt(x, y) {
+      const centre = 1 - Math.abs(x - VB.w / 2) / (VB.w / 2);   // 1 centre … 0 edge
+      return Math.max(0, 1 - centre) * 0.7 + 0.3;               // edges are denser cover
+    }
+    function nearPond(x, y, within) {
+      let best = null, bd = within || 150;
+      ponds.forEach(pd => { const d = Math.hypot(x - pd.x, y - pd.y); if (d < bd) { bd = d; best = pd; } });
+      return best;
+    }
+    // is (x,y) clear of every grove medallion + its label band? (labels hang ~y+24..+86 below)
     const clearOfNodes = (x, y) => pts.every(p => {
       const s = p.scale || 1;
       const dx = Math.abs(x - p.x), dy = y - p.y;
       const nearBody = dx < 62 * s && dy > -80 * s && dy < 34 * s;
       const nearLabel = dx < 82 * s && dy > 22 * s && dy < 88 * s;
       return !(nearBody || nearLabel);
-    }) && ponds.every(pd => Math.hypot(x - pd.x, y - pd.y) > 120);
+    });
+    const clearOfPonds = (x, y) => ponds.every(pd => Math.hypot(x - pd.x, y - pd.y) > 118);
 
-    // try to place one creature near (cx,cy): search a few jittered spots for a clear one.
-    // Creatures are drawn NOTICEABLY BIGGER than before (they must read at map scale) and a
-    // deterministic subset become luminous SPIRIT-animals (enchanted glow). `perched` places
-    // ground-level fauna low; canopy fauna (swinging monkeys, perched birds) go higher.
     // AMBIENT budget: mark only a bounded subset of creatures as self-animating (staggered
     // phases) so the scene feels alive without animating the whole cast — keeps it 60fps.
     let ambBudget = reduced ? 0 : 18;
     function markAmbient(node) {
-      if (!node || ambBudget <= 0 || r() > 0.62) return;   // ~62% of placed creatures, capped
+      if (!node || ambBudget <= 0 || r() > 0.62) return;
       ambBudget--;
       node.setAttribute('class', node.getAttribute('class') + ' ambient');
-      node.style.setProperty('--ph', (-(r() * 6).toFixed(2)) + 's');   // negative delay → varied phase from frame 0
+      node.style.setProperty('--ph', (-(r() * 6).toFixed(2)) + 's');
     }
-    function tryPlace(cx, cy, near, kind) {
+    // tag a creature for PROXIMITY-REACTIVITY: prey (deer/rabbit/bird/peacock) flee; predators
+    // (tiger/panther/croc/naga/boar) turn-to-face + bristle. Stores its world centre + role so
+    // one delegated pointer handler (wireCreatureProximity) can react without per-node listeners.
+    function tagReactive(node, role) {
+      if (!node) return;
+      const b = node.getBBox ? null : null;   // (bbox unreliable headless; use placement centre)
+      node.setAttribute('data-react', role);
+    }
+
+    // place ONE creature of `kind` at (x,y). Returns the node (already appended).
+    function make(kind, x, y, sc) {
+      const dir = r() < 0.5 ? 1 : -1;
+      const spiritRoll = r();
+      const menace = localDifficulty(x, y) > 0.62;   // guardians near hard groves bristle
+      let node = null, role = null;
+      if (kind === 'peacock') { node = peacock(layer, x, y, 0.92 * sc, dir, reduced, r() > 0.5, spiritRoll > 0.78 ? 'teal' : null); role = 'prey'; }
+      else if (kind === 'deer') { node = deer(layer, x, y, sc, dir, spiritRoll > 0.7 ? 'gold' : null, reduced); role = 'prey'; }
+      else if (kind === 'rabbit') { node = rabbit(layer, x, y, sc, dir, reduced); role = 'prey'; }
+      else if (kind === 'monkey') { node = monkey(layer, x, y, sc, dir); }
+      else if (kind === 'monkey-swing') { node = monkey(layer, x, y - 6 * sc, sc * 0.95, dir, true); }
+      else if (kind === 'naga') { node = naga(layer, x, y, sc, dir, spiritRoll > 0.75 ? 'teal' : null, reduced, menace); role = 'pred'; }
+      else if (kind === 'elephant') { node = elephant(layer, x, y, sc, dir, spiritRoll > 0.85 ? 'teal' : null, reduced); }
+      else if (kind === 'tiger') { node = tiger(layer, x, y, sc, dir, menace, reduced); role = 'pred'; }
+      else if (kind === 'panther') { node = panther(layer, x, y, sc, dir, menace, reduced); role = 'pred'; }
+      else if (kind === 'crocodile') { node = crocodile(layer, x, y, sc, dir, menace, reduced); role = 'pred'; }
+      else if (kind === 'boar') { node = boar(layer, x, y, sc, dir, menace, reduced); role = 'pred'; }
+      else if (kind === 'owl') { node = owl(layer, x, y, sc, dir, reduced); }
+      else if (kind === 'heron') { node = heron(layer, x, y, sc, dir, reduced); role = 'prey'; }
+      else if (kind === 'guru') { node = guru(layer, x, y, sc, reduced); }
+      else if (kind === 'pilgrim') { node = pilgrim(layer, x, y, sc, dir, spiritRoll > 0.55, reduced); }
+      else if (kind === 'perched') { node = perchedBird(layer, x, y, 0.9 * sc, 'pb' + x.toFixed(0) + y.toFixed(0)); role = 'prey'; }
+      if (node) { markAmbient(node); if (role) tagReactive(node, role); node._cx = x; node._cy = y; node._dir = dir; node._kind = kind; }
+      return node;
+    }
+
+    // choose the fauna KIND for a spot from HABITAT + local DIFFICULTY + TIME OF DAY. Gentle
+    // fauna near easy/mastered groves; dangerous guardians near hard/locked groves; the right
+    // animal for the terrain (water / clearing / thicket / open); day vs night casts differ.
+    function pickKind(x, y, zone) {
+      const diff = localDifficulty(x, y);
+      const roll = r();
+      if (zone === 'water') {
+        // pond margins: crocodile guards a hard grove's water; else a heron fishes.
+        if (diff > 0.6 && roll < 0.6) return 'crocodile';
+        return roll < 0.5 ? 'heron' : (tod.night ? 'crocodile' : 'peacock');
+      }
+      if (zone === 'canopy') {
+        if (tod.night) return roll < 0.5 ? 'owl' : 'monkey-swing';
+        return roll < 0.55 ? 'monkey-swing' : 'perched';
+      }
+      // ground / open forest — difficulty picks the guardian vs the gentle grazer
+      if (diff > 0.66) {
+        // HARD grove guardians (dangerous)
+        if (tod.night) return roll < 0.42 ? 'tiger' : roll < 0.7 ? 'panther' : roll < 0.86 ? 'naga' : 'boar';
+        return roll < 0.34 ? 'tiger' : roll < 0.56 ? 'panther' : roll < 0.74 ? 'boar' : roll < 0.9 ? 'naga' : 'elephant';
+      }
+      if (diff > 0.5) {
+        // mid — a mix: a lurking naga/boar OR grazers
+        if (roll < 0.3) return tod.night ? 'panther' : 'boar';
+        if (roll < 0.5) return 'naga';
+        return roll < 0.72 ? 'deer' : roll < 0.9 ? 'peacock' : 'elephant';
+      }
+      // EASY / mastered — gentle coexisting fauna only
+      if (tod.night) return roll < 0.4 ? 'deer' : roll < 0.7 ? 'owl' : 'rabbit';
+      return roll < 0.34 ? 'deer' : roll < 0.58 ? 'peacock' : roll < 0.78 ? 'rabbit' : 'elephant';
+    }
+
+    // try to place a habitat-appropriate creature near (cx,cy): search jittered spots for a
+    // clear one, choose the zone by terrain, then pick the fitting kind.
+    const placed = [];   // {node,x,y,kind,role} for the vignette scripting below
+    function tryPlace(cx, cy, near, forcedZone, forcedKind) {
       for (let attempt = 0; attempt < 9; attempt++) {
         const x = cx + (r() - 0.5) * 96, y = cy + (r() - 0.5) * 44;
         if (x < 44 || x > VB.w - 44 || y < 300 || y > VB.h - 26) continue;
         if (!clearOfNodes(x, y)) continue;
-        // bigger overall: recede with depth but stay clearly legible even up top
+        let zone = forcedZone;
+        if (!zone) {
+          const pd = nearPond(x, y, 150);
+          if (pd && !clearOfPonds(x, y)) continue;               // never ON the water body
+          if (pd) zone = 'water';
+          else if (y < tempY + 260 && thicketAt(x, y) > 0.55 && r() < 0.4) zone = 'canopy';
+          else zone = 'ground';
+        } else if (zone !== 'water' && !clearOfPonds(x, y)) continue;
         const sc = 0.78 + near * 0.82;
-        const dir = r() < 0.5 ? 1 : -1;
-        const spiritRoll = r();                        // ~1-in-4 of the enchantable kinds glow
-        let node = null;
-        if (kind === 'peacock') node = peacock(layer, x, y, 0.92 * sc, dir, reduced, r() > 0.5, spiritRoll > 0.72 ? 'teal' : null);
-        else if (kind === 'deer') node = deer(layer, x, y, sc, dir, spiritRoll > 0.65 ? 'gold' : null, reduced);
-        else if (kind === 'monkey') node = monkey(layer, x, y, sc, dir);
-        else if (kind === 'monkey-swing') node = monkey(layer, x, y - 6 * sc, sc * 0.95, dir, true);
-        else if (kind === 'naga') node = naga(layer, x, y, sc, dir, spiritRoll > 0.7 ? 'teal' : null, reduced);
-        else if (kind === 'elephant') node = elephant(layer, x, y, sc, dir, spiritRoll > 0.82 ? 'teal' : null, reduced);
-        else if (kind === 'guru') node = guru(layer, x, y, sc, reduced);
-        else if (kind === 'pilgrim') node = pilgrim(layer, x, y, sc, dir, spiritRoll > 0.55, reduced);
-        else if (kind === 'perched') node = perchedBird(layer, x, y, 0.9 * sc, 'pb' + x.toFixed(0) + y.toFixed(0));
-        markAmbient(node);
-        return true;
+        const kind = forcedKind || pickKind(x, y, zone);
+        const node = make(kind, x, y, sc);
+        if (node) { placed.push({ node: node, x: x, y: y, kind: kind }); return node; }
       }
-      return false;
+      return null;
     }
 
-    // EVEN DISTRIBUTION over y-BANDS across the FULL height (temple → foreground). For each
-    // band we place several creatures spread across the width, both sides of centre — so the
-    // temple approach is as alive as the foreground. Independent of grove positions (which
-    // cluster), yet deterministic-from-data (band count follows the map's row count). The cast
-    // is varied so every band mixes peacocks / deer / elephants / nagas / monkeys / people.
-    const cast = ['peacock', 'deer', 'monkey', 'elephant', 'naga', 'peacock', 'pilgrim', 'deer',
-                  'monkey', 'peacock', 'guru', 'naga', 'deer', 'elephant', 'monkey', 'peacock'];
-    let ci = 0;
+    // EVEN DISTRIBUTION over y-BANDS across the full height (temple → foreground) — the whole
+    // world stays alive — but every spot now gets a HABITAT + DIFFICULTY-appropriate creature.
     const rows = pts.reduce((m, p) => Math.max(m, p.row || 0), 0) + 1;
     const yTop = tempY + 140, yBot = VB.h - 50;
     const bands = Math.max(5, rows + 2);
@@ -1576,25 +1717,28 @@
       const near = nearOf(by);
       const perBand = 4 + Math.round(near * 2);        // 4 up top … 6 near the foreground
       for (let k = 0; k < perBand; k++) {
-        // spread across width: march outward from centre, jittered
         const fx = 0.09 + (k / Math.max(1, perBand - 1)) * 0.82 + (r() - 0.5) * 0.07;
         const cx = VB.w * Math.min(0.93, Math.max(0.07, fx));
-        tryPlace(cx, by, near, cast[ci++ % cast.length]);
+        tryPlace(cx, by, near);
       }
     }
 
-    // CANOPY life — swinging monkeys + perched birds up in the tree bands (mid/upper), so the
-    // canopies are inhabited too, not just the floor. Placed higher (in the leaf zone).
-    const canopyKinds = ['monkey-swing', 'perched', 'perched', 'monkey-swing', 'perched'];
+    // WATER-MARGIN residents: a guardian/heron explicitly at each pond that isn't already busy,
+    // so crocodiles reliably appear at hard-grove water (habitat rule) — a couple per map.
+    ponds.slice(0, 3).forEach((pd, i) => {
+      const ex = pd.x + (i % 2 ? 1 : -1) * 116, ey = pd.y + 6;
+      if (ex > 50 && ex < VB.w - 50 && clearOfNodes(ex, ey)) tryPlace(ex, ey, nearOf(ey), 'water');
+    });
+
+    // CANOPY life — swinging monkeys, perched birds, owls up in the tree bands (mid/upper).
     for (let i = 0; i < 8; i++) {
       const fx = 0.1 + (i / 7) * 0.8 + (r() - 0.5) * 0.06;
       const cx = VB.w * Math.min(0.92, Math.max(0.08, fx));
       const cy = tempY + 120 + (i / 7) * (VB.h - tempY - 300) + (r() - 0.5) * 40;
-      tryPlace(cx, cy, nearOf(cy), canopyKinds[i % canopyKinds.length]);
+      tryPlace(cx, cy, nearOf(cy), 'canopy');
     }
 
-    // LANTERN-BEARERS walking the luminous trail — a couple of figures with glowing lamps set
-    // just off the path so the way to the temple has pilgrims on it (clear-of-node checked).
+    // LANTERN-BEARERS walking the luminous trail — pilgrims with glowing lamps just off the path.
     for (let i = 0; i < 2 && pts.length > 1; i++) {
       const seg = pts[Math.min(pts.length - 2, Math.floor((0.3 + i * 0.4) * (pts.length - 1)))];
       const nxt = pts[Math.min(pts.length - 1, pts.indexOf(seg) + 1)] || seg;
@@ -1602,27 +1746,110 @@
       for (let a = 0; a < 6; a++) {
         const side = a % 2 ? 1 : -1;
         const px = mx + side * (70 + a * 10), py = my + 6;
-        if (px > 50 && px < VB.w - 50 && clearOfNodes(px, py)) {
+        if (px > 50 && px < VB.w - 50 && clearOfNodes(px, py) && clearOfPonds(px, py)) {
           pilgrim(layer, px, py, 0.9 + nearOf(py) * 0.7, side < 0 ? 1 : -1, true, reduced);
           break;
         }
       }
     }
 
-    // bird-FLOCKS: several across the sky + a couple weaving lower between the canopies. Each
-    // flock's animateMotion sweeps a large region every frame (costly repaints), so the count
-    // is trimmed — the sky still has flocks in motion, just fewer big swept invalidations.
-    for (let i = 0; i < 4; i++) flock(layer, 120 + i * 300, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
+    // bird-FLOCKS across the sky (day: more/active) + a couple weaving between the canopies.
+    const nFlocks = tod.night ? 2 : 4;
+    for (let i = 0; i < nFlocks; i++) flock(layer, 120 + i * 300, 116 + (i % 3) * 40, 1.0 + (i % 2) * 0.4, 'flk' + i, reduced);
     for (let i = 0; i < 2; i++) flock(layer, 260 + i * 480, tempY + 200 + (i % 2) * 90, 0.8 + (i % 2) * 0.3, 'flklow' + i, reduced);
 
-    // apsara-wisps — soft luminous motes drifting through mid/upper map (enchantment).
-    for (let i = 0; i < 8; i++) {
-      const fx = 0.1 + (i / 7) * 0.8;
-      const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / 7) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
-      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3.5 + r() * 3).toFixed(1), fill: 'url(#spiritTeal)', opacity: 0.55, 'pointer-events': 'none' }, layer);
-      if (!reduced) { anim(w, 'opacity', '0.6', '0.16', (3 + r() * 3).toFixed(1) + 's');
+    // FIREFLIES + spirit motes — MORE at night (nocturnal ambience), fewer by day.
+    const wispCount = tod.night ? 10 : 5;
+    for (let i = 0; i < wispCount; i++) {
+      const fx = 0.1 + (i / (wispCount - 1 || 1)) * 0.8;
+      const wx = VB.w * fx + (r() - 0.5) * 60, wy = tempY + 120 + (i / (wispCount - 1 || 1)) * (VB.h - tempY - 220) + (r() - 0.5) * 40;
+      const w = el('circle', { cx: wx.toFixed(0), cy: wy.toFixed(0), r: (3.5 + r() * 3).toFixed(1), fill: 'url(#spiritTeal)', opacity: (tod.night ? 0.6 : 0.4), 'pointer-events': 'none' }, layer);
+      if (!reduced) { anim(w, 'opacity', (tod.night ? '0.7' : '0.45'), '0.16', (3 + r() * 3).toFixed(1) + 's');
         animT(w, wx.toFixed(0) + ',' + wy.toFixed(0), (wx + (r() - 0.5) * 70).toFixed(0) + ',' + (wy - 30 - r() * 30).toFixed(0), (12 + r() * 8).toFixed(1) + 's'); }
     }
+
+    // ---- ECOLOGICAL VIGNETTES: a few staggered scripted loops so the scene reads as a living
+    // ecosystem (predator/prey + habitat life). Perf-bounded: only a handful, all reduced-safe,
+    // transform/opacity-only. Pairs are found among already-placed creatures (no extra draws).
+    scriptVignettes(placed, reduced);
+
+    // ---- PROXIMITY REACTIVITY: one delegated pointer handler makes prey flee + predators
+    // turn-to-face when the cursor nears them (see wiring in showOverview/showGrove).
+    layer.setAttribute('data-crit-layer', '1');
+  }
+
+  // A handful of staggered, looping "behaviours" between placed creatures so the forest reads
+  // alive: a predator eases toward nearby prey (which stays alert), monkeys leap along branches,
+  // a crocodile drifts at prey by the water. Purely cosmetic transforms; reduced-motion → none.
+  function scriptVignettes(placed, reduced) {
+    if (reduced || !placed.length) return;
+    const preds = placed.filter(p => p.kind === 'tiger' || p.kind === 'panther' || p.kind === 'crocodile');
+    const prey = placed.filter(p => p.kind === 'deer' || p.kind === 'rabbit' || p.kind === 'peacock' || p.kind === 'heron');
+    let budget = 4;   // at most a few live vignettes (perf)
+    // predator STALKS toward the nearest prey within reach — a slow additive drift + return.
+    preds.forEach(pd => {
+      if (budget <= 0) return;
+      let target = null, bd = 240;
+      prey.forEach(py => { const d = Math.hypot(pd.x - py.x, pd.y - py.y); if (d < bd) { bd = d; target = py; } });
+      if (!target) return;
+      budget--;
+      const dx = Math.max(-26, Math.min(26, (target.x - pd.x) * 0.4));
+      const dy = Math.max(-10, Math.min(10, (target.y - pd.y) * 0.4));
+      // slow creep toward the prey and back (a long, menacing loop)
+      pd.node.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', additive: 'sum',
+        values: '0,0;' + dx.toFixed(0) + ',' + dy.toFixed(0) + ';0,0', dur: (11 + (Math.abs(dx) % 4)).toFixed(0) + 's', repeatCount: 'indefinite' }));
+      // the prey stays ALERT — a small wary shift away
+      target.node.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', additive: 'sum',
+        values: '0,0;' + (-Math.sign(dx) * 6) + ',0;0,0', dur: '5s', repeatCount: 'indefinite' }));
+    });
+    // MONKEYS leap between branches — a swinging monkey arcs sideways on a loop.
+    placed.filter(p => p.kind === 'monkey-swing').slice(0, 2).forEach((mk, i) => {
+      mk.node.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', additive: 'sum',
+        values: '0,0;' + (i % 2 ? 24 : -24) + ',-6;0,0', dur: (4 + i).toFixed(0) + 's', repeatCount: 'indefinite' }));
+    });
+  }
+
+  // PROXIMITY REACTIVITY: prey flee, predators turn-to-face + bristle as the cursor nears them.
+  // ONE delegated pointermove on the svg (rAF-throttled) scans the tagged creatures and toggles
+  // a transform/class by distance — no per-creature listeners. pointer-fine + reduced-safe only.
+  function wireCreatureProximity(svg, reduced) {
+    if (reduced || !window.matchMedia || !window.matchMedia('(pointer:fine)').matches) return;
+    const layer = svg.querySelector('[data-crit-layer]');
+    if (!layer) return;
+    const crits = Array.prototype.slice.call(layer.querySelectorAll('[data-react]'));
+    if (!crits.length) return;
+    // cache each creature's screen-space centre lazily (viewBox → client via getScreenCTM).
+    let raf = 0, mx = -1, my = -1;
+    const react = () => {
+      raf = 0;
+      const ctm = svg.getScreenCTM(); if (!ctm) return;
+      crits.forEach(node => {
+        // the placement transform holds translate(x*dir…); read the group's own box centre via
+        // a cached data attr set at draw time would be ideal, but getBoundingClientRect is fine
+        // here (called only while the pointer moves, on a small tagged set).
+        const b = node.getBoundingClientRect();
+        const cx = b.left + b.width / 2, cy = b.top + b.height / 2;
+        const dist = Math.hypot(mx - cx, my - cy);
+        const near = dist < 90;
+        const role = node.getAttribute('data-react');
+        if (near) {
+          if (!node.classList.contains('react-on')) {
+            node.classList.add('react-on');
+            // prey flees AWAY from the cursor; predator holds ground + bristles (class-driven).
+            if (role === 'prey') {
+              const ax = (cx - mx) >= 0 ? 7 : -7, ay = (cy - my) >= 0 ? 4 : -4;
+              node.style.transition = 'transform .3s ease';
+              node.style.transform = 'translate(' + ax + 'px,' + ay + 'px)';
+            }
+          }
+        } else if (node.classList.contains('react-on')) {
+          node.classList.remove('react-on');
+          node.style.transform = '';
+        }
+      });
+    };
+    svg.addEventListener('pointermove', e => { mx = e.clientX; my = e.clientY; if (!raf) raf = requestAnimationFrame(react); });
+    svg.addEventListener('pointerleave', () => { mx = -1; my = -1; crits.forEach(nn => { nn.classList.remove('react-on'); nn.style.transform = ''; }); });
   }
 
   // The proscenium: big dark arching banyans L/R, arch across the top, ferns/rocks
@@ -2335,7 +2562,7 @@
       paintEdges(world, c.edges || [], posByPillar, statusByPillar);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
-      paintCreatures(world, pts, lay.temple, reduced, ponds);  // peacocks/deer/nagas/elephants/sages, all bands
+      paintCreatures(world, pts, lay.temple, reduced, ponds, groves);  // habitat + difficulty-mapped fauna
 
       // draw nodes back-to-front (far/high first) so foreground groves overlap correctly
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
@@ -2355,6 +2582,7 @@
       // The far background drifts a touch more than the foreground world for a gentle vista;
       // both shifts are only a few viewBox units → imperceptible to click targets.
       wireHover(svg);
+      wireCreatureProximity(svg, reduced);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
       return c;
@@ -2397,7 +2625,7 @@
       paintEdges(world, c.edges || [], posByName, statusByName);
       paintPath(world, pts, travelled, reduced, lay.temple);
       paintPathDiyas(world, pts, reduced);
-      paintCreatures(world, pts, lay.temple, reduced, ponds);
+      paintCreatures(world, pts, lay.temple, reduced, ponds, groves);
 
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
@@ -2419,6 +2647,7 @@
       if (opts.onBack) back.addEventListener('click', opts.onBack);
       paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase(), nextIdx);
       wireHover(svg);
+      wireCreatureProximity(svg, reduced);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
       return c;
