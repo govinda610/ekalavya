@@ -1047,8 +1047,12 @@ body.reduce-motion *{animation:none !important}
  color:#2a1c07;border:none;border-radius:4px;padding:10px 18px;font-weight:600;cursor:pointer}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
    Art lifted from Ekalavya-Template-v2 §4; the SVG is now generated from live data. */
-#tree{display:none;height:100%;padding:20px 24px;flex-direction:column;min-height:0}   /* tab switch toggles display:flex */
-.treehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;flex:none}
+/* full-bleed: the map fills the content area (no floating rounded debug box, spec §13) */
+#tree{display:none;height:100%;flex-direction:column;min-height:0;position:relative}   /* tab switch toggles display:flex */
+.treehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;flex:none;
+ padding:11px 20px;position:absolute;top:0;left:0;right:0;z-index:6;pointer-events:none;
+ background:linear-gradient(180deg,rgba(6,9,20,.55),transparent)}
+.treehead>*{pointer-events:auto}
 .treehead .ttitle{font-family:var(--f-display);font-weight:700;letter-spacing:.02em;font-size:18px;color:var(--parch)}
 .treehead .tsub{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute);letter-spacing:.02em}
 .treehead .g{color:transparent;background:linear-gradient(180deg,#fff6df,var(--gold-bright) 45%,var(--gold) 75%,var(--gold-deep));-webkit-background-clip:text;background-clip:text}
@@ -1059,20 +1063,15 @@ body.reduce-motion *{animation:none !important}
  background:rgba(6,9,20,.5);border:1px solid var(--line-soft);padding:6px 12px;border-radius:5px;cursor:pointer;transition:.16s}
 .ttab:hover{color:var(--gold-bright)} .ttab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .ttab:disabled{opacity:.4;cursor:default}
-/* the map fills the pane in a gold-hairline frame; the SVG scales to width (no overflow) */
-.mapframe{flex:1;min-height:0;border-radius:6px;overflow:hidden;border:1px solid var(--line-gold);
- box-shadow:0 24px 60px -30px rgba(0,0,0,.7);display:flex;background:#101528;position:relative}
-.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0;transform-origin:top left}
-/* zoom controls (usable on touch too) — the forest map was tiny/unreadable on mobile */
-.mapzoom{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:6px;z-index:5}
-.mapzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-gold);
-  background:rgba(6,9,20,.82);color:var(--gold-bright);font-size:17px;line-height:1;cursor:pointer;
-  display:grid;place-items:center;backdrop-filter:blur(3px)}
-.mapzoom button:hover{border-color:var(--gold)}
-@media(max-width:820px){.mapframe{min-height:64vh}}
-.grove{cursor:pointer;transition:.25s}
-.grove:hover{filter:brightness(1.22) drop-shadow(0 0 12px rgba(231,182,75,.5))}
-.grove.locked{cursor:default}.grove.locked:hover{filter:none}
+/* the map is edge-to-edge; the SVG covers the pane (slice) so it always fills, no letterbox */
+.mapframe{flex:1;min-height:0;overflow:hidden;display:flex;background:#0e1322;position:relative}
+.mapframe svg{display:block;width:100%;height:100%;flex:1;min-height:0}
+.grove{transition:filter .2s}
+.grove:not(.locked){cursor:pointer}
+.grove:not(.locked):hover{filter:brightness(1.15) drop-shadow(0 0 14px rgba(231,182,75,.45))}
+.grove.locked{cursor:default}
+.hud{pointer-events:none}
+@media(max-width:820px){.treehead{padding:8px 12px}.treehead .ttitle{font-size:15px}.treehead .tsub{display:none}}
 .treeempty{margin:auto;padding:50px;text-align:center;max-width:440px;color:var(--parch-dim)}
 .hidden{display:none !important}
 .dim{color:var(--parch-dim)} .typing:after{content:'▍';color:var(--gold);animation:blink 1s steps(2) infinite}
@@ -1380,9 +1379,7 @@ body.reduce-motion *{animation:none !important}
         <button class="ttab" id="tabTrack" onclick="showGrove()" disabled>→ Single track</button>
       </div>
     </div>
-    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Forest map of learning groves on a winding path."></svg>
-      <div class="mapzoom"><button onclick="forestZoom(1.3)" title="Zoom in">＋</button><button onclick="forestZoom(0.77)" title="Zoom out">−</button><button onclick="forestZoomReset()" title="Reset">⟲</button></div>
-    </div>
+    <div class="mapframe"><svg id="forestsvg" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Enchanted-forest map of learning groves on a winding path to the temple."></svg></div>
   </div>
   <div id="library"></div>
   <div id="settings"></div>
@@ -1440,6 +1437,7 @@ body.reduce-motion *{animation:none !important}
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="/static/forest2d.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
   flowchart:{useMaxWidth:true, htmlLabels:true}});
@@ -1642,159 +1640,24 @@ if(localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('edtoggle').classList.remove('on');
 }
 
-/* ===== Data-driven FOREST MAP (replaces the Mermaid skill tree) =====
-   Renders the /api/forest data as the template's forest map: groves as trees on a
-   winding path, styled by mastery, with a gold 'travelled' path up to the active
-   grove and the clay statue of Droṇa overseeing. Clicking a grove drills into that
-   pillar's concepts as a smaller sub-forest (same visual language). */
-const SVGNS='http://www.w3.org/2000/svg';
+/* ===== Forest of Mastery — 2D painterly MAP (Forest2D, static/forest2d.js) =====
+   The winding-path enchanted-forest map is now rendered by Forest2D, driven from the
+   same /api/forest data. These thin wrappers keep the SPA's showForest()/showGrove()
+   entry points + tab wiring intact. */
 let _curFocus=null;             // active pillar name, for the drill-in default
-function _svgEl(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
-function _esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-function _short(s,n){s=s||'';return s.length>n?s.slice(0,n-1)+'…':s;}
-
-// A cubic path threading the layout points bottom→top (Catmull-Rom → Bézier), so
-// the trail winds smoothly whatever the point count. `upto` clips it to the first
-// `upto` points (the travelled/gold portion).
-function _pathThrough(pts,upto){
-  const p=(upto==null?pts:pts.slice(0,upto));
-  if(p.length<1) return '';
-  if(p.length<2) return 'M'+p[0].x+','+p[0].y;
-  let d='M'+p[0].x+','+p[0].y;
-  for(let i=0;i<p.length-1;i++){
-    const p0=p[i-1]||p[i], p1=p[i], p2=p[i+1], p3=p[i+2]||p2;
-    const c1x=p1.x+(p2.x-p0.x)/6, c1y=p1.y+(p2.y-p0.y)/6;
-    const c2x=p2.x-(p3.x-p1.x)/6, c2y=p2.y-(p3.y-p1.y)/6;
-    d+=' C'+c1x.toFixed(1)+','+c1y.toFixed(1)+' '+c2x.toFixed(1)+','+c2y.toFixed(1)+' '+p2.x+','+p2.y;
-  }
-  return d;
-}
-
-// One grove tree (art lifted from Ekalavya-Template-v2 §4), colored by status.
-function _groveNode(g,pt,opts){
-  opts=opts||{};
-  const label=opts.label!=null?opts.label:g.pillar;
-  const meta=opts.meta!=null?opts.meta:(g.status==='blossoming'?'◆ MASTERED · '+g.done+'/'+g.total
-    :g.status==='active'?'○ ACTIVE · '+g.done+'/'+g.total
-    :g.status==='locked'?'— LOCKED':(g.done+'/'+g.total));
-  const grp=_svgEl('g',{transform:'translate('+pt.x+','+pt.y+')','class':'grove '+g.status});
-  if(!opts.clickable===false && g.status!=='locked' && opts.onClick) grp.style.cursor='pointer';
-  const st=g.status;
-  if(st==='blossoming'){
-    grp.appendChild(_svgEl('circle',{r:44,fill:'url(#glampM)',opacity:.75}));
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:5,r:9,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:4,fill:'#f7d98a'}));           // blossoms
-    grp.appendChild(_svgEl('circle',{cx:-10,cy:-2,r:2.4,fill:'#d63b2a'}));
-    grp.appendChild(_svgEl('circle',{cx:10,cy:-2,r:2.4,fill:'#f7d98a'}));
-  }else if(st==='active'){
-    grp.appendChild(_svgEl('circle',{r:50,fill:'none',stroke:'#57d3ce','stroke-width':2,'stroke-dasharray':'4 6',opacity:.9}));  // ring
-    grp.appendChild(_svgEl('circle',{r:44,fill:'#2ea3a0',opacity:.10}));
-    grp.appendChild(_svgEl('path',{d:'M0 34V4',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:15,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-13,cy:4,r:8,fill:'#2ea3a0'}));
-    grp.appendChild(_svgEl('circle',{cx:13,cy:4,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-8,r:4,fill:'#57d3ce'}));
-  }else if(st==='unlocked'){
-    grp.appendChild(_svgEl('path',{d:'M0 34V6',stroke:'#7a4a2c','stroke-width':5}));
-    grp.appendChild(_svgEl('circle',{cx:0,cy:-6,r:14,fill:'#2f6b3c'}));
-    grp.appendChild(_svgEl('circle',{cx:-12,cy:5,r:8,fill:'#52a061'}));
-    grp.appendChild(_svgEl('circle',{cx:12,cy:5,r:8,fill:'#52a061'}));
-  }else{                                                                          // locked bare sapling
-    grp.setAttribute('opacity',.5);
-    grp.appendChild(_svgEl('path',{d:'M0 30V6',stroke:'#5a4a34','stroke-width':4}));
-    grp.appendChild(_svgEl('path',{d:'M0 12l-10-8M0 12l10-8M0 20l-8-6M0 20l8-6',stroke:'#5a4a34','stroke-width':3}));
-  }
-  const lc=(st==='blossoming')?'#f0e3c6':(st==='active')?'#dcefe6':(st==='unlocked')?'#f0e3c6':'#a89670';
-  const mc=(st==='blossoming')?'#e7b64b':(st==='active')?'#57d3ce':(st==='unlocked')?'#52a061':'#a89670';
-  const t1=_svgEl('text',{x:0,y:st==='locked'?50:66,'text-anchor':'middle','font-family':'Marcellus','font-size':14,fill:lc});
-  t1.textContent=_short(label,20); grp.appendChild(t1);
-  const t2=_svgEl('text',{x:0,y:st==='locked'?66:82,'text-anchor':'middle','font-family':'JetBrains Mono','font-size':9.5,fill:mc});
-  t2.textContent=meta; grp.appendChild(t2);
-  const tt=_svgEl('title'); tt.textContent=g.pillar+' — '+g.done+'/'+g.total+' · '+st; grp.appendChild(tt);
-  if(opts.onClick && st!=='locked') grp.addEventListener('click',opts.onClick);
-  return grp;
-}
-
-// Statue of Droṇa (upper-right ridge) — lifted verbatim.
-function _statue(x,y){
-  const g=_svgEl('g',{transform:'translate('+x+','+y+')',opacity:.85});
-  g.appendChild(_svgEl('rect',{x:-26,y:86,width:52,height:14,rx:3,fill:'#7a4a2c'}));
-  g.appendChild(_svgEl('path',{d:'M0,6 C-16,6 -22,24 -20,44 L-18,84 L18,84 L20,44 C22,24 16,6 0,6Z',fill:'#a8482a'}));
-  g.appendChild(_svgEl('circle',{cx:0,cy:-6,r:13,fill:'#b9764a'}));
-  const dots=_svgEl('g',{fill:'#f2e7cc',opacity:.7});
-  [[-8,34],[8,34],[0,52],[-9,66],[9,66]].forEach(([cx,cy])=>dots.appendChild(_svgEl('circle',{cx,cy,r:1.3})));
-  g.appendChild(dots);
-  const t=_svgEl('text',{x:0,y:112,'text-anchor':'middle','font-family':'Tiro Devanagari Hindi','font-size':13,fill:'#e7b64b'});
-  t.textContent='गुरु द्रोण'; g.appendChild(t);
-  return g;
-}
-
-function _mapDefs(){
-  const defs=_svgEl('defs',{});
-  defs.innerHTML=
-    '<linearGradient id="mapbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#122019"/><stop offset=".6" stop-color="#101528"/><stop offset="1" stop-color="#1a1305"/></linearGradient>'
-   +'<pattern id="mdot" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="1" fill="#f2e7cc" opacity="0.09"/></pattern>'
-   +'<radialGradient id="glampM" cx="50%" cy="40%" r="60%"><stop offset="0" stop-color="#ffe9a8"/><stop offset="1" stop-color="#e7b64b" stop-opacity="0"/></radialGradient>';
-  return defs;
-}
-
-function _paintMap(svg,pts,travelledUpto){
-  const vb=svg.viewBox.baseVal, W=vb.width, H=vb.height;
-  svg.textContent='';
-  svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mapbg)'}));
-  svg.appendChild(_svgEl('rect',{width:W,height:H,fill:'url(#mdot)'}));
-  // full winding path (dashed clay), then the travelled gold portion up to the active grove
-  const full=_pathThrough(pts,null);
-  if(full) svg.appendChild(_svgEl('path',{d:full,fill:'none',stroke:'#a8482a','stroke-width':6,'stroke-linecap':'round','stroke-dasharray':'2 14',opacity:.55}));
-  if(travelledUpto>=1){
-    const gold=_pathThrough(pts,travelledUpto);
-    if(gold) svg.appendChild(_svgEl('path',{d:gold,fill:'none',stroke:'#e7b64b','stroke-width':4,'stroke-linecap':'round','stroke-dasharray':'2 14'}));
-  }
-  svg.appendChild(_statue(W-140,90));
-}
-
-function _legend(svg,items){
-  const vb=svg.viewBox.baseVal;
-  const g=_svgEl('g',{transform:'translate(28,'+(vb.height-18)+')','font-family':'JetBrains Mono','font-size':10});
-  let x=0;
-  items.forEach(([col,lab])=>{
-    g.appendChild(_svgEl('circle',{cx:x+6,cy:-3,r:5,fill:col}));
-    const t=_svgEl('text',{x:x+16,y:1,fill:'#c3b291'});t.textContent=lab;g.appendChild(t);
-    x+=16+lab.length*7+34;
-  });
-  svg.appendChild(g);
-}
+function _reducedMotion(){ return document.body.classList.contains('reduce-motion')
+  || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
 
 async function showForest(){
   const svg=document.getElementById('forestsvg');
   document.getElementById('tabForest').classList.add('on');
   document.getElementById('tabTrack').classList.remove('on');
-  document.getElementById('treesub').textContent='groves on a winding path · a tap enters a grove';
-  svg.setAttribute('viewBox','0 0 900 640'); svg.textContent='';
-  try{
-    const c=await (await fetch('/api/forest')).json();
-    if(c.empty){ _emptyMap(svg); document.getElementById('tabTrack').disabled=true; return; }
-    _curFocus=c.active;
-    document.getElementById('tabTrack').disabled=!_curFocus;
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    // travelled = up to and including the active grove along the walk order
-    let upto=c.groves.findIndex(g=>g.status==='active')+1;
-    if(upto<=0) upto=c.groves.filter(g=>g.status==='blossoming').length;
-    _paintMap(svg,pts,upto);
-    c.groves.forEach((g,i)=>{
-      if(!pts[i]) return;
-      svg.appendChild(_groveNode(g,pts[i],{onClick:()=>showGrove(g.pillar)}));
-    });
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','active'],['#52a061','unlocked'],['#5a4a34','locked']]);
-  }catch(e){ _emptyMap(svg,'could not load the forest map.'); }
+  document.getElementById('treesub').textContent='a winding path from the entrance to the temple · tap a grove to enter';
+  const c=await Forest2D.showOverview(svg,{reduced:_reducedMotion(),onGrove:(p)=>showGrove(p)});
+  _curFocus = c ? c.active : null;
+  document.getElementById('tabTrack').disabled=!_curFocus;
 }
 
-// Drill-in: one grove's concepts as a smaller sub-forest (same visual language).
 async function showGrove(pillar){
   pillar=pillar||_curFocus;
   if(!pillar) return showForest();
@@ -1802,39 +1665,19 @@ async function showGrove(pillar){
   document.getElementById('tabForest').classList.remove('on');
   document.getElementById('tabTrack').classList.add('on');
   document.getElementById('tabTrack').disabled=false;
-  svg.textContent='';
-  try{
-    const c=await (await fetch('/api/forest?pillar='+encodeURIComponent(pillar))).json();
-    if(c.empty){ _emptyMap(svg); return; }
-    document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
-    const pts=c.layout.points, vb=c.viewbox;
-    svg.setAttribute('viewBox',vb.join(' '));
-    const done=c.concepts.filter(x=>x.status==='done').length;
-    _paintMap(svg,pts,done);
-    // map a concept's status onto a grove-status so the same tree art applies
-    const S={done:'blossoming',avail:'active',lock:'locked'};
-    c.concepts.forEach((cc,i)=>{
-      if(!pts[i]) return;
-      const g={pillar:cc.name,status:S[cc.status]||'locked',done:cc.status==='done'?1:0,total:1};
-      const meta=cc.status==='done'?'◆ MASTERED':cc.status==='avail'?'○ AVAILABLE':'— LOCKED';
-      svg.appendChild(_groveNode(g,pts[i],{label:cc.name,meta:meta}));
-    });
-    // a back-to-overview control drawn in-canvas (also on the ◆ tab)
-    const back=_svgEl('g',{transform:'translate(70,40)','class':'grove',style:'cursor:pointer'});
-    back.addEventListener('click',showForest);
-    const bt=_svgEl('text',{x:0,y:0,'font-family':'JetBrains Mono','font-size':12,fill:'#e7b64b'});
-    bt.textContent='← overview'; back.appendChild(bt); svg.appendChild(back);
-    _legend(svg,[['#e7b64b','mastered'],['#57d3ce','available'],['#5a4a34','locked']]);
-  }catch(e){ _emptyMap(svg,'could not load this grove.'); }
+  const c=await Forest2D.showGrove(svg,pillar,{reduced:_reducedMotion(),onBack:()=>showForest(),
+    onConcept:(concept)=>diveIntoConcept(concept,pillar)});
+  if(c && c.grove) document.getElementById('treesub').textContent='◆ '+pillar+' · '+c.grove.done+'/'+c.grove.total+' concepts · ← overview to return';
 }
 
-function _emptyMap(svg,msg){
-  svg.setAttribute('viewBox','0 0 900 560'); svg.textContent='';
-  svg.appendChild(_mapDefs());
-  svg.appendChild(_svgEl('rect',{width:900,height:560,fill:'url(#mapbg)'}));
-  const t=_svgEl('text',{x:450,y:270,'text-anchor':'middle','font-family':'Marcellus','font-size':18,fill:'#cfc0a0'});
-  t.textContent=msg||'No forest yet — finish onboarding and Ekalavya will plant your groves.';
-  svg.appendChild(t);
+// Dive from a grove's concept node straight into the Practice arena, seeded on it.
+function diveIntoConcept(concept,pillar){
+  showView('practice');
+  const ta=document.getElementById('chatin');
+  const ask="Let's practise “"+concept+"” from "+pillar+". Give me one drill to start.";
+  if(ta){ ta.value=ask; ta.focus(); }
+  if(typeof stream==='function' && !window.__diving){ window.__diving=true;
+    try{ stream(ask); } finally { setTimeout(()=>{window.__diving=false;},50); } }
 }
 
 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
@@ -2357,16 +2200,6 @@ function openModes(){
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
-
-// ===== forest-map zoom/pan (it was tiny/unreadable on mobile) =====
-let _fz=1;
-function _applyFz(){
-  const s=document.getElementById('forestsvg'); if(!s) return;
-  s.style.transform='scale('+_fz+')';
-  const f=s.closest('.mapframe'); if(f) f.style.overflow=_fz>1.01?'auto':'hidden';
-}
-function forestZoom(m){ _fz=Math.max(1,Math.min(4,_fz*m)); _applyFz(); }
-function forestZoomReset(){ _fz=1; _applyFz(); }
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
