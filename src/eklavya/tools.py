@@ -856,29 +856,6 @@ def get_questions(topic: str = "", company: str = "", role: str = "",
     return _clip("\n".join(lines))
 
 
-def save_artifact(title: str, kind: str, content: str, pillar: str = "") -> str:
-    """Save a durable artifact to the learner's Canvas / Scriptorium library.
-
-    Use this to keep something the learner will want to revisit: a written lesson, a
-    reference code file, a framed HTML page, or an interactive visual. Offer it naturally
-    ("want me to save this to your Canvas?") rather than saving silently.
-
-    kind is one of: 'markdown' (a written lesson), 'code' (a code file/snippet),
-    'html' (a self-contained HTML page/widget), or 'viz' (an SVG/interactive visual).
-    content is the raw artifact body (markdown text, source code, or HTML/SVG markup).
-    pillar is the pillar/topic this belongs to (e.g. "Python Fundamentals", "LLM & Deep
-    Learning Internals") — pass it so the artifact files under the right pillar in the
-    library; it's auto-linked to the current chat either way. Returns a confirmation with the id.
-    """
-    from . import artifacts, report
-
-    # If the guru didn't name a pillar, fall back to the one currently in focus, so artifacts
-    # still file themselves correctly instead of landing under "General".
-    tag = (pillar or "").strip() or report.active_pillar()
-    a = artifacts.create(title, kind, content, pillar=tag)
-    return f"saved artifact #{a['id']} '{a['title']}' ({a['kind']}) to the Canvas library"
-
-
 def assessment_items(n: int = 8, subject: str = DEFAULT_SUBJECT) -> str:
     """Draw a fresh rotating set of ~n items from ONE subject's FROZEN benchmark for an
     assessment.
@@ -963,14 +940,14 @@ from .resume import read_resume  # noqa: E402
 #     and grow the bank from good web_search finds (honest company tagging only).
 # Plus the small state spine that encodes non-trivial logic (Elo/FSRS/upsert/AI-review) which
 # bash-SQL should not reimplement. Everything else goes through the floor tools + run_bash.
-#   • save_artifact — keep a durable lesson/code/HTML/visual in the learner's Canvas
-#     library (the Scriptorium) so a good explanation the guru writes isn't lost. For
-#     interactive 3B1B-style visuals the guru authors a self-contained viz artifact; the
-#     Canvas renders it in a sandboxed iframe that preloads Plotly + KaTeX.
+# Durable artifacts (lessons, code, self-contained HTML/SVG widgets, 3B1B-style visuals) need
+# NO dedicated tool: the guru simply WRITES the file into workspace/artifacts/<pillar>/<name>.<ext>
+# with the floor write_file tool, and the import bridge (artifact_import) auto-imports it into
+# the Scriptorium + opens it on the Canvas. See prompts.py for the authoring guidance.
 AGENT_TOOLS = [
     grade_and_record, grade_and_record_subject, grade_rubric, web_search, read_github,
     read_resume, get_questions, add_question, record_attempt, save_baseline, suggest_focus,
-    review_ai_usage, record_bug_verdict, save_artifact, run_bash,
+    review_ai_usage, record_bug_verdict, run_bash,
     remember_preference, recall_preferences,
 ]
 
