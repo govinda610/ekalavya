@@ -252,12 +252,19 @@ def rubric_judge(prompt: str, answer: str, reference: str, rubric: list[dict],
     (pass/partial/fail → 1/0.5/0) are weight-averaged into the score. Fail-open: any judge or
     tool error returns ok=False with score=None so the caller can fall back / withhold.
     """
+    from . import config
+
     provider_key = _judge_provider_key()
+    # A judge on the SAME provider as the tutor is self-grading (self-preference bias). We don't
+    # silently drop the grade — a single-provider setup still needs judged grading — but we FLAG
+    # it so the audit trail is honest and a caller can withhold/discount it.
+    same_model_judge = provider_key is not None and provider_key == config.DEFAULT_PROVIDER
     weights = [float(c.get("weight", 1) or 1) for c in rubric]
     total_w = sum(weights) or 1.0
     if provider_key is None or not rubric:
         return {"score": None, "criteria": [], "model": provider_key, "raw": "",
-                "ok": False, "reason": "no judge provider" if provider_key is None else "empty rubric"}
+                "ok": False, "same_model_judge": same_model_judge,
+                "reason": "no judge provider" if provider_key is None else "empty rubric"}
 
     rubric_txt = "\n".join(
         f'- id="{c.get("id", f"c{i}")}" (weight {c.get("weight", 1)}): {c.get("description", "")}'
@@ -272,11 +279,13 @@ def rubric_judge(prompt: str, answer: str, reference: str, rubric: list[dict],
     try:
         from .providers import build_chat_model
 
-        model = build_chat_model(provider_key, max_tokens=900)
+        # temperature=0 for a reproducible, deterministic grade (same answer → same verdict).
+        model = build_chat_model(provider_key, max_tokens=900, temperature=0)
         raw = model.invoke(judge_prompt).text
     except Exception as e:
         return {"score": None, "criteria": [], "model": provider_key, "raw": "",
-                "ok": False, "reason": f"judge error: {e}"}
+                "ok": False, "same_model_judge": same_model_judge,
+                "reason": f"judge error: {e}"}
 
     parsed = parse_verdict(raw)
     by_id = {str(c.get("id", "")): c for c in (parsed.get("criteria") or [])}
@@ -293,7 +302,8 @@ def rubric_judge(prompt: str, answer: str, reference: str, rubric: list[dict],
             "verdict": j.get("verdict", "fail"), "fraction": frac, "note": j.get("note", ""),
         })
     return {"score": round(weighted / total_w, 3), "criteria": out_criteria,
-            "model": provider_key, "raw": raw, "ok": True}
+            "model": provider_key, "raw": raw, "ok": True,
+            "same_model_judge": same_model_judge}
 
 
 def selfcheck(reply: str, context: str = "") -> str | None:

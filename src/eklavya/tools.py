@@ -736,9 +736,11 @@ def grade_rubric(
 
     verdict = "PASS ✓" if res["score"] >= PASS_THRESHOLD else "PARTIAL"
     detail = json.dumps({"score": res["score"], "model": res["model"],
+                         "same_model_judge": res.get("same_model_judge", False),
                          "criteria": [{k: c[k] for k in ("id", "axis", "verdict", "fraction")}
                                       for c in res["criteria"]]})
-    return _clip(f"{verdict} (rubric judge, k=1, score {res['score']:.2f}; "
+    flag = " ⚠ same-model judge" if res.get("same_model_judge") else ""
+    return _clip(f"{verdict} (rubric judge, k=1, score {res['score']:.2f};{flag} "
                  f"axes: {', '.join(recorded)})\naudit: {detail}")
 
 

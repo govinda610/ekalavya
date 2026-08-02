@@ -124,6 +124,33 @@ def test_deterministic_subcheck_overrides_judge(monkeypatch):
     assert a["correct"] == 0 and a["score"] == 0.0
 
 
+def test_same_model_judge_flagged_and_temperature_zero(monkeypatch):
+    from eklavya import config
+
+    cap = []
+    _mock_judge(monkeypatch, '{"criteria":[{"id":"direction","verdict":"pass"},'
+                             '{"id":"assumption","verdict":"pass"}]}', cap)
+    kwargs_seen = {}
+    monkeypatch.setattr("eklavya.providers.build_chat_model",
+                        lambda *a, **k: (kwargs_seen.update(k), cap[0])[1])
+    # judge provider == tutor default provider → self-grading → must be flagged.
+    monkeypatch.setattr(verify, "_judge_provider_key", lambda: config.DEFAULT_PROVIDER)
+    res = verify.rubric_judge("q", "a", "ref", RUBRIC, subject="stats")
+    assert res["same_model_judge"] is True
+    assert kwargs_seen.get("temperature") == 0
+
+
+def test_distinct_provider_judge_not_flagged(monkeypatch):
+    from eklavya import config
+
+    _mock_judge(monkeypatch, '{"criteria":[{"id":"direction","verdict":"pass"},'
+                             '{"id":"assumption","verdict":"pass"}]}')
+    other = "minimax" if config.DEFAULT_PROVIDER != "minimax" else "glm"
+    monkeypatch.setattr(verify, "_judge_provider_key", lambda: other)
+    res = verify.rubric_judge("q", "a", "ref", RUBRIC, subject="stats")
+    assert res["same_model_judge"] is False
+
+
 def test_rubric_judge_fail_open_records_nothing(monkeypatch):
     monkeypatch.setattr(verify, "_judge_provider_key", lambda: None)  # no judge available
     out = tools.grade_rubric(
