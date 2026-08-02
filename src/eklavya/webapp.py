@@ -1241,10 +1241,12 @@ body.reduce-motion *{animation:none !important}
 /* death / loss overlay — re-themed from Dark-Souls to epic-not-punitive (template §5):
    "YOUR AIM FALTERED / पुण्य क्षीण", vermilion stone-cracks, a gold Merit badge. */
 #death{position:fixed;inset:0;z-index:100;display:none;place-items:center;
- background:radial-gradient(circle at 50% 42%,rgba(60,14,10,.72),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
+ background:radial-gradient(circle at 50% 42%,rgba(60,14,10,.9),rgba(6,4,10,.985) 72%);backdrop-filter:blur(4px)}
 #death.on{display:grid;animation:fadein .5s ease}
 @keyframes fadein{from{opacity:0}to{opacity:1}}
-.deathcard{position:relative;text-align:center;max-width:540px;padding:30px;overflow:hidden}
+.deathcard{position:relative;text-align:center;max-width:540px;padding:34px 36px;overflow:hidden;border-radius:8px;
+ background:radial-gradient(circle at 50% 30%,rgba(46,16,12,.9),rgba(10,7,14,.94) 78%);
+ border:1px solid rgba(214,59,42,.5);box-shadow:0 26px 70px -18px rgba(0,0,0,.9)}
 .deathcard .cracks{position:absolute;inset:0;pointer-events:none;opacity:.5}
 .deathcard .dcontent{position:relative;z-index:2}
 .deathcard .de{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--vermilion-glow);margin-bottom:12px}
@@ -1253,9 +1255,9 @@ body.reduce-motion *{animation:none !important}
  -webkit-background-clip:text;background-clip:text;text-shadow:0 0 40px rgba(214,59,42,.45);animation:dpulse 2.4s ease infinite}
 @keyframes dpulse{50%{opacity:.86}}
 .ddeva{font-family:var(--f-deva);font-size:22px;color:var(--vermilion-glow);margin-top:6px}
-.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch-dim);margin:16px auto 0;font-size:16px;line-height:1.6;max-width:440px}
+.deathsub{font-family:var(--f-serif);font-style:italic;color:var(--parch);margin:16px auto 0;font-size:16px;line-height:1.6;max-width:440px;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .deathsub b{color:var(--vermilion-glow);font-style:normal}
-.dnote{font-family:var(--f-body);font-size:13.5px;color:var(--parch-mute);margin-top:10px}
+.dnote{font-family:var(--f-body);font-size:13.5px;color:var(--parch-dim);margin-top:10px}
 .lmerit{margin:22px auto 0;display:inline-flex;align-items:center;gap:12px;padding:12px 22px;border:1px solid var(--gold);border-radius:4px;background:rgba(231,182,75,.08)}
 .lmerit .deva{font-family:var(--f-deva);font-size:18px;color:var(--gold)}
 .lmerit .mn{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--gold-bright)}
@@ -1266,43 +1268,44 @@ body.reduce-motion *{animation:none !important}
 /* reclaim toast — merit reclaimed, teal-bordered sheen (template's .toast) */
 #reclaim{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:90;display:none;
  gap:14px;align-items:center;
- background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));border:1px solid var(--peacock);color:var(--parch);
- padding:13px 22px;border-radius:5px;box-shadow:0 12px 40px -10px rgba(46,163,160,.4)}
+ background:linear-gradient(120deg,rgba(35,29,24,.99),rgba(16,12,8,.99));border:1px solid var(--peacock-bright);color:var(--parch);
+ padding:13px 22px;border-radius:5px;box-shadow:0 14px 44px -8px rgba(0,0,0,.7),0 0 22px -6px rgba(46,163,160,.5)}
 #reclaim.on{display:flex;animation:pop .4s ease}
 #reclaim .rc-badge{flex:none;color:var(--peacock-bright)}
 #reclaim .rc-info .rc-e{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:2px}
-#reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:700;font-size:16px;color:var(--gold-bright)}
-#reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch-dim)}
+#reclaim .rc-info .rc-n{font-family:var(--f-display);font-weight:800;font-size:16px;color:var(--gold-bright);text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#reclaim .rc-info .rc-d{font-family:var(--f-body);font-size:12.5px;color:var(--parch)}
 /* win-pulse — a ~1.3s felt moment for every real win (audit: rewards weren't felt) */
 #winpulse{position:fixed;top:46%;left:50%;transform:translate(-50%,-50%);z-index:95;display:none;
   flex-direction:column;align-items:center;gap:5px;pointer-events:none;padding:22px 40px;border-radius:18px;
-  background:radial-gradient(circle,rgba(231,182,75,.2),rgba(6,9,20,0) 72%)}
+  background:radial-gradient(circle,rgba(30,24,14,.97),rgba(12,10,20,.95) 62%,rgba(12,10,20,.86) 100%);
+  border:1px solid var(--gold);box-shadow:0 18px 50px -12px rgba(0,0,0,.85),0 0 34px -6px rgba(231,182,75,.5)}
 #winpulse.on{display:flex;animation:winpop 1.3s cubic-bezier(.2,.7,.3,1) both}
 @keyframes winpop{0%{opacity:0;transform:translate(-50%,-50%) scale(.5)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.06)}
   70%{opacity:1;transform:translate(-50%,-50%) scale(1)}100%{opacity:0;transform:translate(-50%,-56%) scale(1)}}
-#winpulse .wp-spark{font-size:46px;line-height:1;color:var(--gold-bright);text-shadow:0 0 22px rgba(231,182,75,.75)}
-#winpulse .wp-t{font-family:var(--f-display);font-weight:700;font-size:19px;color:var(--parch)}
-#winpulse .wp-n{font-family:var(--f-mono);font-size:13px;letter-spacing:.05em;color:var(--gold-bright)}
+#winpulse .wp-spark{font-size:46px;line-height:1;color:var(--gold-bright);text-shadow:0 0 22px rgba(231,182,75,.9),0 2px 6px rgba(0,0,0,.7)}
+#winpulse .wp-t{font-family:var(--f-display);font-weight:800;font-size:20px;color:#fff6df;text-shadow:0 1px 4px rgba(0,0,0,.75)}
+#winpulse .wp-n{font-family:var(--f-mono);font-weight:700;font-size:14px;letter-spacing:.05em;color:var(--gold-bright);text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .reduce-motion #winpulse.on{animation:none;opacity:1}
 @keyframes pop{from{opacity:0;transform:translateX(-50%) translateY(-8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 /* achievement toast (template §5) — transient, top-centre, gold-leaf sheen */
 #achtoast{position:fixed;top:66px;left:50%;transform:translateX(-50%);z-index:95;display:none;gap:16px;align-items:center;
  padding:16px 20px;border:1px solid var(--gold);border-radius:5px;overflow:hidden;max-width:min(440px,92vw);
- background:linear-gradient(120deg,rgba(35,29,24,.96),rgba(20,15,10,.96));box-shadow:0 12px 40px -10px rgba(231,182,75,.5)}
+ background:linear-gradient(120deg,rgba(35,29,24,.99),rgba(16,12,8,.99));box-shadow:0 14px 44px -8px rgba(0,0,0,.7),0 0 22px -6px rgba(231,182,75,.55)}
 #achtoast.on{display:flex;animation:pop .45s ease}
 #achtoast::after{content:"";position:absolute;top:0;left:-40%;width:40%;height:100%;
  background:linear-gradient(100deg,transparent,rgba(255,246,223,.25),transparent);animation:sheen 3.2s ease-in-out 2}
 @keyframes sheen{0%{left:-40%}60%,100%{left:120%}}
 #achtoast .badge{flex:0 0 auto}
-#achtoast .tinfo .te{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin-bottom:3px}
-#achtoast .tinfo .tn{font-family:var(--f-display);font-weight:700;font-size:18px;color:var(--parch)}
-#achtoast .tinfo .td{font-family:var(--f-body);font-size:14px;color:var(--parch-dim)}
+#achtoast .tinfo .te{font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-bright);margin-bottom:3px}
+#achtoast .tinfo .tn{font-family:var(--f-display);font-weight:800;font-size:18px;color:#fff6df;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+#achtoast .tinfo .td{font-family:var(--f-body);font-size:14px;color:var(--parch)}
 /* level-up ceremony (template §5) — gold bloom + spinning chakra rays + twin diyas */
 #ceremony{position:fixed;inset:0;z-index:101;display:none;place-items:center;
- background:radial-gradient(circle at 50% 45%,rgba(30,24,14,.92),rgba(6,4,10,.97) 72%);backdrop-filter:blur(3px)}
+ background:radial-gradient(circle at 50% 45%,rgba(30,24,14,.96),rgba(6,4,10,.985) 72%);backdrop-filter:blur(4px)}
 #ceremony.on{display:grid;animation:fadein .5s ease}
 .cerbox{position:relative;min-height:340px;min-width:min(520px,92vw);border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:center;
- background:radial-gradient(circle at center,rgba(30,24,14,.9),var(--void) 70%);border:1px solid var(--gold)}
+ background:radial-gradient(circle at center,rgba(34,27,15,.97),rgba(8,6,14,.98) 70%);border:1px solid var(--gold);box-shadow:0 26px 70px -18px rgba(0,0,0,.9)}
 .cerbox .rays{position:absolute;top:50%;left:50%;width:640px;height:640px;transform:translate(-50%,-50%);opacity:.6;animation:slowspin 40s linear infinite}
 @keyframes slowspin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 .cerbox .ccontent{position:relative;text-align:center;z-index:2;padding:24px}
@@ -1311,8 +1314,8 @@ body.reduce-motion *{animation:none !important}
 .cerbox .ce{font-family:var(--f-mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--peacock-bright);margin-bottom:8px}
 .cerbox .clvl{font-family:var(--f-display);font-weight:900;font-size:64px;line-height:1;color:transparent;
  background:linear-gradient(180deg,#fff6df,var(--gold) 55%,var(--gold-deep));-webkit-background-clip:text;background-clip:text;text-shadow:0 4px 30px rgba(231,182,75,.5)}
-.cerbox .cdeva{font-family:var(--f-deva);font-size:20px;color:var(--parch);opacity:.92;margin-top:6px}
-.cerbox .ctitle{font-family:var(--f-serif);font-style:italic;font-size:18px;color:var(--parch);margin-top:8px}
+.cerbox .cdeva{font-family:var(--f-deva);font-size:20px;color:var(--parch);opacity:.95;margin-top:6px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.cerbox .ctitle{font-family:var(--f-serif);font-style:italic;font-size:18px;color:var(--parch);margin-top:8px;text-shadow:0 1px 3px rgba(0,0,0,.6)}
 .cerbox .ctitle b{color:var(--gold-bright);font-style:normal}
 .cerbox .diya{position:absolute;bottom:26px}.cerbox .diya.d1{left:60px}.cerbox .diya.d2{right:60px}
 .cerbox .flick{animation:flick 1.6s ease-in-out infinite;transform-origin:center bottom}
