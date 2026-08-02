@@ -533,7 +533,8 @@ def record_attempt(
 
 
 def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str,
-                     confidence: int, reference: str, seconds: float = 0.0) -> str:
+                     confidence: int, reference: str, seconds: float = 0.0,
+                     ai_off: bool = True) -> str:
     """Grade a code drill and record the VERIFIED result in one tamper-proof step.
 
     You MUST pass `reference` — your own correct solution. Before grading the
@@ -545,6 +546,9 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
 
     axis: one of syntax_recall, debugging, code_reading, api_memory, decomposition.
     confidence: the learner's stated 1 (guessing) / 2 (pretty sure) / 3 (certain).
+    ai_off: True when they solved it UNAIDED; pass ai_off=False if they told you they used
+            AI or looked the answer up (Google/docs-for-the-answer). This only tags the attempt
+            for honest unassisted-vs-assisted tracking — it never penalises them.
     """
     from .sandbox import run_tests
 
@@ -559,7 +563,7 @@ def grade_and_record(pillar: str, axis: str, concept: str, code: str, tests: str
 
     r = run_tests(code, tests)
     verdict = "PASS ✓" if r.ok else "FAIL ✗"
-    summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds, ai_off=True)
+    summary = record_attempt(pillar, axis, concept, confidence, bool(r.ok), seconds, ai_off=ai_off)
     out = f"{verdict} (verified in sandbox, {r.seconds:.2f}s; tests validated against reference)\n"
     if r.stdout.strip():
         out += f"stdout:\n{r.stdout.strip()}\n"
