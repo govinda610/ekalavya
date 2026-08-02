@@ -368,7 +368,7 @@
   // ============================================================================
   // BACKGROUND LAYERS — sky, moon/stars, hills, temple, mist
   // ============================================================================
-  function paintSky(g, reduced) {
+  function paintSky(g, reduced, groves) {
     el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#skyG)' }, g);
     // stars
     const r = rng('stars'); const stars = el('g', {}, g);
@@ -422,7 +422,7 @@
   }
 
   // Golden temple — a stepped shikhara/stupa complex, the journey's destination.
-  function paintTemple(g, tp, reduced) {
+  function paintTemple(g, tp, reduced, groves) {
     // divine radiance — a broad sacred sunburst halo behind the shikhara
     const divine = el('circle', { cx: tp.x, cy: tp.y + 20, r: 210, fill: 'url(#divineG)' }, g);
     if (!reduced) anim(divine, 'opacity', '1', '0.7', '8s');
@@ -1595,6 +1595,29 @@
       const flow = el('path', { d: gold, fill: 'none', stroke: '#fff6da', 'stroke-width': 2.2, 'stroke-linecap': 'round', 'stroke-dasharray': '2 22', opacity: 0.85 }, g);
       if (!reduced) anim(flow, 'stroke-dashoffset', '0', '-24', '1.6s', 'linear');
     }
+    // DIRECTIONAL CHEVRONS flowing UP the river toward the temple — the switchback reading
+    // order is non-obvious, so small arrowheads mark the way forward (backlog P0). One chevron
+    // near the middle of every segment, pointing along the trail (entrance → temple). Travelled
+    // chevrons are warm gold; the way-ahead ones cool teal — reinforcing the gold→teal read.
+    const chev = el('g', { class: 'path-chevrons', 'pointer-events': 'none' }, g);
+    for (let i = 0; i < river.length - 1; i++) {
+      // one chevron per whole segment between consecutive *nodes* (skip meander midpoints so
+      // they don't crowd) — river alternates node,waypoint,node… so even indices are nodes.
+      if (i % 2 !== 0) continue;
+      const a = river[i], b = river[Math.min(river.length - 1, i + 2)] || river[i + 1];
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len, uy = dy / len;                 // unit direction of travel (up-trail)
+      const ang = Math.atan2(uy, ux) * 180 / Math.PI;
+      const nodeIdx = i / 2;                              // which node this segment leaves
+      const travelled = nodeIdx < travelledUpto - 1;
+      const col = travelled ? C.goldBright : '#bfeee0';
+      const cg = el('g', { transform: 'translate(' + mx.toFixed(1) + ',' + my.toFixed(1) + ') rotate(' + ang.toFixed(1) + ')', opacity: travelled ? 0.9 : 0.7 }, chev);
+      // a small ">"-shaped arrowhead pointing forward along the path
+      el('path', { d: 'M-5,-5 L4,0 L-5,5', fill: 'none', stroke: col, 'stroke-width': 2.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, cg);
+      // upward-flowing pulse on the way-ahead chevrons (bias toward the frontier), reduced-safe
+      if (!reduced && !travelled) anim(cg, 'opacity', '0.35', '0.85', (1.6 + (nodeIdx % 3) * 0.4).toFixed(1) + 's');
+    }
     // a START marker at the foreground entrance
     const s0 = river[0];
     el('circle', { cx: s0.x, cy: s0.y, r: 7, fill: 'none', stroke: C.gold, 'stroke-width': 2, opacity: 0.8 }, g);
@@ -1673,13 +1696,18 @@
       canopy(inner, hue, st, opts.reduced, grove.pillar);
     }
 
-    // MEDALLION — the consistent hit-target + state ring + glyph (spec §9)
-    medallion(inner, st, ringCol, grove.pillar, opts.reduced);
+    // MEDALLION — the consistent hit-target + state ring + glyph (spec §9). The ordinal
+    // (1,2,3…) rides on the medallion so the journey SEQUENCE is legible at 20+ nodes.
+    medallion(inner, st, ringCol, grove.pillar, opts.reduced, opts.ordinal);
+
+    // "→ NEXT" beacon on the single recommended grove — the one thing that answers
+    // "what do I do next?" in <5s (backlog P0). A pulsing teal pennant above the medallion.
+    if (opts.isNext) nextBeacon(inner, opts.reduced);
 
     // LABEL band — permanently visible, dark plate, app serif (spec §9)
     const isCurrent = st === 'active';
     const labelTxt = opts.label != null ? opts.label : grove.pillar;
-    const band = labelBand(grp, labelTxt, opts.meta != null ? opts.meta : metaFor(grove), st, isCurrent);
+    const band = labelBand(grp, labelTxt, opts.meta != null ? opts.meta : metaFor(grove), st, isCurrent, opts.isNext);
     // record for the declutter pass (current + hovered are never hidden)
     grp._label = band; grp._priority = isCurrent ? 3 : (st === 'unlocked' ? 2 : st === 'blossoming' ? 1 : 0);
     grp._nodePt = pt;
@@ -1750,8 +1778,10 @@
     if (!reduced && st === 'active') { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '48s', repeatCount: 'indefinite', additive: 'sum' }); rg.appendChild(rot); }
   }
 
-  // Icon medallion above the tree: gold-rimmed circle + a per-pillar glyph.
-  function medallion(grp, st, ringCol, name, reduced) {
+  // Icon medallion above the tree: gold-rimmed circle + a per-pillar glyph + an ORDINAL
+  // badge (the grove's 1-based journey number) tucked at its lower-right, so the switchback
+  // reading ORDER is unambiguous even at 20+ nodes (backlog: "number the groves").
+  function medallion(grp, st, ringCol, name, reduced, ordinal) {
     const y = -58;
     const rim = st === 'blossoming' ? C.gold : st === 'active' ? C.teal : st === 'unlocked' ? C.teal : C.locked;
     const fill = st === 'blossoming' ? 'rgba(231,182,75,.9)' : st === 'active' ? 'rgba(18,77,76,.85)' : st === 'unlocked' ? 'rgba(10,20,26,.8)' : 'rgba(20,26,32,.7)';
@@ -1761,6 +1791,30 @@
     const glyphCol = st === 'blossoming' ? '#3a2a08' : st === 'locked' ? '#75828e' : C.goldBright;
     const gl = el('text', { x: 0, y: 5, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 14, fill: glyphCol }, m);
     gl.textContent = glyphFor(name);
+    if (ordinal != null) {
+      // small numbered coin at lower-right of the medallion — dark disc, gold/teal rim
+      const bx = 13, by = 12;
+      el('circle', { cx: bx, cy: by, r: 8, fill: 'rgba(6,9,20,.92)', stroke: rim, 'stroke-width': 1.3, opacity: st === 'locked' ? 0.8 : 1 }, m);
+      el('text', { x: bx, y: by + 3.2, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 9.5, 'font-weight': 700, fill: st === 'locked' ? '#8b98a4' : (st === 'blossoming' ? C.goldBright : '#e8f4ef') }, m).textContent = ordinal;
+    }
+  }
+
+  // "→ NEXT" beacon: a bright teal pennant rising above the recommended grove's medallion,
+  // with a downward arrow pointing to it. The single strongest "do this next" cue.
+  function nextBeacon(grp, reduced) {
+    const b = el('g', { class: 'g-next', transform: 'translate(0,-92)' }, grp);
+    // soft glow behind so it reads over any canopy
+    const glow = el('circle', { cx: 0, cy: 8, r: 30, fill: 'url(#nodeTeal)', opacity: 0.55 }, b);
+    if (!reduced) anim(glow, 'opacity', '0.6', '0.28', '2.2s');
+    // pennant plate
+    el('rect', { x: -30, y: -6, width: 60, height: 18, rx: 9, fill: 'rgba(6,20,22,.94)', stroke: C.teal, 'stroke-width': 1.6 }, b);
+    el('text', { x: 0, y: 6.5, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 9.5, 'font-weight': 700, 'letter-spacing': '.12em', fill: '#d6fbf4' }, b).textContent = '→ NEXT';
+    // downward chevron pointing at the medallion
+    const arrow = el('path', { d: 'M-6,14 L0,24 L6,14 Z', fill: C.teal }, b);
+    if (!reduced) { // gentle bob toward the node
+      const bob = el('animateTransform', { attributeName: 'transform', type: 'translate', values: '0,0;0,4;0,0', dur: '1.8s', repeatCount: 'indefinite', additive: 'sum' });
+      arrow.appendChild(bob);
+    }
   }
 
   // deterministic glyph per pillar keyword (ascii, so no font-dependency surprises)
@@ -1782,15 +1836,19 @@
     return '✿';
   }
 
-  function labelBand(grp, title, meta, st, isCurrent) {
+  function labelBand(grp, title, meta, st, isCurrent, isNext) {
     const y = 44;
     const w = Math.max(70, short(title, 22).length * 6.4 + 18);
     const band = el('g', { transform: 'translate(0,' + y + ')', class: 'lbl' }, grp);
-    el('rect', { class: 'lbl-plate', x: -w / 2, y: -1, width: w, height: isCurrent ? 34 : 30, rx: 6,
-      fill: 'rgba(6,9,20,.72)', stroke: isCurrent ? C.teal : 'rgba(231,182,75,.28)', 'stroke-width': isCurrent ? 1.4 : 0.8 }, band);
+    const framed = isCurrent || isNext;
+    el('rect', { class: 'lbl-plate', x: -w / 2, y: -1, width: w, height: framed ? 34 : 30, rx: 6,
+      fill: 'rgba(6,9,20,.72)', stroke: framed ? C.teal : 'rgba(231,182,75,.28)', 'stroke-width': framed ? 1.4 : 0.8 }, band);
     if (isCurrent) {
       const yah = el('text', { x: 0, y: -8, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.16em', fill: C.teal }, band);
       yah.textContent = 'YOU ARE HERE';
+    } else if (isNext) {
+      const nx = el('text', { x: 0, y: -8, 'text-anchor': 'middle', 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.16em', fill: C.teal }, band);
+      nx.textContent = 'START HERE NEXT';
     }
     const t1 = el('text', { x: 0, y: 12, 'text-anchor': 'middle', 'font-family': 'Marcellus, serif', 'font-size': 12.5,
       fill: st === 'locked' ? C.parchMute : st === 'active' ? '#dcefe6' : C.parch }, band);
@@ -1806,8 +1864,8 @@
   // but ALWAYS keep the current (active) node and its path-neighbours labelled (spec §9).
   // Runs on the placed nodes using their known band width + node position (no getBBox,
   // which is unreliable before layout / in headless).
-  function declutterLabels(nodes, activeIdx) {
-    const keep = new Set([activeIdx, activeIdx - 1, activeIdx + 1]);
+  function declutterLabels(nodes, activeIdx, nextIdx) {
+    const keep = new Set([activeIdx, activeIdx - 1, activeIdx + 1, nextIdx]);
     // priority: current > neighbours > unlocked > mastered > locked; ties by lower y (front)
     const idx = nodes.map((_, i) => i).sort((a, b) => {
       const ka = keep.has(a) ? 10 : nodes[a]._priority, kb = keep.has(b) ? 10 : nodes[b]._priority;
@@ -1890,13 +1948,13 @@
   // ============================================================================
   // DIEGETIC HUD — compass rose, minimap, legend (drawn into the SVG, in-world)
   // ============================================================================
-  function paintHUD(g, groves, pts, activeIdx, reduced, isDrill, title) {
+  function paintHUD(g, groves, pts, activeIdx, reduced, isDrill, title, nextIdx) {
     // ---- minimap (top-left) ----
     const mm = el('g', { transform: 'translate(20,20)', class: 'hud' }, g);
     el('rect', { x: 0, y: 0, width: 168, height: 116, rx: 8, fill: 'rgba(6,9,20,.78)', stroke: 'rgba(231,182,75,.35)', 'stroke-width': 1 }, mm);
     el('text', { x: 10, y: 16, 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.14em', fill: C.gold }, mm).textContent = isDrill ? 'GROVE MAP' : 'FOREST MAP';
     // scaled scatter of all nodes + the trail
-    const mmx = 12, mmy = 26, mmw = 144, mmh = 78;
+    const mmx = 12, mmy = 30, mmw = 144, mmh = 74;
     const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
     const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
@@ -1910,6 +1968,17 @@
       const dot = el('circle', { cx: sx(p.x).toFixed(1), cy: sy(p.y).toFixed(1), r: i === activeIdx ? 3.4 : 2, fill: col }, mm);
       if (i === activeIdx && !reduced) anim(dot, 'r', '3.4', '2', '1.6s');
     });
+    // TEMPLE marker at the destination end (top of the trail): a small gold shikhara glyph.
+    const topP = pts.reduce((m, p) => p.y < m.y ? p : m, pts[0]);
+    const tmx = sx(topP.x), tmy = mmy - 3;
+    el('path', { d: 'M' + (tmx - 4) + ',' + tmy + ' L' + tmx + ',' + (tmy - 6) + ' L' + (tmx + 4) + ',' + tmy + ' Z', fill: C.goldBright, stroke: C.goldDeep, 'stroke-width': 0.5 }, mm);
+    // "YOU" marker — a teal caret pinned at the current grove so the minimap answers "where am I".
+    const you = pts[activeIdx] || pts[0];
+    if (you) {
+      const yg = el('g', { transform: 'translate(' + sx(you.x).toFixed(1) + ',' + (sy(you.y) - 8).toFixed(1) + ')' }, mm);
+      el('path', { d: 'M0,6 L-3.4,0 L3.4,0 Z', fill: C.teal, stroke: '#06141a', 'stroke-width': 0.5 }, yg);
+      if (!reduced) anim(yg, 'opacity', '1', '0.5', '1.6s');
+    }
 
     // ---- legend (below minimap) ----
     const lg = el('g', { transform: 'translate(20,148)', class: 'hud' }, g);
@@ -1961,13 +2030,24 @@
       el('circle', { cx: fx, cy: 2, r: 1.6, fill: C.gold, opacity: 0.7 }, tc);
     });
 
-    // ---- progress bar (bottom-right, ref A) ----
+    // ---- progress readout (bottom-right, ref A) — a clearer forward-momentum line: how many
+    // groves mastered, and how many concepts remain in the NEXT recommended grove ("3 to go")
+    // so the learner always sees the immediate objective, not just an overall count. ----
     const done = groves.filter(g => g.status === 'blossoming').length;
     const pct = groves.length ? done / groves.length : 0;
-    const pb = el('g', { transform: 'translate(' + (VB.w - 200) + ',' + (VB.h - 34) + ')', class: 'hud' }, g);
-    el('text', { x: 0, y: -6, 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.1em', fill: C.parchDim }, pb).textContent = 'GROVES MASTERED ' + done + '/' + groves.length;
-    el('rect', { x: 0, y: 0, width: 180, height: 6, rx: 3, fill: 'rgba(6,9,20,.7)', stroke: 'rgba(231,182,75,.3)', 'stroke-width': 0.6 }, pb);
-    el('rect', { x: 1, y: 1, width: Math.max(0, 178 * pct).toFixed(1), height: 4, rx: 2, fill: C.gold }, pb);
+    const pb = el('g', { transform: 'translate(' + (VB.w - 200) + ',' + (VB.h - 40) + ')', class: 'hud' }, g);
+    el('text', { x: 0, y: -12, 'font-family': 'JetBrains Mono, monospace', 'font-size': 8.5, 'letter-spacing': '.1em', fill: C.parchDim }, pb).textContent =
+      (isDrill ? 'CONCEPTS MASTERED ' : 'GROVES MASTERED ') + done + ' of ' + groves.length;
+    // "next up" sub-line: the recommended grove + concepts left in it
+    const ng = (nextIdx != null && nextIdx >= 0) ? groves[nextIdx] : null;
+    if (ng) {
+      const left = Math.max(0, (ng.total || 0) - (ng.done || 0));
+      const nm = short(ng.pillar, 22);
+      el('text', { x: 0, y: -2, 'font-family': 'JetBrains Mono, monospace', 'font-size': 7.5, 'letter-spacing': '.06em', fill: C.teal }, pb).textContent =
+        '→ NEXT: ' + nm + (left ? ' · ' + left + ' to go' : '');
+    }
+    el('rect', { x: 0, y: 4, width: 180, height: 6, rx: 3, fill: 'rgba(6,9,20,.7)', stroke: 'rgba(231,182,75,.3)', 'stroke-width': 0.6 }, pb);
+    el('rect', { x: 1, y: 5, width: Math.max(0, 178 * pct).toFixed(1), height: 4, rx: 2, fill: C.gold }, pb);
   }
 
   // ---- animation helpers (SMIL — no rAF loops, cheap + declarative) ----------
@@ -1978,6 +2058,17 @@
   }
   function animT(node, from, to, dur) {
     node.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', additive: 'sum', values: '0,0;' + (parseFloat(to.split(',')[0]) - parseFloat(from.split(',')[0])) + ',' + (parseFloat(to.split(',')[1]) - parseFloat(from.split(',')[1])) + ';0,0', dur: dur, repeatCount: 'indefinite' }));
+  }
+
+  // The single RECOMMENDED next grove = first available/unlocked in journey order (backlog
+  // P0). Prefer the active grove if it still has work; else the first unlocked; else the
+  // first non-locked. Returns an index into the ordered groves, or -1 if all mastered.
+  function recommendNext(groves) {
+    const active = groves.findIndex(g => g.status === 'active');
+    if (active >= 0 && (groves[active].done || 0) < (groves[active].total || 1)) return active;
+    const unlocked = groves.findIndex(g => g.status === 'unlocked');
+    if (unlocked >= 0) return unlocked;
+    return groves.findIndex(g => g.status !== 'blossoming');
   }
 
   // ============================================================================
@@ -2014,6 +2105,7 @@
       const lay = layout(groves.length);
       const pts = lay.pts;
       const activeIdx = Math.max(0, groves.findIndex(g => g.status === 'active'));
+      const nextIdx = recommendNext(groves);
       const travelled = (() => {
         let i = groves.findIndex(g => g.status === 'active');
         if (i >= 0) return i + 1;
@@ -2023,9 +2115,9 @@
       defs(svg, reduced);
       injectStyles(svg);
       const bg = el('g', {}, svg);
-      paintSky(bg, reduced);
+      paintSky(bg, reduced, groves);
       paintHills(bg);
-      paintTemple(bg, lay.temple, reduced);
+      paintTemple(bg, lay.temple, reduced, groves);
       paintMist(bg, reduced);
       paintStands(bg, reduced);
       paintBandFoliage(bg, pts, lay.temple, reduced);          // lush trees + understorey along EVERY band
@@ -2046,16 +2138,16 @@
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
       order.forEach(i => { nodeGroups[i] = groveNode(world, groves[i], pts[i], {
-        hue: signatureHue(groves[i].pillar), reduced: reduced,
+        hue: signatureHue(groves[i].pillar), reduced: reduced, ordinal: i + 1, isNext: i === nextIdx,
         onClick: opts.onGrove ? (p) => opts.onGrove(p) : null
       }); });
-      declutterLabels(nodeGroups, activeIdx);
+      declutterLabels(nodeGroups, activeIdx, nextIdx);
 
       paintLife(world, pts, activeIdx, reduced);
       // foreground proscenium last (frames everything)
       paintFrame(svg, reduced);
       el('rect', { x: 0, y: 0, width: VB.w, height: VB.h, fill: 'url(#vig)', 'pointer-events': 'none' }, svg);
-      paintHUD(svg, groves, pts, activeIdx, reduced, false, 'THE FOREST OF MASTERY');
+      paintHUD(svg, groves, pts, activeIdx, reduced, false, 'THE FOREST OF MASTERY', nextIdx);
       // interactivity: delegated hover (edge routes + affordances) + subtle cursor parallax.
       // The far background drifts a touch more than the foreground world for a gentle vista;
       // both shifts are only a few viewBox units → imperceptible to click targets.
@@ -2080,13 +2172,14 @@
       const pts = lay.pts;
       const travelled = groves.filter(g => g.status === 'blossoming').length;
       const activeIdx = Math.max(0, groves.findIndex(g => g.status === 'active'));
+      const nextIdx = recommendNext(groves);
 
       defs(svg, reduced);
       injectStyles(svg);
       const bg = el('g', {}, svg);
       paintSky(bg, reduced);
       paintHills(bg);
-      paintTemple(bg, lay.temple, reduced);
+      paintTemple(bg, lay.temple, reduced, groves);
       paintMist(bg, reduced);
       paintStands(bg, reduced);
       paintBandFoliage(bg, pts, lay.temple, reduced);
@@ -2106,12 +2199,12 @@
       const order = groves.map((g, i) => i).sort((a, b) => pts[a].y - pts[b].y);
       const nodeGroups = new Array(groves.length);
       order.forEach(i => { nodeGroups[i] = groveNode(world, groves[i], pts[i], {
-        hue: hue, reduced: reduced,
+        hue: hue, reduced: reduced, ordinal: i + 1, isNext: i === nextIdx,
         label: c.concepts[i].name, meta: metaC(c.concepts[i].status),
         // an available/active concept is a "dive in and practise this" target
         onClick: (opts.onConcept && c.concepts[i].status !== 'lock') ? () => opts.onConcept(c.concepts[i].name, pillar) : null
       }); });
-      declutterLabels(nodeGroups, activeIdx);
+      declutterLabels(nodeGroups, activeIdx, nextIdx);
 
       paintLife(world, pts, activeIdx, reduced);
       paintFrame(svg, reduced);
@@ -2121,7 +2214,7 @@
       el('rect', { x: -8, y: -16, width: 138, height: 26, rx: 13, fill: 'rgba(6,9,20,.78)', stroke: 'rgba(231,182,75,.4)', 'stroke-width': 1 }, back);
       el('text', { x: 4, y: 2, 'font-family': 'JetBrains Mono, monospace', 'font-size': 10, fill: C.goldBright }, back).textContent = '← forest overview';
       if (opts.onBack) back.addEventListener('click', opts.onBack);
-      paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase());
+      paintHUD(svg, groves, pts, activeIdx, reduced, true, short(pillar, 30).toUpperCase(), nextIdx);
       wireHover(svg);
       wireParallax(svg, [{ node: world, k: 3 }], reduced);
       wireVisibilityPause(svg, reduced);
