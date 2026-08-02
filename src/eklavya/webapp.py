@@ -1118,8 +1118,11 @@ button:disabled{opacity:.42;cursor:default}
 .setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
 .setrow select:disabled{opacity:.5}
 /* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
-body.reduce-motion *{animation:none !important}
-@media(prefers-reduced-motion:reduce){.cerbox .rays,.cerbox .flick,#achtoast::after{animation:none !important}}
+/* manual toggle OR OS media query → still every animation, including pseudo-elements
+   (the celebratory/ambient keyframes winpop/bloom/sheen/dpulse/slowspin/pop/#achtoast::after
+   ride on elements + ::before/::after, so gate all three). */
+body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{animation:none !important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important}}
 /* Artifacts Library — the Scriptorium (template F) */
 .lib{padding:26px 26px 60px;max-width:1080px;margin:0 auto}
 .lib-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
@@ -1634,7 +1637,10 @@ document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t
 function railGo(v){ showView(v); }
 
 /* ===== Settings screen (template K) — setrows + toggles + provider selector ===== */
-function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on); }
+// Reduced motion is on when EITHER the saved setting OR the OS media query asks for it —
+// so celebratory/ambient animations are quieted at boot, not only after visiting Settings.
+function _osReduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on || _osReduceMotion()); }
 function saveSetting(patch){
   return fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(patch)}).then(r=>r.json());
@@ -2567,6 +2573,11 @@ function endSession(){
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   setWho(c);
+  // reduced-motion at boot: honour the OS media query immediately, then OR-in the saved setting
+  // (so the celebratory/ambient keyframes are quieted before the first celebration, not only
+  // after the Settings screen is opened).
+  applyReducedMotion(false);
+  fetch('/api/settings').then(r=>r.json()).then(s=>applyReducedMotion(s.reduced_motion)).catch(()=>{});
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
