@@ -8,6 +8,7 @@ the TUI, so state stays in one place.
 Backend is a thin FastAPI layer; the agent streams tokens over a POST stream.
 """
 
+import html
 import json
 import logging
 import uuid
@@ -209,13 +210,6 @@ def create_app():
         # Public "About Ekalavya" page (brand mode): what it is, what it stands for (the
         # Ekalavya story), and how to use it (the loop). Reachable from the landing nav.
         return _ABOUT
-
-    @app.get("/canvas", response_class=HTMLResponse)
-    def canvas() -> str:
-        # Canvas & Artifacts shell (product mode). A styled scaffold today — the guru
-        # authors durable artifacts (lessons, code, framed HTML, interactive visuals) with
-        # a highlight-to-ask popover. Full wiring to the agent is a later task.
-        return _CANVAS
 
     @app.get("/progress", response_class=HTMLResponse)
     def progress_overview() -> str:
@@ -729,10 +723,13 @@ def _mount_auth(app) -> None:
         # one themed template serves both tabs; `start` picks which is active on load.
         # `start_is_signup` lets the client reveal the auth card + jump to it straightaway when
         # the visitor arrives on /signup (or bounces back with an error), skipping the hero scroll.
+        # error/notice come from the query string (pre-auth) — HTML-escape before injecting.
+        esc_error = html.escape(error)
+        esc_notice = html.escape(notice)
         return (_LOGIN.replace("{{start}}", start)
                 .replace("{{start_is_signup}}", "true" if start == "signup" else "false")
-                .replace("{{error}}", error and f'<div class="err">{error}</div>' or "")
-                .replace("{{notice}}", notice and f'<div class="notice">{notice}</div>' or ""))
+                .replace("{{error}}", esc_error and f'<div class="err">{esc_error}</div>' or "")
+                .replace("{{notice}}", esc_notice and f'<div class="notice">{esc_notice}</div>' or ""))
 
     def _begin_session(uid: str):
         """Create the user's home/db on first entry and hand back a logged-in redirect."""
@@ -811,7 +808,7 @@ _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/katex/katex.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github-dark.min.css">
+<link rel="stylesheet" href="/static/hljs-github-dark.min.css">
 <style>
 /* ===== Option E · cinematic-forest practice arena (product mode) =====
    The full palette + fonts of the shared design system, inlined here (the SPA is a single
@@ -949,6 +946,8 @@ main{flex:1;min-height:0;display:grid;grid-template-columns:auto 1fr}
 .mermaid{background:rgba(6,9,16,.85);border:1px solid var(--line-soft);border-radius:8px;padding:10px;text-align:center}
 .mermaid svg{max-width:100% !important;height:auto}
 #tree .mermaid{background:transparent;border:0}#tree .mermaid svg{max-width:100% !important;height:auto}
+/* degraded-markdown fallback (a markdown lib failed to load): show readable escaped text */
+.md-fallback{white-space:pre-wrap;word-break:break-word;font-family:var(--f-body);margin:0}
 .resumebar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px 0}
 .resumebar.hidden{display:none}
 .resumehint{font-family:var(--f-body);font-size:11.5px;color:var(--parch-mute);opacity:.85}
@@ -1074,6 +1073,8 @@ button:disabled{opacity:.42;cursor:default}
 .artpill{font-family:var(--f-mono);font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--line-soft);color:var(--parch-dim);white-space:nowrap;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .artpill:hover{color:var(--gold-bright)} .artpill.on{border-color:var(--gold-deep);color:var(--gold-bright);background:rgba(231,182,75,.08)}
 .artpill .k{opacity:.6}
+/* keyboard focus ring for the focusable click-controls (a11y) */
+.seg span:focus-visible,.artpill:focus-visible,.lib-pill:focus-visible,.artcard:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .canvas-body{flex:1;padding:20px 24px;overflow:auto;position:relative}
 .art-md h3{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 4px}
 .art-md .adeva{font-family:var(--f-deva);font-size:15px;color:var(--gold-bright);margin-bottom:16px}
@@ -1112,8 +1113,11 @@ button:disabled{opacity:.42;cursor:default}
 .setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
 .setrow select:disabled{opacity:.5}
 /* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
-body.reduce-motion *{animation:none !important}
-@media(prefers-reduced-motion:reduce){.cerbox .rays,.cerbox .flick,#achtoast::after{animation:none !important}}
+/* manual toggle OR OS media query → still every animation, including pseudo-elements
+   (the celebratory/ambient keyframes winpop/bloom/sheen/dpulse/slowspin/pop/#achtoast::after
+   ride on elements + ::before/::after, so gate all three). */
+body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{animation:none !important}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none !important}}
 /* Artifacts Library — the Scriptorium (template F) */
 .lib{padding:26px 26px 60px;max-width:1080px;margin:0 auto}
 .lib-top{display:flex;align-items:center;gap:14px;margin-bottom:20px;flex-wrap:wrap}
@@ -1472,8 +1476,8 @@ body.reduce-motion *{animation:none !important}
           <option value="onboard">First-time setup</option>
         </select>
         <div class="seg" id="rightseg" role="tablist" aria-label="Right pane">
-          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab">▤ Editor</span>
-          <span data-pane="canvas" onclick="showPane('canvas')" role="tab">✦ Canvas</span>
+          <span class="on" data-pane="editor" onclick="showPane('editor')" role="tab" tabindex="0" aria-selected="true">▤ Editor</span>
+          <span data-pane="canvas" onclick="showPane('canvas')" role="tab" tabindex="0" aria-selected="false">✦ Canvas</span>
         </div>
         <span class="grow"></span>
         <button class="ghost" onclick="newSession()">↻ New</button>
@@ -1533,6 +1537,7 @@ body.reduce-motion *{animation:none !important}
   <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
   <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
   <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
+  <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg>Profile</button>
 </nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
@@ -1574,15 +1579,22 @@ body.reduce-motion *{animation:none !important}
 <div id="reclaim"><span class="rc-badge"><svg width="34" height="34" viewBox="0 0 24 24" fill="none"><path d="M14 3h7v7l-9 9-5-5z" stroke="currentColor" stroke-width="1.6"/><line x1="5" y1="14" x2="10" y2="19" stroke="currentColor" stroke-width="1.6"/><line x1="3" y1="21" x2="7" y2="17" stroke="currentColor" stroke-width="1.6"/></svg></span><div class="rc-info"><div class="rc-e">◆ Merit reclaimed</div><div class="rc-n" id="reclaimn">+0 XP restored</div><div class="rc-d">The forest forgives the honest.</div></div></div>
 <div id="winpulse"><span class="wp-spark">✦</span><span class="wp-t">Struck true</span><span class="wp-n">+0 XP</span></div>
 
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/highlight.min.js"></script>
+<!-- marked / dompurify / highlight.js are vendored locally (like Chart.js/three/KaTeX) so the
+     editor + markdown keep working offline / behind a firewall. -->
+<script src="/static/marked.min.js"></script>
+<script src="/static/purify.min.js"></script>
+<script src="/static/highlight.min.js"></script>
+<!-- mermaid + Monaco stay on the CDN but are version-pinned with SRI + crossorigin. -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
+  integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr"
+  crossorigin="anonymous"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
 <script src="/static/katex/contrib/auto-render.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"
+  integrity="sha384-SF/kPhqG3NMxqsYAbQqHkdF53WQx8yTkY0Ys+M+ayeC20QNujPyyxIuUEdEf0eG/"
+  crossorigin="anonymous"></script>
 <script src="/static/forest2d.js"></script>
 <script>
 mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
@@ -1602,14 +1614,13 @@ function looksPasted(code, biggest){
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
-// view switching — driven by BOTH the header tabs and the ashram left rail.
-// The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings; the header
-// tabs share these targets. Dashboard+Journey+Effectiveness are now ONE unified Overview.
+// view switching — driven by the ashram left rail + the mobile bottom-nav.
+// The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings.
+// Dashboard+Journey+Effectiveness are now ONE unified Overview.
 function showView(v){
   const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
-  document.querySelectorAll('.tab[data-view]').forEach(x=>x.classList.toggle('on', x.dataset.view===v));
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
@@ -1617,11 +1628,25 @@ function showView(v){
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
 }
-document.querySelectorAll('.tab[data-view]').forEach(t=>t.onclick=()=>showView(t.dataset.view));  // [data-view] excludes the editor toggle
 function railGo(v){ showView(v); }
 
+// Keyboard a11y: primary click-only controls (segmented tabs, artifact/library pills, artifact
+// cards) are focusable spans/divs — let Enter/Space activate them like a button. Delegated so it
+// covers dynamically-rendered pills/cards too. Only fires when the focused element IS the control
+// (not a nested <button>, e.g. the artcard pin).
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Enter' && e.key!==' ' && e.key!=='Spacebar') return;
+  const t=e.target;
+  if(t && t.matches && t.matches('#rightseg span[role=tab],.artpill,.lib-pill,.artcard')){
+    e.preventDefault(); t.click();
+  }
+});
+
 /* ===== Settings screen (template K) — setrows + toggles + provider selector ===== */
-function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on); }
+// Reduced motion is on when EITHER the saved setting OR the OS media query asks for it —
+// so celebratory/ambient animations are quieted at boot, not only after visiting Settings.
+function _osReduceMotion(){ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }
+function applyReducedMotion(on){ document.body.classList.toggle('reduce-motion', !!on || _osReduceMotion()); }
 function saveSetting(patch){
   return fetch('/api/settings',{method:'PUT',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(patch)}).then(r=>r.json());
@@ -1666,7 +1691,7 @@ function libCard(a, feat){
   const glyph=KIND_GLYPH[a.kind]||'◆', klabel=KIND_LABEL[a.kind]||a.kind;
   const preview=(a.content||'').replace(/[#*`>_]/g,'').replace(/<[^>]+>/g,' ').trim().slice(0,160);
   const when=(a.updated_at||'').replace('T',' ').slice(0,16);
-  return "<div class='artcard"+(feat?' feat':'')+"' onclick='openArtifact("+a.id+")'>"+
+  return "<div class='artcard"+(feat?' feat':'')+"' role='button' tabindex='0' aria-label='"+esc(a.title)+"' onclick='openArtifact("+a.id+")'>"+
     "<button class='apin"+(a.pinned?' on':'')+"' title='"+(a.pinned?'Unpin':'Pin')+"' onclick='event.stopPropagation();togglePin("+a.id+","+(a.pinned?0:1)+")'>"+(a.pinned?'★':'☆')+"</button>"+
     "<div class='atype "+a.kind+"'>"+glyph+" "+klabel+(a.pinned?' · pinned':'')+"</div>"+
     "<h4>"+esc(a.title)+"</h4><p>"+esc(preview||'—')+"</p>"+
@@ -1677,7 +1702,7 @@ function loadLibrary(){
   fetch(url).then(r=>r.json()).then(list=>{
     const filters=['','markdown','code','viz','html'];
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
-    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
+    const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' role='button' tabindex='0' aria-current='"+(f===_libFilter?'true':'false')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
     let body;
     if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and it'll appear here.</div></div>"; }
     else {
@@ -1692,16 +1717,17 @@ function loadLibrary(){
         "<div class='lib-grid'>"+groups[p].map(a=>libCard(a,false)).join('')+"</div></div>").join('')+"</div>";
     }
     const groupToggle="<div class='lib-group-toggle'>"+
-      "<span class='lib-pill"+(_libGroup==='pillar'?' on':'')+"' onclick=\"setLibGroup('pillar')\">By pillar</span>"+
-      "<span class='lib-pill"+(_libGroup==='chat'?' on':'')+"' onclick=\"setLibGroup('chat')\">By chat</span></div>";
+      "<span class='lib-pill"+(_libGroup==='pillar'?' on':'')+"' role='button' tabindex='0' aria-current='"+(_libGroup==='pillar'?'true':'false')+"' onclick=\"setLibGroup('pillar')\">By pillar</span>"+
+      "<span class='lib-pill"+(_libGroup==='chat'?' on':'')+"' role='button' tabindex='0' aria-current='"+(_libGroup==='chat'?'true':'false')+"' onclick=\"setLibGroup('chat')\">By chat</span></div>";
     document.getElementById('library').innerHTML=
      "<div class='lib'><div class='lib-top'>"+
      "<div><div class='lt-title'>The Scriptorium</div><div class='lt-sub'>Everything you and the guru have written — grouped by "+(_libGroup==='chat'?'chat':'pillar')+", kept for revision.</div></div>"+
      "<span style='flex:1'></span>"+
-     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…' value='"+esc(_libQuery)+"'>"+
+     "<div class='lib-search'><input id='libsearch' placeholder='Search artifacts — recursion, SQL…'>"+
      "<span class='ls-ic'><svg width='16' height='16' viewBox='0 0 24 24' fill='none'><circle cx='11' cy='11' r='7' stroke='#e7b64b' stroke-width='1.8'/><line x1='16' y1='16' x2='21' y2='21' stroke='#e7b64b' stroke-width='1.8'/></svg></span></div></div>"+
      "<div class='lib-filters'>"+pills+"<span style='flex:1'></span>"+groupToggle+"</div>"+body+"</div>";
     const si=document.getElementById('libsearch');
+    si.value=_libQuery;  // set via property (not an interpolated attribute) so quotes/apostrophes survive
     si.oninput=()=>{ _libQuery=si.value; clearTimeout(si._t); si._t=setTimeout(loadLibrary,220); };
     si.focus(); si.setSelectionRange(si.value.length, si.value.length);
   }).catch(()=>{ document.getElementById('library').innerHTML="<div class='lib'><div class='lib-empty'>could not load the library.</div></div>"; });
@@ -1729,7 +1755,7 @@ fetch('/api/artifacts').then(r=>r.json()).then(l=>{ _maxArtId=l.length?Math.max.
 function showPane(p){
   const col=document.querySelector('#practice .col:not(.chat)');
   const isCanvas=(p==='canvas'); col.classList.toggle('canvasmode', isCanvas);
-  document.querySelectorAll('#rightseg span').forEach(s=>s.classList.toggle('on', s.dataset.pane===p));
+  document.querySelectorAll('#rightseg span').forEach(s=>{const on=s.dataset.pane===p; s.classList.toggle('on',on); s.setAttribute('aria-selected',on?'true':'false');});
   if(isCanvas){ loadCanvas(); }
   else if(editor){ setTimeout(()=>editor.layout(),60); }
 }
@@ -1742,13 +1768,13 @@ function loadCanvas(select){
       "<div class='canvas-empty'>No artifacts yet. Ask the guru for a lesson and save it to your Canvas — it renders here.</div>"; _curArt=null; return; }
     if(select!=null) _curArt=select;
     if(_curArt==null || !list.find(a=>a.id===_curArt)) _curArt=list[0].id;
-    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
+    tabs.innerHTML=list.map(a=>"<span class='artpill"+(a.id===_curArt?' on':'')+"' role='tab' tabindex='0' aria-selected='"+(a.id===_curArt?'true':'false')+"' onclick='selectArtifact("+a.id+")'><span class='k'>"+
       artGlyph(a.kind)+"</span> "+esc(a.title)+"</span>").join('');
     renderArtifact(list.find(a=>a.id===_curArt));
   }).catch(()=>{});
 }
 function selectArtifact(id){ _curArt=id;
-  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>p.classList.toggle('on',_artifacts[i]&&_artifacts[i].id===id));
+  document.querySelectorAll('#canvastabs .artpill').forEach((p,i)=>{const on=!!(_artifacts[i]&&_artifacts[i].id===id); p.classList.toggle('on',on); p.setAttribute('aria-selected',on?'true':'false');});
   const a=_artifacts.find(x=>x.id===id); if(a) renderArtifact(a);
 }
 // vizShell — wrap a bare viz fragment in a self-contained doc that preloads Chart.js (from
@@ -1799,7 +1825,7 @@ function renderArtifact(a){
     body.innerHTML=''; body.appendChild(f); f.srcdoc=doc;
     return;  // no highlight-to-ask inside the cross-origin frame; keep the popover out
   } else {  // markdown lesson
-    body.innerHTML="<div class='art-md' data-selectable='1'>"+DOMPurify.sanitize(marked.parse(a.content||''))+"</div>";
+    body.innerHTML="<div class='art-md' data-selectable='1'>"+safeMd(a.content||'')+"</div>";
     body.querySelectorAll('pre code').forEach(c=>{try{hljs.highlightElement(c);}catch(e){}});
     typesetMath(body);  // render LaTeX in a saved lesson
   }
@@ -2047,8 +2073,18 @@ function typesetMath(el){
     {left:'\\(',right:'\\)',display:false}, {left:'$',right:'$',display:false}
   ], throwOnError:false, ignoredTags:['script','noscript','style','textarea','pre','code']}); }catch(e){}
 }
+// Sanitize + parse markdown, degrading gracefully if a vendored lib failed to load
+// (offline / blocked): fall back to escaped plain text rather than throwing and blanking the
+// message. marked+DOMPurify are required; hljs/mermaid/katex already degrade via try/catch.
+function safeMd(text){
+  if(typeof marked==='undefined' || typeof DOMPurify==='undefined'){
+    return '<pre class="md-fallback">'+esc(text||'')+'</pre>';
+  }
+  try{ return DOMPurify.sanitize(marked.parse(text)); }
+  catch(e){ return '<pre class="md-fallback">'+esc(text||'')+'</pre>'; }
+}
 function renderMd(text){
-  const html = DOMPurify.sanitize(marked.parse(text));  // never trust model output in the DOM
+  const html = safeMd(text);  // never trust model output in the DOM; degrades to escaped text
   const tmp=document.createElement('div'); tmp.innerHTML=html;
   tmp.querySelectorAll('pre code').forEach(c=>{
     if(c.className.includes('mermaid')||c.className.includes('language-mermaid')){
@@ -2139,7 +2175,7 @@ async function consume(res, ui){
     for(const line of lines){ if(!line.trim())continue;
       let o; try{o=JSON.parse(line);}catch(e){continue;}
       if(o.t){ clearWelcome(); ui.m.style.display=''; ui.buf+=o.t; const now=Date.now();
-        if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=DOMPurify.sanitize(marked.parse(ui.buf)); }
+        if(now-(ui._lr||0)>100){ ui._lr=now; ui.reply.innerHTML=safeMd(ui.buf); }
         scroll(); }
       else if(o.tool){ clearWelcome(); ui.m.style.display=''; ui.steps++; ui.trace.style.display='block';
         traceLine(ui.tb,'call','→ '+prettyTool(o.tool)); ui.sum.textContent=prettyTool(o.tool)+'…'; scroll(); }
@@ -2266,7 +2302,7 @@ function sendChat(){
   stream(t, attach);
 }
 
-function esc(s){ return (s||'').replace(/</g,'&lt;'); }
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 // Run output renders in the editor pane (#edrun, below the code) — it persists across chat
 // messages and its body scrolls (max-height) instead of being clipped or lost in the log.
 function showRunPane(headHtml){
@@ -2328,11 +2364,17 @@ async function runCode(){
 (function(){const ta=document.getElementById('chatin');
   ta.addEventListener('input',()=>{ta.style.height='auto';ta.style.height=Math.min(ta.scrollHeight,150)+'px';});
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat();} });
-  // Esc anywhere in the arena cancels an in-flight reply (never while editing a past turn).
-  document.addEventListener('keydown',e=>{
-    if(e.key==='Escape' && streaming && !document.querySelector('.msg.editing')){ e.preventDefault(); cancelStream(); }
-  });
 })();
+// Single Escape handler with precedence: an OPEN overlay (mode chooser, chat drawer) is
+// dismissed first and swallows the key, so Esc never also aborts the in-flight reply. Only when
+// nothing is open does Esc cancel a stream (and never while editing a past turn).
+document.addEventListener('keydown',function(e){
+  if(e.key!=='Escape') return;
+  const modes=document.getElementById('modes'), drawer=document.getElementById('drawer');
+  if(modes && modes.classList.contains('on')){ e.preventDefault(); closeModes(); return; }
+  if(drawer && drawer.classList.contains('open')){ e.preventDefault(); closeDrawer(); return; }
+  if(streaming && !document.querySelector('.msg.editing')){ e.preventDefault(); cancelStream(); }
+});
 
 function flashSubmit(t){ const b=document.querySelector('button.submit'); if(b) b.textContent=t; }
 function submitCode(){
@@ -2441,7 +2483,6 @@ function openModes(){
 }
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeModes(); });
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
@@ -2544,15 +2585,23 @@ function endSession(){
 refreshHud();
 fetch('/api/config').then(r=>r.json()).then(c=>{
   setWho(c);
+  // reduced-motion at boot: honour the OS media query immediately, then OR-in the saved setting
+  // (so the celebratory/ambient keyframes are quieted before the first celebration, not only
+  // after the Settings screen is opened).
+  applyReducedMotion(false);
+  fetch('/api/settings').then(r=>r.json()).then(s=>applyReducedMotion(s.reduced_motion)).catch(()=>{});
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
-  stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
   const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog'}[location.pathname];
-  if(_deep) showView(_deep);
-  else if(!c.first_run && location.pathname==='/') showView('tree');
+  const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
+  if(_landing!=='practice') showView(_landing);
+  // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
+  // explicit arena landing. Deep-links and the returning-user Forest Map must NOT auto-start a
+  // thread (that burned tokens + spawned junk chats on every page load / deep-link).
+  if(_landing==='practice') stream(c.kickoff[mode]);
 });
 // deep-link handling for client-only routes now runs inside the /api/config callback above.
 </script></body></html>"""
@@ -3319,54 +3368,5 @@ _ABOUT = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
     <div class="fd">विद्या ददाति विनयम् — knowledge gives humility</div>
     <div class="fm">एकलव्य · स्वाध्याय · an AI coding tutor for the self-taught</div>
   </footer>
-</div>
-</body></html>"""
-
-
-# --- canvas / artifacts shell (product mode, scaffold) ---------------------
-_CANVAS = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya — Canvas</title>
-""" + _HEAD + r"""
-<style>body{padding:26px 20px 60px}.canvas-wrap{max-width:1080px;margin:0 auto}
-.pa-right{border:1px solid var(--line-gold);border-radius:8px;overflow:hidden;box-shadow:var(--sh-deep)}</style></head><body>
-<div class="canvas-wrap">
-  <div class="screen-label" style="margin-bottom:12px">Canvas &amp; Artifacts <b>· the guru writes, you keep it</b> <span class="mode-badge product">product mode</span></div>
-  <div class="pa-right">
-    <div class="pa-toolbar">
-      <div class="seg" role="tablist" aria-label="Right pane"><span role="tab">▤ Editor</span><span class="on" role="tab" aria-selected="true">✦ Canvas</span></div>
-      <span class="grow"></span>
-      <span class="tbtn">+ New artifact</span><span class="tbtn submit">↓ Save to library</span>
-    </div>
-    <div class="canvas">
-      <div class="canvas-tabs">
-        <span class="artpill on"><span class="k">◆</span> Recursion, illustrated</span>
-        <span class="artpill"><span class="k">▶</span> tree_traversal.py</span>
-        <span class="artpill"><span class="k">◈</span> call-stack visual</span>
-        <span class="artpill"><span class="k">□</span> preview.html</span>
-      </div>
-      <div class="canvas-body">
-        <div class="art-md">
-          <h3>Recursion, illustrated</h3>
-          <div class="adeva">पुनरावृत्ति · the return upon itself</div>
-          <p>A recursive function trusts a <b>smaller copy of itself</b> to solve the smaller problem, then combines. Every recursion needs two things: a <b>base case</b> that stops the descent, and a step that moves <b>toward</b> it.</p>
-          <p>In tree traversal, the <i>order</i> you visit the parent decides everything. In post-order you defer the parent until <span class="selraw">both children are done</span> — which is how you free a subtree or compute its size bottom-up.</p>
-          <!-- highlight-to-ask: selecting any phrase raises this popover to ask the guru about it -->
-          <div class="selpop selpop-below" style="left:34px;top:190px">Ask about this ✦</div>
-          <div class="callout">"You are not writing a loop that repeats. You are writing a promise that trusts a smaller you." — the stone guru</div>
-          <div style="margin:18px 0 6px;font-family:var(--f-mono);font-size:10px;letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--vermilion-glow)">◈ interactive · call-depth vs. work</div>
-          <svg viewBox="0 0 460 170" style="width:100%;border:1px solid var(--line-soft);border-radius:8px;background:rgba(6,9,20,.5)" aria-label="An interactive chart of recursion call depth versus total work.">
-            <defs><linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7d98a"/><stop offset="1" stop-color="#b8862f"/></linearGradient></defs>
-            <g stroke="rgba(231,182,75,.12)" stroke-width="1"><line x1="30" y1="30" x2="440" y2="30"/><line x1="30" y1="80" x2="440" y2="80"/><line x1="30" y1="130" x2="440" y2="130"/></g>
-            <g fill="url(#barGrad)"><rect x="46" y="118" width="26" height="12" rx="3"/><rect x="106" y="100" width="26" height="30" rx="3"/><rect x="166" y="74" width="26" height="56" rx="3"/><rect x="226" y="52" width="26" height="78" rx="3"/><rect x="286" y="66" width="26" height="64" rx="3"/><rect x="346" y="96" width="26" height="34" rx="3"/><rect x="406" y="116" width="26" height="14" rx="3"/></g>
-            <path d="M59 120 C120 92 150 60 239 44 C300 34 340 70 419 118" fill="none" stroke="#57d3ce" stroke-width="2"/>
-            <circle cx="239" cy="44" r="5" fill="#f7d98a" stroke="#101528" stroke-width="1.5"/>
-            <text x="239" y="30" text-anchor="middle" font-family="JetBrains Mono" font-size="9" fill="#f7d98a">n=4 · peak depth</text>
-            <g font-family="JetBrains Mono" font-size="8" fill="#a89670"><text x="59" y="148">n1</text><text x="239" y="148">n4</text><text x="419" y="148">n7</text></g>
-          </svg>
-          <p style="font-family:var(--f-mono);font-size:12px;color:var(--parch-dim);margin-top:8px">Charts, diagrams, and interactive widgets render right here — so Ekalavya can teach a subject <b style="color:var(--gold-bright);font-family:var(--f-body)">visually</b>, not just in prose. <i>(Full authoring wiring lands in a later task.)</i></p>
-        </div>
-      </div>
-    </div>
-  </div>
 </div>
 </body></html>"""

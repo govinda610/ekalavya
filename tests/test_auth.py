@@ -133,6 +133,22 @@ def test_login_form_is_reachable_without_session(mu):
     assert "Sign in" in r.text
 
 
+def test_login_query_params_are_html_escaped(mu):
+    """Pre-auth reflected-XSS guard: error/notice from the query string must be HTML-escaped
+    before they're injected into the auth page, so a crafted link can't inject markup/JS."""
+    c = TestClient(_app(), follow_redirects=False)
+    payload = "<img src=x onerror=alert(1)>"
+    r = c.get("/login", params={"error": payload})
+    assert r.status_code == 200
+    # the raw tag must not appear; the escaped form must
+    assert "<img src=x onerror=alert(1)>" not in r.text
+    assert "&lt;img src=x onerror=alert(1)&gt;" in r.text
+    # notice slot is escaped the same way
+    r2 = c.get("/login", params={"notice": '"><script>alert(2)</script>'})
+    assert "<script>alert(2)</script>" not in r2.text
+    assert "&lt;script&gt;alert(2)&lt;/script&gt;" in r2.text
+
+
 def test_logout_clears_session(mu):
     from eklavya import auth
 
