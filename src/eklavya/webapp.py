@@ -190,6 +190,7 @@ def create_app():
     @app.get("/library", response_class=HTMLResponse)
     @app.get("/settings", response_class=HTMLResponse)
     @app.get("/overview", response_class=HTMLResponse)
+    @app.get("/leaderboard", response_class=HTMLResponse)
     def spa_view() -> str:
         return _INDEX
 
@@ -279,12 +280,14 @@ def create_app():
                     "model": "rotates across " + str(len(configured)) + " provider(s)",
                     "kickoff": _KICKOFF, "configured": bool(configured),
                     "first_run": report.is_first_run(), "email": _current_email(),
-                    "death_on_cheat": settings.get_death_on_cheat()}
+                    "death_on_cheat": settings.get_death_on_cheat(),
+                    "deployed": config.DEPLOYED}
         prov = _active_provider()
         return {"provider": prov.label, "model": prov.default_model,
                 "kickoff": _KICKOFF, "configured": prov.is_configured(),
                 "first_run": report.is_first_run(), "email": _current_email(),
-                "death_on_cheat": settings.get_death_on_cheat()}
+                "death_on_cheat": settings.get_death_on_cheat(),
+                "deployed": config.DEPLOYED}
 
     @app.get("/api/settings")
     def settings_get() -> dict:
@@ -554,6 +557,51 @@ def create_app():
     @app.post("/api/reclaim")
     def reclaim() -> dict:
         return {"reclaimed": progress.reclaim(), "stats": progress.stats()}
+
+    # --- opt-in leaderboard (deployed multi-user) ----------------------------
+    # The board only means anything with several accounts, so it's a DEPLOYED-mode feature.
+    # Locally there's a single account, so the board is empty and the nav entry hides itself
+    # (the SPA reads `deployed` from /api/config). Every route is auth-required (the middleware
+    # already 401s unauthenticated /api/* calls); handles are validated + html-escaped on
+    # render, and a row never carries email / real name / uid.
+    import re as _re
+
+    _HANDLE_RE = _re.compile(r"^[A-Za-z0-9_-]{3,24}$")
+
+    @app.get("/api/leaderboard")
+    def leaderboard_get(sort: str = "score", dir: str = "desc") -> dict:
+        from . import leaderboard
+
+        return leaderboard.build(sort=sort, direction=dir, me_uid=_current_user_id())
+
+    @app.post("/api/leaderboard/opt-in")
+    async def leaderboard_opt_in(request: Request):
+        from . import auth, leaderboard
+
+        body = await request.json()
+        handle = (body.get("handle") or "").strip()
+        if not _HANDLE_RE.match(handle):
+            return JSONResponse(
+                {"ok": False, "error": "Handle must be 3–24 characters, using letters, "
+                                       "numbers, underscores or hyphens."},
+                status_code=400,
+            )
+        uid = _current_user_id()
+        if auth.handle_taken(handle, except_uid=uid):
+            return JSONResponse({"ok": False, "error": "That handle is already taken."},
+                                status_code=409)
+        auth.set_leaderboard(uid, True, handle)
+        leaderboard.invalidate()
+        return leaderboard.build(me_uid=uid)
+
+    @app.post("/api/leaderboard/opt-out")
+    def leaderboard_opt_out() -> dict:
+        from . import auth, leaderboard
+
+        uid = _current_user_id()
+        auth.set_leaderboard(uid, False)
+        leaderboard.invalidate()
+        return leaderboard.build(me_uid=uid)
 
     @app.post("/api/upload-resume")
     async def upload_resume(file: UploadFile = File(...)):

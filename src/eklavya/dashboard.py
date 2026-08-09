@@ -103,17 +103,34 @@ def _cell(cell: dict | None) -> str:
             f'box-shadow:0 0 12px {c}22 inset" title="rating {cell["rating"]}">{cell["level"]}</td>')
 
 
+# Every badge the app can award, as (icon, title, description, predicate). The predicate reads
+# the same (streak, level, strong-skill count, sessions) signals the dashboard already has, so
+# both the dashboard render AND the leaderboard's "achievements unlocked" count derive from ONE
+# list — no drift between the two surfaces.
+_ACHIEVEMENTS = [
+    ("flame", "On Fire", "3-day streak", lambda st, strong, sess: st["streak"] >= 3),
+    ("calendar", "Week Warrior", "7-day streak", lambda st, strong, sess: st["streak"] >= 7),
+    ("infinity", "Unbroken", "30-day streak", lambda st, strong, sess: st["streak"] >= 30),
+    ("star", "Adept", "reached level 5", lambda st, strong, sess: st["level"] >= 5),
+    ("crown", "Master", "reached level 10", lambda st, strong, sess: st["level"] >= 10),
+    ("gem", "First Mastery", "a skill hit strong", lambda st, strong, sess: strong >= 1),
+    ("sword", "Sharpened", "5 skills at strong", lambda st, strong, sess: strong >= 5),
+    ("target", "Initiate", "completed a session", lambda st, strong, sess: sess >= 1),
+    ("prayer", "Devoted", "10 sessions", lambda st, strong, sess: sess >= 10),
+]
+
+# The total number of badges — used by the leaderboard to normalise "achievements unlocked".
+ACHIEVEMENTS_TOTAL = len(_ACHIEVEMENTS)
+
+
+def earned_achievements(stats: dict, strong: int, sessions: int) -> list[tuple]:
+    """The badges (icon, title, description) this learner has unlocked, from the single
+    `_ACHIEVEMENTS` catalogue. Shared by the dashboard render and the leaderboard count."""
+    return [(i, t, d) for i, t, d, ok in _ACHIEVEMENTS if ok(stats, strong, sessions)]
+
+
 def _achievements(stats: dict, strong: int, sessions: int) -> str:
-    earned = []
-    if stats["streak"] >= 3: earned.append(("flame", "On Fire", "3-day streak"))
-    if stats["streak"] >= 7: earned.append(("calendar", "Week Warrior", "7-day streak"))
-    if stats["streak"] >= 30: earned.append(("infinity", "Unbroken", "30-day streak"))
-    if stats["level"] >= 5: earned.append(("star", "Adept", "reached level 5"))
-    if stats["level"] >= 10: earned.append(("crown", "Master", "reached level 10"))
-    if strong >= 1: earned.append(("gem", "First Mastery", "a skill hit strong"))
-    if strong >= 5: earned.append(("sword", "Sharpened", "5 skills at strong"))
-    if sessions >= 1: earned.append(("target", "Initiate", "completed a session"))
-    if sessions >= 10: earned.append(("prayer", "Devoted", "10 sessions"))
+    earned = earned_achievements(stats, strong, sessions)
     if not earned:
         return '<span class="muted">No badges yet — your first session earns one.</span>'
     return "".join(

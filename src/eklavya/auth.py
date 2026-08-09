@@ -44,6 +44,20 @@ def _connect() -> sqlite3.Connection:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(users)")}
     if "status" not in cols:
         conn.execute("ALTER TABLE users ADD COLUMN status TEXT NOT NULL DEFAULT 'active'")
+    # additive migration for the opt-in leaderboard (deployed multi-user). These columns are
+    # NULL/0 on every existing row, so no account's data/handle/streak is touched. `lb_handle`
+    # is unique when non-null, CASE-INSENSITIVELY (a partial expression index) — two users can
+    # both be opted-out (handle NULL) but no two can claim the same handle regardless of case.
+    if "lb_opted_in" not in cols:
+        conn.execute("ALTER TABLE users ADD COLUMN lb_opted_in INTEGER NOT NULL DEFAULT 0")
+    if "lb_handle" not in cols:
+        conn.execute("ALTER TABLE users ADD COLUMN lb_handle TEXT")
+    if "lb_joined_at" not in cols:
+        conn.execute("ALTER TABLE users ADD COLUMN lb_joined_at TEXT")
+    conn.execute(
+        "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_lb_handle "
+        "ON users(lower(lb_handle)) WHERE lb_handle IS NOT NULL"
+    )
     return conn
 
 
@@ -198,6 +212,99 @@ def list_users() -> list[dict]:
     finally:
         conn.close()
     return [dict(r) for r in rows]
+
+
+# --- opt-in leaderboard (deployed multi-user) -------------------------------
+# The board is opt-in and privacy-safe: a user appears ONLY after choosing a public handle
+# and opting in. Email/real-name/uid are never part of a board row — only the handle + the
+# numeric stats aggregated (read-only) from each opted-in user's own per-user database.
+
+
+def handle_taken(handle: str, except_uid: str | None = None) -> bool:
+    """True if `handle` is already claimed (case-insensitively) by a DIFFERENT account.
+
+    `except_uid` is excluded so a user editing their own handle to a new case-variant of the
+    same handle isn't blocked by their own row."""
+    handle = (handle or "").strip()
+    if not handle:
+        return False
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT id FROM users WHERE lb_handle IS NOT NULL "
+            "AND lower(lb_handle) = lower(?) AND id != ?",
+            (handle, except_uid or ""),
+        ).fetchone()
+    finally:
+        conn.close()
+    return row is not None
+
+
+def set_leaderboard(uid: str, opted_in: bool, handle: str | None = None) -> None:
+    """Set a user's leaderboard opt-in state (and handle when opting in).
+
+    Opting in requires a handle and records `lb_joined_at` on the FIRST join only (re-opting
+    in keeps the original join time). Opting out flips the flag off but PRESERVES the handle,
+    so re-joining reuses it and no other user can grab it in the meantime. Raises ValueError
+    if the handle is already taken by another account (caller validates format first)."""
+    conn = _connect()
+    try:
+        if opted_in:
+            handle = (handle or "").strip()
+            if not handle:
+                raise ValueError("a handle is required to join the leaderboard")
+            if handle_taken(handle, except_uid=uid):
+                raise ValueError("that handle is already taken")
+            row = conn.execute("SELECT lb_joined_at FROM users WHERE id = ?", (uid,)).fetchone()
+            joined = (row["lb_joined_at"] if row else None) or _now_iso()
+            conn.execute(
+                "UPDATE users SET lb_opted_in = 1, lb_handle = ?, lb_joined_at = ? WHERE id = ?",
+                (handle, joined, uid),
+            )
+        else:
+            conn.execute("UPDATE users SET lb_opted_in = 0 WHERE id = ?", (uid,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def leaderboard_profile(uid: str) -> dict:
+    """This user's leaderboard state: {opted_in: bool, handle: str|None, joined_at: str|None}."""
+    conn = _connect()
+    try:
+        row = conn.execute(
+            "SELECT lb_opted_in, lb_handle, lb_joined_at FROM users WHERE id = ?", (uid,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        return {"opted_in": False, "handle": None, "joined_at": None}
+    return {
+        "opted_in": bool(row["lb_opted_in"]),
+        "handle": row["lb_handle"],
+        "joined_at": row["lb_joined_at"],
+    }
+
+
+def opted_in_users() -> list[dict]:
+    """Every opted-in account as {id, handle}, oldest join first. The ONLY email/name-free
+    projection the leaderboard aggregator reads — it never selects email or real name."""
+    conn = _connect()
+    try:
+        rows = conn.execute(
+            "SELECT id, lb_handle AS handle FROM users "
+            "WHERE lb_opted_in = 1 AND lb_handle IS NOT NULL "
+            "ORDER BY lb_joined_at, id"
+        ).fetchall()
+    finally:
+        conn.close()
+    return [dict(r) for r in rows]
+
+
+def _now_iso() -> str:
+    from datetime import datetime, timezone
+
+    return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
 # --- login throttle (in-memory, no dependency) -----------------------------
