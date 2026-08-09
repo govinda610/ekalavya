@@ -1143,7 +1143,7 @@ button:disabled{opacity:.42;cursor:default}
 .art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
 #prog,#profile{display:none;height:100%}
 #prog iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
-#library,#settings{display:none;height:100%;overflow-y:auto}
+#library,#settings,#leaderboard{display:none;height:100%;overflow-y:auto}
 /* settings screen (template K) — setrows + toggles */
 .settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
 .settings .stitle{font-family:var(--f-display);font-weight:700;font-size:24px;color:var(--parch);margin-bottom:4px}
@@ -1160,6 +1160,66 @@ button:disabled{opacity:.42;cursor:default}
 .toggle.danger.on{background:linear-gradient(90deg,var(--vermilion-deep),var(--vermilion));border-color:var(--vermilion)}
 .setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
 .setrow select:disabled{opacity:.5}
+/* Settings → Leaderboard section: handle input + join/leave + note */
+.lb-set{display:flex;flex-direction:column;gap:12px;padding:18px 4px;border-bottom:1px solid var(--line-soft)}
+.lb-set .lb-set-top{display:flex;align-items:flex-start;gap:18px}
+.lb-set .lb-set-top .si{flex:1}
+.lb-set-controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.lb-set-controls input{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;
+  padding:9px 12px;font-family:var(--f-mono);font-size:13px;min-width:180px}
+.lb-set-controls input:focus{outline:none;border-color:var(--gold)}
+.lb-btn{font-family:var(--f-title);font-size:14px;padding:9px 18px;border-radius:6px;border:1px solid var(--gold-deep);
+  background:linear-gradient(180deg,rgba(231,182,75,.18),rgba(20,15,10,.7));color:var(--gold-bright);cursor:pointer}
+.lb-btn:hover{border-color:var(--gold);background:linear-gradient(180deg,rgba(231,182,75,.28),rgba(20,15,10,.7))}
+.lb-btn.leave{border-color:var(--vermilion-deep);color:var(--vermilion-glow);background:rgba(143,35,24,.14)}
+.lb-set .lb-note{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch-dim)}
+.lb-set .lb-err{font-family:var(--f-mono);font-size:12px;color:var(--vermilion-glow);min-height:1em}
+.lb-set .lb-ok{color:var(--forest-lit)}
+
+/* Leaderboard view (deployed only) — forest/award-tier styling */
+.lb-wrap{padding:26px 26px 60px;max-width:1080px;margin:0 auto}
+.lb-head{display:flex;align-items:flex-end;gap:14px;margin-bottom:6px;flex-wrap:wrap}
+.lb-head .lb-title{font-family:var(--f-display);font-weight:700;font-size:26px;color:var(--parch);line-height:1.1}
+.lb-head .lb-sub{font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--parch-dim)}
+.lb-banner{display:flex;align-items:center;gap:12px;margin:16px 0;padding:14px 18px;border-radius:9px;
+  border:1px solid var(--gold-deep);background:var(--hero-aura),linear-gradient(100deg,rgba(46,38,30,.7),rgba(12,10,20,.82));
+  box-shadow:var(--panel-inner-lift)}
+.lb-banner .lb-rank-n{font-family:var(--f-display);font-weight:800;font-size:22px;color:var(--gold-bright)}
+.lb-banner.cta{border-left:3px solid var(--gold);cursor:pointer}
+.lb-banner.cta:hover{border-color:var(--gold)}
+.lb-banner .lb-cta-link{margin-left:auto;font-family:var(--f-mono);font-size:12px;color:var(--gold-bright);text-decoration:underline}
+.lb-tablewrap{border:1px solid var(--line-soft);border-radius:10px;overflow:auto;background:var(--card-surface);box-shadow:var(--card-lift)}
+table.lb{width:100%;border-collapse:collapse;border-spacing:0;min-width:760px}
+table.lb th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--parch-mute);
+  text-align:right;padding:12px 14px;border-bottom:1px solid var(--line-gold);cursor:pointer;white-space:nowrap;user-select:none}
+table.lb th.tl{text-align:left}
+table.lb th:hover{color:var(--gold-bright)}
+table.lb th .arrow{color:var(--gold-bright);font-size:9px}
+table.lb td{font-family:var(--f-mono);font-size:13px;color:var(--parch-dim);text-align:right;padding:11px 14px;
+  border-bottom:1px solid var(--line-soft);white-space:nowrap;font-variant-numeric:tabular-nums}
+table.lb td.tl{text-align:left}
+table.lb tr:last-child td{border-bottom:0}
+table.lb .lb-rank{color:var(--parch-mute);width:48px}
+table.lb .lb-handle{font-family:var(--f-title);font-size:15px;color:var(--parch)}
+table.lb tr.me{background:linear-gradient(90deg,rgba(231,182,75,.14),rgba(231,182,75,.03))}
+table.lb tr.me td{color:var(--parch)}
+table.lb tr.me .lb-handle{color:var(--gold-bright)}
+table.lb tr.me .lb-handle::after{content:"you";font-family:var(--f-mono);font-size:9px;letter-spacing:.08em;
+  margin-left:8px;padding:2px 6px;border-radius:4px;border:1px solid var(--gold-deep);color:var(--gold-bright);vertical-align:middle}
+/* prestige styling on the Unassisted-skill column — the honesty flex */
+table.lb .lb-unassist{color:var(--peacock-bright);font-weight:600}
+table.lb th.lb-unassist{color:var(--peacock-bright)}
+table.lb .lb-score{color:var(--gold-bright);font-weight:600}
+table.lb th.lb-score{color:var(--gold-bright)}
+.lb-tip{position:relative;display:inline-flex;align-items:center;gap:4px}
+.lb-tip .lb-tip-mark{width:14px;height:14px;border-radius:50%;border:1px solid var(--gold-deep);color:var(--gold-bright);
+  font-size:9px;display:inline-flex;align-items:center;justify-content:center;font-style:normal}
+.lb-tip .lb-tip-body{position:absolute;top:150%;right:0;width:260px;background:linear-gradient(180deg,var(--stone-warm),var(--stone-dark));
+  border:1px solid var(--gold-deep);border-radius:8px;padding:11px 13px;font-family:var(--f-body);font-size:12px;
+  color:var(--parch);line-height:1.5;text-align:left;text-transform:none;letter-spacing:0;box-shadow:var(--sh-deep);
+  opacity:0;visibility:hidden;transition:opacity .15s;z-index:10;white-space:normal;font-weight:400}
+.lb-tip:hover .lb-tip-body,.lb-tip:focus-within .lb-tip-body{opacity:1;visibility:visible}
+.lb-empty{padding:40px 20px;text-align:center;font-family:var(--f-serif);font-style:italic;font-size:15px;color:var(--parch-dim)}
 /* reduced-motion: still the celebratory/ambient animations (respects the toggle + OS) */
 /* manual toggle OR OS media query → still every animation, including pseudo-elements
    (the celebratory/ambient keyframes winpop/bloom/sheen/dpulse/slowspin/pop/#achtoast::after
@@ -1477,6 +1537,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
     <div class="rail-item" data-rail="library" onclick="railGo('library')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg> Library</div>
     <div class="rail-group">Progress</div>
     <div class="rail-item" data-rail="prog" onclick="railGo('prog')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg> Overview</div>
+    <div class="rail-item rail-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg> Leaderboard</div>
     <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
     <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
     <div class="rail-mini-hud" id="acctbtn" role="button" tabindex="0" title="Account & sign out" onclick="toggleAcct(event)">
@@ -1577,6 +1638,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   </div>
   <div id="library"></div>
   <div id="settings"></div>
+  <div id="leaderboard"></div>
   </div>
 </main>
 <nav id="mnav" aria-label="Sections">
@@ -1584,6 +1646,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
   <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
   <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
+  <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg>Board</button>
   <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
   <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg>Profile</button>
 </nav>
@@ -1666,7 +1729,7 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 // The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings.
 // Dashboard+Journey+Effectiveness are now ONE unified Overview.
 function showView(v){
-  const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block'};
+  const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block',leaderboard:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
@@ -1675,6 +1738,7 @@ function showView(v){
   if(v==='tree') showForest();
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
+  if(v==='leaderboard') loadLeaderboard();
 }
 function railGo(v){ showView(v); }
 
@@ -1715,7 +1779,9 @@ function loadSettings(){
      "<div class='setrow' id='sr-voice'><div class='si'><div class='st'>Guru voice</div><div class='sd'>Stone guru (stern, epic) vs. plain mentor. Same grading either way.</div></div>"+tog(s.guru_voice,false)+"</div>"+
      "<div class='setrow' id='sr-prov'><div class='si'><div class='st'>Provider</div><div class='sd'>Which model powers the tutor. Only providers with a key set are selectable.</div></div>"+
      "<select id='provselect'>"+provOpts+"</select></div>"+
+     (_deployed?lbSettingsSection():"")+
      "</div>";
+    if(_deployed) wireLbSettings();
     // wire the toggles
     const wire=(sel,key,after)=>{ const t=document.querySelector(sel+' .toggle');
       const flip=()=>{ const on=!t.classList.contains('on'); t.classList.toggle('on',on); t.setAttribute('aria-checked',on);
@@ -1730,6 +1796,117 @@ function loadSettings(){
       });
     };
   }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
+}
+
+/* ===== Leaderboard (deployed multi-user) ===== */
+let _deployed=false, _lbSort='score', _lbDir='desc', _lbMe={opted_in:false,handle:null,rank:null};
+// the exact weighting, mirrored from leaderboard.WEIGHTING_TEXT, surfaced in the score tooltip
+const LB_WEIGHTING="40% unassisted skill · 20% mastery · 20% XP · 10% streak · 10% achievements";
+// column definitions: [sort-key, label, css-class, is-numeric]
+const LB_COLS=[
+  ['handle','Adventurer','lb-handle tl',false],
+  ['level','Level','',true],
+  ['xp','XP','',true],
+  ['streak','Streak','',true],
+  ['solved','Solved','',true],
+  ['achievements','Badges','',true],
+  ['mastery','Forest','',true],
+  ['unassisted','Unassisted','lb-unassist',true],
+  ['score','Eklavya Score','lb-score',true],
+];
+function lbSortBy(key){
+  if(_lbSort===key){ _lbDir=(_lbDir==='desc')?'asc':'desc'; } else { _lbSort=key; _lbDir=(key==='handle')?'asc':'desc'; }
+  loadLeaderboard();
+}
+function loadLeaderboard(){
+  const root=document.getElementById('leaderboard');
+  fetch('/api/leaderboard?sort='+encodeURIComponent(_lbSort)+'&dir='+encodeURIComponent(_lbDir))
+    .then(r=>r.json()).then(d=>{ _lbMe=d.me||_lbMe; root.innerHTML=renderLeaderboard(d); })
+    .catch(()=>{ root.innerHTML="<div class='lb-wrap'><div class='lb-empty'>Could not load the leaderboard.</div></div>"; });
+}
+function lbCell(v,key){
+  if(key==='mastery') return (v==null?'—':v+'%');
+  if(key==='unassisted') return (v==null?'—':v);
+  return (v==null?'—':v);
+}
+function renderLeaderboard(d){
+  const me=d.me||{}, rows=d.rows||[], total=d.total||0;
+  let banner;
+  if(me.opted_in && me.rank){
+    banner="<div class='lb-banner'><span class='lb-rank-n'>#"+me.rank+"</span>"+
+      "<span>You are ranked <b>#"+me.rank+"</b> of <b>"+total+"</b> — "+esc(me.handle||'')+".</span></div>";
+  } else {
+    banner="<div class='lb-banner cta' onclick=\"railGo('settings')\">"+
+      "<span>You're not on the board yet — opt in from Settings to compete.</span>"+
+      "<span class='lb-cta-link'>Open Settings →</span></div>";
+  }
+  const head=LB_COLS.map(c=>{
+    const [key,label,cls]=c;
+    const active=(_lbSort===key);
+    const arrow=active?("<span class='arrow'>"+(_lbDir==='desc'?'▼':'▲')+"</span>"):'';
+    const thcls=(cls?cls.replace('lb-handle ',''):'')+(key==='handle'?' tl':'');
+    if(key==='score'){
+      return "<th class='"+thcls+"' onclick=\"lbSortBy('score')\"><span class='lb-tip' tabindex='0'>"+
+        label+" <span class='lb-tip-mark'>i</span>"+
+        "<span class='lb-tip-body'><b>Eklavya Score</b> — a transparent composite: "+LB_WEIGHTING+
+        ". Each part is scaled 0–1000, then weighted.</span></span> "+arrow+"</th>";
+    }
+    return "<th class='"+thcls+"' onclick=\"lbSortBy('"+key+"')\">"+label+" "+arrow+"</th>";
+  }).join('');
+  let body;
+  if(!rows.length){
+    body="<tr><td colspan='"+(LB_COLS.length+1)+"' class='lb-empty'>No adventurers on the board yet — be the first to opt in.</td></tr>";
+  } else {
+    body=rows.map((r,i)=>{
+      const mine=(me.opted_in && me.handle && r.handle===me.handle);
+      const cells=LB_COLS.map(c=>{
+        const [key,,cls]=c;
+        if(key==='handle') return "<td class='lb-handle tl'>"+esc(r.handle)+"</td>";
+        const rk={mastery:'mastery_pct',unassisted:'unassisted'}[key]||key;
+        return "<td class='"+(cls||'')+"'>"+lbCell(r[rk],key)+"</td>";
+      }).join('');
+      return "<tr class='"+(mine?'me':'')+"'><td class='lb-rank'>"+(i+1)+"</td>"+cells+"</tr>";
+    }).join('');
+  }
+  const headRank="<th class='lb-rank tl' onclick=\"lbSortBy('score')\">#</th>";
+  return "<div class='lb-wrap'>"+
+    "<div class='lb-head'><span class='lb-title'>The Leaderboard</span>"+
+    "<span class='lb-sub'>opted-in adventurers, ranked · Unassisted skill is the honest flex</span></div>"+
+    banner+
+    "<div class='lb-tablewrap'><table class='lb'><thead><tr>"+headRank+head+"</tr></thead><tbody>"+body+"</tbody></table></div>"+
+    "</div>";
+}
+function lbSettingsSection(){
+  const on=_lbMe.opted_in, h=_lbMe.handle||'';
+  return "<div class='lb-set' id='sr-lb'><div class='lb-set-top'><div class='si'>"+
+    "<div class='st'>Leaderboard</div><div class='sd'>Compete on the public board with a handle. "+
+    (on?"You're currently <b>on the board</b> as “"+esc(h)+"”.":"You're <b>not on the board</b> yet.")+"</div></div></div>"+
+    "<div class='lb-set-controls'>"+
+    "<input id='lbhandle' maxlength='24' placeholder='pick a handle (3–24 chars)' value='"+esc(h)+"'>"+
+    "<button class='lb-btn' id='lbjoinbtn' onclick='lbJoin()'>"+(on?'Update handle':'Join the board')+"</button>"+
+    (on?"<button class='lb-btn leave' onclick='lbLeave()'>Leave</button>":"")+
+    "</div>"+
+    "<div class='lb-err' id='lberr'></div>"+
+    "<div class='lb-note'>Only your handle and stats are shown — never your email or real name.</div>"+
+    "</div>";
+}
+function wireLbSettings(){
+  const inp=document.getElementById('lbhandle');
+  if(inp) inp.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); lbJoin(); }});
+}
+function lbErr(msg,ok){ const e=document.getElementById('lberr'); if(e){ e.textContent=msg||''; e.classList.toggle('lb-ok',!!ok); } }
+function lbJoin(){
+  const handle=(document.getElementById('lbhandle').value||'').trim();
+  if(!/^[A-Za-z0-9_-]{3,24}$/.test(handle)){ lbErr('Handle must be 3–24 characters: letters, numbers, _ or -.'); return; }
+  fetch('/api/leaderboard/opt-in',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({handle:handle})})
+    .then(r=>r.json().then(j=>({ok:r.ok,j})))
+    .then(({ok,j})=>{ if(!ok){ lbErr(j.error||'Could not join.'); return; } _lbMe=j.me||_lbMe; lbErr('You are on the board.',true); loadSettings(); })
+    .catch(()=>lbErr('Could not join — please try again.'));
+}
+function lbLeave(){
+  fetch('/api/leaderboard/opt-out',{method:'POST'}).then(r=>r.json())
+    .then(j=>{ _lbMe=j.me||_lbMe; loadSettings(); })
+    .catch(()=>lbErr('Could not leave — please try again.'));
 }
 /* ===== Artifacts Library — the Scriptorium (template F) ===== */
 let _libFilter='', _libQuery='', _libGroup='pillar';  // group by 'pillar' or 'chat'
@@ -2639,11 +2816,18 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   applyReducedMotion(false);
   fetch('/api/settings').then(r=>r.json()).then(s=>applyReducedMotion(s.reduced_motion)).catch(()=>{});
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
+  // Leaderboard is a DEPLOYED (multi-user) feature — reveal its nav entries + prime the
+  // opt-in state so the Settings section renders the right toggle. Local mode hides the board.
+  _deployed = !!c.deployed;
+  if(_deployed){
+    document.querySelectorAll('.rail-lb,.mnav-lb').forEach(x=>x.hidden=false);
+    fetch('/api/leaderboard').then(r=>r.json()).then(d=>{ _lbMe=d.me||_lbMe; }).catch(()=>{});
+  }
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
-  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog'}[location.pathname];
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog')}[location.pathname];
   const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
   if(_landing!=='practice') showView(_landing);
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
