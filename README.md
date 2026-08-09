@@ -81,22 +81,22 @@ I keep coming back to that story because I'm an outsider to this field too — m
 - **Learns from your real code** — point it at a repo (`eklavya scan PATH`) and it tailors your practice to the frameworks you actually use.
 - **Visual explanations** — Mermaid flowcharts/sequence/class/state diagrams and KaTeX maths, rendered inline.
 
-<table>
-<tr>
-<td width="50%"><img src="docs/screenshots/skilltree.png" alt="Skill tree"></td>
-<td width="50%"><img src="docs/screenshots/webui-diagram.png" alt="Explaining with a diagram"></td>
-</tr>
-<tr>
-<td><img src="docs/screenshots/journey.png" alt="Journey view"></td>
-<td><img src="docs/screenshots/aiinterview.png" alt="AI-enabled interview mode"></td>
-</tr>
-</table>
-
-Paste an answer from an AI instead of typing it yourself, and you *die*, Souls-style — souls dropped, streak broken; you reclaim them only by typing the next one yourself:
+The **Arena** — a Socratic conversation on one side, a real code editor on the other. The tutor probes instead of hands over answers; you write the code and run it against hidden tests:
 
 <p align="center">
-  <img src="docs/screenshots/anticheat.png" width="66%" alt="You Died — pasted code is penalised">
+  <img src="docs/screenshots/arena.png" width="90%" alt="The practice Arena — Socratic chat beside a live code editor">
 </p>
+
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/modes.png" alt="Game-mode chooser — Gauntlet, Blitz, Boss fight, Mock, AI-enabled interview, Take-home"><br><sub><b>Choose your trial</b> — daily practice, the Gauntlet, Blitz, Boss fights, mock + AI-enabled interviews, take-homes.</sub></td>
+<td width="50%"><img src="docs/screenshots/forest-track.png" alt="Single-track forest — drilling into one pillar's concept chain"><br><sub><b>Drill into a grove</b> — one pillar's full concept chain, prereq-ordered along the path.</sub></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/settings.png" alt="Settings — provider selection, load-balancing, and the leaderboard opt-in"><br><sub><b>Settings</b> — pick a provider or Auto (load-balanced), and opt into the leaderboard with a handle.</sub></td>
+<td><img src="docs/screenshots/death.png" alt="Your Aim Faltered — the anti-cheat penalty overlay"><br><sub><b>Anti-cheat</b> — paste an AI's answer and the round is lost, Souls-style; type it yourself to reclaim your merit.</sub></td>
+</tr>
+</table>
 
 ## Architecture
 
