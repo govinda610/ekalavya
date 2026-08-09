@@ -159,21 +159,33 @@ def _collect_rows() -> list[dict]:
 
 
 def _sorted(rows: list[dict], sort: str, direction: str) -> list[dict]:
-    """Sort by the requested column, with a deterministic tie-break: Eklavya Score desc, then
-    handle (case-insensitive). `handle` sorts alphabetically; every other column is numeric."""
+    """Sort by the requested column. The PRIMARY key follows `direction` (asc/desc); the
+    TIE-BREAKS are FIXED regardless of direction — Eklavya Score descending, then handle
+    ascending (case-insensitive) — so equal rows always read in the same deterministic order
+    (spec: "ties broken by Eklavya Score, then handle"). `handle` is the only alpha column;
+    every other column is numeric.
+    """
     key = SORT_KEYS.get(sort, "score")
-    reverse = direction != "asc"
-    if key == "handle":
-        rows.sort(key=lambda r: (r["handle"].lower(), -r["score"]), reverse=reverse)
-    else:
-        rows.sort(key=lambda r: (r[key], r["score"], _neg_handle(r["handle"])), reverse=reverse)
+    asc = direction == "asc"
+
+    def sort_key(r: dict):
+        if key == "handle":
+            primary = _alpha(r["handle"], asc)
+        else:
+            primary = r[key] if asc else -r[key]
+        # tie-breaks are always the same orientation: score desc, then handle A→Z
+        return (primary, -r["score"], _alpha(r["handle"], ascending=True))
+
+    rows.sort(key=sort_key)
     return rows
 
 
-def _neg_handle(handle: str):
-    """A sort helper so the handle tie-break stays ascending even when the primary key sorts
-    descending: within an equal (metric, score) group, handles read A→Z either way."""
-    return tuple(-ord(c) for c in handle.lower())
+def _alpha(handle: str, ascending: bool = True):
+    """A comparable key for a handle (case-insensitive). When `ascending`, A→Z; otherwise the
+    per-char ords are negated so a plain ascending sort yields Z→A — used so the handle column
+    itself can flip direction while the tie-break stays A→Z."""
+    h = handle.lower()
+    return h if ascending else tuple(-ord(c) for c in h)
 
 
 def build(sort: str = "score", direction: str = "desc", me_uid: str | None = None) -> dict:

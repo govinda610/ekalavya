@@ -211,10 +211,29 @@ def test_every_column_sorts(mu):
         vals_asc = [r[leaderboard.SORT_KEYS[col]] for r in asc]
         assert vals_asc == sorted(vals_asc), f"{col} asc"
 
-    # handle sorts alphabetically
+    # handle sorts alphabetically (and flips direction)
     leaderboard.invalidate()
     handles = [r["handle"] for r in leaderboard.build(sort="handle", direction="asc")["rows"]]
     assert handles == sorted(handles, key=str.lower)
+    leaderboard.invalidate()
+    handles_d = [r["handle"] for r in leaderboard.build(sort="handle", direction="desc")["rows"]]
+    assert handles_d == sorted(handles, key=str.lower, reverse=True)
+
+
+def test_sort_tie_break_is_stable_across_directions():
+    """Equal primary values break to Eklavya Score desc, then handle A→Z — the SAME order
+    whether the primary column sorts asc or desc (spec: ties → score, then handle)."""
+    from eklavya import leaderboard
+    import copy
+
+    rows = [{"handle": "Zed", "score": 10, "xp": 5},
+            {"handle": "Amy", "score": 10, "xp": 5},
+            {"handle": "Mia", "score": 20, "xp": 5}]
+    asc = [r["handle"] for r in leaderboard._sorted(copy.deepcopy(rows), "xp", "asc")]
+    desc = [r["handle"] for r in leaderboard._sorted(copy.deepcopy(rows), "xp", "desc")]
+    # all equal xp → Mia (higher score) first, then Amy before Zed (A→Z), both directions
+    assert asc == ["Mia", "Amy", "Zed"]
+    assert desc == ["Mia", "Amy", "Zed"]
 
 
 # --- tenant isolation: bind/restore -----------------------------------------
