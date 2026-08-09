@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Svarga-Dwāra — The Final Temple</title>
+<style>
+  :root{
+    --bg:#070510; --card:#101322; --line:#2b3050; --ink:#e8ecff; --mut:#9aa3c7; --gold:#ffd98a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 50% -10%, #171233, var(--bg));color:var(--ink);
+       font:15px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans",sans-serif;
+       min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 30px}
+  header{text-align:center;margin-bottom:10px}
+  h1{margin:0 0 4px;font-size:22px;letter-spacing:.4px;color:var(--gold)}
+  header p{margin:0;color:var(--mut);font-size:12.5px}
+  .stage{position:relative;width:min(1200px,100%);}
+  svg{display:block;width:100%;height:auto;border-radius:18px;border:1px solid var(--line);
+      background:#0a0817;box-shadow:0 20px 60px rgba(0,0,0,.55);cursor:crosshair}
+  .hud{position:absolute;left:14px;top:12px;pointer-events:none;text-shadow:0 1px 6px #000}
+  .hud .t{color:var(--gold);font-size:15px;letter-spacing:2.5px;font-weight:700}
+  .hud .s{color:#cfd6f6;opacity:.85;font-size:11.5px}
+  .count{position:absolute;right:16px;bottom:12px;color:var(--gold);font-size:13px;letter-spacing:1px;
+         text-shadow:0 1px 6px #000;pointer-events:none}
+  /* ---- living-scene animations ---- */
+  .tw{animation:tw 3.2s ease-in-out infinite}
+  @keyframes tw{50%{opacity:.15}}
+  .cl{animation:drift 30s ease-in-out infinite alternate}
+  @keyframes drift{to{transform:translateX(26px)}}
+  .ray{animation:rayp 7s ease-in-out infinite}
+  @keyframes rayp{50%{opacity:.10}}
+  .fl{animation:flick 1.1s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}
+  @keyframes flick{50%{transform:scaleY(1.18) scaleX(.92);opacity:.92}}
+  .flagW{animation:wave 2.8s ease-in-out infinite;transform-box:fill-box;transform-origin:0% 50%}
+  @keyframes wave{50%{transform:skewY(4deg)}}
+  .mote{animation:riseM linear infinite}
+  @keyframes riseM{0%{transform:translateY(0);opacity:0}12%{opacity:.9}100%{transform:translateY(-150px);opacity:0}}
+  .rip{animation:rip 5.5s ease-in-out infinite;transform-box:fill-box;transform-origin:center}
+  @keyframes rip{50%{transform:scaleX(1.18);opacity:.55}}
+  .br{animation:breathe 4.5s ease-in-out infinite}
+  @keyframes breathe{50%{opacity:1}}
+  .off{animation:offer 5s ease-out forwards}
+  @keyframes offer{0%{opacity:0;transform:translateY(8px) scale(.7)}10%{opacity:1}
+                   100%{opacity:0;transform:translateY(-160px) scale(1.08)}}
+  #darshan .dhalo{opacity:.7;transition:opacity .6s}
+  #darshan:hover .dhalo{opacity:1}
+  #darshan{cursor:pointer}
+  footer{margin-top:12px;color:var(--mut);font-size:12px;text-align:center;max-width:900px}
+</style>
+</head>
+<body>
+<header>
+  <h1>SVARGA-DWĀRA · The Golden Gate of the Gods</h1>
+  <p>shapes from Puri · Angkor · Meenakshi · Siddhivinayak — light, stars &amp; birds of Svarga-Loka</p>
+</header>
+<div class="stage">
+  <svg id="scene" viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" aria-label="Final enchanted golden temple"></svg>
+  <div class="hud"><div class="t">SVARGA-DWĀRA</div><div class="s">move — feel the depth · click — offer a dīya · touch the sanctum</div></div>
+  <div class="count" id="count">🪔 0 offered</div>
+</div>
+<footer>Stone-carved devatās guard the walls — no painted dolls, only perfect śilpa. The chakra turns above Puri's ribbed crown; nagas rail the causeway over the mirrored moat.</footer>
+
+<script>
+const S = document.getElementById('scene');
+const NS = 'http://www.w3.org/2000/svg';
+function EL(t,a,p){const n=document.createElementNS(NS,t);for(const k in a)n.setAttribute(k,a[k]);(p||S).appendChild(n);return n;}
+const R=(a,b)=>a+Math.random()*(b-a);
+function lin(id,stops,x1,y1,x2,y2){
+  const a=x1==null?{id,x1:0,y1:0,x2:0,y2:1}:{id,x1,y1,x2,y2,gradientUnits:'userSpaceOnUse'};
+  const g=EL('linearGradient',a,defs);
+  stops.forEach(s=>EL('stop',{offset:s[0],'stop-color':s[1],'stop-opacity':s[2]==null?1:s[2]},g));return `url(#${id})`;}
+function rad(id,stops){
+  const g=EL('radialGradient',{id},defs);
+  stops.forEach(s=>EL('stop',{offset:s[0],'stop-color':s[1],'stop-opacity':s[2]==null?1:s[2]},g));return `url(#${id})`;}
+
+const defs=EL('defs',{});
+const F={blur3:EL('filter',{id:'blur3',x:'-60%',y:'-60%',width:'220%',height:'220%'},defs),
+         blur6:EL('filter',{id:'blur6',x:'-80%',y:'-80%',width:'260%',height:'260%'},defs)};
+EL('feGaussianBlur',{stdDeviation:3},F.blur3);EL('feGaussianBlur',{stdDeviation:6},F.blur6);
+
+const skyF   = lin('skyF',[[0,'#050313'],[.38,'#171040'],[.68,'#34205e'],[.88,'#55306a'],[1,'#6d4066']],0,0,0,640);
+const gold   = lin('gold',[[0,'#ffe08a'],[.45,'#f2c14e'],[.8,'#cf8f1f'],[1,'#9a5f0e']]);
+const goldL  = lin('goldL',[[0,'#fff6cf'],[.5,'#ffdf8a'],[1,'#e0a83a']]);
+const goldD  = lin('goldD',[[0,'#e9c05e'],[.55,'#c08a24'],[1,'#8a5a10']]);
+const stone  = lin('stone',[[0,'#f0dcae'],[.5,'#cfa96b'],[1,'#97702f']]);
+const stoneD = lin('stoneD',[[0,'#d8b87e'],[.55,'#a97f42'],[1,'#7c5a26']]);
+const cream  = lin('cream',[[0,'#fdf3d7'],[.5,'#e8cf9f'],[1,'#c3a066']]);
+const wallF  = lin('wallF',[[0,'#d9b87c'],[.5,'#b08549'],[1,'#7c5a26']]);
+const waterF = lin('waterF',[[0,'#0a1626'],[1,'#050d18']],0,520,0,640);
+const paveF  = lin('paveF',[[0,'#b08a52'],[1,'#6b4a20']],0,520,0,640);
+const reflG  = lin('reflG',[[0,'#ffd98a',.55],[1,'#ffd98a',0]],0,520,0,640);
+const glowW  = rad('glowW',[[0,'#ffd98a',.9],[.5,'#ffb84a',.32],[1,'#ffb84a',0]]);
+const glowC  = rad('glowC',[[0,'#fff6d8',.95],[.45,'#ffd98a',.35],[1,'#ffd98a',0]]);
+const flameG = rad('flameG',[[0,'#fff8d0'],[.55,'#ffd257'],[1,'#ff8a2a',0]]);
+const moonG  = rad('moonG',[[0,'#fff8e0',1],[.4,'#ffeec0',.4],[1,'#ffeec0',0]]);
+
+/* ============ primitives ============ */
+function kalasha(x,y,s,p){
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${s})`},p);
+  EL('ellipse',{cx:0,cy:-3,rx:6,ry:4.6,fill:gold},g);
+  EL('rect',{x:-4.4,y:-8.4,width:8.8,height:2.6,rx:1.2,fill:goldD},g);
+  EL('circle',{cx:0,cy:-11,r:2.6,fill:gold},g);
+  EL('path',{d:'M0,-13.4 L2.2,-18 L0,-22 L-2.2,-18 Z',fill:goldL},g);
+  return g;}
+function chakra(x,y,r,p){                       /* Puri Nila-chakra wheel finial */
+  const g=EL('g',{transform:`translate(${x} ${y})`},p);
+  EL('circle',{r:r,fill:'none',stroke:'#2b1a3d','stroke-width':r*.28},g);
+  EL('circle',{r:r,fill:'none',stroke:goldL,'stroke-width':r*.12},g);
+  for(let i=0;i<8;i++){const a=i*Math.PI/4;
+    EL('line',{x1:0,y1:0,x2:Math.cos(a)*r*.86,y2:Math.sin(a)*r*.86,stroke:goldL,'stroke-width':r*.1},g);
+    const fa=a+Math.PI/8;
+    EL('path',{d:`M${Math.cos(fa)*r},${Math.sin(fa)*r} q${Math.cos(fa)*r*.3},${Math.sin(fa)*r*.3-r*.18} ${Math.cos(fa)*r*.42},${Math.sin(fa)*r*.42-r*.3}`,
+      fill:'none',stroke:'#2b1a3d','stroke-width':r*.14},g);}
+  EL('circle',{r:r*.22,fill:goldL},g);return g;}
+function longFlag(x,y,h,p){                     /* Puri's long streaming patita-pāvana banner */
+  const g=EL('g',{transform:`translate(${x} ${y})`},p);
+  EL('line',{x1:0,y1:0,x2:0,y2:-h,stroke:'#e8cf9a','stroke-width':1.4},g);
+  const f=EL('g',{class:'flagW'},g);
+  EL('path',{d:`M0,${-h} C ${h*.5},${-h+3} ${h*.8},${-h+7} ${h*1.15},${-h+13} C ${h*.75},${-h+15} ${h*.4},${-h+16} 0,${-h+17} Z`,fill:'#ff5a3c'},f);
+  EL('path',{d:`M${h*1.15},${-h+13} q ${h*.18},4 ${h*.1},9 q 6,-2 4,-8 Z`,fill:'#ff5a3c'},f);
+  EL('path',{d:`M0,${-h+6} q ${h*.5},8 ${h*.35},${h*.55} q -3,6 2,10`,fill:'none',stroke:'#ffd257','stroke-width':1.6,opacity:.9},f);
+  EL('path',{d:`M0,${-h+10} q ${h*.4},10 ${h*.25},${h*.62} q -2,6 2,9`,fill:'none',stroke:'#ff8a5c','stroke-width':1.4,opacity:.85},f);
+  return g;}
+function spireD(hw,h,opts){
+  const o=opts||{},g=EL('g',{transform:`translate(${o.x||0} ${o.y||0})`},o.p);
+  const d=`M${-hw},0 C ${-hw},${-h*.42} ${-hw*.42},${-h*.8} 0,${-h} C ${hw*.42},${-h*.8} ${hw},${-h*.42} ${hw},0 Z`;
+  if(o.glow)EL('path',{d,fill:glowW,opacity:o.glow,filter:'url(#blur6)',transform:'scale(1.18)'},g);
+  EL('path',{d,fill:o.fill||gold},g);
+  EL('path',{d:`M${-hw},0 C ${-hw},${-h*.42} ${-hw*.42},${-h*.8} 0,${-h} L0,0 Z`,fill:'#7a4c0c',opacity:.20},g);
+  EL('path',{d:`M${-hw*.55},0 C ${-hw*.5},${-h*.45} ${-hw*.3},${-h*.8} 0,${-h} C ${-hw*.16},${-h*.72} ${-hw*.34},${-h*.4} ${-hw*.38},0 Z`,fill:'#fff2c0',opacity:.30},g);
+  EL('path',{d:`M0,${-h} C ${hw*.3},${-h*.78} ${hw*.52},${-h*.45} ${hw*.55},${-h*.12}`,fill:'none',stroke:'#ffedb0','stroke-width':1.1,opacity:.5},g);
+  const n=o.courses||6;
+  for(let i=1;i<=n;i++){const t=i/(n+1),w=hw*(1-Math.pow(t,1.7))*.98,y=-h*t;
+    EL('path',{d:`M${-w},${y} Q 0,${y+hw*.14} ${w},${y}`,fill:'none',stroke:'#8a5a10','stroke-width':1,opacity:.5},g);}
+  if(o.lata!==false){const lw=hw*.2;
+    EL('path',{d:`M${-lw},0 C ${-lw*.8},${-h*.5} ${-lw*.4},${-h*.85} 0,${-h} C ${lw*.4},${-h*.85} ${lw*.8},${-h*.5} ${lw},0 Z`,fill:goldL,opacity:.9},g);
+    EL('line',{x1:0,y1:-h*.06,x2:0,y2:-h*.94,stroke:'#fff6cf','stroke-width':.9,opacity:.65},g);}
+  if(o.face)for(const i of [0,1,2]){const t=.2+.24*i,w=hw*(1-Math.pow(t,1.7)),y=-h*t;
+    const gg=EL('g',{transform:`translate(0 ${y}) scale(${(w*.5)/(9)})`},g);
+    EL('circle',{r:9,fill:glowC,opacity:.55},gg);
+    EL('path',{d:'M-5,4 L-5,-2 A5,5 0 0 1 5,-2 L5,4 Z',fill:'#2a1636'},gg);
+    EL('path',{d:'M-5,-2 A5,5 0 0 1 5,-2',fill:'none',stroke:goldL,'stroke-width':1.4},gg);
+    if(o.stoneDeity)stoneFig(0,3,.62,gg); else deity(0,3,.62,ACC[i%ACC.length],gg);}
+  if(o.urush){for(const s of [-1,1]){const ux=s*hw*.72;
+    spireD(hw*.3,h*.26,{x:ux,y:-h*.02,p:g,face:false,lata:false,courses:3});
+    EL('ellipse',{cx:ux,cy:-h*.28,rx:hw*.13,ry:hw*.05,fill:goldD},g);
+    kalasha(ux,-h*.30,hw/60,g);}}
+  return g;}
+function amalaka(x,y,rx,p){                    /* ribbed crown like Puri's stacked amalakas */
+  const g=EL('g',{transform:`translate(${x} ${y})`},p);
+  EL('path',{d:`M${-rx},0 A ${rx} ${rx*.42} 0 0 1 ${rx},0 L ${rx*.92},${rx*.16} A ${rx*.92} ${rx*.34} 0 0 1 ${-rx*.92},${rx*.16} Z`,fill:gold},g);
+  for(let i=-4;i<=4;i++){const xx=i*rx*.2;
+    EL('path',{d:`M${xx},${-rx*.40*Math.sqrt(1-(i/4.6)*(i/4.6))} L ${xx*1.05},${rx*.12}`,stroke:'#8a5a10','stroke-width':.9,opacity:.55,fill:'none'},g);}
+  EL('path',{d:`M${-rx*.9},0 A ${rx*.9} ${rx*.36} 0 0 1 0,${-rx*.4}`,fill:'none',stroke:'#fff2c0','stroke-width':1.2,opacity:.6},g);
+  return g;}
+function bird(x,y,s,p){EL('path',{d:`M${x-4*s},${y} q ${2*s},${-3*s} ${4*s},0 q ${2*s},${-3*s} ${4*s},0`,stroke:'#20143c','stroke-width':1.2*s,fill:'none','stroke-linecap':'round',opacity:.8},p);}
+function deity(x,y,s,robe,p){
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${s})`},p);
+  EL('circle',{cx:0,cy:-9,r:10,fill:glowC,opacity:.5},g);
+  EL('path',{d:'M-7,2 C -7,-6 -4,-9 0,-9 C 4,-9 7,-6 7,2 Z',fill:robe},g);
+  EL('circle',{cx:0,cy:-11,r:3.4,fill:'#ffd9a0'},g);
+  EL('path',{d:'M-2.6,-13 L0,-18.5 L2.6,-13 Z',fill:goldL},g);
+  EL('circle',{cx:0,cy:-4,r:1,fill:'#fff6cf',opacity:.9},g);
+  EL('path',{d:'M-6,1 Q 0,4 6,1',fill:'none',stroke:goldL,'stroke-width':1,opacity:.8},g);
+  return g;}
+function stoneFig(x,y,s,p,carved){             /* carved devatā — monochrome śilpa, no painted clothes */
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${s})`},p);
+  const B=carved?'#b08a50':'#d9b87c', Sh=carved?'#7a5a2c':'#a5814b', H=carved?'#caa066':'#c9a86a';
+  if(!carved)EL('circle',{cx:0,cy:-10,r:8.6,fill:'none',stroke:'#e8cf9a','stroke-width':1,opacity:.55},g);   // carved halo ring
+  EL('path',{d:'M-5.5,2 C -5.5,-5 -3.5,-8 0,-8 C 3.5,-8 5.5,-5 5.5,2 Z',fill:B},g);
+  EL('path',{d:'M0,-8 C 2,-5 2.6,-1 2.2,2 L 0,2 Z',fill:Sh,opacity:.8},g);                    // chisel shading
+  EL('circle',{cx:0,cy:-10.5,r:3,fill:B},g);
+  EL('path',{d:'M-2.4,-12.6 L0,-17 L2.4,-12.6 Z',fill:H},g);
+  EL('path',{d:'M-5.5,-4 Q -8,-1 -6.5,1.5 M5.5,-4 Q 8,-1 6.5,1.5',fill:'none',stroke:H,'stroke-width':1.4},g); // bent arms
+  EL('path',{d:'M-3,-2 L3,-2 M-2.5,0 L2.5,0',stroke:'#6b4a26','stroke-width':.6,opacity:.7},g);     // carved pleats
+  return g;}
+function reliefPanel(x,y,w,h,p){               /* recessed wall panel with a carved devatā */
+  const g=EL('g',{transform:`translate(${x} ${y})`},p);
+  EL('rect',{x:-w/2,y:-h,width:w,height:h,rx:2,fill:'#7d5c2c'},g);
+  EL('rect',{x:-w/2+1.5,y:-h+1.5,width:w-3,height:h-3,rx:1.5,fill:'none',stroke:'#e8cf9a','stroke-width':.7,opacity:.28},g);
+  EL('path',{d:`M${-w/2+3},${-h+3} A ${w/2-3} ${w/2-3} 0 0 1 ${w/2-3},${-h+3}`,fill:'none',stroke:'#e8cf9a','stroke-width':.7,opacity:.28},g);
+  stoneFig(0,-3,Math.min(w/15,h/28),g,true);
+  return g;}
+function vaultCap(x,y,w,p){                    /* Meenakshi barrel-vault crown w/ upswept horns + kalashas */
+  const g=EL('g',{transform:`translate(${x} ${y})`},p);
+  EL('path',{d:`M${-w/2},0 A ${w/2} ${w*.16} 0 0 1 ${w/2},0 Z`,fill:gold},g);
+  for(let i=-2;i<=2;i++)EL('path',{d:`M${i*w*.2},${-w*.16*Math.sqrt(1-(i/2.6)*(i/2.6))} L ${i*w*.22},0`,stroke:'#8a5a10','stroke-width':.8,opacity:.5,fill:'none'},g);
+  EL('path',{d:`M${-w/2},0 q ${-w*.06},${-w*.1} ${-w*.02},${-w*.18}`,fill:'none',stroke:goldL,'stroke-width':2.4,'stroke-linecap':'round'},g);
+  EL('path',{d:`M${w/2},0 q ${w*.06},${-w*.1} ${w*.02},${-w*.18}`,fill:'none',stroke:goldL,'stroke-width':2.4,'stroke-linecap':'round'},g);
+  for(let i=-2;i<=2;i++)kalasha(i*w*.2,-w*.16*Math.sqrt(1-(i/2.7)*(i/2.7)) - 1,w/260,g);
+  return g;}
+function gopuram(x,baseY,w0,tiers,p,stoneMode){
+  const g=EL('g',{transform:`translate(${x} ${baseY})`},p);
+  const th=24, wTop=w0*.42;
+  EL('rect',{x:-w0*.62,y:-12,width:w0*1.24,height:12,rx:2,fill:stoneD},g);
+  for(let i=0;i<tiers;i++){
+    const t=i/tiers, w=w0-(w0-wTop)*t, y=-(12+i*th);
+    EL('path',{d:`M${-w/2},${y} L${w/2},${y} L${w/2-4},${y-th} L${-w/2+4},${y-th} Z`,fill: i%2? stone:stoneD},g);
+    EL('rect',{x:-w/2+3,y:y-th-3.4,width:w-6,height:3.4,rx:1.6,fill:goldD},g);
+    EL('line',{x1:-w/2+4,y1:y-th-1,x2:w/2-4,y2:y-th-1,stroke:'#fff2c0','stroke-width':.7,opacity:.5},g);
+    const n=Math.max(2,Math.round(w/26));
+    for(let k=0;k<n;k++){const nx=-w/2+ (w/(n))*(k+.5);
+      if(stoneMode){stoneFig(nx,y-th+15,1,g,true);}
+      else deity(nx,y-th+15,1,ACC[(i+k)%ACC.length],g);}
+  }
+  const yT=-(12+tiers*th);
+  vaultCap(0,yT-3,wTop*1.15,g);
+  kalasha(0,yT-3-wTop*.16-2,w0/150,g);
+  EL('g',{class:'flagW'},g).appendChild(EL('path',{d:`M0,${yT-wTop*.16-24} l 14,3.5 l -14,3.5 z`,fill:'#ff5a3c'}));
+  EL('line',{x1:0,y1:yT-wTop*.16-12,x2:0,y2:yT-wTop*.16-25,stroke:'#e8cf9a','stroke-width':1},g);
+  return g;}
+function clusterSpire(x,baseY,w,h,p){          /* Siddhivinayak-style clustered tiers, gold finials */
+  const g=EL('g',{transform:`translate(${x} ${baseY})`},p);
+  const T=4;
+  for(let i=0;i<T;i++){const t=i/T,w2=w*(1-t*.62),y=-i*(h/T);
+    EL('path',{d:`M${-w2/2},${y} L${w2/2},${y} L${w2*.42},${y-h/T} L${-w2*.42},${y-h/T} Z`,fill:cream},g);
+    EL('path',{d:`M${-w2*.3},${y} L${-w2*.3},${y-h/T} M${w2*.3},${y} L${w2*.3},${y-h/T} M0,${y} L0,${y-h/T}`,stroke:'#b3925c','stroke-width':.8,opacity:.6},g);
+    if(i<T-1)for(const s of[-1,0,1])kalasha(s*w2*.42,-(i+1)*(h/T)+1,w/240,g);
+  }
+  kalasha(0,-h-1,w/170,g);
+  EL('path',{d:`M${-w*.3},-2 L${-w*.34},${-h*.8}`,stroke:'#fffbe0','stroke-width':1.1,opacity:.6},g);
+  return g;}
+function prasatSil(x,baseY,w,h,p){             /* Angkor lotus-bud tower silhouette */
+  const g=EL('g',{transform:`translate(${x} ${baseY})`},p);
+  const T=5;let d='';
+  for(let i=0;i<T;i++){const t=i/T,w2=w*(1-t*.7),y0=-i*(h/T),y1=-(i+1)*(h/T);
+    d+=`M${-w2/2},${y0} L${w2/2},${y0} L${w2*.4},${y1} L${-w2*.4},${y1} Z `;}
+  EL('path',{d,fill:'#241a44'},g);
+  EL('path',{d:`M0,${-h} C 2,${-h-6} 2,${-h-10} 0,${-h-14} C -2,${-h-10} -2,${-h-6} 0,${-h}`,fill:'#241a44'},g);
+  EL('path',{d:`M${-w/2},0 L${-w*.2},${-h}`,stroke:'#6b4a7a','stroke-width':.8,opacity:.5,fill:'none'},g);
+  return g;}
+function naga(x,y,dir,p){                      /* five-hooded naga finial of the causeway rail */
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${dir} 1)`},p);
+  for(let i=-2;i<=2;i++){const a=i*.38;
+    EL('ellipse',{cx:Math.sin(a)*10,cy:-Math.cos(a)*10-4,rx:3.4,ry:6,fill:stone,stroke:'#5f4522','stroke-width':.6,transform:`rotate(${i*20})`},g);}
+  EL('path',{d:'M-6,2 Q 0,-6 6,2 Z',fill:stoneD},g);
+  return g;}
+function diya(x,y,s,p){
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${s})`},p);
+  EL('circle',{r:11,fill:glowW,opacity:.85},g);
+  EL('path',{d:'M-7,0 Q 0,6 7,0 L 5,1.6 Q 0,5 -5,1.6 Z',fill:'#b3541e'},g);
+  EL('path',{d:'M-7,0 Q 0,3 7,0 Q 0,-2 -7,0 Z',fill:'#8a3a12'},g);
+  EL('path',{class:'fl',d:'M0,-1 C 2.4,-4 1.6,-7 0,-9.5 C -1.6,-7 -2.4,-4 0,-1 Z',fill:flameG},g);
+  return g;}
+function flames(cx,cy,r,p,n){
+  for(let i=0;i<=(n||9);i++){const ang=Math.PI*i/(n||9);
+    const x=cx+Math.cos(ang)*r, y=cy-Math.sin(ang)*r, rot=90-ang*180/Math.PI;
+    const g=EL('g',{transform:`translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${rot.toFixed(1)})`},p);
+    EL('path',{class:'fl',d:'M0,0 l3,-7 l3,7 l-3,2.4 z',fill:'#ffb84a',opacity:.9},g);}
+}
+function garland(x1,y1,x2,y2,p){
+  const mx=(x1+x2)/2,my=Math.max(y1,y2)+16;
+  EL('path',{d:`M${x1},${y1} Q ${mx},${my} ${x2},${y2}`,fill:'none',stroke:'#c2542a','stroke-width':1.2,opacity:.8},p);
+  for(let i=0;i<=12;i++){const t=i/12;
+    const x=(1-t)*(1-t)*x1+2*(1-t)*t*mx+t*t*x2, y=(1-t)*(1-t)*y1+2*(1-t)*t*my+t*t*y2;
+    EL('circle',{cx:x,cy:y,r:2.6,fill:i%2?'#ff8a3c':'#ffd257'},p);}}
+function lampP(x,y,s,p){
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${s})`},p);
+  EL('path',{d:'M-5,0 L5,0 L3.4,-4 L-3.4,-4 Z',fill:stoneD},g);
+  EL('rect',{x:-1.4,y:-26,width:2.8,height:22,fill:stone},g);
+  EL('rect',{x:-3,y:-16,width:6,height:2,rx:1,fill:goldD},g);
+  EL('path',{d:'M-4,-26 L4,-26 L2.6,-29 L-2.6,-29 Z',fill:goldD},g);
+  EL('circle',{cx:0,cy:-32,r:7,fill:glowW,opacity:.9},g);
+  EL('path',{class:'fl',d:'M0,-29 C 2,-32 1.4,-35 0,-37 C -1.4,-35 -2,-32 0,-29 Z',fill:flameG},g);
+  return g;}
+function apsara(x,y,rot,p){
+  const g=EL('g',{transform:`translate(${x} ${y}) rotate(${rot})`,opacity:.95},p);
+  EL('circle',{r:12,fill:glowC,opacity:.35},g);
+  EL('path',{d:'M0,-6 C 3,-3 3,2 1,7 C 0,9 -1,9 -2,7 C -3,3 -3,-2 0,-6 Z',fill:'#ffe9c9'},g);
+  EL('circle',{cx:0,cy:-7.5,r:2.6,fill:'#ffe9c9'},g);
+  EL('path',{d:'M0,-4 C 6,-8 12,-8 16,-5 C 11,-4 6,-2 1,-1 Z',fill:'#fff6d8',opacity:.8},g);
+  EL('path',{d:'M0,-4 C -6,-8 -12,-8 -16,-5 C -11,-4 -6,-2 -1,-1 Z',fill:'#fff6d8',opacity:.8},g);
+  EL('path',{d:'M-1,7 C -4,12 -8,15 -12,16 C -8,11 -5,8 -2,6 Z',fill:'#fff6d8',opacity:.6},g);
+  EL('path',{d:'M2,-2 C 5,0 7,2 7,5',stroke:'#ffe9c9','stroke-width':1.4,fill:'none'},g);
+  EL('circle',{cx:7.5,cy:5.5,r:2,fill:glowW},g);
+  return g;}
+function palm(x,y,s,p,flip){
+  const g=EL('g',{transform:`translate(${x} ${y}) scale(${flip?-s:s} ${s})`,opacity:.9},p);
+  EL('path',{d:'M0,0 C 1,-8 2,-16 5,-24',stroke:'#170f2b','stroke-width':2.6,fill:'none'},g);
+  for(const a of [-80,-45,-10,25,60,95,130]){const r=a*Math.PI/180;
+    EL('path',{d:`M5,-24 q ${Math.cos(r)*10-2},${Math.sin(r)*7-4} ${Math.cos(r)*16},${Math.sin(r)*10+2}`,stroke:'#170f2b','stroke-width':2,fill:'none'},g);}
+  return g;}
+
+const ACC=['#ff8a3c','#ffd257','#7ce0b0','#6aa8ff','#ff6a8a','#c78aff'];
+
+/* ================= SKY ================= */
+const sky=EL('g',{id:'sky'});
+EL('rect',{x:-40,y:-20,width:1080,height:680,fill:skyF},sky);
+for(let i=0;i<95;i++){const x=R(-20,1020),y=R(0,430),r=R(.5,1.5);
+  EL('circle',{cx:x,cy:y,r,fill:'#fff',opacity:R(.3,.9),class:Math.random()<.4?'tw':''},sky);}
+EL('circle',{cx:140,cy:105,r:64,fill:moonG,opacity:.55},sky);
+EL('circle',{cx:140,cy:105,r:34,fill:'#fff6dd'},sky);
+EL('circle',{cx:130,cy:98,r:7,fill:'#f0dfc0',opacity:.7},sky);
+EL('circle',{cx:152,cy:115,r:5,fill:'#f0dfc0',opacity:.6},sky);
+for(let i=0;i<6;i++){const bx=170+i*132;
+  EL('path',{class:'ray',d:`M${bx-12},0 L${bx+12},0 L${bx+36},330 L${bx-36},330 Z`,
+    fill:'#fff3cf',opacity:.05,style:`animation-delay:${i*.8}s`},sky);}
+for(const c of [[80,210,90],[760,150,110],[860,300,80],[240,320,100]]){
+  EL('ellipse',{class:'cl',cx:c[0],cy:c[1],rx:c[2],ry:10,fill:'#cbb7e8',opacity:.10},sky);}
+bird(620,110,1,sky);bird(646,120,.8,sky);bird(600,126,.7,sky);bird(255,160,.8,sky);bird(280,150,.6,sky);
+
+/* ================= FAR (Angkor quincunx silhouettes) ================= */
+const far=EL('g',{id:'far'});
+prasatSil(360,470,70,150,far);prasatSil(640,470,70,150,far);prasatSil(500,455,60,120,far);
+prasatSil(300,478,44,96,far);prasatSil(700,478,44,96,far);
+const f1=EL('g',{opacity:.45},far);gopuram(80,485,70,4,f1,true);
+const f2=EL('g',{opacity:.45},far);gopuram(920,485,70,4,f2,true);
+EL('rect',{x:-40,y:470,width:1080,height:60,fill:'#170f33',opacity:.55,filter:'url(#blur6)'},far);
+
+/* ================= MID (the citadel) ================= */
+const mid=EL('g',{id:'mid'});
+EL('ellipse',{cx:500,cy:430,rx:340,ry:190,fill:glowW,opacity:.20,class:'br'},mid);
+
+/* -- rear: Puri-style main deul -- */
+EL('rect',{x:420,y:458,width:160,height:14,rx:2,fill:stoneD},mid);
+spireD(95,230,{x:500,y:462,p:mid,courses:8,face:true,stoneDeity:true,urush:true,glow:.28});
+amalaka(500,234,34,mid);
+amalaka(500,223,22,mid);
+kalasha(500,215,1.2,mid);
+chakra(500,197,12,mid);
+longFlag(500,190,34,mid);
+
+/* -- Siddhivinayak cluster spires -- */
+clusterSpire(398,462,64,120,mid);
+clusterSpire(602,462,64,120,mid);
+
+/* -- Meenakshi gopurams, stone-carved niches -- */
+gopuram(185,520,130,7,mid,true);
+gopuram(815,520,118,6,mid,true);
+
+/* -- Angkor colonnade gallery wall with relief panels -- */
+(function wall(){
+  const g=EL('g',{},mid);
+  EL('rect',{x:66,y:506,width:868,height:14,rx:2,fill:stoneD},g);
+  EL('rect',{x:70,y:448,width:860,height:60,fill:wallF},g);
+  EL('rect',{x:66,y:440,width:868,height:9,rx:3,fill:goldD},g);
+  EL('line',{x1:70,y1:443,x2:930,y2:443,stroke:'#fff2c0','stroke-width':.8,opacity:.55},g);
+  for(let x=92;x<=908;x+=48){
+    if(Math.abs(x-500)<95)continue;
+    reliefPanel(x,500,20,40,g);
+    EL('rect',{x:x+16,y:452,width:4.5,height:52,fill:stoneD},g);
+    EL('rect',{x:x+14.5,y:450,width:7.5,height:4,rx:1,fill:stone},g);
+  }
+  for(let x=92;x<=908;x+=44){ if(Math.abs(x-500)<95)continue; kalasha(x,440,.55,g); }   // stone finial studs, no people
+  for(const cx of [78,922]){ EL('rect',{x:cx-10,y:414,width:20,height:30,fill:stoneD},g);
+    EL('path',{d:`M${cx-11},414 A 11 8 0 0 1 ${cx+11},414 Z`,fill:gold},g); kalasha(cx,404,.8,g);}
+})();
+
+/* -- the great gate: Meenakshi pediment + sanctum darshan -- */
+(function gate(){
+  const g=EL('g',{},mid);
+  EL('rect',{x:430,y:400,width:140,height:120,fill:stone},g);
+  EL('rect',{x:430,y:400,width:8,height:120,fill:stoneD},g);
+  EL('rect',{x:562,y:400,width:8,height:120,fill:stoneD},g);
+  /* pediment arch with carved deity row */
+  EL('path',{d:'M430,400 A 70 50 0 0 1 570,400 Z',fill:goldD},g);
+  EL('path',{d:'M438,400 A 62 42 0 0 1 562,400 Z',fill:'#3a2410'},g);
+  for(let i=-3;i<=3;i++)stoneFig(500+i*16,398,.9,g);
+  EL('path',{d:'M430,400 A 70 50 0 0 1 570,400',fill:'none',stroke:goldL,'stroke-width':3},g);
+  EL('path',{d:'M424,400 A 76 56 0 0 1 576,400',fill:'none',stroke:'#c08a24','stroke-width':2,opacity:.8},g);
+  /* makara scroll curls at arch ends */
+  EL('path',{d:'M428,400 q -12,-2 -14,-12 q -1,-8 7,-9 q 6,0 6,6 q 0,4 -4,4',fill:'none',stroke:goldL,'stroke-width':3,'stroke-linecap':'round'},g);
+  EL('path',{d:'M572,400 q 12,-2 14,-12 q 1,-8 -7,-9 q -6,0 -6,6 q 0,4 4,4',fill:'none',stroke:goldL,'stroke-width':3,'stroke-linecap':'round'},g);
+  vaultCap(500,348,132,g);
+  /* arch opening + DARSHAN */
+  EL('path',{d:'M462,520 L462,458 A 38 38 0 0 1 538,458 L538,520 Z',fill:'#1c0f2a'},g);
+  const dsh=EL('g',{id:'darshan'},g);
+  EL('circle',{class:'dhalo',cx:500,cy:484,r:74,fill:glowW,filter:'url(#blur3)'},dsh);
+  EL('circle',{cx:500,cy:484,r:36,fill:glowC,opacity:.5},dsh);
+  flames(500,488,40,dsh,11);
+  EL('path',{d:'M460,488 A 40 40 0 0 1 540,488',fill:'none',stroke:goldL,'stroke-width':2.4,opacity:.9},dsh);
+  EL('path',{d:'M480,508 Q 500,517 520,508 Q 500,501 480,508 Z',fill:'#ff8a5c'},dsh);       // lotus
+  deity(500,506,1.3,'#ffd257',dsh);
+  for(let i=0;i<9;i++){const a=Math.PI*(1-.125*i);const x=500+Math.cos(a)*26,y=494-Math.sin(a)*26;
+    EL('line',{x1:x,y1:y,x2:500+Math.cos(a)*36,y2:494-Math.sin(a)*36,stroke:'#ffe9a0','stroke-width':1,opacity:.7},dsh);}
+  diya(500,516,2,dsh);                                                                        // the great deepak
+  garland(466,462,534,462,dsh);
+  stoneFig(452,516,1.2,g);stoneFig(548,516,1.2,g);                                            // dvārapāla śilpa
+  lampP(424,520,1.15,mid);lampP(576,520,1.15,mid);
+  garland(436,412,564,412,g);
+})();
+
+/* ================= FG (moat, causeway, nagas) ================= */
+const fg=EL('g',{id:'fg'});
+EL('rect',{x:-40,y:520,width:1080,height:120,fill:waterF},fg);
+EL('rect',{x:468,y:521,width:64,height:118,fill:reflG,opacity:.5,filter:'url(#blur3)'},fg);
+EL('rect',{x:170,y:521,width:30,height:90,fill:reflG,opacity:.14,filter:'url(#blur3)'},fg);
+EL('rect',{x:800,y:521,width:30,height:90,fill:reflG,opacity:.14,filter:'url(#blur3)'},fg);
+for(const r of [[300,548,46],[700,560,52],[420,590,60],[600,610,70],[180,575,40],[830,585,44]])
+  EL('ellipse',{class:'rip',cx:r[0],cy:r[1],rx:r[2],ry:4,fill:'none',stroke:'#ffd98a','stroke-width':1,opacity:.3},fg);
+for(const l of [[250,565],[760,570],[340,610],[680,620]]){
+  EL('ellipse',{cx:l[0],cy:l[1],rx:9,ry:3,fill:'#0d3a2a'},fg);
+  EL('circle',{cx:l[0]+5,cy:l[1]-2,r:2,fill:'#ff9ab0',opacity:.8},fg);}
+/* causeway */
+EL('path',{d:'M470,520 L530,520 L640,640 L360,640 Z',fill:paveF},fg);
+for(const yy of [532,547,564,584,606,628]){const t=(yy-520)/120, xl=470-110*t, xr=530+110*t;
+  EL('line',{x1:xl,y1:yy,x2:xr,y2:yy,stroke:'#6b4a20','stroke-width':1.2,opacity:.6},fg);}
+EL('line',{x1:470,y1:520,x2:360,y2:640,stroke:'#e8cf9a','stroke-width':2,opacity:.5},fg);
+EL('line',{x1:530,y1:520,x2:640,y2:640,stroke:'#e8cf9a','stroke-width':2,opacity:.5},fg);
+/* naga balustrades */
+for(const s of [-1,1]){
+  const pts=[];for(let i=0;i<=10;i++){const t=i/10,x=(s<0?468:532)+s* -0 + (s<0? -2-108*t : 2+108*t), y=522+118*t+Math.sin(i*2.2)*2;
+    pts.push([x,y]);}
+  let d='M'+pts.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' L');
+  EL('path',{d,fill:'none',stroke:stoneD,'stroke-width':7,'stroke-linecap':'round'},fg);
+  EL('path',{d,fill:'none',stroke:'#e8cf9a','stroke-width':1.2,opacity:.5},fg);
+  naga(s<0?362:638,634,s<0?-1:1,fg);
+}
+palm(52,520,1.5,fg,false);palm(948,520,1.5,fg,true);
+EL('ellipse',{cx:500,cy:522,rx:460,ry:14,fill:'#cbb7e8',opacity:.12,filter:'url(#blur6)'},fg);
+
+/* ================= FX ================= */
+const fx=EL('g',{id:'fx'});
+for(let i=0;i<26;i++){const x=R(150,850),y=R(300,520),r=R(1.2,2.6);
+  EL('circle',{class:'mote',cx:x,cy:y,r,fill:'#ffd98a',opacity:0,style:`animation-duration:${R(5,10)}s;animation-delay:${R(0,8)}s`},fx);}
+for(let i=0;i<8;i++)EL('circle',{cx:R(60,940),cy:R(60,340),r:R(3,6),fill:'#ffd98a',opacity:.16,filter:'url(#blur3)'},fx);
+apsara(320,205,-8,fx);apsara(688,178,7,fx);
+for(let i=0;i<9;i++){const x=R(100,900),y=R(80,420);
+  EL('path',{class:'tw',d:`M${x},${y-4} L${x+1.2},${y-1.2} L${x+4},${y} L${x+1.2},${y+1.2} L${x},${y+4} L${x-1.2},${y+1.2} L${x-4},${y} L${x-1.2},${y-1.2} Z`,fill:'#fff6d8',opacity:.8,style:`animation-delay:${R(0,3)}s`},fx);}
+
+/* ================= interactivity ================= */
+const offer=EL('g',{id:'offer'});
+let offered=0;
+const layers=[[sky,5,2],[far,10,3],[mid,16,5],[fg,26,7],[fx,20,6]];
+let tx=0,ty=0,cx=0,cy=0;
+window.addEventListener('pointermove',e=>{
+  const r=S.getBoundingClientRect();
+  tx=((e.clientX-r.left)/r.width-.5)*2; ty=((e.clientY-r.top)/r.height-.5)*2;});
+(function loop(){cx+=(tx-cx)*.06;cy+=(ty-cy)*.06;
+  for(const [g,fx2,fy2] of layers)g.setAttribute('transform',`translate(${(-cx*fx2).toFixed(2)} ${(-cy*fy2).toFixed(2)})`);
+  requestAnimationFrame(loop);})();
+S.addEventListener('click',e=>{
+  const p=new DOMPoint(e.clientX,e.clientY).matrixTransform(S.getScreenCTM().inverse());
+  const pos=EL('g',{transform:`translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`},offer);
+  const g=EL('g',{class:'off'},pos);
+  diya(0,0,1.1,g);
+  for(let i=0;i<6;i++){const a=R(0,6.28);
+    EL('circle',{cx:Math.cos(a)*R(6,16),cy:Math.sin(a)*R(4,10),r:R(.8,1.6),fill:'#ffe9a0',opacity:.9},g);}
+  g.addEventListener('animationend',()=>pos.remove());
+  offered++;document.getElementById('count').textContent=`🪔 ${offered} offered`;});
+</script>
+</body>
+</html>

@@ -468,10 +468,21 @@
     }
   }
 
-  // Golden temple — a stepped shikhara/stupa complex, the journey's destination. The temple
-  // RESPONDS TO PROGRESS (backlog): dim + a shut gate when far from completion; steadily
-  // brighter, then blazing with an OPEN gate as the mastered-fraction rises — so the goal
-  // visibly pulls the learner forward. `pct` is the mastered-grove fraction (0..1).
+  // gradient-string builders for the ported Svarga-Dwāra citadel's private <defs> (vertical
+  // linear + radial). stops: [offset, color, opacity?]. Kept local to paintTemple's idiom.
+  function lg(id, stops) {
+    return '<linearGradient id="' + id + '" x1="0" y1="0" x2="0" y2="1">' +
+      stops.map(s => '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"' + (s[2] == null ? '' : ' stop-opacity="' + s[2] + '"') + '/>').join('') + '</linearGradient>';
+  }
+  function rg(id, stops) {
+    return '<radialGradient id="' + id + '">' +
+      stops.map(s => '<stop offset="' + s[0] + '" stop-color="' + s[1] + '"' + (s[2] == null ? '' : ' stop-opacity="' + s[2] + '"') + '/>').join('') + '</radialGradient>';
+  }
+
+  // Golden temple — the SVARGA-DWĀRA citadel, the journey's destination. The complex
+  // RESPONDS TO PROGRESS (backlog): dim + a shut sanctum gate when far from completion; steadily
+  // brighter, then blazing with an OPEN gate + radiant idol as the mastered-fraction rises — so
+  // the goal visibly pulls the learner forward. `pct` is the mastered-grove fraction (0..1).
   function paintTemple(g, tp, reduced, groves) {
     const pct = (groves && groves.length) ? groves.filter(gv => gv.status === 'blossoming').length / groves.length : 0;
     const lum = 0.35 + pct * 0.65;               // overall temple luminance 0.35 (far) … 1 (done)
@@ -488,92 +499,294 @@
     if (!reduced) { const rot = el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0 0 10', to: '360 0 10', dur: '120s', repeatCount: 'indefinite', additive: 'sum' }); aur.appendChild(rot); }
     const glow = el('circle', { cx: tp.x, cy: tp.y + 6, r: (110 + pct * 70).toFixed(0), fill: 'url(#templeGlow)', opacity: (0.5 + pct * 0.5).toFixed(2) }, g);
     if (!reduced) anim(glow, 'opacity', (0.5 + pct * 0.5).toFixed(2), (0.4 + pct * 0.32).toFixed(2), '6s');
-    // the shikhara itself dims a touch when far from completion (a distant, quiet goal) and
-    // brightens to full gold as pct rises — architecture stays fully readable throughout.
-    const t = el('g', { transform: 'translate(' + tp.x + ',' + tp.y + ')', opacity: (0.7 + pct * 0.3).toFixed(2) }, g);
-    // short light shafts fanning down from the temple onto the treeline (long overlay rays
-    // are drawn in paintGodRays, above the ground, so they read over the forest).
-    const rays = el('g', { opacity: 0.5, filter: 'url(#soft2)' }, t);
-    for (let i = -2; i <= 2; i++) {
-      el('path', { d: 'M0,-8 L' + (i * 60 - 40) + ',230 L' + (i * 60 + 40) + ',230 Z', fill: 'rgba(247,217,138,.10)' }, rays);
+    // ── SVARGA-DWĀRA CITADEL (ported from docs/design/temple_final.html) ─────────
+    // The goal citadel: a Puri-style deul (curved shikhara + ribbed amalaka stack +
+    // Nila-chakra + streaming flag) flanked by Siddhivinayak cluster-spires and Meenakshi
+    // gopurams, fronted by an Angkor colonnade wall of relief-panel devatās, and the great
+    // GATE with a darshan sanctum (seated deity, prabhavali flames, garland, dvārapālas).
+    // Built in the source file's own local coords (citadel centred at CX, its wall-base at
+    // ground GY) then wrapped in one <g> that maps that ground point to the forest anchor and
+    // scales the whole complex to sit top-centre. NO cursor-parallax, NO click-to-offer (both
+    // dropped per TEMPLE_REDESIGN_SPEC); all ambient motion is gated behind `reduced`.
+    const CX = 500, GY = 520;                     // citadel centre-x + ground-y in local coords
+    const SCALE = 0.48;                            // → ~300px wide in the 1200-wide viewBox
+    const baseAt = tp.y + 96;                       // sit the wall-base on the old plinth line
+    // local-space warm gradients used by the ported builders — added to a private <defs> so we
+    // never touch the shared defs(); ids are namespaced so multiple maps don't collide.
+    const T = el('g', { transform: 'translate(' + tp.x + ',' + baseAt + ') scale(' + SCALE + ') translate(' + (-CX) + ',' + (-GY) + ')',
+      opacity: (0.7 + pct * 0.3).toFixed(2) }, g);
+    const ldefs = el('defs', {}, T);
+    ldefs.innerHTML = [
+      lg('t_gold',  [[0,'#ffe08a'],[0.45,'#f2c14e'],[0.8,'#cf8f1f'],[1,'#9a5f0e']]),
+      lg('t_goldL', [[0,'#fff6cf'],[0.5,'#ffdf8a'],[1,'#e0a83a']]),
+      lg('t_goldD', [[0,'#e9c05e'],[0.55,'#c08a24'],[1,'#8a5a10']]),
+      lg('t_stone', [[0,'#f0dcae'],[0.5,'#cfa96b'],[1,'#97702f']]),
+      lg('t_stoneD',[[0,'#d8b87e'],[0.55,'#a97f42'],[1,'#7c5a26']]),
+      lg('t_cream', [[0,'#fdf3d7'],[0.5,'#e8cf9f'],[1,'#c3a066']]),
+      lg('t_wall',  [[0,'#d9b87c'],[0.5,'#b08549'],[1,'#7c5a26']]),
+      rg('t_glowW', [[0,'#ffd98a',0.9],[0.5,'#ffb84a',0.32],[1,'#ffb84a',0]]),
+      rg('t_glowC', [[0,'#fff6d8',0.95],[0.45,'#ffd98a',0.35],[1,'#ffd98a',0]]),
+      rg('t_flame', [[0,'#fff8d0'],[0.55,'#ffd257'],[1,'#ff8a2a',0]])
+    ].join('');
+    const gold='url(#t_gold)', goldL='url(#t_goldL)', goldD='url(#t_goldD)', stone='url(#t_stone)',
+          stoneD='url(#t_stoneD)', cream='url(#t_cream)', wallF='url(#t_wall)',
+          glowW='url(#t_glowW)', glowC='url(#t_glowC)', flameG='url(#t_flame)';
+    const ACC = ['#ff8a3c', '#ffd257', '#7ce0b0', '#6aa8ff', '#ff6a8a', '#c78aff'];
+    const em = (t2, a, p) => el(t2, a, p);
+
+    // ---- ported primitives (identical geometry to temple_final, el()-based) ----
+    function kalasha(x, y, s, p) {
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, p);
+      em('ellipse', { cx: 0, cy: -3, rx: 6, ry: 4.6, fill: gold }, gg);
+      em('rect', { x: -4.4, y: -8.4, width: 8.8, height: 2.6, rx: 1.2, fill: goldD }, gg);
+      em('circle', { cx: 0, cy: -11, r: 2.6, fill: gold }, gg);
+      em('path', { d: 'M0,-13.4 L2.2,-18 L0,-22 L-2.2,-18 Z', fill: goldL }, gg);
+      return gg;
     }
-    // three spires (center tallest) — stepped tiers as a stack of trapezoids
-    spire(t, 0, 0, 1.0); spire(t, -78, 26, 0.62); spire(t, 78, 26, 0.62);
-    spire(t, -140, 40, 0.4); spire(t, 140, 40, 0.4);
-    // plinth
-    el('rect', { x: -168, y: 74, width: 336, height: 20, rx: 4, fill: C.goldDeep, opacity: 0.9 }, t);
-    el('rect', { x: -150, y: 70, width: 300, height: 8, fill: C.goldBright, opacity: 0.7 }, t);
-    function spire(parent, dx, dy, s) {
-      const gg = el('g', { transform: 'translate(' + dx + ',' + dy + ') scale(' + s + ')' }, parent);
-      const tiers = 5; let w = 96, y = 74;
-      for (let i = 0; i < tiers; i++) {
-        const h = 15, top = w * 0.72;
-        el('path', { d: 'M' + (-w / 2) + ',' + y + ' L' + (w / 2) + ',' + y + ' L' + (top / 2) + ',' + (y - h) + ' L' + (-top / 2) + ',' + (y - h) + ' Z',
-          fill: i % 2 ? C.gold : C.goldBright, opacity: (0.82 - i * 0.04).toFixed(2) }, gg);
-        w = top; y -= h;
+    function chakra(x, y, r, p) {                   // Puri Nila-chakra wheel finial (turns)
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ')' }, p);
+      const spin = em('g', {}, gg);
+      em('circle', { r: r, fill: 'none', stroke: '#2b1a3d', 'stroke-width': r * 0.28 }, spin);
+      em('circle', { r: r, fill: 'none', stroke: goldL, 'stroke-width': r * 0.12 }, spin);
+      for (let i = 0; i < 8; i++) {
+        const a = i * Math.PI / 4;
+        em('line', { x1: 0, y1: 0, x2: Math.cos(a) * r * 0.86, y2: Math.sin(a) * r * 0.86, stroke: goldL, 'stroke-width': r * 0.1 }, spin);
+        const fa = a + Math.PI / 8;
+        em('path', { d: 'M' + Math.cos(fa) * r + ',' + Math.sin(fa) * r + ' q' + Math.cos(fa) * r * 0.3 + ',' + (Math.sin(fa) * r * 0.3 - r * 0.18) + ' ' + Math.cos(fa) * r * 0.42 + ',' + (Math.sin(fa) * r * 0.42 - r * 0.3), fill: 'none', stroke: '#2b1a3d', 'stroke-width': r * 0.14 }, spin);
       }
-      // crowning spire
-      el('path', { d: 'M0,' + (y - 26) + ' L' + (w * 0.28) + ',' + y + ' L' + (-w * 0.28) + ',' + y + ' Z', fill: C.goldBright }, gg);
-      // KALASH finial — a small pot-and-sphere crowning the shikhara (amalaka + kalasha)
-      const ky = y - 26;
-      el('ellipse', { cx: 0, cy: ky - 2, rx: 5, ry: 2, fill: C.goldDeep }, gg);            // amalaka disc
-      el('path', { d: 'M-4,' + (ky - 2) + ' Q0,' + (ky - 14) + ' 4,' + (ky - 2) + ' Z', fill: C.goldBright }, gg);  // pot
-      el('circle', { cx: 0, cy: ky - 15, r: 2.6, fill: '#fff3cf' }, gg);                     // sphere
-      el('line', { x1: 0, y1: ky - 17, x2: 0, y2: ky - 24, stroke: C.goldBright, 'stroke-width': 1 }, gg);
-      el('circle', { cx: 0, cy: ky - 25, r: 1.4, fill: '#fff8e4' }, gg);
+      em('circle', { r: r * 0.22, fill: goldL }, spin);
+      if (!reduced) spin.appendChild(el('animateTransform', { attributeName: 'transform', type: 'rotate', from: '0', to: '360', dur: '26s', repeatCount: 'indefinite' }));
+      return gg;
     }
-    // --- TORANA gateway: two ornate pillars + a scalloped arch framing the sanctum ---
-    const tor = el('g', { opacity: 0.94 }, t);
-    [-108, 108].forEach(px => {
-      el('rect', { x: px - 8, y: 40, width: 16, height: 54, rx: 2, fill: C.goldDeep }, tor);
-      el('rect', { x: px - 8, y: 40, width: 5, height: 54, fill: C.gold, opacity: 0.6 }, tor);   // lit edge
-      el('rect', { x: px - 12, y: 36, width: 24, height: 7, rx: 2, fill: C.gold }, tor);         // capital
-      el('rect', { x: px - 12, y: 88, width: 24, height: 6, rx: 2, fill: C.goldDeep }, tor);     // base
-    });
-    // torana arch (double scallop) spanning the pillars
-    el('path', { d: 'M-108,40 Q0,-24 108,40', fill: 'none', stroke: C.gold, 'stroke-width': 5 }, tor);
-    el('path', { d: 'M-108,44 Q0,-14 108,44', fill: 'none', stroke: C.goldBright, 'stroke-width': 2, opacity: 0.7 }, tor);
-    // little scalloped pendants hanging under the arch
-    for (let i = -3; i <= 3; i++) {
-      const px = i * 30, py = 40 - (1 - Math.abs(i) / 3.4) * 44;
-      el('path', { d: 'M' + (px - 4) + ',' + py + ' Q' + px + ',' + (py + 9) + ' ' + (px + 4) + ',' + py + ' Z', fill: C.goldBright, opacity: 0.8 }, tor);
+    function longFlag(x, y, h, p) {                 // Puri patita-pāvana banner (waves)
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ')' }, p);
+      em('line', { x1: 0, y1: 0, x2: 0, y2: -h, stroke: '#e8cf9a', 'stroke-width': 1.4 }, gg);
+      const f = em('g', { class: 't-flag' }, gg);
+      em('path', { d: 'M0,' + (-h) + ' C ' + h * 0.5 + ',' + (-h + 3) + ' ' + h * 0.8 + ',' + (-h + 7) + ' ' + h * 1.15 + ',' + (-h + 13) + ' C ' + h * 0.75 + ',' + (-h + 15) + ' ' + h * 0.4 + ',' + (-h + 16) + ' 0,' + (-h + 17) + ' Z', fill: '#ff5a3c' }, f);
+      em('path', { d: 'M0,' + (-h + 6) + ' q ' + h * 0.5 + ',8 ' + h * 0.35 + ',' + h * 0.55 + ' q -3,6 2,10', fill: 'none', stroke: '#ffd257', 'stroke-width': 1.6, opacity: 0.9 }, f);
+      return gg;
     }
-    // sanctum GATE — RESPONDS TO PROGRESS. Far from completion it's a SHUT dark gate (two
-    // door-leaves, only a thin light seam); as pct rises the inner light strengthens; at full
-    // mastery the gate stands OPEN with a blazing sanctum behind it. The archway frame is always
-    // drawn; the door-leaves + inner glow reflect the state.
-    const door = el('g', {}, t);
-    const arch = 'M-16,94 L-16,58 Q0,44 16,58 L16,94 Z';
-    // inner sanctum light — dim ember when locked, blazing gold when open
-    const innerOp = 0.28 + pct * 0.72;
-    const innerAttrs = { d: arch, fill: gateOpen ? 'rgba(255,244,196,.95)' : ('rgba(255,240,196,' + innerOp.toFixed(2) + ')') };
-    if (gateOpen) innerAttrs.filter = 'url(#glow)';
-    el('path', innerAttrs, door);
-    if (!gateOpen) {
-      // two shut door-leaves covering the sanctum (darker the further from completion)
-      const leafShade = shade('#5a3a12', pct * 0.4);
-      el('path', { d: 'M-15,93 L-15,58 Q-8,49 0,49 L0,93 Z', fill: leafShade, stroke: C.goldDeep, 'stroke-width': 0.8 }, door);
-      el('path', { d: 'M15,93 L15,58 Q8,49 0,49 L0,93 Z', fill: shade(leafShade, -0.06), stroke: C.goldDeep, 'stroke-width': 0.8 }, door);
-      // a thin warm light seam between the leaves (hope) + door-ring handles
-      el('line', { x1: 0, y1: 50, x2: 0, y2: 93, stroke: '#ffe9ad', 'stroke-width': 1, opacity: (0.4 + pct * 0.5).toFixed(2) }, door);
-      el('circle', { cx: -5, cy: 74, r: 1.6, fill: C.goldBright, opacity: 0.7 }, door); el('circle', { cx: 5, cy: 74, r: 1.6, fill: C.goldBright, opacity: 0.7 }, door);
-    } else {
-      // OPEN: the aum glyph shines in the blazing sanctum; the leaves are swung aside
-      el('text', { x: 0, y: 80, 'text-anchor': 'middle', 'font-family': 'Tiro Devanagari Hindi, serif', 'font-size': 20, fill: '#7a4a12' }, door).textContent = 'ॐ';
-      el('path', { d: 'M-15,93 L-15,58 Q-13,54 -11,53 L-11,93 Z', fill: '#5a3a12', opacity: 0.8 }, door);   // leaf swung to the jamb
-      el('path', { d: 'M15,93 L15,58 Q13,54 11,53 L11,93 Z', fill: '#4a300f', opacity: 0.8 }, door);
+    function spireD(hw, h, o) {                     // Puri-style curved deul tower
+      const gg = em('g', { transform: 'translate(' + (o.x || 0) + ' ' + (o.y || 0) + ')' }, o.p);
+      const d = 'M' + (-hw) + ',0 C ' + (-hw) + ',' + (-h * 0.42) + ' ' + (-hw * 0.42) + ',' + (-h * 0.8) + ' 0,' + (-h) + ' C ' + hw * 0.42 + ',' + (-h * 0.8) + ' ' + hw + ',' + (-h * 0.42) + ' ' + hw + ',0 Z';
+      if (o.glow) em('path', { d: d, fill: glowW, opacity: o.glow, transform: 'scale(1.18)' }, gg);
+      em('path', { d: d, fill: o.fill || gold }, gg);
+      em('path', { d: 'M' + (-hw) + ',0 C ' + (-hw) + ',' + (-h * 0.42) + ' ' + (-hw * 0.42) + ',' + (-h * 0.8) + ' 0,' + (-h) + ' L0,0 Z', fill: '#7a4c0c', opacity: 0.2 }, gg);
+      em('path', { d: 'M' + (-hw * 0.55) + ',0 C ' + (-hw * 0.5) + ',' + (-h * 0.45) + ' ' + (-hw * 0.3) + ',' + (-h * 0.8) + ' 0,' + (-h) + ' C ' + (-hw * 0.16) + ',' + (-h * 0.72) + ' ' + (-hw * 0.34) + ',' + (-h * 0.4) + ' ' + (-hw * 0.38) + ',0 Z', fill: '#fff2c0', opacity: 0.3 }, gg);
+      const n = o.courses || 6;
+      for (let i = 1; i <= n; i++) { const t2 = i / (n + 1), w = hw * (1 - Math.pow(t2, 1.7)) * 0.98, y = -h * t2;
+        em('path', { d: 'M' + (-w) + ',' + y + ' Q 0,' + (y + hw * 0.14) + ' ' + w + ',' + y, fill: 'none', stroke: '#8a5a10', 'stroke-width': 1, opacity: 0.5 }, gg); }
+      const lw = hw * 0.2;                          // central lata band
+      em('path', { d: 'M' + (-lw) + ',0 C ' + (-lw * 0.8) + ',' + (-h * 0.5) + ' ' + (-lw * 0.4) + ',' + (-h * 0.85) + ' 0,' + (-h) + ' C ' + lw * 0.4 + ',' + (-h * 0.85) + ' ' + lw * 0.8 + ',' + (-h * 0.5) + ' ' + lw + ',0 Z', fill: goldL, opacity: 0.9 }, gg);
+      if (o.face) for (const i of [0, 1, 2]) { const t2 = 0.2 + 0.24 * i, w = hw * (1 - Math.pow(t2, 1.7)), y = -h * t2;
+        const ggg = em('g', { transform: 'translate(0 ' + y + ') scale(' + ((w * 0.5) / 9) + ')' }, gg);
+        em('circle', { r: 9, fill: glowC, opacity: 0.55 }, ggg);
+        em('path', { d: 'M-5,4 L-5,-2 A5,5 0 0 1 5,-2 L5,4 Z', fill: '#2a1636' }, ggg);
+        em('path', { d: 'M-5,-2 A5,5 0 0 1 5,-2', fill: 'none', stroke: goldL, 'stroke-width': 1.4 }, ggg);
+        stoneFig(0, 3, 0.62, ggg, true); }         // stone deity in the gavaksha niche
+      if (o.urush) for (const s of [-1, 1]) { const ux = s * hw * 0.72;
+        spireD(hw * 0.3, h * 0.26, { x: ux, y: -h * 0.02, p: gg, face: false, courses: 3 });
+        em('ellipse', { cx: ux, cy: -h * 0.28, rx: hw * 0.13, ry: hw * 0.05, fill: goldD }, gg);
+        kalasha(ux, -h * 0.3, hw / 60, gg); }
+      return gg;
     }
-    el('path', { d: arch, fill: 'none', stroke: C.goldDeep, 'stroke-width': 2 }, door);
-    // flanking diyas — brighter after dusk / with progress
-    const tod = timeOfDay();
-    const diyaBoost = (tod.night || tod.phase === 'dusk') ? 1 : 0.85;
-    [-40, 40].forEach(dx => { el('circle', { cx: dx, cy: 90, r: (5 + pct * 2).toFixed(1), fill: 'url(#diyaG)', opacity: diyaBoost }, door); el('circle', { cx: dx, cy: 90, r: 1.6, fill: '#fff8e4' }, door); });
-    // marigold TORAN garland swagging across the front of the plinth
-    const gar = el('g', {}, t);
-    for (let i = 0; i <= 26; i++) {
-      const fx = -150 + (i / 26) * 300;
-      const sag = Math.sin((i / 26) * Math.PI) * 10;
-      el('circle', { cx: fx.toFixed(0), cy: (66 + sag).toFixed(0), r: 3, fill: i % 3 ? C.gold : C.ember, opacity: 0.9 }, gar);
+    function amalaka(x, y, rx, p) {                 // ribbed crown disc (Puri stack)
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ')' }, p);
+      em('path', { d: 'M' + (-rx) + ',0 A ' + rx + ' ' + (rx * 0.42) + ' 0 0 1 ' + rx + ',0 L ' + (rx * 0.92) + ',' + (rx * 0.16) + ' A ' + (rx * 0.92) + ' ' + (rx * 0.34) + ' 0 0 1 ' + (-rx * 0.92) + ',' + (rx * 0.16) + ' Z', fill: gold }, gg);
+      for (let i = -4; i <= 4; i++) { const xx = i * rx * 0.2;
+        em('path', { d: 'M' + xx + ',' + (-rx * 0.4 * Math.sqrt(1 - (i / 4.6) * (i / 4.6))) + ' L ' + (xx * 1.05) + ',' + (rx * 0.12), stroke: '#8a5a10', 'stroke-width': 0.9, opacity: 0.55, fill: 'none' }, gg); }
+      em('path', { d: 'M' + (-rx * 0.9) + ',0 A ' + (rx * 0.9) + ' ' + (rx * 0.36) + ' 0 0 1 0,' + (-rx * 0.4), fill: 'none', stroke: '#fff2c0', 'stroke-width': 1.2, opacity: 0.6 }, gg);
+      return gg;
+    }
+    function deity(x, y, s, robe, p) {              // colourful seated murti
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, p);
+      em('circle', { cx: 0, cy: -9, r: 10, fill: glowC, opacity: 0.5 }, gg);
+      em('path', { d: 'M-7,2 C -7,-6 -4,-9 0,-9 C 4,-9 7,-6 7,2 Z', fill: robe }, gg);
+      em('circle', { cx: 0, cy: -11, r: 3.4, fill: '#ffd9a0' }, gg);
+      em('path', { d: 'M-2.6,-13 L0,-18.5 L2.6,-13 Z', fill: goldL }, gg);       // crown/mukuta
+      em('path', { d: 'M-6,1 Q 0,4 6,1', fill: 'none', stroke: goldL, 'stroke-width': 1, opacity: 0.8 }, gg);
+      return gg;
+    }
+    function stoneFig(x, y, s, p, carved) {         // carved devatā — monochrome śilpa
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, p);
+      const B = carved ? '#b08a50' : '#d9b87c', Sh = carved ? '#7a5a2c' : '#a5814b', H = carved ? '#caa066' : '#c9a86a';
+      if (!carved) em('circle', { cx: 0, cy: -10, r: 8.6, fill: 'none', stroke: '#e8cf9a', 'stroke-width': 1, opacity: 0.55 }, gg);
+      em('path', { d: 'M-5.5,2 C -5.5,-5 -3.5,-8 0,-8 C 3.5,-8 5.5,-5 5.5,2 Z', fill: B }, gg);
+      em('path', { d: 'M0,-8 C 2,-5 2.6,-1 2.2,2 L 0,2 Z', fill: Sh, opacity: 0.8 }, gg);
+      em('circle', { cx: 0, cy: -10.5, r: 3, fill: B }, gg);
+      em('path', { d: 'M-2.4,-12.6 L0,-17 L2.4,-12.6 Z', fill: H }, gg);
+      em('path', { d: 'M-5.5,-4 Q -8,-1 -6.5,1.5 M5.5,-4 Q 8,-1 6.5,1.5', fill: 'none', stroke: H, 'stroke-width': 1.4 }, gg);
+      return gg;
+    }
+    function reliefPanel(x, y, w, h, p) {           // recessed wall niche w/ carved devatā
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ')' }, p);
+      em('rect', { x: -w / 2, y: -h, width: w, height: h, rx: 2, fill: '#7d5c2c' }, gg);
+      em('rect', { x: -w / 2 + 1.5, y: -h + 1.5, width: w - 3, height: h - 3, rx: 1.5, fill: 'none', stroke: '#e8cf9a', 'stroke-width': 0.7, opacity: 0.28 }, gg);
+      em('path', { d: 'M' + (-w / 2 + 3) + ',' + (-h + 3) + ' A ' + (w / 2 - 3) + ' ' + (w / 2 - 3) + ' 0 0 1 ' + (w / 2 - 3) + ',' + (-h + 3), fill: 'none', stroke: '#e8cf9a', 'stroke-width': 0.7, opacity: 0.28 }, gg);
+      stoneFig(0, -3, Math.min(w / 15, h / 28), gg, true);
+      return gg;
+    }
+    function vaultCap(x, y, w, p) {                 // Meenakshi barrel-vault crown + kalashas
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ')' }, p);
+      em('path', { d: 'M' + (-w / 2) + ',0 A ' + (w / 2) + ' ' + (w * 0.16) + ' 0 0 1 ' + (w / 2) + ',0 Z', fill: gold }, gg);
+      for (let i = -2; i <= 2; i++) em('path', { d: 'M' + (i * w * 0.2) + ',' + (-w * 0.16 * Math.sqrt(1 - (i / 2.6) * (i / 2.6))) + ' L ' + (i * w * 0.22) + ',0', stroke: '#8a5a10', 'stroke-width': 0.8, opacity: 0.5, fill: 'none' }, gg);
+      em('path', { d: 'M' + (-w / 2) + ',0 q ' + (-w * 0.06) + ',' + (-w * 0.1) + ' ' + (-w * 0.02) + ',' + (-w * 0.18), fill: 'none', stroke: goldL, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);
+      em('path', { d: 'M' + (w / 2) + ',0 q ' + (w * 0.06) + ',' + (-w * 0.1) + ' ' + (w * 0.02) + ',' + (-w * 0.18), fill: 'none', stroke: goldL, 'stroke-width': 2.4, 'stroke-linecap': 'round' }, gg);
+      for (let i = -2; i <= 2; i++) kalasha(i * w * 0.2, -w * 0.16 * Math.sqrt(1 - (i / 2.7) * (i / 2.7)) - 1, w / 260, gg);
+      return gg;
+    }
+    function gopuram(x, baseY, w0, tiers, p) {      // Meenakshi tower, stone-carved niches
+      const gg = em('g', { transform: 'translate(' + x + ' ' + baseY + ')' }, p);
+      const th = 24, wTop = w0 * 0.42;
+      em('rect', { x: -w0 * 0.62, y: -12, width: w0 * 1.24, height: 12, rx: 2, fill: stoneD }, gg);
+      for (let i = 0; i < tiers; i++) {
+        const t2 = i / tiers, w = w0 - (w0 - wTop) * t2, y = -(12 + i * th);
+        em('path', { d: 'M' + (-w / 2) + ',' + y + ' L' + (w / 2) + ',' + y + ' L' + (w / 2 - 4) + ',' + (y - th) + ' L' + (-w / 2 + 4) + ',' + (y - th) + ' Z', fill: i % 2 ? stone : stoneD }, gg);
+        em('rect', { x: -w / 2 + 3, y: y - th - 3.4, width: w - 6, height: 3.4, rx: 1.6, fill: goldD }, gg);
+        const n = Math.max(2, Math.round(w / 26));
+        for (let k = 0; k < n; k++) { const nx = -w / 2 + (w / n) * (k + 0.5); stoneFig(nx, y - th + 15, 1, gg, true); }
+      }
+      const yT = -(12 + tiers * th);
+      vaultCap(0, yT - 3, wTop * 1.15, gg);
+      kalasha(0, yT - 3 - wTop * 0.16 - 2, w0 / 150, gg);
+      const fl = em('g', { class: 't-flag' }, gg);
+      em('path', { d: 'M0,' + (yT - wTop * 0.16 - 24) + ' l 14,3.5 l -14,3.5 z', fill: '#ff5a3c' }, fl);
+      em('line', { x1: 0, y1: yT - wTop * 0.16 - 12, x2: 0, y2: yT - wTop * 0.16 - 25, stroke: '#e8cf9a', 'stroke-width': 1 }, gg);
+      return gg;
+    }
+    function clusterSpire(x, baseY, w, h, p) {      // Siddhivinayak clustered tiers
+      const gg = em('g', { transform: 'translate(' + x + ' ' + baseY + ')' }, p);
+      const Tn = 4;
+      for (let i = 0; i < Tn; i++) { const t2 = i / Tn, w2 = w * (1 - t2 * 0.62), y = -i * (h / Tn);
+        em('path', { d: 'M' + (-w2 / 2) + ',' + y + ' L' + (w2 / 2) + ',' + y + ' L' + (w2 * 0.42) + ',' + (y - h / Tn) + ' L' + (-w2 * 0.42) + ',' + (y - h / Tn) + ' Z', fill: cream }, gg);
+        em('path', { d: 'M' + (-w2 * 0.3) + ',' + y + ' L' + (-w2 * 0.3) + ',' + (y - h / Tn) + ' M' + (w2 * 0.3) + ',' + y + ' L' + (w2 * 0.3) + ',' + (y - h / Tn) + ' M0,' + y + ' L0,' + (y - h / Tn), stroke: '#b3925c', 'stroke-width': 0.8, opacity: 0.6 }, gg);
+        if (i < Tn - 1) for (const s of [-1, 0, 1]) kalasha(s * w2 * 0.42, -(i + 1) * (h / Tn) + 1, w / 240, gg);
+      }
+      kalasha(0, -h - 1, w / 170, gg);
+      return gg;
+    }
+
+    // ---- composition: the citadel (temple_final's `mid` group, Option-A only) ----
+    em('ellipse', { cx: 500, cy: 430, rx: 340, ry: 190, fill: glowW, opacity: 0.2 }, T);   // grounding bloom
+    // rear Puri-style main deul + ribbed amalaka stack + chakra + flag
+    em('rect', { x: 420, y: 458, width: 160, height: 14, rx: 2, fill: stoneD }, T);
+    spireD(95, 230, { x: 500, y: 462, p: T, courses: 8, face: true, urush: true, glow: 0.28 });
+    amalaka(500, 234, 34, T);
+    amalaka(500, 223, 22, T);
+    kalasha(500, 215, 1.2, T);
+    chakra(500, 197, 12, T);
+    longFlag(500, 190, 34, T);
+    // Siddhivinayak cluster spires
+    clusterSpire(398, 462, 64, 120, T);
+    clusterSpire(602, 462, 64, 120, T);
+    // Meenakshi gopurams
+    gopuram(185, 520, 130, 7, T);
+    gopuram(815, 520, 118, 6, T);
+    // Angkor colonnade gallery wall of relief-panel devatās
+    (function wall() {
+      const gg = em('g', {}, T);
+      em('rect', { x: 66, y: 506, width: 868, height: 14, rx: 2, fill: stoneD }, gg);
+      em('rect', { x: 70, y: 448, width: 860, height: 60, fill: wallF }, gg);
+      em('rect', { x: 66, y: 440, width: 868, height: 9, rx: 3, fill: goldD }, gg);
+      for (let x = 92; x <= 908; x += 48) { if (Math.abs(x - 500) < 95) continue;
+        reliefPanel(x, 500, 20, 40, gg);
+        em('rect', { x: x + 16, y: 452, width: 4.5, height: 52, fill: stoneD }, gg);
+      }
+      for (let x = 92; x <= 908; x += 44) { if (Math.abs(x - 500) < 95) continue; kalasha(x, 440, 0.55, gg); }
+      for (const cx of [78, 922]) { em('rect', { x: cx - 10, y: 414, width: 20, height: 30, fill: stoneD }, gg);
+        em('path', { d: 'M' + (cx - 11) + ',414 A 11 8 0 0 1 ' + (cx + 11) + ',414 Z', fill: gold }, gg); kalasha(cx, 404, 0.8, gg); }
+    })();
+    // the great GATE — Meenakshi pediment + progress-gated darshan sanctum
+    (function gate() {
+      const gg = em('g', {}, T);
+      em('rect', { x: 430, y: 400, width: 140, height: 120, fill: stone }, gg);
+      em('rect', { x: 430, y: 400, width: 8, height: 120, fill: stoneD }, gg);
+      em('rect', { x: 562, y: 400, width: 8, height: 120, fill: stoneD }, gg);
+      em('path', { d: 'M430,400 A 70 50 0 0 1 570,400 Z', fill: goldD }, gg);
+      em('path', { d: 'M438,400 A 62 42 0 0 1 562,400 Z', fill: '#3a2410' }, gg);
+      for (let i = -3; i <= 3; i++) stoneFig(500 + i * 16, 398, 0.9, gg);
+      em('path', { d: 'M430,400 A 70 50 0 0 1 570,400', fill: 'none', stroke: goldL, 'stroke-width': 3 }, gg);
+      vaultCap(500, 348, 132, gg);
+      // the sanctum opening + DARSHAN — RESPONDS TO PROGRESS: shut/dim when far, idol blazing
+      // + gate open at full mastery (reusing `pct`/`gateOpen`).
+      em('path', { d: 'M462,520 L462,458 A 38 38 0 0 1 538,458 L538,520 Z', fill: '#1c0f2a' }, gg);
+      const halo = em('circle', { cx: 500, cy: 484, r: 74, fill: glowW, opacity: (0.34 + pct * 0.66).toFixed(2) }, gg);
+      if (!reduced) anim(halo, 'opacity', (0.34 + pct * 0.66).toFixed(2), (0.22 + pct * 0.5).toFixed(2), '4.5s');
+      em('circle', { cx: 500, cy: 484, r: 36, fill: glowC, opacity: (0.28 + pct * 0.5).toFixed(2) }, gg);
+      flames(500, 488, 40, gg, 11);                 // prabhavali flaming aureole
+      em('path', { d: 'M460,488 A 40 40 0 0 1 540,488', fill: 'none', stroke: goldL, 'stroke-width': 2.4, opacity: 0.9 }, gg);
+      em('path', { d: 'M480,508 Q 500,517 520,508 Q 500,501 480,508 Z', fill: '#ff8a5c' }, gg);   // lotus
+      if (gateOpen) {
+        deity(500, 506, 1.3, '#ffd257', gg);         // idol blazing, gate open
+      } else {
+        // shut door-leaves veil the idol; a dim idol silhouette + warm seam show through
+        deity(500, 506, 1.3, shade('#c98a3a', -0.3 + pct * 0.3), gg);
+        const leafShade = shade('#5a3a12', pct * 0.4);
+        em('path', { d: 'M463,518 L463,460 Q463,452 481,452 L500,452 L500,518 Z', fill: leafShade, stroke: goldD, 'stroke-width': 0.8, opacity: (0.94 - pct * 0.5).toFixed(2) }, gg);
+        em('path', { d: 'M537,518 L537,460 Q537,452 519,452 L500,452 L500,518 Z', fill: shade(leafShade, -0.06), stroke: goldD, 'stroke-width': 0.8, opacity: (0.94 - pct * 0.5).toFixed(2) }, gg);
+        em('line', { x1: 500, y1: 454, x2: 500, y2: 518, stroke: '#ffe9ad', 'stroke-width': 1.4, opacity: (0.4 + pct * 0.5).toFixed(2) }, gg);
+      }
+      diya(500, 516, 2, gg);                         // the great deepak
+      garland(466, 462, 534, 462, gg);
+      stoneFig(452, 516, 1.2, gg); stoneFig(548, 516, 1.2, gg);   // dvārapāla śilpa guardians
+      lampP(424, 520, 1.15, T); lampP(576, 520, 1.15, T);
+      garland(436, 412, 564, 412, gg);
+    })();
+    // rising sacred motes (divya-jyoti) around the towers — gated behind reduced
+    if (!reduced) {
+      const mr = rng('templeMotes');
+      for (let i = 0; i < 14; i++) {
+        const mx = 180 + mr() * 640, my = 380 + mr() * 130, mrad = 1.2 + mr() * 1.6;
+        const mo = em('circle', { cx: mx.toFixed(0), cy: my.toFixed(0), r: mrad.toFixed(1), fill: '#ffd98a', opacity: 0 }, T);
+        const dur = (5 + mr() * 5).toFixed(1) + 's';
+        mo.appendChild(el('animate', { attributeName: 'opacity', values: '0;0.9;0', dur: dur, repeatCount: 'indefinite', begin: (mr() * 6).toFixed(1) + 's' }));
+        mo.appendChild(el('animateTransform', { attributeName: 'transform', type: 'translate', values: '0,0;0,-150', dur: dur, repeatCount: 'indefinite', additive: 'sum', begin: (mr() * 6).toFixed(1) + 's' }));
+      }
+    }
+
+    // ---- ported gate dressing helpers (flames / garland / diya / lamp) ----
+    function flames(cx, cy, r, p, n) {
+      n = n || 9;
+      for (let i = 0; i <= n; i++) { const ang = Math.PI * i / n;
+        const x = cx + Math.cos(ang) * r, y = cy - Math.sin(ang) * r, rot = 90 - ang * 180 / Math.PI;
+        const gg = em('g', { transform: 'translate(' + x.toFixed(1) + ' ' + y.toFixed(1) + ') rotate(' + rot.toFixed(1) + ')', class: reduced ? '' : 't-fl' }, p);
+        em('path', { d: 'M0,0 l3,-7 l3,7 l-3,2.4 z', fill: '#ffb84a', opacity: 0.9 }, gg);
+      }
+    }
+    function garland(x1, y1, x2, y2, p) {
+      const mx = (x1 + x2) / 2, my = Math.max(y1, y2) + 16;
+      em('path', { d: 'M' + x1 + ',' + y1 + ' Q ' + mx + ',' + my + ' ' + x2 + ',' + y2, fill: 'none', stroke: '#c2542a', 'stroke-width': 1.2, opacity: 0.8 }, p);
+      for (let i = 0; i <= 12; i++) { const t2 = i / 12;
+        const x = (1 - t2) * (1 - t2) * x1 + 2 * (1 - t2) * t2 * mx + t2 * t2 * x2, y = (1 - t2) * (1 - t2) * y1 + 2 * (1 - t2) * t2 * my + t2 * t2 * y2;
+        em('circle', { cx: x, cy: y, r: 2.6, fill: i % 2 ? '#ff8a3c' : '#ffd257' }, p); }
+    }
+    function diya(x, y, s, p) {
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, p);
+      em('circle', { r: 11, fill: glowW, opacity: 0.85 }, gg);
+      em('path', { d: 'M-7,0 Q 0,6 7,0 L 5,1.6 Q 0,5 -5,1.6 Z', fill: '#b3541e' }, gg);
+      em('path', { d: 'M-7,0 Q 0,3 7,0 Q 0,-2 -7,0 Z', fill: '#8a3a12' }, gg);
+      em('path', { d: 'M0,-1 C 2.4,-4 1.6,-7 0,-9.5 C -1.6,-7 -2.4,-4 0,-1 Z', fill: flameG, class: reduced ? '' : 't-fl' }, gg);
+      return gg;
+    }
+    function lampP(x, y, s, p) {
+      const gg = em('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, p);
+      em('path', { d: 'M-5,0 L5,0 L3.4,-4 L-3.4,-4 Z', fill: stoneD }, gg);
+      em('rect', { x: -1.4, y: -26, width: 2.8, height: 22, fill: stone }, gg);
+      em('path', { d: 'M-4,-26 L4,-26 L2.6,-29 L-2.6,-29 Z', fill: goldD }, gg);
+      em('circle', { cx: 0, cy: -32, r: 7, fill: glowW, opacity: 0.9 }, gg);
+      em('path', { d: 'M0,-29 C 2,-32 1.4,-35 0,-37 C -1.4,-35 -2,-32 0,-29 Z', fill: flameG, class: reduced ? '' : 't-fl' }, gg);
+      return gg;
+    }
+
+    // local keyframes for the ported flame-flicker + flag-wave (reduced-motion already skips
+    // these because the classes are only applied when !reduced).
+    if (!reduced) {
+      const st = el('style', {}, T);
+      st.textContent = '@media (prefers-reduced-motion: no-preference){' +
+        '.t-fl{animation:tflick 1.1s ease-in-out infinite;transform-box:fill-box;transform-origin:50% 100%}' +
+        '@keyframes tflick{50%{transform:scaleY(1.18) scaleX(.92);opacity:.92}}' +
+        '.t-flag{animation:tflag 2.8s ease-in-out infinite;transform-box:fill-box;transform-origin:0% 50%}' +
+        '@keyframes tflag{50%{transform:skewY(4deg)}}}';
     }
   }
 
