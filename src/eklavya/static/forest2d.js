@@ -2949,6 +2949,13 @@
   // only runs when LITE. Idempotent: re-wiring replaces prior handlers via a stored teardown.
   function wirePanZoom(svg, focus) {
     if (svg.__panzoomOff) { svg.__panzoomOff(); svg.__panzoomOff = null; }
+    // Mobile now shows the WHOLE map statically: `prep()` sets `xMidYMid meet`, which fits the
+    // full 1200×760 composition into the full-height panel. The old crop-to-active-grove + touch
+    // pan/zoom OVER-ZOOMED into giant canopies and FLICKERED — mutating the viewBox on every
+    // pointer move re-rasterizes the entire heavy SVG each frame. Disabled entirely; desktop was
+    // always a no-op here anyway (the body below only ever ran under LITE).
+    return;
+    /* eslint-disable no-unreachable */
     if (!LITE) return;
     // start cropped to a legible neighbourhood around the focus point (fallback: map centre)
     const fx = (focus && isFinite(focus.x)) ? focus.x : VB.w / 2;
@@ -3030,8 +3037,10 @@
 
   function showOverview(svg, opts) {
     opts = opts || {};
-    const reduced = !!opts.reduced;
     LITE = (opts.lite != null) ? !!opts.lite : _coarse();
+    // On phones render the forest STATIC (no continuous SMIL/rAF animation): a live ~7k-node
+    // animated SVG janks and flickers on mobile. Desktop (LITE=false) keeps the full living scene.
+    const reduced = !!opts.reduced || LITE;
     prep(svg);
     return fetch('/api/forest').then(r => r.json()).then(c => {
       if (c.empty || !c.groves || !c.groves.length) { empty(svg); return null; }
@@ -3103,8 +3112,10 @@
 
   function showGrove(svg, pillar, opts) {
     opts = opts || {};
-    const reduced = !!opts.reduced;
     LITE = (opts.lite != null) ? !!opts.lite : _coarse();
+    // On phones render the forest STATIC (no continuous SMIL/rAF animation): a live ~7k-node
+    // animated SVG janks and flickers on mobile. Desktop (LITE=false) keeps the full living scene.
+    const reduced = !!opts.reduced || LITE;
     prep(svg);
     return fetch('/api/forest?pillar=' + encodeURIComponent(pillar)).then(r => r.json()).then(c => {
       if (c.empty || !c.concepts) { empty(svg); return null; }
