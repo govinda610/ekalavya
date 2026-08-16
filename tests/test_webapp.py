@@ -299,3 +299,23 @@ def test_settings_get_and_put():
     assert c.get("/api/settings").json()["reduced_motion"] is True   # persisted
     # legacy shape still works
     c.put("/api/settings", json={"death_on_cheat": True, "reduced_motion": False, "guru_voice": True})
+
+
+def test_malformed_json_body_returns_400_not_500():
+    """A garbage/empty JSON body on a PUT/POST must be a clean 400, not a 500-with-traceback."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app(), raise_server_exceptions=False)
+    r = c.put("/api/settings", content=b"{not json", headers={"content-type": "application/json"})
+    assert r.status_code == 400
+    assert r.json().get("error")
+
+
+def test_admin_route_serves_the_spa():
+    """The /admin deep-link (linked from the signup email) must serve the SPA, not 404."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    r = c.get("/admin")
+    assert r.status_code == 200
+    assert "<html" in r.text.lower()

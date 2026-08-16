@@ -164,6 +164,12 @@ def create_app():
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
 
+    @app.exception_handler(json.JSONDecodeError)
+    async def _bad_json(request: Request, exc: json.JSONDecodeError):
+        """A malformed/empty JSON body on any POST/PUT should be a clean 400, not a
+        500-with-traceback. Covers every ``await request.json()`` call site at once."""
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
     # Shared design-system stylesheet (Option E cinematic-forest) — one served file that
     # every screen (SPA, dashboard, journey, profile in their iframes, login) links to.
     _STATIC_DIR = Path(__file__).parent / "static"
@@ -206,6 +212,7 @@ def create_app():
     @app.get("/settings", response_class=HTMLResponse)
     @app.get("/overview", response_class=HTMLResponse)
     @app.get("/leaderboard", response_class=HTMLResponse)
+    @app.get("/admin", response_class=HTMLResponse)
     def spa_view() -> str:
         return _INDEX
 
@@ -770,6 +777,8 @@ def create_app():
 
     @app.post("/api/admin/approve")
     async def admin_approve(request: Request) -> dict:
+        from starlette.concurrency import run_in_threadpool
+
         from . import auth, mailer
 
         _require_admin()
@@ -777,9 +786,11 @@ def create_app():
         ok = auth.approve_user(email)
         if ok:
             # tell the user they're in — best-effort, never blocks the approval.
-            site = config.PUBLIC_URL or "the app"
             where = f"at {config.PUBLIC_URL}" if config.PUBLIC_URL else "at the sign-in page"
-            mailer.send_email(
+            # SMTP is synchronous and can stall on a slow server; run it off the event loop
+            # so it never blocks the single worker.
+            await run_in_threadpool(
+                mailer.send_email,
                 email,
                 "Your Ekalavya account is approved",
                 f"Good news — your Ekalavya account has been approved. "
@@ -889,12 +900,16 @@ def _mount_auth(app) -> None:
             return RedirectResponse(f"/signup?error={quote(str(exc))}", status_code=303)
         if pending:
             # Best-effort: notify the owner that someone is awaiting approval. Never blocks signup.
+            from starlette.concurrency import run_in_threadpool
+
             from . import mailer
 
             if config.ADMIN_EMAIL:
-                where = (f"{config.PUBLIC_URL}/settings (Admin)" if config.PUBLIC_URL
+                where = (f"{config.PUBLIC_URL}/admin" if config.PUBLIC_URL
                          else "the Admin page in the app")
-                mailer.send_email(
+                # SMTP is synchronous and can stall; run it off the event loop.
+                await run_in_threadpool(
+                    mailer.send_email,
                     config.ADMIN_EMAIL,
                     "New Ekalavya signup — awaiting your approval",
                     f"{email.strip().lower()} just signed up and is awaiting your approval.\n\n"
@@ -2935,7 +2950,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   applyMode();
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
-  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog')}[location.pathname];
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog'),'/admin':'admin'}[location.pathname];
   const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
   if(_landing!=='practice') showView(_landing);
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
