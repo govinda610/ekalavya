@@ -277,10 +277,12 @@ def rubric_judge(prompt: str, answer: str, reference: str, rubric: list[dict],
         answer=(answer or "").strip()[:3000], rubric=rubric_txt,
     )
     try:
-        from .providers import build_chat_model
+        from .fallback import build_fallback_chat_model
 
         # temperature=0 for a reproducible, deterministic grade (same answer → same verdict).
-        model = build_chat_model(provider_key, max_tokens=900, temperature=0)
+        # Route through the fallback model so a transient outage on the judge provider fails
+        # over to another configured provider instead of failing the grade.
+        model = build_fallback_chat_model(provider_key, max_tokens=900, temperature=0)
         raw = model.invoke(judge_prompt).text
     except Exception as e:
         return {"score": None, "criteria": [], "model": provider_key, "raw": "",
@@ -326,9 +328,10 @@ def selfcheck(reply: str, context: str = "") -> str | None:
         docs=docs or "(no documentation retrieved)",
     )
     try:
-        from .providers import build_chat_model
+        from .fallback import build_fallback_chat_model
 
-        model = build_chat_model(provider_key, max_tokens=700)
+        # Fail over to another configured provider on a transient outage of the judge provider.
+        model = build_fallback_chat_model(provider_key, max_tokens=700)
         raw = model.invoke(prompt).text
     except Exception:
         return None

@@ -37,7 +37,7 @@ class _FakeModel:
         self._text = text
         self.seen_prompt = None
 
-    def invoke(self, prompt):
+    def invoke(self, prompt, *args, **kwargs):
         self.seen_prompt = prompt
         return type("R", (), {"text": self._text})()
 
@@ -75,6 +75,26 @@ def test_rubric_judge_weighted_fraction_and_reference_reaches_judge(monkeypatch)
     # the REFERENCE and rubric were put in front of the judge (reference-bound).
     assert "homoskedasticity" in cap[0].seen_prompt
     assert "correct sign/direction" in cap[0].seen_prompt
+
+
+def test_rubric_judge_routes_through_fallback_model(monkeypatch):
+    """The judge must be built via fallback.build_fallback_chat_model (temperature=0
+    preserved) so a transient outage of the judge provider fails over."""
+    monkeypatch.setattr(verify, "_judge_provider_key", lambda: "glm")
+    monkeypatch.setattr(verify, "ground_docs", lambda *a, **k: "")
+    seen = {}
+
+    def spy(provider_key=None, *a, **k):
+        seen["provider_key"] = provider_key
+        seen["temperature"] = k.get("temperature")
+        return _FakeModel('{"criteria":[{"id":"direction","verdict":"pass"},'
+                          '{"id":"assumption","verdict":"pass"}]}')
+
+    monkeypatch.setattr("eklavya.fallback.build_fallback_chat_model", spy)
+    res = verify.rubric_judge("q", "a", "ref", RUBRIC, subject="stats")
+    assert res["ok"] is True
+    assert seen.get("provider_key") == "glm"     # judge provider leads
+    assert seen.get("temperature") == 0          # deterministic grade preserved
 
 
 def test_partial_verdict_is_half(monkeypatch):
