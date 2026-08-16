@@ -2949,14 +2949,108 @@
   // to the "you are here" grove's neighbourhood (labels become legible) and wire pinch-zoom +
   // one-finger drag-pan so the learner can explore the rest. Desktop is never touched — this
   // only runs when LITE. Idempotent: re-wiring replaces prior handlers via a stored teardown.
+  // ---- MOBILE CSS-TRANSFORM PAN / ZOOM (GPU-composited, flicker-free) --------
+  // Pans/zooms the whole static map by transforming the <svg> element. One-finger drag pans,
+  // two-finger pinch zooms about the pinch midpoint, double-tap resets. An initial fill-scale
+  // (>1) grows the letterboxed map to eat the dead top/bottom bands while keeping it legible;
+  // panning reveals whatever the fill crops. Phones only (guarded by the LITE caller).
+  function wireCssPanZoom(svg) {
+    const frame = svg.parentNode;                    // .mapframe (the clipping viewport)
+    if (!frame) return;
+    // px size of the SVG box (= the pane); the map is drawn `meet` inside it.
+    function box() { const r = svg.getBoundingClientRect(); return { w: r.width || 1, h: r.height || 1 }; }
+    // The rendered map (meet) occupies a centered band; compute its on-screen size so we can
+    // pick a fill-scale that removes most of the letterbox without hiding the map.
+    function mapAR() { return VB.w / VB.h; }          // ~1.58
+    function fillScale() {
+      const b = box(), pAR = b.w / b.h, mAR = mapAR();
+      // portrait pane (pAR < mAR): meet fits by WIDTH → dead bands top+bottom. Scale up so the
+      // map height ≈ pane height (fills the bands); cap so we never zoom in absurdly.
+      if (pAR < mAR) return Math.min(1.9, mAR / pAR * 0.98);
+      // landscape/short pane: meet fits by HEIGHT → dead bands left+right; scale to fill width.
+      return Math.min(1.9, pAR / mAR * 0.98);
+    }
+    const MIN = 1, MAX = 5;
+    let s = 1, tx = 0, ty = 0;
+    svg.style.transformOrigin = '0 0';
+    svg.style.willChange = 'transform';
+    function clamp() {
+      s = Math.max(MIN, Math.min(MAX, s));
+      const b = box();
+      // keep the (scaled) svg covering the pane: translation stays within [pane - scaled, 0]
+      const maxX = 0, minX = b.w - b.w * s;
+      const maxY = 0, minY = b.h - b.h * s;
+      tx = Math.max(minX, Math.min(maxX, tx));
+      ty = Math.max(minY, Math.min(maxY, ty));
+    }
+    function apply() { clamp(); svg.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + s.toFixed(3) + ')'; }
+    // start at the fill-scale, centered, so there's minimal dead space on load
+    function reset() { s = fillScale(); const b = box(); tx = (b.w - b.w * s) / 2; ty = (b.h - b.h * s) / 2; apply(); }
+    reset();
+    function pt(e, i) { const t = e.touches ? e.touches[i] : e; return { x: t.clientX, y: t.clientY }; }
+    function local(cx, cy) { const r = svg.getBoundingClientRect(); return { x: cx - r.left, y: cy - r.top }; }
+    let drag = null, pinch = null, lastTap = 0;
+    function onStart(e) {
+      if (e.touches && e.touches.length === 2) {
+        const a = pt(e, 0), b = pt(e, 1), m = local((a.x + b.x) / 2, (a.y + b.y) / 2);
+        pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, s: s, mx: m.x, my: m.y, tx: tx, ty: ty };
+        drag = null;
+      } else {
+        const p = pt(e, 0); drag = { sx: p.x, sy: p.y, tx: tx, ty: ty };
+        // double-tap → reset
+        const now = Date.now();
+        if (now - lastTap < 300) { reset(); drag = null; lastTap = 0; e.preventDefault(); return; }
+        lastTap = now;
+      }
+    }
+    function onMove(e) {
+      if (pinch && e.touches && e.touches.length === 2) {
+        const a = pt(e, 0), b = pt(e, 1);
+        const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        const ns = Math.max(MIN, Math.min(MAX, pinch.s * (d / pinch.d)));
+        // zoom about the pinch midpoint: keep that point fixed on screen
+        const k = ns / pinch.s;
+        tx = pinch.mx - (pinch.mx - pinch.tx) * k;
+        ty = pinch.my - (pinch.my - pinch.ty) * k;
+        s = ns;
+        e.preventDefault(); apply();
+      } else if (drag) {
+        const p = pt(e, 0);
+        tx = drag.tx + (p.x - drag.sx);
+        ty = drag.ty + (p.y - drag.sy);
+        e.preventDefault(); apply();
+      }
+    }
+    function onEnd(e) {
+      if (!e.touches || e.touches.length === 0) { drag = null; pinch = null; }
+      else if (e.touches.length === 1) { pinch = null; const p = pt(e, 0); drag = { sx: p.x, sy: p.y, tx: tx, ty: ty }; }
+    }
+    const opt = { passive: false };
+    svg.addEventListener('touchstart', onStart, opt);
+    svg.addEventListener('touchmove', onMove, opt);
+    svg.addEventListener('touchend', onEnd, opt);
+    svg.addEventListener('touchcancel', onEnd, opt);
+    svg.style.touchAction = 'none';
+    const onResize = () => reset();
+    window.addEventListener('resize', onResize);
+    svg.__panzoomOff = function () {
+      svg.removeEventListener('touchstart', onStart, opt);
+      svg.removeEventListener('touchmove', onMove, opt);
+      svg.removeEventListener('touchend', onEnd, opt);
+      svg.removeEventListener('touchcancel', onEnd, opt);
+      window.removeEventListener('resize', onResize);
+      svg.style.touchAction = ''; svg.style.transform = ''; svg.style.transformOrigin = ''; svg.style.willChange = '';
+    };
+  }
+
   function wirePanZoom(svg, focus) {
     if (svg.__panzoomOff) { svg.__panzoomOff(); svg.__panzoomOff = null; }
-    // Mobile now shows the WHOLE map statically: `prep()` sets `xMidYMid meet`, which fits the
-    // full 1200×760 composition into the full-height panel. The old crop-to-active-grove + touch
-    // pan/zoom OVER-ZOOMED into giant canopies and FLICKERED — mutating the viewBox on every
-    // pointer move re-rasterizes the entire heavy SVG each frame. Disabled entirely; desktop was
-    // always a no-op here anyway (the body below only ever ran under LITE).
-    return;
+    // Phones only. The map is rendered ONCE (static, `xMidYMid meet`); we then pan/zoom it with a
+    // GPU-composited CSS transform on the <svg> ELEMENT — translate()/scale() only re-composites
+    // the already-rasterized layer, so it's smooth and never flickers (unlike the old per-move
+    // viewBox mutation, which re-rasterized the whole ~7k-node SVG each frame). Desktop untouched.
+    if (!LITE) { svg.style.transform = ''; return; }
+    return wireCssPanZoom(svg);
     /* eslint-disable no-unreachable */
     if (!LITE) return;
     // start cropped to a legible neighbourhood around the focus point (fallback: map centre)
