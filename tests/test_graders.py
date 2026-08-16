@@ -132,6 +132,32 @@ def test_grade_and_record_subject_records_a_fail_the_model_cannot_fake():
     assert a["correct"] == 0 and a["score"] == 0.0
 
 
+def test_grade_and_record_subject_threads_ai_off():
+    """ai_off must be recorded, not hardcoded: an assisted non-code answer records
+    ai_off=0 so it isn't miscounted as unaided; the default stays ai_off=1."""
+    tools.grade_and_record_subject(
+        "Algebra", "application", "add", answer="7", key="7",
+        answer_type="numeric", confidence=2, subject="maths", ai_off=False)
+    conn = connect()
+    try:
+        assisted = conn.execute(
+            "SELECT ai_off FROM attempts ORDER BY id DESC LIMIT 1").fetchone()["ai_off"]
+    finally:
+        conn.close()
+    assert assisted == 0    # honestly tagged as assisted
+
+    tools.grade_and_record_subject(
+        "Algebra", "application", "add", answer="7", key="7",
+        answer_type="numeric", confidence=2, subject="maths")  # default
+    conn = connect()
+    try:
+        unaided = conn.execute(
+            "SELECT ai_off FROM attempts ORDER BY id DESC LIMIT 1").fetchone()["ai_off"]
+    finally:
+        conn.close()
+    assert unaided == 1    # default is unaided
+
+
 def test_grade_and_record_subject_rejects_non_deterministic_type():
     out = tools.grade_and_record_subject(
         "Proofs", "derivation_proof", "induction", answer="...", key="...",
