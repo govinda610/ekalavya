@@ -1,5 +1,10 @@
 # Deploying Ekalavya
 
+> **The live private instance is documented as-built in [`DEPLOY_RUNBOOK.md`](DEPLOY_RUNBOOK.md)** —
+> refer to that for the running deployment (it uses **nginx + certbot**, `EKLAVYA_DEPLOYED=1`, and the
+> real paths). This file is the generic from-scratch guide; the TLS/proxy section below shows Caddy as
+> one option, but the live box uses **nginx + certbot** instead.
+
 Two ways to run it:
 
 - **Local self-host (open-source, single-user)** — just you, no server. Skip to [Local self-host](#local-self-host).
