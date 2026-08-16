@@ -1,0 +1,2578 @@
+[
+  {
+    "question": "Given an array of integers, return the indices of the two numbers that add up to a specific target (Two Sum).",
+    "topic": "arrays",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an integer array, determine whether any value appears at least twice (Contains Duplicate).",
+    "topic": "arrays",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an array where the i-th element is the price of a stock on day i, find the maximum profit from a single buy-then-sell (Best Time to Buy and Sell Stock).",
+    "topic": "arrays",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given two strings, determine whether one is an anagram of the other (Valid Anagram).",
+    "topic": "strings",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a string of brackets, determine whether the parentheses are validly balanced (Valid Parentheses).",
+    "topic": "stack",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the contiguous subarray with the largest sum in an integer array (Maximum Subarray).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an integer array, return an array where each element is the product of all others without using division (Product of Array Except Self).",
+    "topic": "arrays",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an integer array, find all unique triplets that sum to zero (3Sum).",
+    "topic": "arrays",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a collection of intervals, merge all overlapping intervals (Merge Intervals).",
+    "topic": "intervals",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an array of strings, group the anagrams together (Group Anagrams).",
+    "topic": "strings",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the contiguous subarray with the largest product within an integer array (Maximum Product Subarray).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Search for a target value in a rotated sorted array in O(log n) time (Search in Rotated Sorted Array).",
+    "topic": "binary-search",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Reverse a singly linked list, iteratively and recursively (Reverse Linked List).",
+    "topic": "linked-list",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Determine whether a linked list contains a cycle (Linked List Cycle).",
+    "topic": "linked-list",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given heights of vertical lines, find two that together with the x-axis hold the most water (Container With Most Water).",
+    "topic": "two-pointers",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the minimum element in a rotated sorted array in O(log n) time (Find Minimum in Rotated Sorted Array).",
+    "topic": "binary-search",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the length of the longest substring you can make with the same letter after at most k character replacements (Longest Repeating Character Replacement).",
+    "topic": "strings",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the length of the longest substring without repeating characters (Longest Substring Without Repeating Characters).",
+    "topic": "strings",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a 2D grid of '1's (land) and '0's (water), count the number of islands (Number of Islands).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Remove the n-th node from the end of a singly linked list in one pass (Remove Nth Node From End of List).",
+    "topic": "linked-list",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Count the number of palindromic substrings in a string (Palindromic Substrings).",
+    "topic": "strings",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an m x n matrix of heights, find cells from which water can flow to both the Pacific and Atlantic oceans (Pacific Atlantic Water Flow).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the minimum window substring of s that contains all characters of t (Minimum Window Substring).",
+    "topic": "strings",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Invert a binary tree (Invert Binary Tree).",
+    "topic": "trees",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Determine whether a binary tree is a valid binary search tree (Validate Binary Search Tree).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a set of intervals, find the minimum number to remove so the rest are non-overlapping (Non-overlapping Intervals).",
+    "topic": "intervals",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Construct a binary tree from its preorder and inorder traversal arrays (Construct Binary Tree from Preorder and Inorder Traversal).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Return the k most frequent elements in an integer array (Top K Frequent Elements).",
+    "topic": "heap",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a reference to a node in a connected undirected graph, return a deep copy of the graph (Clone Graph).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given tasks and a cooldown n between identical tasks, find the least time to finish them all (Task Scheduler).",
+    "topic": "greedy",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design an algorithm to serialize and deserialize a binary tree (Serialize and Deserialize Binary Tree).",
+    "topic": "trees",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the maximum path sum in a binary tree, where a path need not pass through the root (Binary Tree Maximum Path Sum).",
+    "topic": "trees",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the maximum depth of a binary tree (Maximum Depth of Binary Tree).",
+    "topic": "trees",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given two binary trees, determine whether they are structurally identical with the same values (Same Tree).",
+    "topic": "trees",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Return the level-order (breadth-first) traversal of a binary tree's node values (Binary Tree Level Order Traversal).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design an algorithm to encode a list of strings into one string and decode it back (Encode and Decode Strings).",
+    "topic": "strings",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given two binary trees, determine whether one is a subtree of the other (Subtree of Another Tree).",
+    "topic": "trees",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the lowest common ancestor of two nodes in a binary search tree (Lowest Common Ancestor of a BST).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Implement a trie (prefix tree) supporting insert, search, and startsWith (Implement Trie).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design a data structure that supports adding words and searching with '.' wildcards (Add and Search Word).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the k-th smallest element in a binary search tree (Kth Smallest Element in a BST).",
+    "topic": "trees",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Merge k sorted linked lists into one sorted list (Merge k Sorted Lists).",
+    "topic": "heap",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design a data structure that supports adding numbers and finding the running median (Find Median from Data Stream).",
+    "topic": "heap",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Insert a new interval into a sorted list of non-overlapping intervals, merging if necessary (Insert Interval).",
+    "topic": "intervals",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the length of the longest consecutive elements sequence in an unsorted array in O(n) (Longest Consecutive Sequence).",
+    "topic": "arrays",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a board of letters and a list of words, find all words present on the board (Word Search II).",
+    "topic": "graphs",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given meeting time intervals, determine whether a person could attend all meetings (Meeting Rooms).",
+    "topic": "intervals",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given meeting time intervals, find the minimum number of conference rooms required (Meeting Rooms II).",
+    "topic": "intervals",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given n nodes and a list of undirected edges, determine whether they form a valid tree (Graph Valid Tree).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Count the number of connected components in an undirected graph (Number of Connected Components in an Undirected Graph).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a sorted dictionary of an alien language, derive the order of its characters (Alien Dictionary).",
+    "topic": "graphs",
+    "difficulty": "hard",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given n stairs and steps of 1 or 2, count the distinct ways to reach the top (Climbing Stairs).",
+    "topic": "dynamic-programming",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given coin denominations and a target amount, find the fewest coins needed to make it (Coin Change).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the length of the longest strictly increasing subsequence in an array (Longest Increasing Subsequence).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given distinct candidates and a target, find all unique combinations that sum to the target (Combination Sum).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given houses in a row with values, find the max you can rob without robbing two adjacent houses (House Robber).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Solve House Robber where the houses are arranged in a circle (House Robber II).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Count the ways to decode a digit string into letters where 'A'->1 ... 'Z'->26 (Decode Ways).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Count the unique paths a robot can take from the top-left to bottom-right of an m x n grid moving only right or down (Unique Paths).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given jump lengths at each index, determine whether you can reach the last index (Jump Game).",
+    "topic": "greedy",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a string and a dictionary, determine whether the string can be segmented into dictionary words (Word Break).",
+    "topic": "dynamic-programming",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Count the number of 1 bits for every integer from 0 to n (Counting Bits).",
+    "topic": "bit-manipulation",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Reverse the bits of a 32-bit unsigned integer (Reverse Bits).",
+    "topic": "bit-manipulation",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an array where every number appears twice except one, find the single number (Number of 1 Bits / Missing Number family: Single Number).",
+    "topic": "bit-manipulation",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an array containing n distinct numbers from 0..n, find the one that is missing (Missing Number).",
+    "topic": "bit-manipulation",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Add two integers without using the + or - operators (Sum of Two Integers).",
+    "topic": "bit-manipulation",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Rotate an n x n matrix 90 degrees clockwise in place (Rotate Image).",
+    "topic": "matrix",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given an m x n matrix, return all its elements in spiral order (Spiral Matrix).",
+    "topic": "matrix",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Set entire rows and columns to zero in place wherever a matrix cell is zero (Set Matrix Zeroes).",
+    "topic": "matrix",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Given a matrix of words, determine whether a given word exists via adjacent cells (Word Search).",
+    "topic": "graphs",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design and implement an LRU (Least Recently Used) cache with O(1) get and put (LRU Cache).",
+    "topic": "design",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Find the number of 1 bits (Hamming weight) in an unsigned integer (Number of 1 Bits).",
+    "topic": "bit-manipulation",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Reorder a linked list so nodes alternate first, last, second, second-last, ... (Reorder List).",
+    "topic": "linked-list",
+    "difficulty": "medium",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Merge two sorted linked lists into one sorted list (Merge Two Sorted Lists).",
+    "topic": "linked-list",
+    "difficulty": "easy",
+    "role": "swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blind75 (Blind 75)"
+  },
+  {
+    "question": "Design a photo-sharing service like Instagram.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a social media news feed like Twitter's timeline.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a video-streaming service like YouTube or Netflix.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a recommendation system for a large content platform.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a link-aggregation and discussion platform like Reddit.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a real-time chat application like WhatsApp or Slack.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a video-conferencing system like Zoom.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a real-time collaborative document editor like Google Docs.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a scalable notification (push/email/SMS) service.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a URL shortening service like TinyURL or Bitly.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a distributed web crawler.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design an API rate limiter.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a distributed in-memory cache like Redis.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a large-scale search engine.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a typeahead / autocomplete suggestion service.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a cloud file-storage and sync service like Dropbox or Google Drive.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a distributed key-value store like DynamoDB.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a unique ID generator for a distributed system (like Twitter Snowflake).",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a text-sharing service like Pastebin.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a ride-sharing service like Uber or Lyft.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a ticketing system like Ticketmaster that handles high-contention bookings.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design an e-commerce platform's product catalog and checkout flow.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a payment system like Stripe, including idempotency and consistency.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a parking-lot management system (object-oriented design).",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "Design a two-sided marketplace like Airbnb.",
+    "topic": "system-design",
+    "difficulty": "hard",
+    "role": "senior-swe",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/system-design-interview-questions-to-crack-your-next-faang-interview"
+  },
+  {
+    "question": "How does machine learning differ from artificial intelligence and from data science?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is overfitting in machine learning, and what techniques can prevent it?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is regularization, and how does it reduce overfitting?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain L1 (Lasso) and L2 (Ridge) regularization and how Elastic Net combines them.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain the confusion matrix and the metrics you can derive from it.",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the difference between precision and recall, and how does the F1 score combine them?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What are Type I and Type II errors, and how do they trade off?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain the AUC-ROC curve and what it tells you about a classifier.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Is accuracy always a good metric for classification? When does it mislead?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is cross-validation, and why is it used?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain k-fold cross-validation, leave-one-out, and the hold-out method.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the difference between regularization, standardization, and normalization?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is feature engineering, and why does it matter?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the difference between feature engineering and feature selection?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Describe common feature-selection techniques (filter, wrapper, embedded).",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is dimensionality reduction, and when would you use PCA?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How do you handle categorical data? Contrast label encoding and one-hot encoding.",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What are upsampling and downsampling, and when do you use them?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain the SMOTE technique for handling class imbalance.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How do you handle missing values and duplicate records in a dataset?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What are outliers, and what strategies exist for detecting and handling them?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is data leakage, and how do you prevent it in a modeling pipeline?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain the bias-variance tradeoff.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is hyperparameter tuning, and how does grid search differ from random search?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "State the assumptions of linear regression.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain gradient descent and its variants (batch, stochastic, mini-batch).",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Why is logistic regression a classification model despite its name, and what role does the sigmoid play?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How do you choose the optimal number of clusters in k-means?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is multicollinearity, why is it a problem, and how do you detect it?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the Variance Inflation Factor, and how do you interpret it?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain information gain and entropy in decision trees.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How do you prevent overfitting in decision trees?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is pruning in decision trees, and why is it useful?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain Naive Bayes and the Bayes' theorem it is built on.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What assumption makes Naive Bayes 'naive', and when does it still work well?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain the difference between generative and discriminative models.",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain how k-nearest neighbors works and why it is called a lazy algorithm.",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How does the choice of k affect the KNN decision boundary?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the curse of dimensionality, and how does it affect distance-based models?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the difference between bagging and boosting?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How does a random forest reduce variance compared to a single decision tree?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "Explain how gradient boosting (e.g. XGBoost) builds an ensemble.",
+    "topic": "ml",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What is the difference between supervised, unsupervised, and reinforcement learning?",
+    "topic": "ml",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How does the support vector machine find its decision boundary, and what is the kernel trick?",
+    "topic": "ml",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "What evaluation approach would you use for a highly imbalanced fraud-detection dataset?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/machine-learning/machine-learning-interview-questions/"
+  },
+  {
+    "question": "How do you diagnose whether a model is suffering from high bias or high variance, and what do you do in each case?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.analyticsvidhya.com/blog/2025/08/bias-variance-tradeoff/"
+  },
+  {
+    "question": "Why does increasing model complexity reduce bias but increase variance?",
+    "topic": "ml",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://www.analyticsvidhya.com/blog/2025/08/bias-variance-tradeoff/"
+  },
+  {
+    "question": "Explain backpropagation and how it computes gradients through a network.",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What are activation functions, and why are non-linear ones necessary?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Compare sigmoid, tanh, and ReLU activation functions.",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is the vanishing gradient problem, and how do RNNs suffer from it?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is the exploding gradient problem, and how do you mitigate it (e.g. gradient clipping)?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What are the main gates in an LSTM cell, and what does each one do?",
+    "topic": "deep-learning",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "How does a GRU differ from an LSTM?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is dropout, and how does it regularize a neural network?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is batch normalization, and why does it help training?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "How does a convolutional layer work, and what are stride, padding, and kernel size?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Why do CNNs use pooling layers, and what do max-pooling and average-pooling do?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is transfer learning, and when is it appropriate?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is the difference between a feedforward network and a recurrent network?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Explain how weight initialization affects deep network training.",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Compare optimizers SGD, Momentum, RMSprop, and Adam.",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is the difference between epochs, batches, and iterations?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "How do you decide the learning rate, and what is a learning-rate schedule?",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What is data augmentation, and why is it useful for image models?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "What causes a neural network to underfit, and how do you fix it?",
+    "topic": "deep-learning",
+    "difficulty": "easy",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Explain the difference between L2 regularization and dropout as regularizers.",
+    "topic": "deep-learning",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "https://github.com/youssefHosni/Data-Science-Interview-Questions-Answers (Deep Learning)"
+  },
+  {
+    "question": "Explain the Transformer architecture and how it processes a sequence.",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Explain the self-attention mechanism and the roles of query, key, and value.",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is multi-head attention, and why is it used instead of single-head attention?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is tokenization, and how do subword schemes like BPE affect an LLM?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do positional encodings work, and why are they needed in transformers?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Contrast encoder-only, decoder-only, and encoder-decoder transformer architectures.",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the difference between pre-training and fine-tuning an LLM?",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is supervised fine-tuning (SFT), and when do you use it?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Explain RLHF (reinforcement learning from human feedback) and its purpose.",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is LoRA, and how does it enable parameter-efficient fine-tuning?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "When would you choose QLoRA over full fine-tuning?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is PEFT, and what techniques does it include?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is chain-of-thought prompting, and when does it help?",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Explain the difference between zero-shot and few-shot prompting.",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What are system prompts, and how do they differ from user prompts?",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What prompting strategies help reduce hallucinations?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What are vector embeddings, and how are they used in semantic search?",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What similarity metrics are used in vector search, and how do you choose one?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the difference between sparse and dense retrieval?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What metrics do you use to evaluate free-form LLM outputs?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do you detect hallucinations in LLM outputs?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do you evaluate bias in a language model?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Name common LLM benchmarks and what each measures.",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is model quantization, and why would you quantize an LLM?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the difference between INT8 and FP16 quantization?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the KV cache, and why does it matter for inference latency?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What techniques reduce LLM inference latency?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What are vLLM and TensorRT-LLM, and when would you use each?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do you scale LLM serving for production traffic?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What are AI guardrails, and how do you implement them?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is a prompt-injection attack, and how do you defend against it?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is LLM red-teaming, and why is it important?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is function calling / tool use in LLMs, and how does it work?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do reasoning models differ from standard LLMs?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do multimodal models process and align different input types?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the temperature parameter, and how does it affect sampling?",
+    "topic": "llm",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Explain top-k and top-p (nucleus) sampling.",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is a context window, and what are the challenges of long contexts?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the difference between greedy decoding and beam search?",
+    "topic": "llm",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is catastrophic forgetting during fine-tuning, and how do you mitigate it?",
+    "topic": "llm",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "Explain the main components of a RAG system and how they work together.",
+    "topic": "rag",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What are the benefits of RAG over relying only on an LLM's internal knowledge?",
+    "topic": "rag",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What are common applications of retrieval-augmented generation?",
+    "topic": "rag",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What types of external knowledge sources can a RAG system use?",
+    "topic": "rag",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How does the retriever work in a RAG system, and what are common retrieval methods?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What is the role of a vector database in a RAG pipeline?",
+    "topic": "rag",
+    "difficulty": "easy",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What are common ways to evaluate a RAG system?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you handle ambiguous or incomplete queries in a RAG system?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you choose the right retriever for a RAG application?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "Describe hybrid search and when it outperforms pure dense retrieval.",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "Do you strictly need a vector database to implement RAG? What are the alternatives?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you ensure retrieved passages are relevant and accurate?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What techniques handle very long documents or large knowledge bases in RAG?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How does a RAG system maintain context across a multi-turn conversation?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "Compare different chunking strategies and their pros and cons.",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What are the trade-offs between larger and smaller chunks in RAG?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What is late chunking, and how does it differ from traditional chunking?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How can you address bias in retrieved information or in the LLM's generation within a RAG system?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you handle a dynamic or frequently changing knowledge base in RAG?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How can you reduce latency in a real-time RAG system without sacrificing accuracy?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How would you evaluate and improve a RAG system in a production environment?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you make a production RAG system robust to failures and unexpected inputs?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How would you design a RAG system for a specific task such as question answering or summarization?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you handle out-of-date or irrelevant information in a fast-changing domain?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you balance retrieval relevance and diversity for comprehensive responses?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you keep the generated output consistent with the retrieved evidence?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do you ensure data privacy and security in a RAG system handling sensitive data?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "What is a reranker, and how does it improve retrieval quality in RAG?",
+    "topic": "rag",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How would you design an agentic RAG system that can decide when to retrieve?",
+    "topic": "rag",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/rag-interview-questions"
+  },
+  {
+    "question": "How do AI agents work, and what are their key components (planning, memory, tools)?",
+    "topic": "agents",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the ReAct pattern, and how does it combine reasoning and acting in an agent?",
+    "topic": "agents",
+    "difficulty": "medium",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How do you evaluate a multi-step agent, and what failure modes do you watch for?",
+    "topic": "agents",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "How would you design a multi-agent orchestration system, and when is it better than a single agent?",
+    "topic": "agents",
+    "difficulty": "hard",
+    "role": "ai-engineer",
+    "company": "",
+    "source": "https://amirteymoori.com/ai-llm-engineer-interview-questions-2025/"
+  },
+  {
+    "question": "What is the probability of rolling a 6 on a fair six-sided die, and how do you generalize to k rolls?",
+    "topic": "statistics",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Calculate the expected value of a fair coin flip and explain what expected value means.",
+    "topic": "statistics",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain simple random sampling and why it matters.",
+    "topic": "statistics",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "State the Central Limit Theorem and explain its significance in inference.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is a p-value, and how is it used in hypothesis testing?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Given two events A and B, how do you compute the conditional probability P(A|B)?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain Bayesian probability and give a data-science application.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is a 95% confidence interval, and how do you interpret it correctly?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Describe the sampling distribution of the sample mean.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "How do you compute a z-score, and what does it represent?",
+    "topic": "statistics",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Compare and contrast the Poisson and Binomial distributions.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is the difference between Type I and Type II errors?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain maximum likelihood estimation with an example.",
+    "topic": "statistics",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is covariance, and how does it differ from correlation?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain stratified sampling and its advantages over simple random sampling.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "How does Monte Carlo simulation work, and where is it applied?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain bootstrapping and how it estimates the variability of a statistic.",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What are AR and MA models in time-series analysis?",
+    "topic": "statistics",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is the multiple-comparisons problem, and how do you control the family-wise error rate?",
+    "topic": "statistics",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is the law of large numbers, and how does it differ from the Central Limit Theorem?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "A/B test: how do you determine the required sample size and decide when a result is significant?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "What is statistical power, and what factors influence it?",
+    "topic": "statistics",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Explain the difference between correlation and causation with an example.",
+    "topic": "statistics",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "https://datalemur.com/blog/statistics-interview-questions-data-science"
+  },
+  {
+    "question": "Write a SQL query to find the second-highest salary from an Employees table without using LIMIT or TOP.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Write a SQL query to find the N-th highest salary per department using a window function.",
+    "topic": "sql",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between INNER JOIN, LEFT JOIN, RIGHT JOIN, and FULL OUTER JOIN?",
+    "topic": "sql",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between WHERE and HAVING clauses?",
+    "topic": "sql",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between RANK(), DENSE_RANK(), and ROW_NUMBER()?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Write a query to find duplicate rows in a table and delete all but one of each.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between UNION and UNION ALL?",
+    "topic": "sql",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Explain the difference between a correlated and a non-correlated subquery.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is a Common Table Expression (CTE), and when is a recursive CTE useful?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Write a query to compute a running total using a window function.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between DELETE, TRUNCATE, and DROP?",
+    "topic": "sql",
+    "difficulty": "easy",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Explain database normalization and the trade-offs of denormalization.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What are database indexes, and how do they speed up (and slow down) queries?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between a clustered and a non-clustered index?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "How do NULL values behave in comparisons, aggregates, and joins?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Write a query to find, for each customer, their most recent order.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Explain ACID properties in the context of database transactions.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is a self-join, and give an example use case.",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "How would you find the top 3 products by revenue in each category using SQL?",
+    "topic": "sql",
+    "difficulty": "hard",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "What is the difference between GROUP BY and PARTITION BY?",
+    "topic": "sql",
+    "difficulty": "medium",
+    "role": "data-scientist",
+    "company": "",
+    "source": "Common SQL interview questions (GeeksforGeeks / DataLemur SQL lists)"
+  },
+  {
+    "question": "Describe a time when you went above and beyond to ensure a customer was satisfied.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Describe a project where you took full ownership from start to finish. What were the results?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you came up with a creative solution to a complex problem. How did it simplify the situation?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Give me an example of a difficult decision you made that turned out to be correct. How did you reach it?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "How do you stay up to date with industry trends and continuously learn in your field?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you identified and developed talent within your team.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a project where you set and maintained high standards for quality.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Describe a time you set ambitious goals and achieved them. What was your thought process?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Give me an example of a time you took action without waiting for direction. What was the outcome?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you had to disagree with your team, and how you drove alignment and commitment.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you dug deep into a problem to uncover the root cause. What did you find?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Describe a challenging project with a tight deadline and how you ensured successful delivery.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you had to rebuild trust with a colleague or client.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you had to make short-term sacrifices for long-term gains.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you made a bold and difficult decision.",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about a time you failed. What did you learn, and what would you do differently?",
+    "topic": "behavioral",
+    "difficulty": "medium",
+    "role": "",
+    "company": "Amazon",
+    "source": "https://datalemur.com/blog/amazon-behavioral-interview"
+  },
+  {
+    "question": "Tell me about yourself and walk me through your background.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about a time you had a conflict with a coworker and how you resolved it.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Describe a time you received difficult feedback and how you responded to it.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about a project you are most proud of and your specific contribution.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Describe a time you had to persuade stakeholders to adopt your technical approach.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about a time you missed a deadline. What happened and what did you learn?",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Describe a situation where you had to learn a new technology quickly to deliver.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about a time you had to prioritize among many competing tasks.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Describe a time you disagreed with your manager. How did you handle it?",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about the most technically challenging problem you have solved.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Why do you want to work here, and why this role?",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Where do you see yourself in five years?",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Tell me about a time you mentored someone or helped a teammate grow.",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Describe a time you made a mistake in production. How did you handle it?",
+    "topic": "behavioral",
+    "difficulty": "easy",
+    "role": "",
+    "company": "",
+    "source": "Common behavioral interview questions (STAR method guides)"
+  },
+  {
+    "question": "Design a recommendation system for an e-commerce product feed. Discuss candidate generation, ranking, and cold start.",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design the ML system for a news-feed ranking model. How would you define labels and features?",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design a real-time fraud-detection system. How do you handle latency, class imbalance, and concept drift?",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design an image-search / visual similarity system using embeddings.",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "How would you design an A/B testing framework to evaluate a new ranking model?",
+    "topic": "ml-system-design",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design a system to detect and monitor model drift in production.",
+    "topic": "ml-system-design",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "How would you serve a large model with low latency at high QPS?",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design a feature store, and explain why online/offline consistency matters.",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "How would you build a spam / abuse classification pipeline that adapts to adversaries?",
+    "topic": "ml-system-design",
+    "difficulty": "hard",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Design an end-to-end ML pipeline from data ingestion to monitoring for a churn-prediction model.",
+    "topic": "ml-system-design",
+    "difficulty": "medium",
+    "role": "ml-engineer",
+    "company": "",
+    "source": "Common ML system design interview questions (ML-engineer guides)"
+  }
+]
