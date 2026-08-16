@@ -1579,6 +1579,11 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 #mnav .ni{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-family:var(--f-mono);font-size:10px;
  letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;
  padding:6px 8px;min-width:56px;min-height:48px}
+/* #6 — with 8 nav items the labels truncate on a phone. Below the common breakpoints, shrink the
+   per-item footprint (smaller label, tighter padding, no min-width) so all 8 fit without clipping;
+   under 360px drop to icons-only (label hidden) but keep a ≥44px tap height. */
+@media(max-width:430px){#mnav{padding:8px 4px 12px}#mnav .ni{min-width:0;padding:6px 3px;font-size:9px;letter-spacing:.02em;gap:3px}}
+@media(max-width:360px){#mnav .ni .nlabel{display:none}#mnav .ni{min-height:46px}}
 #mnav .ni.on{color:var(--gold-bright)}
 #mnav .ni.center{margin-top:-24px}
 #mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
@@ -1601,8 +1606,38 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
  .edtoolbar select{padding:14px 10px}
  .seg span{padding:14px 12px}
  .edtoolbar button{padding-top:12px;padding-bottom:12px}
+ /* #4 — the editor-only header controls + the XP HUD only make sense in the Arena. On every
+    OTHER SPA view (forest/overview/leaderboard/profile/library/settings/admin) they wasted
+    ~200px of precious phone height, so hide them there and let the view own the screen. The
+    EKALAVYA brand stays as a slim identity bar. */
+ body:not([data-view="practice"]) #chatsbtn,
+ body:not([data-view="practice"]) #edtoggle,
+ body:not([data-view="practice"]) #penaltybtn,
+ body:not([data-view="practice"]) .timerwrap,
+ body:not([data-view="practice"]) #wrapbtn,
+ body:not([data-view="practice"]) #hud{display:none}
+ /* #1 — the Forest gets a full-height pane: no header chrome above it (per the rule above), and
+    the map fills the viewport minus the bottom nav so it's actually usable, not a thin strip. */
+ body[data-view="tree"] header{padding:8px 14px}
+ body[data-view="tree"] #tree{min-height:calc(100vh - 118px)}
+ .mapframe{touch-action:none}            /* let forest2d's pinch/pan own the gesture */
 }
-</style></head><body>
+/* #5 — LANDSCAPE phones (short viewport): header + toolbar + input + nav ate the whole height,
+   pushing the editor/chat off-screen. Collapse the header to ONE compact row and trim vertical
+   padding so the Arena body keeps the remaining height. */
+@media(max-height:480px) and (max-width:1000px){
+ header{flex-wrap:nowrap;overflow-x:auto;padding:5px 10px;gap:7px;-webkit-overflow-scrolling:touch}
+ header>*{flex:0 0 auto}
+ .creed{display:none}
+ .tab,#chatsbtn,#penaltybtn,.timerwrap>button,#wrapbtn{padding:8px 10px;min-height:38px}
+ .hud{font-size:10px;gap:6px}
+ #mnav{padding:3px 8px 4px}
+ #mnav .ni{min-height:38px;padding:3px 6px;font-size:9px}
+ #mnav .ni.center{margin-top:-14px}
+ #mnav .ni.center .orb{width:40px;height:40px}
+ .resumebar{display:none}   /* reclaim the optional résumé-upload row for the editor/chat in landscape */
+}
+</style></head><body data-view="practice">
 <header>
   <div class="brand"><div class="logo"><span class="bowmark"><svg width="18" height="23" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
   <div class="spacer"></div>
@@ -1737,14 +1772,14 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   </div>
 </main>
 <nav id="mnav" aria-label="Sections">
-  <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Progress</button>
-  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
-  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
-  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
-  <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg>Board</button>
-  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
-  <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg>Profile</button>
-  <button class="ni mnav-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg>Admin</button>
+  <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg><span class="nlabel">Progress</span></button>
+  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Forest</span></button>
+  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span class="nlabel" style="margin-top:2px">Practice</span></button>
+  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg><span class="nlabel">Library</span></button>
+  <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Board</span></button>
+  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Settings</span></button>
+  <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Profile</span></button>
+  <button class="ni mnav-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Admin</span></button>
 </nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
@@ -1827,6 +1862,9 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 function showView(v){
   const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block',leaderboard:'block',admin:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
+  // Mark the active rail on <body> so CSS can (on mobile) hide the editor-only header controls
+  // + the XP HUD on non-Arena views, reclaiming ~200px, and give the Forest a full-height pane.
+  document.body.setAttribute('data-view', v);
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
@@ -2957,7 +2995,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   // reduced-motion at boot: honour the OS media query immediately, then OR-in the saved setting
   // (so the celebratory/ambient keyframes are quieted before the first celebration, not only
   // after the Settings screen is opened).
-  applyReducedMotion(false);
+  applyReducedMotion(_osReduceMotion());
   fetch('/api/settings').then(r=>r.json()).then(s=>applyReducedMotion(s.reduced_motion)).catch(()=>{});
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   // Leaderboard is a DEPLOYED (multi-user) feature — reveal its nav entries + prime the

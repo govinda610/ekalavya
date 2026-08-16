@@ -110,6 +110,18 @@
 
   const VB = { w: 1200, h: 760 };  // logical canvas (matches ref aspect ~1.58)
 
+  // ---- MOBILE LITE MODE ------------------------------------------------------
+  // On phones the full map builds ~11k DOM nodes + hundreds of SMIL animations (creatures,
+  // monkeys, mist, drifting life) — far too heavy for a coarse-pointer device, independent of
+  // reduced-motion. When LITE is on we skip the pure-ambience generators (creatures/fauna,
+  // mist ribbons, drifting fireflies/birds) and cap god-ray/foliage detail, keeping the groves,
+  // path, temple, labels and HUD — everything the map is actually FOR. Set per-render from opts.
+  let LITE = false;
+  function _coarse() {
+    try { return (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth < 820; }
+    catch (e) { return window.innerWidth < 820; }
+  }
+
   // ============================================================================
   // LAYOUT — a SWITCHBACK trail climbing from a foreground ENTRANCE (bottom) up to
   // the TEMPLE (top center). Nodes are placed on serpentine rows (boustrophedon) so
@@ -791,6 +803,7 @@
   }
 
   function paintMist(g, reduced) {
+    if (LITE) return;                          // ambience-only: skip on phones
     for (let i = 0; i < 4; i++) {
       const y = 250 + i * 42, w = 420 + i * 90, x = (i % 2 ? VB.w * 0.32 : VB.w * 0.66);
       const m = el('ellipse', { cx: x, cy: y, rx: w, ry: 44, fill: 'url(#mistG)', opacity: 0.5 }, g);
@@ -1742,9 +1755,11 @@
       // finer, denser lattice far away (small trees) → coarser near (big trees fill more).
       // Grid loosened a step (fewer rows/cols) — with the bigger-radius, lower-lobe trees the
       // canopy still reads fully even; this is the biggest single DOM-count reduction.
-      const rowStep = lerp(44, 66, near);
-      const cols = Math.round(lerp(10, 6, near));
-      const skip = lerp(0.1, 0.24, near);               // fewer gaps up top
+      // LITE (phones): a much coarser lattice — bigger row spacing, fewer columns, more gaps —
+      // so the canopy still frames the map but the tree-node count drops ~3-4x.
+      const rowStep = LITE ? lerp(78, 108, near) : lerp(44, 66, near);
+      const cols = LITE ? Math.round(lerp(5, 3, near)) : Math.round(lerp(10, 6, near));
+      const skip = LITE ? lerp(0.28, 0.44, near) : lerp(0.1, 0.24, near);               // fewer gaps up top
       const inset = lerp(2, 56, 1 - near);              // still plant out to the frame edges
       for (let c = 0; c <= cols; c++) {
         if (gr() < skip) continue;
@@ -1833,6 +1848,7 @@
   // under the grove nodes (nodes are painted after) so creatures never cover a label.
   // ============================================================================
   function paintCreatures(g, pts, temple, reduced, ponds, groves) {
+    if (LITE) return;                          // ~90 fauna groups + animations: skip on phones
     if (!pts || !pts.length) return;
     const layer = el('g', {}, g);
     const r = rng('critters');
@@ -2405,6 +2421,12 @@
     const grp = el('g', { transform: 'translate(' + pt.x + ',' + pt.y + ') scale(' + s.toFixed(2) + ')', class: 'grove ' + st }, g);
     grp._pillar = grove.pillar;
     if (opts.onClick && st !== 'locked') { grp.style.cursor = 'pointer'; grp.setAttribute('tabindex', '0'); }
+    // Phone tap-target: an invisible hit-circle sized so the grove is comfortably ≥44px even in
+    // the cropped mobile viewBox (grp scale can shrink far groves below a thumb). Counter-scaled
+    // so it's a constant ~92 viewBox-unit hit no matter the node's own scale.
+    if (LITE && opts.onClick && st !== 'locked') {
+      el('circle', { cx: 0, cy: -6, r: 46 / (s || 1), fill: 'transparent', 'pointer-events': 'all', class: 'g-hit' }, grp);
+    }
     // inner wrapper — the part that gently blooms/scales on hover (position stays on grp)
     const inner = el('g', { class: 'g-inner' }, grp);
 
@@ -2734,6 +2756,7 @@
   // LIFE — fireflies, birds, player avatar (all reduced-motion aware)
   // ============================================================================
   function paintLife(g, pts, activeIdx, reduced) {
+    if (LITE) return;                          // fireflies/birds ambience: skip on phones
     // fireflies clustered near the path & light — denser, varied size/colour/flicker
     const r = rng('flies'); const ff = el('g', {}, g);
     for (let i = 0; i < 40; i++) {   // 40 (was 54); each a pre-baked halo+core, no live-blur FILTER
@@ -2919,6 +2942,83 @@
     while (svg.firstChild) svg.removeChild(svg.firstChild);
   }
 
+  // ---- MOBILE PAN / ZOOM + AUTO-FOCUS ---------------------------------------
+  // On phones the whole 1200×760 map letterboxes to an unreadable strip. We crop the viewBox
+  // to the "you are here" grove's neighbourhood (labels become legible) and wire pinch-zoom +
+  // one-finger drag-pan so the learner can explore the rest. Desktop is never touched — this
+  // only runs when LITE. Idempotent: re-wiring replaces prior handlers via a stored teardown.
+  function wirePanZoom(svg, focus) {
+    if (svg.__panzoomOff) { svg.__panzoomOff(); svg.__panzoomOff = null; }
+    if (!LITE) return;
+    // start cropped to a legible neighbourhood around the focus point (fallback: map centre)
+    const fx = (focus && isFinite(focus.x)) ? focus.x : VB.w / 2;
+    const fy = (focus && isFinite(focus.y)) ? focus.y : VB.h / 2;
+    // fit the crop to the panel's aspect so there's no letterbox; ~54% of the map wide.
+    const rect = svg.getBoundingClientRect();
+    const panelAR = (rect.width && rect.height) ? rect.width / rect.height : 0.62;
+    let vw = VB.w * 0.56;
+    let vh = vw / panelAR;
+    if (vh > VB.h) { vh = VB.h; vw = vh * panelAR; }
+    const vb = { x: fx - vw / 2, y: fy - vh / 2, w: vw, h: vh };
+    const MINW = VB.w * 0.24, MAXW = VB.w;     // zoom bounds (in viewBox units)
+    function clamp() {
+      vb.w = Math.max(MINW, Math.min(MAXW, vb.w));
+      vb.h = vb.w / panelAR;
+      if (vb.h > VB.h) { vb.h = VB.h; vb.w = vb.h * panelAR; }
+      vb.x = Math.max(-40, Math.min(VB.w + 40 - vb.w, vb.x));
+      vb.y = Math.max(-40, Math.min(VB.h + 40 - vb.h, vb.y));
+    }
+    function apply() { clamp(); svg.setAttribute('viewBox', vb.x.toFixed(1) + ' ' + vb.y.toFixed(1) + ' ' + vb.w.toFixed(1) + ' ' + vb.h.toFixed(1)); }
+    apply();
+    // px→viewBox unit scale
+    function u() { const r = svg.getBoundingClientRect(); return vb.w / (r.width || 1); }
+    let drag = null, pinch = null;
+    function pt(e, i) { const t = e.touches ? e.touches[i] : e; return { x: t.clientX, y: t.clientY }; }
+    function onStart(e) {
+      if (e.touches && e.touches.length === 2) {
+        const a = pt(e, 0), b = pt(e, 1);
+        pinch = { d: Math.hypot(a.x - b.x, a.y - b.y), w: vb.w, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, x: vb.x, y: vb.y };
+        drag = null;
+      } else {
+        const p = pt(e, 0); drag = { sx: p.x, sy: p.y, x: vb.x, y: vb.y };
+      }
+    }
+    function onMove(e) {
+      if (pinch && e.touches && e.touches.length === 2) {
+        const a = pt(e, 0), b = pt(e, 1);
+        const d = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+        vb.w = pinch.w * (pinch.d / d);         // fingers apart → smaller viewBox → zoom in
+        clamp();
+        e.preventDefault();
+        apply();
+      } else if (drag) {
+        const p = pt(e, 0), s = u();
+        vb.x = drag.x - (p.x - drag.sx) * s;
+        vb.y = drag.y - (p.y - drag.sy) * s;
+        e.preventDefault();
+        apply();
+      }
+    }
+    function onEnd(e) { if (!e.touches || e.touches.length === 0) { drag = null; pinch = null; } else if (e.touches.length === 1) { pinch = null; const p = pt(e, 0); drag = { sx: p.x, sy: p.y, x: vb.x, y: vb.y }; } }
+    // wheel/trackpad zoom (also helps desktop debugging but only wired under LITE)
+    function onWheel(e) { e.preventDefault(); const f = e.deltaY > 0 ? 1.12 : 0.89; vb.w *= f; apply(); }
+    const opt = { passive: false };
+    svg.addEventListener('touchstart', onStart, opt);
+    svg.addEventListener('touchmove', onMove, opt);
+    svg.addEventListener('touchend', onEnd, opt);
+    svg.addEventListener('touchcancel', onEnd, opt);
+    svg.addEventListener('wheel', onWheel, opt);
+    svg.style.touchAction = 'none';
+    svg.__panzoomOff = function () {
+      svg.removeEventListener('touchstart', onStart, opt);
+      svg.removeEventListener('touchmove', onMove, opt);
+      svg.removeEventListener('touchend', onEnd, opt);
+      svg.removeEventListener('touchcancel', onEnd, opt);
+      svg.removeEventListener('wheel', onWheel, opt);
+      svg.style.touchAction = '';
+    };
+  }
+
   function empty(svg, msg) {
     prep(svg);
     defs(svg, true);
@@ -2931,6 +3031,7 @@
   function showOverview(svg, opts) {
     opts = opts || {};
     const reduced = !!opts.reduced;
+    LITE = (opts.lite != null) ? !!opts.lite : _coarse();
     prep(svg);
     return fetch('/api/forest').then(r => r.json()).then(c => {
       if (c.empty || !c.groves || !c.groves.length) { empty(svg); return null; }
@@ -2990,6 +3091,8 @@
       wireHover(svg);
       wireCreatureProximity(svg, reduced);
       wireVisibilityPause(svg, reduced);
+      // phones: crop the viewBox to the active grove + enable pinch-zoom / drag-pan.
+      wirePanZoom(svg, pts[nextIdx >= 0 ? nextIdx : activeIdx] || pts[activeIdx]);
       _lastSvg = svg;
       if (reduced) svg.classList.add('reduced');
       // one-time milestone flourish: if the caller names a freshly-mastered grove, celebrate it.
@@ -3001,6 +3104,7 @@
   function showGrove(svg, pillar, opts) {
     opts = opts || {};
     const reduced = !!opts.reduced;
+    LITE = (opts.lite != null) ? !!opts.lite : _coarse();
     prep(svg);
     return fetch('/api/forest?pillar=' + encodeURIComponent(pillar)).then(r => r.json()).then(c => {
       if (c.empty || !c.concepts) { empty(svg); return null; }
@@ -3059,6 +3163,7 @@
       wireHover(svg);
       wireCreatureProximity(svg, reduced);
       wireVisibilityPause(svg, reduced);
+      wirePanZoom(svg, pts[nextIdx >= 0 ? nextIdx : activeIdx] || pts[activeIdx]);
       _lastSvg = svg;
       if (reduced) svg.classList.add('reduced');
       if (opts.celebrateConcept) setTimeout(() => celebrate(opts.celebrateConcept, { svg: svg }), 260);
