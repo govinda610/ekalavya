@@ -631,6 +631,7 @@ def grade_and_record_subject(
     subject: str = DEFAULT_SUBJECT,
     tolerance: str = "",
     seconds: float = 0.0,
+    ai_off: bool = True,
 ) -> str:
     """Grade a NON-CODE drill deterministically and record the VERIFIED result — the
     tamper-proof, subject-aware generalisation of grade_and_record (plan §5.5).
@@ -645,6 +646,9 @@ def grade_and_record_subject(
     - answer_type: numeric | symbolic | units | choice.
     - tolerance:   optional JSON for numeric, e.g. '{"abs": 0.01}' or '{"rel": 0.02}'.
     - subject:     registry key (maths/stats/ml/...); axis a CORE axis or subject extension.
+    - ai_off:      True when they solved it UNAIDED; pass ai_off=False if they told you they
+                   used AI or looked the answer up, so an assisted answer isn't miscounted as
+                   unaided in the unassisted-vs-assisted tracking. It never penalises them.
     For code drills use grade_and_record (sandbox) instead.
     """
     from . import graders
@@ -660,7 +664,7 @@ def grade_and_record_subject(
         return f"grading error: {e}"
     verdict = "PASS ✓" if res.score >= PASS_THRESHOLD else "FAIL ✗"
     summary = record_attempt(pillar, axis, concept, confidence, res.score >= PASS_THRESHOLD,
-                             seconds, ai_off=True, subject=subject, score=res.score,
+                             seconds, ai_off=ai_off, subject=subject, score=res.score,
                              answer_type=atype)
     return _clip(f"{verdict} ({atype} grader, deterministic: {res.detail})\n\n{summary}")
 

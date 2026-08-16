@@ -14,7 +14,11 @@ _BASE_K = 24.0
 _TARGET = 0.65
 
 # Confidence 1/2/3 → the success probability the learner is implicitly claiming.
-_CONFIDENCE_P = {1: 0.25, 2: 0.6, 3: 0.9}
+# SINGLE SOURCE OF TRUTH for this map: the Elo-surprise update (here) and the
+# calibration Brier score (progress.calibration) must read the SAME probabilities,
+# or a "surprise" and a "miscalibration" would disagree for the identical attempt.
+CONFIDENCE_P = {1: 0.25, 2: 0.6, 3: 0.9}
+_CONFIDENCE_P = CONFIDENCE_P  # backward-compatible internal alias
 
 
 def update_elo(current: float, correct: bool | float, confidence: int = 2) -> float:

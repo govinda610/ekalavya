@@ -16,7 +16,7 @@ class _FakeModel:
         self._text = text
         self.seen_prompt = None
 
-    def invoke(self, prompt):
+    def invoke(self, prompt, *args, **kwargs):
         self.seen_prompt = prompt  # capture, so tests can assert context/docs were passed
         return type("R", (), {"text": self._text})()
 
@@ -54,6 +54,22 @@ def test_selfcheck_flags_a_clear_error(monkeypatch):
     monkeypatch.setattr("eklavya.providers.build_chat_model", lambda *a, **k: fake)
     note = verify.selfcheck("A long technical explanation. " * 12)
     assert note is not None and "Self-check" in note and "len()" in note
+
+
+def test_selfcheck_routes_through_fallback_model(monkeypatch):
+    """selfcheck must build the model via fallback.build_fallback_chat_model so a
+    transient outage of the judge provider fails over instead of failing the check."""
+    monkeypatch.setenv("EKLAVYA_VERIFY", "1")
+    monkeypatch.setattr(verify, "_judge_provider_key", lambda: "glm")
+    seen = {}
+
+    def spy(provider_key=None, *a, **k):
+        seen["provider_key"] = provider_key
+        return _FakeModel('{"verdict":"ok","issues":[]}')
+
+    monkeypatch.setattr("eklavya.fallback.build_fallback_chat_model", spy)
+    verify.selfcheck("A long technical explanation. " * 12)
+    assert seen.get("provider_key") == "glm"   # judge provider leads, with failover behind it
 
 
 def test_selfcheck_ok_returns_none(monkeypatch):

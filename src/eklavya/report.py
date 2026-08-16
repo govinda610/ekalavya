@@ -106,11 +106,21 @@ def due_count() -> int:
 
 
 def is_first_run() -> bool:
-    """True when Ekalavya has no ratings yet — i.e. the learner hasn't onboarded
-    to Ekalavya (keyed off our own state, not a shared teacher-mode profile)."""
+    """True until onboarding has actually COMPLETED — keyed off our own completion
+    artifact, not a shared teacher-mode profile.
+
+    Onboarding is done only when BOTH exist: at least one graded rating AND the
+    profile.md the tutor writes at the end of onboarding. Gating on ratings alone
+    left a hole: a learner who got one graded rating but never finished onboarding
+    (no profile.md) would permanently skip onboarding. Requiring the completion
+    artifact closes that hole.
+    """
+    from . import config
     from .db import connect, schema_version
 
     if schema_version() is None:
+        return True
+    if not config.paths().profile.exists():
         return True
     conn = connect()
     try:
@@ -705,6 +715,22 @@ def with_session_context(text: str) -> str:
     return f"{head}\n\n{text}" if (text and text.strip()) else head
 
 
+def mastered_groves() -> int:
+    """How many groves are fully MASTERED — the same 'blossoming' count the forest map
+    shows (every concept in the grove has a correct attempt).
+
+    Single source of truth for the Overview headline so it can't diverge from the forest.
+    The active grove is a rendering overlay only; a grove that IS blossoming still counts
+    even while it's the current focus (forest_map relabels it 'active'), so we read the
+    underlying status via `done == total`, which is what 'blossoming' means.
+    """
+    fm = forest_map()
+    if fm.get("empty"):
+        return 0
+    return sum(1 for g in fm.get("groves", [])
+               if g.get("total", 0) > 0 and g.get("done", 0) == g["total"])
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),
@@ -713,4 +739,5 @@ def overview() -> dict:
         "sessions": recent_sessions(),
         "due": due_count(),
         "ai_gap": ai_gap(),
+        "mastered_groves": mastered_groves(),
     }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from pathlib import Path
 
@@ -9,6 +10,28 @@ from .. import config
 
 SCHEMA = Path(__file__).with_name("schema.sql")
 SCHEMA_VERSION = "2"
+
+_log = logging.getLogger(__name__)
+
+
+def _optional_step(conn: sqlite3.Connection, name: str, fn) -> None:
+    """Run an OPTIONAL migration/seed step defensively.
+
+    A failing optional step (subject-framework rebuild, pillar-order backfill,
+    benchmark seed) must never hard-lock a deployed user out of the app: it runs on
+    every login via init_db, so an exception here would fail EVERY login. Instead we
+    roll back that step's partial writes, log it, and let the app serve DEGRADED — the
+    core additive schema is already in place. A savepoint isolates the rollback so a
+    prior step's committed-in-transaction work is preserved.
+    """
+    conn.execute(f"SAVEPOINT {name}")
+    try:
+        fn(conn)
+    except Exception:
+        conn.execute(f"ROLLBACK TO {name}")
+        _log.warning("optional migration step %r failed — serving degraded", name, exc_info=True)
+    finally:
+        conn.execute(f"RELEASE {name}")
 
 
 def _migrate_home_to_workspace() -> None:
@@ -151,10 +174,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
     # Additive + guarded + reversible: create the registry tables, add `subject`/answer_type/
     # score columns (backfilling legacy rows to 'coding'), and rebuild `ratings` (UNIQUE change +
     # legacy axis remap) via copy-verify-swap that KEEPS the old table until parity is confirmed.
-    _migrate_subject_framework(conn)
+    # OPTIONAL: a failure here degrades (no framework) rather than locking every login out.
+    _optional_step(conn, "subject_framework", _migrate_subject_framework)
 
+    # OPTIONAL: seed the frozen benchmark item bank. A seed hiccup must not lock logins out.
     from .. import benchmark
-    benchmark.seed_items(conn)
+    _optional_step(conn, "benchmark_seed", benchmark.seed_items)
 
 
 def _add_col(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
@@ -264,7 +289,9 @@ def _migrate_subject_framework(conn: sqlite3.Connection) -> None:
     # Seed the registry (subjects + axes catalog) from the authoritative in-code definition.
     _seed_registry(conn)
     # Agent-defined pillar order + dependency DAG (task #89). Additive + guarded + backfilled.
-    _migrate_pillar_order(conn)
+    # OPTIONAL: the backfill reads the curriculum-derived order; a failure there degrades the
+    # pillar ordering (legacy structural order) but must not fail the login.
+    _optional_step(conn, "pillar_order", _migrate_pillar_order)
 
 
 def _migrate_pillar_order(conn: sqlite3.Connection) -> None:

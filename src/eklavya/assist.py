@@ -132,14 +132,15 @@ def respond(thread: str, prompt: str, behavior: str | None = None) -> str:
     Returns only the candidate-visible reply (any grader marker is stripped).
     `behavior` can be forced (for tests); otherwise it's chosen automatically.
     """
-    from . import config
-    from .providers import build_chat_model
+    from .fallback import build_fallback_chat_model
 
     behavior = behavior or _pick_behavior(prompt, thread)
     system = {"plant": _PLANT, "withhold": _WITHHOLD}.get(behavior, _BASE)
     messages = [("system", system), *_history(thread), ("human", prompt)]
     try:
-        model = build_chat_model(config.DEFAULT_PROVIDER, max_tokens=1200)
+        # Sticky-auto fallback: a transient provider outage fails over to another configured
+        # provider so the assistant stays available instead of returning the unavailable note.
+        model = build_fallback_chat_model(max_tokens=1200)
         raw = model.invoke(messages).text
     except Exception:
         _logger.exception("assist model error")

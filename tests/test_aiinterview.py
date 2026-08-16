@@ -36,7 +36,7 @@ class _FakeModel:
     def __init__(self, text):
         self._text = text
 
-    def invoke(self, messages):
+    def invoke(self, messages, *args, **kwargs):
         return _Reply(self._text)
 
 
@@ -169,6 +169,22 @@ def test_record_bug_verdict_rejects_bad_input(monkeypatch):
     assert "unknown verdict" in assist.record_bug_verdict(help_id, "nope")
     assert "no planted bug" in assist.record_bug_verdict(help_id, "caught")
     assert "no assistant exchange" in assist.record_bug_verdict(99999, "caught")
+
+
+def test_respond_routes_through_fallback_model(monkeypatch):
+    """assist.respond must build via fallback.build_fallback_chat_model (sticky-auto,
+    no explicit provider) so a transient provider outage fails over instead of
+    returning the 'unavailable' note."""
+    called = {}
+
+    def spy(provider_key=None, *a, **k):
+        called["provider_key"] = provider_key
+        return _FakeModel("route reply")
+
+    monkeypatch.setattr("eklavya.fallback.build_fallback_chat_model", spy)
+    out = assist.respond("t-fb", "help me", behavior="help")
+    assert out == "route reply"
+    assert called.get("provider_key") is None    # sticky-auto over configured providers
 
 
 def test_assist_route(monkeypatch):

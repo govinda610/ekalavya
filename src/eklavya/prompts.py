@@ -74,7 +74,8 @@ TEACHING_PRINCIPLES = """
   at AI or a search?". Frame it as tracking their UNAIDED skill, never as an accusation, and
   make clear there's no penalty for being honest. Then record it faithfully: pass `ai_off=True`
   when they solved it unaided, `ai_off=False` when they used AI or looked it up — on whichever
-  grader records the attempt (`grade_and_record(..., ai_off=...)` for a code drill). This flag
+  grader records the attempt (`grade_and_record(..., ai_off=...)` for a code drill,
+  `grade_and_record_subject(..., ai_off=...)` for an objective non-code drill). This flag
   ONLY tags the attempt so the AI-off vs AI-on gap
   the learner is tracking stays honest; it carries NO penalty unless penalty mode is explicitly
   on. Honesty is rewarded with a truer picture of their real skill — say so.

@@ -1,3 +1,7 @@
+# NOTE: this is an ALTERNATIVE (Caddy) sample. The as-built live stack is
+# nginx + certbot — see deploy/nginx-eklavya.conf and docs/DEPLOY_RUNBOOK.md.
+# Use this only if you deliberately choose Caddy instead of nginx.
+#
 # Ekalavya — Caddy reverse proxy with automatic HTTPS + security headers.
 # Caddy provisions a Let's Encrypt cert automatically and sets X-Forwarded-For.
 #
