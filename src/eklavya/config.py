@@ -59,11 +59,10 @@ PROVIDER_ORDER = [
 # quota/5xx error before it's eligible to become sticky again.
 PROVIDER_COOLDOWN = int(os.environ.get("EKLAVYA_PROVIDER_COOLDOWN", "300"))
 
-# DEPRECATED — round-robin entry load-balancing has been replaced by the sticky-auto
-# balancer (fallback.py), which keeps requests on ONE provider to preserve its prompt cache
-# and only advances on exhaustion. Kept only so an old EKLAVYA_BALANCE=1 in the environment
-# doesn't error; it no longer changes behaviour.
-BALANCE_PROVIDERS = os.environ.get("EKLAVYA_BALANCE", "0") not in ("0", "", "false", "False")
+# NOTE: the old round-robin entry load-balancing (EKLAVYA_BALANCE) is fully retired —
+# replaced by the sticky-auto balancer (fallback.py), which keeps requests on ONE provider to
+# preserve its prompt cache and only advances on exhaustion. The env var is simply ignored now;
+# there is no BALANCE_PROVIDERS flag to read anywhere.
 
 # When on, a self-service signup creates a PENDING account that the owner must approve
 # (`eklavya approve <email>`) before it can log in — so opening registration in the wild
