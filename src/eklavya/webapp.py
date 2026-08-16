@@ -986,6 +986,7 @@ background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;
 .hdr-tray{display:contents}
 .hdr-more{display:none}
 .ed-back{display:none}
+.scrolllatest{display:none}   /* the scroll-to-latest FAB is a phones-only affordance */
 /* provider chip — compact pill, not raw wrapped debug text */
 .who{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;
  background:rgba(6,9,20,.5);border:1px solid var(--line-gold);border-radius:999px;padding:5px 11px;
@@ -1698,32 +1699,82 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
  body[data-view="practice"] #practice > .col.chat{
    flex:1 1 auto;min-height:0;border-right:none;display:flex;flex-direction:column}
  body[data-view="practice"] .log{
-   padding:16px 14px 12px;gap:16px;-webkit-overflow-scrolling:touch}
- /* roomier, comfortable message bubbles (≥16px, generous spacing) */
- body[data-view="practice"] .msg{max-width:90%;font-size:16px;padding:13px 15px;line-height:1.6}
- body[data-view="practice"] .msg code{font-size:14px}
- /* the résumé-upload row is optional chrome — keep it compact, never crowd the thread */
+   padding:18px 12px 10px;gap:14px;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+ /* ── message rhythm à la Claude/ChatGPT, re-skinned: the guru speaks on Pithora parchment
+    (left), the learner in a teal reed bubble (right). No per-turn eyebrow labels — alignment +
+    treatment carry who's speaking (labels are desktop-only chrome), so the thread breathes. ── */
+ body[data-view="practice"] .msg{max-width:84%;font-size:16px;padding:12px 15px;line-height:1.62;
+   border-radius:16px}
+ body[data-view="practice"] .msg.ai{border-radius:6px 16px 16px 16px}
+ body[data-view="practice"] .msg.you{border-radius:16px 6px 16px 16px}
+ body[data-view="practice"] .msg .who{display:none}       /* drop the ALL-CAPS label on every bubble */
+ body[data-view="practice"] .msg + .msg{margin-top:2px}   /* consecutive turns already have gap:14px */
+ body[data-view="practice"] .msg p{margin:4px 0}
+ body[data-view="practice"] .msg p:first-child{margin-top:0}
+ body[data-view="practice"] .msg p:last-child{margin-bottom:0}
+ body[data-view="practice"] .msg code{font-size:13.5px}
+ /* code blocks: a dark, legible, horizontally-scrollable surface even inside the parchment
+    bubble — never let a long line burst the bubble or the viewport. */
+ body[data-view="practice"] .msg pre{max-width:100%;margin:8px 0;border-radius:10px;
+   -webkit-overflow-scrolling:touch}
+ body[data-view="practice"] .msg pre code{font-size:12.5px;line-height:1.5}
+ body[data-view="practice"] .msg ul,
+ body[data-view="practice"] .msg ol{padding-left:20px;margin:6px 0}
+ body[data-view="practice"] .msg blockquote{margin:8px 0}
+ /* the log fills all space between header and the (résumé bar +) composer; its content scrolls.
+    In the EMPTY state its single child is the welcome hero, which `margin:auto` centres — so the
+    hero sits in the middle of the message area (chat-app empty-state), never floating high with a
+    void beneath. `justify-content:center` reinforces this when the hero is the only child. */
+ body[data-view="practice"] .log{justify-content:center}
+ body[data-view="practice"] .log:has(.msg),
+ body[data-view="practice"] .log:has(.sysline){justify-content:flex-start}   /* once chatting, top-align the thread */
+ /* the résumé-upload row is optional chrome — on phones keep it to a single compact line (drop
+    the two-line hint) so it doesn't inflate the bottom block and shove the hero upward. */
  body[data-view="practice"] .resumebar{padding:6px 12px 0}
- /* ── sticky bottom composer (Claude/ChatGPT pattern), pinned above the keyboard ── */
+ body[data-view="practice"] .resumehint{display:none}
+ /* ── sticky bottom composer (Claude/ChatGPT pattern), pinned to the bottom ALWAYS (empty state
+    too) and above the keyboard. `margin-top:auto` guarantees it hugs the bottom even when the log
+    is short, so there is never a dead void below the input. ── */
  body[data-view="practice"] .col.chat .inbar{
-   position:sticky;bottom:0;z-index:6;
+   position:sticky;bottom:0;z-index:6;margin-top:auto;
    gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
    background:linear-gradient(180deg,rgba(10,14,26,.72),rgba(8,11,24,.94));
    border-top:1px solid var(--line-gold);align-items:flex-end}
+ /* the textarea must be tall enough for ONE line of the (shortened) placeholder — no clip. It
+    auto-grows as the learner types, capped at ~26dvh so a long draft never swallows the thread
+    (it scrolls internally past that, like Claude/ChatGPT). */
  body[data-view="practice"] .inbar textarea{
-   font-size:16px;padding:12px 14px;border-radius:14px;max-height:38dvh;
-   min-height:46px;background:rgba(6,9,20,.75)}
+   font-size:16px;padding:12px 15px;border-radius:16px;max-height:26dvh;
+   min-height:48px;line-height:1.35;background:rgba(6,9,20,.72);border-color:var(--line-gold)}
+ body[data-view="practice"] .inbar textarea::placeholder{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
  body[data-view="practice"] .inbar .send{
-   flex:none;align-self:stretch;border-radius:12px;padding:0 18px;min-height:46px}
- body[data-view="practice"] .inbar .rewind{align-self:stretch;min-height:46px}
- /* the empty-state hero is fine at first, but must never dwarf a live thread */
- body[data-view="practice"] .arena-welcome{max-width:300px;padding:20px 18px}
+   flex:none;align-self:stretch;border-radius:12px;padding:0 18px;min-height:48px}
+ body[data-view="practice"] .inbar .rewind{align-self:stretch;min-height:48px}
+ /* scroll-to-latest FAB (Claude/ChatGPT pattern): a small gold pill that appears when the
+    learner has scrolled up, floating just above the composer, never over the input or nav. */
+ body[data-view="practice"] .scrolllatest{
+   display:flex;align-items:center;justify-content:center;position:absolute;
+   left:50%;transform:translateX(-50%);bottom:calc(72px + env(safe-area-inset-bottom,0px));
+   z-index:7;width:38px;height:38px;border-radius:50%;cursor:pointer;
+   color:var(--gold-bright);background:linear-gradient(180deg,rgba(30,24,18,.96),rgba(14,11,26,.96));
+   border:1px solid var(--line-gold);box-shadow:0 8px 22px -8px rgba(0,0,0,.8);font-size:17px;
+   opacity:0;pointer-events:none;transition:opacity .2s}
+ body[data-view="practice"] .scrolllatest.show{opacity:1;pointer-events:auto}
+ body[data-view="practice"] .scrolllatest[hidden]{display:none}
+ /* the empty-state hero: a touch larger so it reads as a proper centred empty-state, never dwarfs
+    a live thread (the :has rule above top-aligns real messages). */
+ body[data-view="practice"] .arena-welcome{max-width:320px;padding:18px 20px;margin:auto}
+ body[data-view="practice"] .arena-welcome .aw-deva{font-size:30px}
+ body[data-view="practice"] .arena-welcome .aw-title{font-size:20px}
+ body[data-view="practice"] .arena-welcome .aw-sub{font-size:14.5px}
  /* ── Editor + Canvas: an on-demand slide-over, HIDDEN by default on phones ── */
  body[data-view="practice"] #practice > .col:not(.chat){
    position:fixed;left:0;top:0;width:100vw;max-width:100vw;
    height:calc(100dvh - var(--kb));z-index:1150;
    background:var(--indigo-night);overflow-x:hidden;
-   transform:translateY(101%);transition:transform .28s cubic-bezier(.2,.7,.3,1);
+   /* closed: shove it a FULL viewport down (not 101% of its own possibly-shrunk height) so a
+      keyboard-shortened slab can never leave the editor toolbar peeking below the composer. */
+   transform:translateY(100dvh);transition:transform .28s cubic-bezier(.2,.7,.3,1);
    box-shadow:0 -18px 50px -12px rgba(0,0,0,.75);
    will-change:transform;display:flex;flex-direction:column;overscroll-behavior:contain}
  body[data-view="practice"].ed-open #practice > .col:not(.chat){transform:none}
@@ -1868,6 +1919,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
         <div class="aw-sub" id="awsub">Your first drill is loading — Ekalavya is drawing the bow…</div>
         <div class="aw-dots"><span></span><span></span><span></span></div>
       </div></div>
+      <button class="scrolllatest" id="scrolllatest" aria-label="Scroll to latest" onclick="scrollToLatest()" hidden>↓</button>
       <div class="resumebar hidden" id="resumebar">
         <input type="file" id="resumefile" accept="application/pdf,.pdf" hidden onchange="uploadResume()">
         <button class="ghost" onclick="document.getElementById('resumefile').click()">📄 Upload résumé / LinkedIn PDF (optional)</button>
@@ -2470,13 +2522,19 @@ document.addEventListener('click',function(e){
 /* measure the real header + bottom-nav heights into CSS vars so the arena slab is exact
    (avoids a magic-number gap that would hide the input behind the nav). */
 (function(){
+  const ta=document.getElementById('chatin');
+  const DESK_PH = ta ? ta.getAttribute('placeholder') : '';   // keep the desktop placeholder verbatim
   function measure(){
     const h=document.querySelector('header'), n=document.getElementById('mnav');
     if(h) document.body.style.setProperty('--ek-hdr', h.offsetHeight+'px');
     if(n && getComputedStyle(n).display!=='none') document.body.style.setProperty('--ek-nav', n.offsetHeight+'px');
+    // phones: the desktop placeholder ("type your answer…  (Shift+Enter for a new line)") wraps to
+    // two lines and clips in the compact input, so use a short one that fits a single line. Desktop
+    // keeps the full hint (restored below when not mobile).
+    if(ta) ta.setAttribute('placeholder', ekMobile() ? 'Ask Ekalavya…' : DESK_PH);
   }
   window.addEventListener('load',measure); window.addEventListener('resize',measure);
-  setTimeout(measure,300);
+  measure(); setTimeout(measure,300);
 })();
 // desktop-only: restore the persisted 'hide editor' preference. On phones the editor is a
 // slide-over (hidden by default), so we don't apply the desktop nocode class there.
@@ -2699,6 +2757,21 @@ function addMsg(role, html){
   document.getElementById('log').appendChild(m); scroll(); return body;
 }
 function scroll(){const l=document.getElementById('log'); l.scrollTop=l.scrollHeight;}
+function scrollToLatest(){ const l=document.getElementById('log'); l.scrollTo({top:l.scrollHeight,behavior:'smooth'}); }
+/* Show the scroll-to-latest FAB only when the learner has scrolled meaningfully up from the
+   bottom (mobile chat pattern). Wired once; cheap scroll listener. */
+(function(){
+  const l=document.getElementById('log'), fab=document.getElementById('scrolllatest');
+  if(!l || !fab) return;
+  function upd(){
+    const gap = l.scrollHeight - l.scrollTop - l.clientHeight;
+    const away = gap > 120;
+    fab.hidden = !away;
+    fab.classList.toggle('show', away);
+  }
+  l.addEventListener('scroll', upd, {passive:true});
+  window.addEventListener('resize', upd);
+})();
 // Typeset LaTeX math ($…$ inline, $$…$$ / \[…\] display) with KaTeX — the tutor teaches
 // math/stats/ML, so equations must render, not show as raw source. Skips code/pre so a '$'
 // in code isn't mangled. Works on a detached element (KaTeX walks text nodes).
