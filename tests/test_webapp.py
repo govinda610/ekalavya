@@ -39,7 +39,7 @@ def test_index_serves_the_spa():
     c = TestClient(create_app())
     r = c.get("/")
     assert r.status_code == 200
-    assert "EKALAVYA" in r.text and "Practice" in r.text and "monaco-editor" in r.text
+    assert "EKALAVYA" in r.text and "Practice" in r.text and "/static/monaco/vs/loader.js" in r.text
 
 
 def test_dashboard_and_apis():
@@ -303,3 +303,38 @@ def test_settings_get_and_put():
     assert c.get("/api/settings").json()["reduced_motion"] is True   # persisted
     # legacy shape still works
     c.put("/api/settings", json={"death_on_cheat": True, "reduced_motion": False, "guru_voice": True})
+
+
+def test_malformed_json_body_returns_400_not_500():
+    """A garbage/empty JSON body on a PUT/POST must be a clean 400, not a 500-with-traceback."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app(), raise_server_exceptions=False)
+    r = c.put("/api/settings", content=b"{not json", headers={"content-type": "application/json"})
+    assert r.status_code == 400
+    assert r.json().get("error")
+
+
+def test_admin_route_serves_the_spa():
+    """The /admin deep-link (linked from the signup email) must serve the SPA, not 404."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    r = c.get("/admin")
+    assert r.status_code == 200
+    assert "<html" in r.text.lower()
+
+
+def test_monaco_and_mermaid_are_vendored_locally():
+    """#11 — the Arena links vendored Monaco + Mermaid from /static (no jsdelivr CDN), and
+    the entry files are actually served."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    html = c.get("/").text
+    assert "/static/mermaid.min.js" in html
+    assert "/static/monaco/vs/loader.js" in html
+    assert "cdn.jsdelivr.net" not in html, "still references the jsdelivr CDN"
+    assert c.get("/static/mermaid.min.js").status_code == 200
+    assert c.get("/static/monaco/vs/loader.js").status_code == 200
+    assert c.get("/static/monaco/vs/editor/editor.main.js").status_code == 200

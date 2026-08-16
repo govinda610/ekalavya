@@ -164,6 +164,12 @@ def create_app():
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
 
+    @app.exception_handler(json.JSONDecodeError)
+    async def _bad_json(request: Request, exc: json.JSONDecodeError):
+        """A malformed/empty JSON body on any POST/PUT should be a clean 400, not a
+        500-with-traceback. Covers every ``await request.json()`` call site at once."""
+        return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+
     # Shared design-system stylesheet (Option E cinematic-forest) — one served file that
     # every screen (SPA, dashboard, journey, profile in their iframes, login) links to.
     _STATIC_DIR = Path(__file__).parent / "static"
@@ -206,6 +212,7 @@ def create_app():
     @app.get("/settings", response_class=HTMLResponse)
     @app.get("/overview", response_class=HTMLResponse)
     @app.get("/leaderboard", response_class=HTMLResponse)
+    @app.get("/admin", response_class=HTMLResponse)
     def spa_view() -> str:
         return _INDEX
 
@@ -770,6 +777,8 @@ def create_app():
 
     @app.post("/api/admin/approve")
     async def admin_approve(request: Request) -> dict:
+        from starlette.concurrency import run_in_threadpool
+
         from . import auth, mailer
 
         _require_admin()
@@ -777,9 +786,11 @@ def create_app():
         ok = auth.approve_user(email)
         if ok:
             # tell the user they're in — best-effort, never blocks the approval.
-            site = config.PUBLIC_URL or "the app"
             where = f"at {config.PUBLIC_URL}" if config.PUBLIC_URL else "at the sign-in page"
-            mailer.send_email(
+            # SMTP is synchronous and can stall on a slow server; run it off the event loop
+            # so it never blocks the single worker.
+            await run_in_threadpool(
+                mailer.send_email,
                 email,
                 "Your Ekalavya account is approved",
                 f"Good news — your Ekalavya account has been approved. "
@@ -889,12 +900,16 @@ def _mount_auth(app) -> None:
             return RedirectResponse(f"/signup?error={quote(str(exc))}", status_code=303)
         if pending:
             # Best-effort: notify the owner that someone is awaiting approval. Never blocks signup.
+            from starlette.concurrency import run_in_threadpool
+
             from . import mailer
 
             if config.ADMIN_EMAIL:
-                where = (f"{config.PUBLIC_URL}/settings (Admin)" if config.PUBLIC_URL
+                where = (f"{config.PUBLIC_URL}/admin" if config.PUBLIC_URL
                          else "the Admin page in the app")
-                mailer.send_email(
+                # SMTP is synchronous and can stall; run it off the event loop.
+                await run_in_threadpool(
+                    mailer.send_email,
                     config.ADMIN_EMAIL,
                     "New Ekalavya signup — awaiting your approval",
                     f"{email.strip().lower()} just signed up and is awaiting your approval.\n\n"
@@ -1564,6 +1579,11 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 #mnav .ni{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;font-family:var(--f-mono);font-size:10px;
  letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;
  padding:6px 8px;min-width:56px;min-height:48px}
+/* #6 — with 8 nav items the labels truncate on a phone. Below the common breakpoints, shrink the
+   per-item footprint (smaller label, tighter padding, no min-width) so all 8 fit without clipping;
+   under 360px drop to icons-only (label hidden) but keep a ≥44px tap height. */
+@media(max-width:430px){#mnav{padding:8px 4px 12px}#mnav .ni{min-width:0;padding:6px 3px;font-size:9px;letter-spacing:.02em;gap:3px}}
+@media(max-width:360px){#mnav .ni .nlabel{display:none}#mnav .ni{min-height:46px}}
 #mnav .ni.on{color:var(--gold-bright)}
 #mnav .ni.center{margin-top:-24px}
 #mnav .ni.center .orb{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle at 40% 35%,var(--gold-bright),var(--gold-deep));
@@ -1586,8 +1606,63 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
  .edtoolbar select{padding:14px 10px}
  .seg span{padding:14px 12px}
  .edtoolbar button{padding-top:12px;padding-bottom:12px}
+ /* #4 — the editor-only header controls + the XP HUD only make sense in the Arena. On every
+    OTHER SPA view (forest/overview/leaderboard/profile/library/settings/admin) they wasted
+    ~200px of precious phone height, so hide them there and let the view own the screen. The
+    EKALAVYA brand stays as a slim identity bar. */
+ body:not([data-view="practice"]) #chatsbtn,
+ body:not([data-view="practice"]) #edtoggle,
+ body:not([data-view="practice"]) #penaltybtn,
+ body:not([data-view="practice"]) .timerwrap,
+ body:not([data-view="practice"]) #wrapbtn,
+ body:not([data-view="practice"]) #hud{display:none}
+ /* #1 — the Forest gets a full-height pane: no header chrome above it (per the rule above), and
+    the map fills the viewport minus the bottom nav so it's actually usable, not a thin strip. */
+ body[data-view="tree"] header{padding:8px 14px}
+ body[data-view="tree"] #tree{min-height:calc(100vh - 118px)}
+ .mapframe{touch-action:none}            /* let forest2d's pinch/pan own the gesture */
 }
-</style></head><body>
+/* #5 — LANDSCAPE phones (short viewport): header + toolbar + input + nav ate the whole height,
+   pushing the editor/chat off-screen. Collapse the header to ONE compact row and trim vertical
+   padding so the Arena body keeps the remaining height. */
+@media(max-height:480px) and (max-width:1000px){
+ header{flex-wrap:nowrap;overflow-x:auto;padding:5px 10px;gap:7px;-webkit-overflow-scrolling:touch}
+ header>*{flex:0 0 auto}
+ .creed{display:none}
+ .tab,#chatsbtn,#penaltybtn,.timerwrap>button,#wrapbtn{padding:8px 10px;min-height:38px}
+ .hud{font-size:10px;gap:6px}
+ #mnav{padding:3px 8px 4px}
+ #mnav .ni{min-height:38px;padding:3px 6px;font-size:9px}
+ #mnav .ni.center{margin-top:-14px}
+ #mnav .ni.center .orb{width:40px;height:40px}
+ .resumebar{display:none}   /* reclaim the optional résumé-upload row for the editor/chat in landscape */
+}
+/* ===== #6/#7 — per-view mobile polish (tables, cards, chooser, inputs) ===== */
+@media(max-width:560px){
+ /* #7 — the mode-chooser tiles: single column + wrap long descriptions so nothing clips the
+    right edge; roomy tap area. */
+ .modes-grid{grid-template-columns:1fr}
+ .modes-card{padding:20px 16px}
+ .mt-d{overflow-wrap:anywhere}
+ .modetile{padding:14px}
+ /* #6 — Leaderboard: trim the side gutters so more of the (horizontally-scrollable) table shows,
+    and make the scroll affordance obvious. The .lb-tablewrap already scrolls; just give it room. */
+ .lb-wrap{padding:20px 12px 60px}
+ .lb-tablewrap{-webkit-overflow-scrolling:touch}
+ table.lb th,table.lb td{padding:9px 10px}
+ /* #6 — Admin pending card: stack Approve/Reject BELOW the email/timestamp so the buttons never
+    overlap a long email. Full-width, thumb-sized. */
+ .admin-wrap{padding:20px 14px 60px}
+ .pendrow{flex-direction:column;align-items:stretch;gap:12px}
+ .pendrow .pbtns{width:100%}
+ .pendrow .p-approve,.pendrow .p-reject{flex:1;text-align:center;padding:12px 14px;min-height:44px}
+ /* #7 — chat input: on narrow screens the Send button crowded the placeholder. Let the textarea
+    shrink freely and keep Send compact so the placeholder stays readable. */
+ .inbar{gap:6px;padding:10px}
+ .inbar textarea{min-width:0;font-size:16px}   /* 16px stops iOS auto-zoom on focus */
+ .inbar .send{flex:none;padding:0 14px}
+}
+</style></head><body data-view="practice">
 <header>
   <div class="brand"><div class="logo"><span class="bowmark"><svg width="18" height="23" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
   <div class="spacer"></div>
@@ -1722,14 +1797,14 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   </div>
 </main>
 <nav id="mnav" aria-label="Sections">
-  <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg>Progress</button>
-  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg>Forest</button>
-  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span style="margin-top:2px">Practice</span></button>
-  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg>Library</button>
-  <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg>Board</button>
-  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
-  <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg>Profile</button>
-  <button class="ni mnav-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg>Admin</button>
+  <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg><span class="nlabel">Progress</span></button>
+  <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Forest</span></button>
+  <button class="ni center" data-rail="practice" onclick="railGo('practice')"><span class="orb"><svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M4 12 C10 7 14 7 20 12 C14 17 10 17 4 12" stroke="#2a1c07" stroke-width="2"/><line x1="4" y1="12" x2="20" y2="12" stroke="#2a1c07" stroke-width="2"/></svg></span><span class="nlabel" style="margin-top:2px">Practice</span></button>
+  <button class="ni" data-rail="library" onclick="railGo('library')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6"/></svg><span class="nlabel">Library</span></button>
+  <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Board</span></button>
+  <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Settings</span></button>
+  <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Profile</span></button>
+  <button class="ni mnav-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Admin</span></button>
 </nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
@@ -1776,21 +1851,21 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 <script src="/static/marked.min.js"></script>
 <script src="/static/purify.min.js"></script>
 <script src="/static/highlight.min.js"></script>
-<!-- mermaid + Monaco stay on the CDN but are version-pinned with SRI + crossorigin. -->
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
-  integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr"
-  crossorigin="anonymous"></script>
+<!-- mermaid + Monaco are vendored locally (static/) so the app works fully offline /
+     air-gapped, exactly like three/chart/katex/highlight/marked/purify. -->
+<script src="/static/mermaid.min.js"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
 <script src="/static/katex/contrib/auto-render.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"
-  integrity="sha384-SF/kPhqG3NMxqsYAbQqHkdF53WQx8yTkY0Ys+M+ayeC20QNujPyyxIuUEdEf0eG/"
-  crossorigin="anonymous"></script>
+<script src="/static/monaco/vs/loader.js"></script>
 <script src="/static/forest2d.js"></script>
 <script>
-mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
-  flowchart:{useMaxWidth:true, htmlLabels:true}});
+// mermaid is vendored locally; if it somehow failed to load, degrade gracefully rather
+// than throwing at boot (diagrams simply render as their raw code blocks).
+if(window.mermaid){ mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
+  flowchart:{useMaxWidth:true, htmlLabels:true}}); }
+else { console.warn('mermaid failed to load — diagrams will show as code'); window.mermaid={run:function(){}, initialize:function(){}}; }
 let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
 let streamAbort = null;   // AbortController for the in-flight /api/stream (Esc cancels)
 let turns = [];           // one entry per user turn: {text, you, ai} DOM handles, for rewind/edit
@@ -1812,6 +1887,9 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 function showView(v){
   const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block',leaderboard:'block',admin:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
+  // Mark the active rail on <body> so CSS can (on mobile) hide the editor-only header controls
+  // + the XP HUD on non-Arena views, reclaiming ~200px, and give the Forest a full-height pane.
+  document.body.setAttribute('data-view', v);
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
@@ -2258,19 +2336,42 @@ function diveIntoConcept(concept,pillar){
     try{ stream(ask); } finally { setTimeout(()=>{window.__diving=false;},50); } }
 }
 
-require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
-require(['vs/editor/editor.main'], function(){
-  monaco.editor.defineTheme('ek',{base:'vs-dark',inherit:true,rules:[],colors:{'editor.background':'#0a1018'}});
-  editor = monaco.editor.create(document.getElementById('editor'),
-    {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
-     scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
-  editor.onDidPaste(e=>{  // measure the paste; only a big one that dominates the solution counts
-    try{ const n=editor.getModel().getValueLengthInRange(e.range); if(n>biggestPaste) biggestPaste=n; }catch(_){}
-  });
-  editor.onDidChangeModelContent(()=>{  // pasted block deleted → forget it (avoids false positives)
-    if(editor.getValue().length < biggestPaste) biggestPaste = 0;
-  });
-});
+// Monaco is vendored under /static/monaco/vs. Its web workers load same-origin via a tiny
+// bootstrap proxy (the standard AMD-vendoring pattern).
+function _monacoFail(){
+  console.warn('Monaco failed to load — falling back to a plain <textarea> editor');
+  const host=document.getElementById('editor'); if(!host||host.querySelector('textarea')) return;
+  host.innerHTML="";
+  const ta=document.createElement('textarea');
+  ta.value="# write your solution here\n";
+  ta.style.cssText="width:100%;height:100%;background:#0a1018;color:#dfe7f2;border:0;outline:0;"+
+    "resize:none;font:14px 'JetBrains Mono',monospace;padding:8px;box-sizing:border-box";
+  host.appendChild(ta);
+  editor={getValue:()=>ta.value, setValue:v=>{ta.value=v;}, getModel:()=>null,
+    onDidPaste:()=>{}, onDidChangeModelContent:cb=>{ta.addEventListener('input',cb);},
+    updateOptions:()=>{}, layout:()=>{}, focus:()=>ta.focus()};
+}
+if(window.require){
+  window.MonacoEnvironment={getWorkerUrl:function(){
+    return URL.createObjectURL(new Blob([
+      "self.MonacoEnvironment={baseUrl:'"+location.origin+"/static/monaco/'};"+
+      "importScripts('"+location.origin+"/static/monaco/vs/base/worker/workerMain.js');"
+    ],{type:'text/javascript'}));
+  }};
+  require.config({paths:{vs:'/static/monaco/vs'}});
+  require(['vs/editor/editor.main'], function(){
+    monaco.editor.defineTheme('ek',{base:'vs-dark',inherit:true,rules:[],colors:{'editor.background':'#0a1018'}});
+    editor = monaco.editor.create(document.getElementById('editor'),
+      {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
+       scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
+    editor.onDidPaste(e=>{  // measure the paste; only a big one that dominates the solution counts
+      try{ const n=editor.getModel().getValueLengthInRange(e.range); if(n>biggestPaste) biggestPaste=n; }catch(_){}
+    });
+    editor.onDidChangeModelContent(()=>{  // pasted block deleted → forget it (avoids false positives)
+      if(editor.getValue().length < biggestPaste) biggestPaste = 0;
+    });
+  }, _monacoFail);
+} else { _monacoFail(); }
 
 function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
   for(const [t,n] of R) if(l>=t) return n; return 'Novice';}
@@ -2919,7 +3020,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   // reduced-motion at boot: honour the OS media query immediately, then OR-in the saved setting
   // (so the celebratory/ambient keyframes are quieted before the first celebration, not only
   // after the Settings screen is opened).
-  applyReducedMotion(false);
+  applyReducedMotion(_osReduceMotion());
   fetch('/api/settings').then(r=>r.json()).then(s=>applyReducedMotion(s.reduced_motion)).catch(()=>{});
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   // Leaderboard is a DEPLOYED (multi-user) feature — reveal its nav entries + prime the
@@ -2935,7 +3036,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   applyMode();
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
-  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog')}[location.pathname];
+  const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog'),'/admin':'admin'}[location.pathname];
   const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
   if(_landing!=='practice') showView(_landing);
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
@@ -3209,6 +3310,20 @@ def _hero_scene(preserve: str) -> str:
 _HERO_JS = r"""<script>
 (function(){
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // On phones (coarse pointer / small viewport) rest on the resolved static frame too: the
+  // continuous WAAPI shot-loop is battery-costly and janks on low-power devices, and the hero
+  // still reads perfectly as a single composed archer-at-the-bullseye scene.
+  var _coarseHero = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth < 720;
+
+  // Show the WHOLE wide cinematic scene on narrow screens (contain), not a cropped centre strip.
+  try{
+    if(window.innerWidth < 720){
+      var _scenes = document.querySelectorAll('.hero-scene svg, .scene-fixed svg');
+      for(var _i=0;_i<_scenes.length;_i++){ _scenes[_i].setAttribute('preserveAspectRatio','xMidYMid meet'); }
+    }
+  }catch(_e){}
+
+  if(_coarseHero) reduce = true;
 
   // ---- the progression knob -------------------------------------------
   var LEVEL = 24, MAX_LEVEL = 40;           // illustrative current rank
