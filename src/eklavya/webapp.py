@@ -1791,21 +1791,21 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 <script src="/static/marked.min.js"></script>
 <script src="/static/purify.min.js"></script>
 <script src="/static/highlight.min.js"></script>
-<!-- mermaid + Monaco stay on the CDN but are version-pinned with SRI + crossorigin. -->
-<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"
-  integrity="sha384-WmdflGW9aGfoBdHc4rRyWzYuAjEmDwMdGdiPNacbwfGKxBW/SO6guzuQ76qjnSlr"
-  crossorigin="anonymous"></script>
+<!-- mermaid + Monaco are vendored locally (static/) so the app works fully offline /
+     air-gapped, exactly like three/chart/katex/highlight/marked/purify. -->
+<script src="/static/mermaid.min.js"></script>
 <!-- KaTeX must run BEFORE Monaco's AMD loader defines define.amd, or its UMD registers as an
      AMD module instead of setting window.katex — so: no defer, and above the loader. -->
 <script src="/static/katex/katex.min.js"></script>
 <script src="/static/katex/contrib/auto-render.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs/loader.js"
-  integrity="sha384-SF/kPhqG3NMxqsYAbQqHkdF53WQx8yTkY0Ys+M+ayeC20QNujPyyxIuUEdEf0eG/"
-  crossorigin="anonymous"></script>
+<script src="/static/monaco/vs/loader.js"></script>
 <script src="/static/forest2d.js"></script>
 <script>
-mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
-  flowchart:{useMaxWidth:true, htmlLabels:true}});
+// mermaid is vendored locally; if it somehow failed to load, degrade gracefully rather
+// than throwing at boot (diagrams simply render as their raw code blocks).
+if(window.mermaid){ mermaid.initialize({startOnLoad:false, theme:'dark', securityLevel:'loose',
+  flowchart:{useMaxWidth:true, htmlLabels:true}}); }
+else { console.warn('mermaid failed to load — diagrams will show as code'); window.mermaid={run:function(){}, initialize:function(){}}; }
 let thread = crypto.randomUUID(), mode = 'practice', editor = null, streaming = false;
 let streamAbort = null;   // AbortController for the in-flight /api/stream (Esc cancels)
 let turns = [];           // one entry per user turn: {text, you, ai} DOM handles, for rewind/edit
@@ -2273,19 +2273,42 @@ function diveIntoConcept(concept,pillar){
     try{ stream(ask); } finally { setTimeout(()=>{window.__diving=false;},50); } }
 }
 
-require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.45.0/min/vs'}});
-require(['vs/editor/editor.main'], function(){
-  monaco.editor.defineTheme('ek',{base:'vs-dark',inherit:true,rules:[],colors:{'editor.background':'#0a1018'}});
-  editor = monaco.editor.create(document.getElementById('editor'),
-    {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
-     scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
-  editor.onDidPaste(e=>{  // measure the paste; only a big one that dominates the solution counts
-    try{ const n=editor.getModel().getValueLengthInRange(e.range); if(n>biggestPaste) biggestPaste=n; }catch(_){}
-  });
-  editor.onDidChangeModelContent(()=>{  // pasted block deleted → forget it (avoids false positives)
-    if(editor.getValue().length < biggestPaste) biggestPaste = 0;
-  });
-});
+// Monaco is vendored under /static/monaco/vs. Its web workers load same-origin via a tiny
+// bootstrap proxy (the standard AMD-vendoring pattern).
+function _monacoFail(){
+  console.warn('Monaco failed to load — falling back to a plain <textarea> editor');
+  const host=document.getElementById('editor'); if(!host||host.querySelector('textarea')) return;
+  host.innerHTML="";
+  const ta=document.createElement('textarea');
+  ta.value="# write your solution here\n";
+  ta.style.cssText="width:100%;height:100%;background:#0a1018;color:#dfe7f2;border:0;outline:0;"+
+    "resize:none;font:14px 'JetBrains Mono',monospace;padding:8px;box-sizing:border-box";
+  host.appendChild(ta);
+  editor={getValue:()=>ta.value, setValue:v=>{ta.value=v;}, getModel:()=>null,
+    onDidPaste:()=>{}, onDidChangeModelContent:cb=>{ta.addEventListener('input',cb);},
+    updateOptions:()=>{}, layout:()=>{}, focus:()=>ta.focus()};
+}
+if(window.require){
+  window.MonacoEnvironment={getWorkerUrl:function(){
+    return URL.createObjectURL(new Blob([
+      "self.MonacoEnvironment={baseUrl:'"+location.origin+"/static/monaco/'};"+
+      "importScripts('"+location.origin+"/static/monaco/vs/base/worker/workerMain.js');"
+    ],{type:'text/javascript'}));
+  }};
+  require.config({paths:{vs:'/static/monaco/vs'}});
+  require(['vs/editor/editor.main'], function(){
+    monaco.editor.defineTheme('ek',{base:'vs-dark',inherit:true,rules:[],colors:{'editor.background':'#0a1018'}});
+    editor = monaco.editor.create(document.getElementById('editor'),
+      {value:"# write your solution here\n",language:'python',theme:'ek',fontSize:14,minimap:{enabled:false},
+       scrollBeyondLastLine:false,automaticLayout:true,fontFamily:"'JetBrains Mono',monospace"});
+    editor.onDidPaste(e=>{  // measure the paste; only a big one that dominates the solution counts
+      try{ const n=editor.getModel().getValueLengthInRange(e.range); if(n>biggestPaste) biggestPaste=n; }catch(_){}
+    });
+    editor.onDidChangeModelContent(()=>{  // pasted block deleted → forget it (avoids false positives)
+      if(editor.getValue().length < biggestPaste) biggestPaste = 0;
+    });
+  }, _monacoFail);
+} else { _monacoFail(); }
 
 function rank(l){const R=[[17,'Grandmaster'],[12,'Master'],[8,'Expert'],[5,'Adept'],[3,'Apprentice'],[1,'Novice']];
   for(const [t,n] of R) if(l>=t) return n; return 'Novice';}

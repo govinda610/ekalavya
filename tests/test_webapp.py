@@ -39,7 +39,7 @@ def test_index_serves_the_spa():
     c = TestClient(create_app())
     r = c.get("/")
     assert r.status_code == 200
-    assert "EKALAVYA" in r.text and "Practice" in r.text and "monaco-editor" in r.text
+    assert "EKALAVYA" in r.text and "Practice" in r.text and "/static/monaco/vs/loader.js" in r.text
 
 
 def test_dashboard_and_apis():
@@ -319,3 +319,18 @@ def test_admin_route_serves_the_spa():
     r = c.get("/admin")
     assert r.status_code == 200
     assert "<html" in r.text.lower()
+
+
+def test_monaco_and_mermaid_are_vendored_locally():
+    """#11 — the Arena links vendored Monaco + Mermaid from /static (no jsdelivr CDN), and
+    the entry files are actually served."""
+    from starlette.testclient import TestClient
+
+    c = TestClient(create_app())
+    html = c.get("/").text
+    assert "/static/mermaid.min.js" in html
+    assert "/static/monaco/vs/loader.js" in html
+    assert "cdn.jsdelivr.net" not in html, "still references the jsdelivr CDN"
+    assert c.get("/static/mermaid.min.js").status_code == 200
+    assert c.get("/static/monaco/vs/loader.js").status_code == 200
+    assert c.get("/static/monaco/vs/editor/editor.main.js").status_code == 200
