@@ -4,10 +4,8 @@ Points EKLAVYA_HOME at a temp dir BEFORE importing eklavya so the real ~/.eklavy
 never touched.
 """
 
-import importlib.util
 import os
 import tempfile
-from pathlib import Path
 
 _TMP = tempfile.mkdtemp(prefix="eklavya-q-")
 os.environ["EKLAVYA_HOME"] = _TMP
@@ -18,21 +16,20 @@ from eklavya import questions_refresh, tools  # noqa: E402
 from eklavya.db import connect, init_db  # noqa: E402
 
 
-def _load_seed():
-    """Load scripts/seed_questions.py as a module (it's not an installed package)."""
-    path = Path(__file__).resolve().parents[1] / "scripts" / "seed_questions.py"
-    spec = importlib.util.spec_from_file_location("seed_questions", path)
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
 @pytest.fixture(autouse=True)
 def fresh_db():
     from eklavya import config as _cfg
     if _cfg.DB_PATH.exists():
         _cfg.DB_PATH.unlink()
     init_db()
+    # init_db auto-loads the shipped seed bank; these tests exercise add/get/refresh from an
+    # EMPTY bank, so clear it here. The seed itself is covered by test_seed_questions.py.
+    c = connect()
+    try:
+        c.execute("DELETE FROM questions")
+        c.commit()
+    finally:
+        c.close()
     yield
 
 
@@ -42,56 +39,6 @@ def _count():
         return c.execute("SELECT COUNT(*) n FROM questions").fetchone()["n"]
     finally:
         c.close()
-
-
-def test_seed_loads_a_few_hundred_questions():
-    seed = _load_seed()
-    assert len(seed.QUESTIONS) >= 200, "expected a few hundred curated questions"
-    seed.main(count_only=False)
-    n = _count()
-    assert n >= 200
-    assert n == len(seed.QUESTIONS)  # all distinct, all inserted on a fresh db
-
-
-def test_seed_is_idempotent():
-    seed = _load_seed()
-    seed.main(count_only=False)
-    first = _count()
-    seed.main(count_only=False)  # re-run
-    assert _count() == first  # INSERT OR IGNORE — no dupes
-
-
-def test_seed_covers_the_required_domains():
-    seed = _load_seed()
-    seed.main(count_only=False)
-    c = connect()
-    try:
-        topics = {r["topic"] for r in c.execute("SELECT DISTINCT topic FROM questions")}
-    finally:
-        c.close()
-    joined = " ".join(topics)
-    # DSA, system/ML-system design, ML/AI-engineering, behavioral all present.
-    assert "algorithms" in joined
-    assert "system-design" in joined
-    assert "ml-system-design" in joined
-    assert any(t in joined for t in ("rag", "agents", "llm-internals", "ai-engineering"))
-    assert "behavioral" in joined
-
-
-def test_seed_never_fabricates_company_tags():
-    """A company tag must only appear on questions whose source attributes it."""
-    seed = _load_seed()
-    seed.main(count_only=False)
-    c = connect()
-    try:
-        tagged = c.execute(
-            "SELECT company, source FROM questions WHERE company IS NOT NULL"
-        ).fetchall()
-    finally:
-        c.close()
-    assert tagged, "some questions should be honestly company-tagged"
-    for r in tagged:
-        assert r["source"], "a company-tagged question must carry a source for attribution"
 
 
 def test_add_and_get_question_roundtrip_and_dedup():

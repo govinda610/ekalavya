@@ -351,6 +351,10 @@ def init_db(path: Path | None = None) -> Path:
             (SCHEMA_VERSION,),
         )
         conn.commit()
+        # Give a brand-new account a starter interview-question bank (no-op if the
+        # table already has rows, so the migrated owner account is never touched).
+        from ..seed_questions import ensure_seeded
+        ensure_seeded(conn)
     finally:
         conn.close()
     return target
