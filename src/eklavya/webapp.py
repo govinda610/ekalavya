@@ -2096,6 +2096,20 @@ function looksPasted(code, biggest){
 let lastSentCode = '';   // editor code the agent has already seen this chat — avoids re-sending unchanged code
 function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return c.trim()===STUB.trim()?'':c; }
 
+// The guru opens the conversation: when you ENTER an empty Arena, auto-fire the session kickoff
+// so the FIRST message is the agent's (like Claude/ChatGPT opening with a prompt). Boot only
+// auto-starts on a first-run landing; an already-onboarded learner lands on the Forest Map, so
+// clicking into Practice afterwards used to leave the arena stuck on its static "drawing the
+// bow…" placeholder with nothing actually loading. Fire ONCE, only when the arena is genuinely
+// empty and idle — a message already in the log (a live chat, or navigating away and back since
+// the DOM persists) blocks it, so this never re-fires or spams junk chats.
+function maybeAutoKickoff(){
+  if(streaming) return;
+  const log=document.getElementById('log');
+  if(!log || log.querySelector('.msg')) return;   // a conversation already exists → don't start another
+  const k=window._kickoffCfg && window._kickoffCfg[mode];
+  if(k) stream(k);
+}
 // view switching — driven by the ashram left rail + the mobile bottom-nav.
 // The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings.
 // Dashboard+Journey+Effectiveness are now ONE unified Overview.
@@ -2109,7 +2123,7 @@ function showView(v){
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
   // re-apply the mobile chat-first Practice layout every time Practice is (re-)shown — this setup
   // used to run once at boot, so reaching Practice AFTER landing on the Forest left it broken.
-  if(v==='practice' && typeof syncMobilePractice==='function') syncMobilePractice();
+  if(v==='practice'){ if(typeof syncMobilePractice==='function') syncMobilePractice(); maybeAutoKickoff(); }
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
@@ -3342,10 +3356,12 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
   const _deep={'/forest':'tree','/library':'library','/settings':'settings','/overview':'prog','/leaderboard':(_deployed?'leaderboard':'prog'),'/admin':'admin'}[location.pathname];
   const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
+  window._kickoffCfg = c.kickoff;   // stash so entering an empty Arena LATER (via nav) can auto-start too
   if(_landing!=='practice') showView(_landing);
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
   // explicit arena landing. Deep-links and the returning-user Forest Map must NOT auto-start a
-  // thread (that burned tokens + spawned junk chats on every page load / deep-link).
+  // thread here (that burned tokens + spawned junk chats on every page load / deep-link) — but
+  // clicking INTO an empty Practice arena later does start one, via maybeAutoKickoff() in showView.
   if(_landing==='practice') stream(c.kickoff[mode]);
 });
 // deep-link handling for client-only routes now runs inside the /api/config callback above.
