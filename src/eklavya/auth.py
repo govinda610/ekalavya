@@ -107,6 +107,25 @@ def approve_user(email: str) -> bool:
         conn.close()
 
 
+def reject_user(email: str) -> bool:
+    """Delete a PENDING account (a rejected signup). Returns True if a pending row was removed.
+
+    Deliberately scoped to ``status != 'active'`` so an already-approved/active account can
+    NEVER be deleted through this path — rejecting only ever removes an awaiting-approval
+    signup. We delete (rather than mark 'rejected') to keep the model simple: the email frees
+    up again for a fresh attempt."""
+    email = email.strip().lower()
+    conn = _connect()
+    try:
+        cur = conn.execute(
+            "DELETE FROM users WHERE email=? AND status != 'active'", (email,)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()
+
+
 def list_pending() -> list[dict]:
     """Accounts awaiting approval (status != 'active'), oldest first."""
     conn = _connect()
