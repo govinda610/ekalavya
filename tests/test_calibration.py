@@ -40,6 +40,14 @@ def test_confidently_wrong_counted_and_overconfident_bias():
     assert c["brier"] > 0.5   # large miscalibration
 
 
+def test_confidence_probability_map_is_a_single_source_of_truth():
+    """The Elo-surprise update and the calibration Brier score must read the SAME
+    confidence→probability map, or they'd disagree for the identical attempt."""
+    from eklavya import scoring
+    assert progress._CONF_P is scoring.CONFIDENCE_P
+    assert scoring.CONFIDENCE_P == {1: 0.25, 2: 0.6, 3: 0.9}
+
+
 def test_well_calibrated_has_low_brier_and_is_in_stats():
     tools.add_pillar("P")
     tools.record_attempt("P", "syntax_recall", "a", 3, True, 1.0)   # certain & right

@@ -139,7 +139,9 @@ def touch_streak(today: str | None = None) -> int:
 
 # A stated confidence (1 guessing / 2 pretty sure / 3 certain) → the learner's implied
 # probability of being right. Used to score calibration ("the illusion of knowing").
-_CONF_P = {1: 0.35, 2: 0.65, 3: 0.90}
+# Shares scoring.CONFIDENCE_P (single source of truth) so the calibration Brier score and
+# the Elo-surprise update react to the SAME implied probabilities for a given attempt.
+from .scoring import CONFIDENCE_P as _CONF_P
 
 
 def calibration(window: int = 50, subject: str | None = None) -> dict:
