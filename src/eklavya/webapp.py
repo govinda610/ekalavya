@@ -935,7 +935,7 @@ def _mount_auth(app) -> None:
 # --- the single-page front-end ---------------------------------------------
 
 _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1"><title>Ekalavya</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,interactive-widget=resizes-content"><title>Ekalavya</title>
 <link rel="stylesheet" href="/static/fonts.css">
 <link rel="stylesheet" href="/static/katex/katex.min.css">
 <link rel="stylesheet" href="/static/hljs-github-dark.min.css">
@@ -1687,14 +1687,22 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
    inside a phone media query + JS ek-mobile gate). ============================ */
 @media(max-width:900px){
  /* the arena owns a fixed viewport slab: header + sticky bottom-nav frame it, the
-    chat conversation fills everything between. dvh keeps it honest when the URL bar
-    or keyboard changes the visible height. --kb is set live from visualViewport. */
- body[data-view="practice"]{--kb:0px}
+    chat conversation fills everything between. dvh keeps it honest when the URL bar or
+    keyboard changes the visible height (interactive-widget=resizes-content shrinks 100dvh
+    to the band above the keyboard, so no keyboard-height math is needed). */
+ body[data-view="practice"]{--kb:0px}      /* retained as a 0 default for the editor slide-over calc */
  body[data-view="practice"] #content{position:relative}
  body[data-view="practice"] #practice{
    display:flex;flex-direction:column;
-   height:calc(100dvh - var(--ek-hdr,52px) - var(--ek-nav,64px) - var(--kb));
+   height:calc(100dvh - var(--ek-hdr,52px) - var(--ek-nav,64px));
    min-height:0}
+ /* While the learner is typing (input focused → keyboard up) hide the bottom nav and reclaim its
+    band, so the composer sits DIRECTLY on top of the keyboard (Claude/ChatGPT) with no dead gap.
+    interactive-widget=resizes-content already shrinks 100dvh to the area above the keyboard, so
+    this needs NO keyboard-height math — focus/blur alone drives it, which killed the old
+    double-count that left a void between the composer and the keyboard. */
+ body[data-view="practice"].kbtyping #practice{height:calc(100dvh - var(--ek-hdr,52px))}
+ body[data-view="practice"].kbtyping #mnav{display:none}
  /* ── chat column = the whole arena; a real message thread ── */
  body[data-view="practice"] #practice > .col.chat{
    flex:1 1 auto;min-height:0;border-right:none;display:flex;flex-direction:column}
@@ -2508,19 +2516,20 @@ document.addEventListener('click',function(e){
   if(e.target.closest('.hdr-tray')||e.target.closest('.hdr-more')) return;
   document.body.classList.remove('hdrmenu');
 });
-/* Keep the composer pinned above the on-screen keyboard (Claude/ChatGPT behaviour):
-   visualViewport tells us how much the keyboard shrank the visible area → we feed that
-   into --kb so the fixed-height arena slab lifts the sticky input into view. Phones only. */
+/* Keep the composer glued to the on-screen keyboard (Claude/ChatGPT behaviour). The geometry is
+   the browser's job now: interactive-widget=resizes-content shrinks 100dvh to the band above the
+   keyboard, so the fixed-height arena already ends exactly at the keyboard — no --kb math (that
+   double-counted and left a void). All we add is a `kbtyping` flag on focus so the bottom nav
+   slides out (composer sits right on the keyboard), plus keeping the thread pinned to the latest
+   turn as the keyboard opens/closes. Phones only. */
 (function(){
-  const vv=window.visualViewport; if(!vv) return;
-  function sync(){
-    if(!ekMobile()){ document.body.style.removeProperty('--kb'); return; }
-    const kb=Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    document.body.style.setProperty('--kb', kb+'px');
-    if(kb>60){ const l=document.getElementById('log'); if(l) l.scrollTop=l.scrollHeight; }
-  }
-  vv.addEventListener('resize',sync); vv.addEventListener('scroll',sync);
-  window.addEventListener('orientationchange',()=>setTimeout(sync,300));
+  const ta=document.getElementById('chatin'); if(!ta) return;
+  const scrollLatest=()=>{ const l=document.getElementById('log'); if(l) l.scrollTop=l.scrollHeight; };
+  ta.addEventListener('focus',()=>{ if(!ekMobile()) return;
+    document.body.classList.add('kbtyping'); setTimeout(scrollLatest,60); setTimeout(scrollLatest,320); });
+  ta.addEventListener('blur',()=>{ document.body.classList.remove('kbtyping'); });
+  if(window.visualViewport){ window.visualViewport.addEventListener('resize',()=>{
+    if(document.body.classList.contains('kbtyping')) scrollLatest(); }); }
 })();
 /* Mobile chat-first Practice setup — IDEMPOTENT so it can run at boot AND every time Practice
    becomes the active view (via showView). It was previously a run-once IIFE, which broke the
