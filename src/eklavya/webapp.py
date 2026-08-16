@@ -1637,6 +1637,31 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
  #mnav .ni.center .orb{width:40px;height:40px}
  .resumebar{display:none}   /* reclaim the optional résumé-upload row for the editor/chat in landscape */
 }
+/* ===== #6/#7 — per-view mobile polish (tables, cards, chooser, inputs) ===== */
+@media(max-width:560px){
+ /* #7 — the mode-chooser tiles: single column + wrap long descriptions so nothing clips the
+    right edge; roomy tap area. */
+ .modes-grid{grid-template-columns:1fr}
+ .modes-card{padding:20px 16px}
+ .mt-d{overflow-wrap:anywhere}
+ .modetile{padding:14px}
+ /* #6 — Leaderboard: trim the side gutters so more of the (horizontally-scrollable) table shows,
+    and make the scroll affordance obvious. The .lb-tablewrap already scrolls; just give it room. */
+ .lb-wrap{padding:20px 12px 60px}
+ .lb-tablewrap{-webkit-overflow-scrolling:touch}
+ table.lb th,table.lb td{padding:9px 10px}
+ /* #6 — Admin pending card: stack Approve/Reject BELOW the email/timestamp so the buttons never
+    overlap a long email. Full-width, thumb-sized. */
+ .admin-wrap{padding:20px 14px 60px}
+ .pendrow{flex-direction:column;align-items:stretch;gap:12px}
+ .pendrow .pbtns{width:100%}
+ .pendrow .p-approve,.pendrow .p-reject{flex:1;text-align:center;padding:12px 14px;min-height:44px}
+ /* #7 — chat input: on narrow screens the Send button crowded the placeholder. Let the textarea
+    shrink freely and keep Send compact so the placeholder stays readable. */
+ .inbar{gap:6px;padding:10px}
+ .inbar textarea{min-width:0;font-size:16px}   /* 16px stops iOS auto-zoom on focus */
+ .inbar .send{flex:none;padding:0 14px}
+}
 </style></head><body data-view="practice">
 <header>
   <div class="brand"><div class="logo"><span class="bowmark"><svg width="18" height="23" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
@@ -3285,6 +3310,20 @@ def _hero_scene(preserve: str) -> str:
 _HERO_JS = r"""<script>
 (function(){
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // On phones (coarse pointer / small viewport) rest on the resolved static frame too: the
+  // continuous WAAPI shot-loop is battery-costly and janks on low-power devices, and the hero
+  // still reads perfectly as a single composed archer-at-the-bullseye scene.
+  var _coarseHero = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth < 720;
+
+  // Show the WHOLE wide cinematic scene on narrow screens (contain), not a cropped centre strip.
+  try{
+    if(window.innerWidth < 720){
+      var _scenes = document.querySelectorAll('.hero-scene svg, .scene-fixed svg');
+      for(var _i=0;_i<_scenes.length;_i++){ _scenes[_i].setAttribute('preserveAspectRatio','xMidYMid meet'); }
+    }
+  }catch(_e){}
+
+  if(_coarseHero) reduce = true;
 
   // ---- the progression knob -------------------------------------------
   var LEVEL = 24, MAX_LEVEL = 40;           // illustrative current rank

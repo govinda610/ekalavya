@@ -922,10 +922,42 @@ footer .fm{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);lette
 @media(max-width:560px){
   .smap{display:block;overflow-x:auto;white-space:nowrap}
   .pd-cell,.prof-cols>.frame{overflow-x:auto}
-  .land-nav{flex-wrap:wrap}
-  .land-nav .links{margin-left:0;flex-wrap:wrap;gap:12px}
   .comp-grid>.card{grid-column:span 12!important}
   .lib-top{flex-wrap:wrap}
+}
+/* =========================================================
+   LANDING / LOGIN / ABOUT — mobile hero (archer scene)
+   The .land-nav is position:absolute over a full-bleed hero on the landing + login
+   pages; on phones the old flex-wrap pushed it into 2-3 rows that overlapped the giant
+   wordmark. Here we keep it a SINGLE compact bar, hide the marketing text links (the CTA
+   buttons stay), stop the wordmark from clipping at 320px, and make the wide cinematic
+   scene fully visible (the JS switches it to `meet` on load). Desktop is untouched.
+========================================================= */
+@media(max-width:720px){
+  .land-nav{flex-wrap:nowrap;gap:8px;padding:14px 16px!important;align-items:center}
+  .land-nav .links{display:none}                 /* marketing links → the About page still holds them */
+  .land-nav .brand{font-size:15px;flex:1;min-width:0}
+  .land-nav .btn{padding:9px 13px!important;font-size:12px;white-space:nowrap}
+  /* the giant gold wordmark must never overflow a narrow phone */
+  h1.eka{font-size:clamp(38px,13vw,128px);letter-spacing:.02em;word-break:break-word}
+  .hero-copy,.auth-hero .hero-copy{padding-left:18px;padding-right:18px}
+  .hero-sub{font-size:clamp(15px,4.4vw,27px)}
+  .eka-deva{font-size:clamp(18px,5vw,38px)}
+  /* the wide 1180×620 scene: show it WHOLE (contain) — the JS sets preserveAspectRatio=meet.
+     Sit it in the upper band so the archer + sun read above the copy. */
+  .hero-scene{position:absolute;top:0;left:0;right:0;height:46vh;min-height:230px}
+  .hero-scene svg{width:100%;height:100%}
+  .hero{min-height:100svh;justify-content:flex-end}
+  .hero-copy{margin-top:44vh}                    /* copy sits below the scene band */
+  .scene-fixed svg{object-fit:contain}
+}
+@media(max-width:400px){
+  .land-nav{gap:6px;padding:12px 12px!important}
+  .land-nav .brand{font-size:12px;letter-spacing:.03em;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .land-nav .brand svg{flex:none}
+  .land-nav>span[style]{flex:1 1 auto}                  /* the flex spacer keeps buttons right-aligned */
+  .land-nav .btn{padding:8px 10px!important;font-size:11px}
+  h1.eka{font-size:clamp(34px,12vw,60px)}
 }
 
 /* =========================================================
