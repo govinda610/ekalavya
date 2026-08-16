@@ -981,6 +981,11 @@ background:none;border:1px solid transparent;padding:7px 13px;border-radius:4px;
 .tab:hover{color:var(--gold-bright)}
 .tab.on{color:var(--gold-bright);border-color:var(--line-gold);background:rgba(231,182,75,.08)}
 .spacer{flex:1}
+/* header overflow menu — desktop-neutral: the tray is display:contents (no box, no layout
+   change) and the ⋯ button is hidden. Both only come alive inside the phone media query. */
+.hdr-tray{display:contents}
+.hdr-more{display:none}
+.ed-back{display:none}
 /* provider chip — compact pill, not raw wrapped debug text */
 .who{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;color:var(--parch-dim);text-transform:uppercase;
  background:rgba(6,9,20,.5);border:1px solid var(--line-gold);border-radius:999px;padding:5px 11px;
@@ -1662,12 +1667,149 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
  .inbar textarea{min-width:0;font-size:16px}   /* 16px stops iOS auto-zoom on focus */
  .inbar .send{flex:none;padding:0 14px}
 }
+/* ============================================================================
+   MOBILE CHAT-FIRST ARENA (phones only, ≤900px). Models the interaction of
+   Claude/ChatGPT mobile — a full-height scrolling conversation with a sticky
+   auto-growing bottom input — skinned entirely in Eklavya's dark+gold world.
+   The code Editor + Canvas become an on-demand near-fullscreen slide-over
+   (hidden by default). Desktop split-pane is untouched (this whole block is
+   inside a phone media query + JS ek-mobile gate). ============================ */
+@media(max-width:900px){
+ /* the arena owns a fixed viewport slab: header + sticky bottom-nav frame it, the
+    chat conversation fills everything between. dvh keeps it honest when the URL bar
+    or keyboard changes the visible height. --kb is set live from visualViewport. */
+ body[data-view="practice"]{--kb:0px}
+ body[data-view="practice"] #content{position:relative}
+ body[data-view="practice"] #practice{
+   display:flex;flex-direction:column;
+   height:calc(100dvh - var(--ek-hdr,52px) - var(--ek-nav,64px) - var(--kb));
+   min-height:0}
+ /* ── chat column = the whole arena; a real message thread ── */
+ body[data-view="practice"] #practice > .col.chat{
+   flex:1 1 auto;min-height:0;border-right:none;display:flex;flex-direction:column}
+ body[data-view="practice"] .log{
+   padding:16px 14px 12px;gap:16px;-webkit-overflow-scrolling:touch}
+ /* roomier, comfortable message bubbles (≥16px, generous spacing) */
+ body[data-view="practice"] .msg{max-width:90%;font-size:16px;padding:13px 15px;line-height:1.6}
+ body[data-view="practice"] .msg code{font-size:14px}
+ /* the résumé-upload row is optional chrome — keep it compact, never crowd the thread */
+ body[data-view="practice"] .resumebar{padding:6px 12px 0}
+ /* ── sticky bottom composer (Claude/ChatGPT pattern), pinned above the keyboard ── */
+ body[data-view="practice"] .col.chat .inbar{
+   position:sticky;bottom:0;z-index:6;
+   gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px));
+   background:linear-gradient(180deg,rgba(10,14,26,.72),rgba(8,11,24,.94));
+   border-top:1px solid var(--line-gold);align-items:flex-end}
+ body[data-view="practice"] .inbar textarea{
+   font-size:16px;padding:12px 14px;border-radius:14px;max-height:38dvh;
+   min-height:46px;background:rgba(6,9,20,.75)}
+ body[data-view="practice"] .inbar .send{
+   flex:none;align-self:stretch;border-radius:12px;padding:0 18px;min-height:46px}
+ body[data-view="practice"] .inbar .rewind{align-self:stretch;min-height:46px}
+ /* the empty-state hero is fine at first, but must never dwarf a live thread */
+ body[data-view="practice"] .arena-welcome{max-width:300px;padding:20px 18px}
+ /* ── Editor + Canvas: an on-demand slide-over, HIDDEN by default on phones ── */
+ body[data-view="practice"] #practice > .col:not(.chat){
+   position:fixed;left:0;top:0;width:100vw;max-width:100vw;
+   height:calc(100dvh - var(--kb));z-index:1150;
+   background:var(--indigo-night);overflow-x:hidden;
+   transform:translateY(101%);transition:transform .28s cubic-bezier(.2,.7,.3,1);
+   box-shadow:0 -18px 50px -12px rgba(0,0,0,.75);
+   will-change:transform;display:flex;flex-direction:column;overscroll-behavior:contain}
+ body[data-view="practice"].ed-open #practice > .col:not(.chat){transform:none}
+ /* even when the desktop 'nocode' class is set, the mobile slide-over rule owns visibility */
+ body[data-view="practice"] #practice.nocode > .col:not(.chat){display:flex}
+ /* slide-over header: a clear "← Chat" way back + the mode + Run/Submit within reach */
+ body[data-view="practice"] .edtoolbar{
+   position:sticky;top:0;z-index:2;flex-wrap:wrap;gap:8px;
+   padding:calc(8px + env(safe-area-inset-top,0px)) 12px 8px;
+   background:linear-gradient(180deg,rgba(20,16,10,.96),rgba(12,10,20,.96));
+   border-bottom:1px solid var(--line-gold)}
+ body[data-view="practice"] .ed-back{
+   display:inline-flex;align-items:center;gap:6px;order:-1;
+   font-family:var(--f-title);font-size:14px;color:var(--gold-bright);
+   background:rgba(231,182,75,.1);border:1px solid var(--line-gold);border-radius:8px;
+   padding:9px 13px;min-height:44px;cursor:pointer}
+ body[data-view="practice"] .edtoolbar button,
+ body[data-view="practice"] .edtoolbar .modelaunch{min-height:44px}
+ /* the Editor/Canvas seg + Run/Submit must never clip off the right edge: let the seg wrap
+    to its own full-width row and keep the action buttons roomy. */
+ body[data-view="practice"] .edtoolbar .seg{flex:1 1 100%;order:5;justify-content:center}
+ body[data-view="practice"] .edtoolbar .grow{display:none}
+ body[data-view="practice"] .edtoolbar .modelaunch{flex:1 1 auto;min-width:0;overflow:hidden;
+   white-space:nowrap;text-overflow:ellipsis;padding-left:12px;padding-right:12px}
+ /* Run/New/Submit share one row and shrink evenly so Submit never clips off the edge */
+ body[data-view="practice"] .edtoolbar .run,
+ body[data-view="practice"] .edtoolbar .submit,
+ body[data-view="practice"] .edtoolbar > .ghost{order:6;flex:1 1 0;min-width:0;
+   padding-left:8px;padding-right:8px;white-space:nowrap}
+ body[data-view="practice"] .edtoolbar{width:100%;max-width:100vw}
+ body[data-view="practice"] #editor{flex:1 1 auto;min-height:0;width:100%;max-width:100vw}
+ body[data-view="practice"] #canvaspane{flex:1 1 auto;min-height:0;width:100%;max-width:100vw}
+ /* ── condensed header: a slim identity + a compact overflow menu, no wrapping ── */
+ body[data-view="practice"] header{flex-wrap:nowrap;gap:8px;padding:8px 12px;
+   min-height:52px;overflow:visible}
+ body[data-view="practice"] header .logo{font-size:16px}
+ body[data-view="practice"] header .brand .bowmark svg{width:15px;height:19px}
+ /* fold the editor-only session controls into a tap-to-open ⋯ menu */
+ body[data-view="practice"] .hdr-more{
+   display:inline-flex;align-items:center;justify-content:center;flex:none;
+   width:44px;height:44px;border-radius:10px;cursor:pointer;
+   color:var(--gold-bright);background:rgba(231,182,75,.08);border:1px solid var(--line-gold);
+   font-size:19px;line-height:1}
+ /* the tray (penalty/Timer/Wrap-up) collapses to nothing on phones until ⋯ opens it as a
+    stacked popover. Chats + Editor stay as visible pills in the slim bar. */
+ body[data-view="practice"] .hdr-tray{display:none}
+ body[data-view="practice"].hdrmenu .hdr-tray{
+   position:absolute;top:calc(100% + 6px);right:10px;z-index:120;
+   display:flex;flex-direction:column;gap:8px;width:min(250px,74vw);padding:12px;
+   background:linear-gradient(160deg,rgba(30,24,18,.99),rgba(14,11,26,.99));
+   border:1px solid var(--line-gold);border-radius:12px;
+   box-shadow:0 20px 50px -14px rgba(0,0,0,.8)}
+ body[data-view="practice"].hdrmenu .hdr-tray > #penaltybtn,
+ body[data-view="practice"].hdrmenu .hdr-tray > #wrapbtn{
+   display:flex;width:100%;justify-content:flex-start;text-align:left;
+   border-radius:8px;min-height:46px}
+ body[data-view="practice"].hdrmenu .hdr-tray > .timerwrap{display:block;width:100%}
+ body[data-view="practice"].hdrmenu .hdr-tray > .timerwrap > button{width:100%;min-height:46px}
+ /* the Chats + Editor pills stay in the slim bar; compact HUD chip beside them */
+ body[data-view="practice"] #chatsbtn,
+ body[data-view="practice"] #edtoggle{flex:none;min-height:44px;padding:10px 11px;border-radius:9px}
+ body[data-view="practice"] .hud{font-size:10px;gap:5px;flex:0 1 auto;min-width:0;
+   flex-wrap:nowrap;overflow:hidden;max-width:38vw}
+ body[data-view="practice"] .hud .rank{display:none}
+ body[data-view="practice"] .hud .prog{display:none}   /* the ring + streak flame carry the HUD; the verbose 'Lv N · % → R' text is desktop-only */
+ body[data-view="practice"] .hud svg{width:24px;height:24px;flex:none}
+ body[data-view="practice"] header .spacer{flex:1 1 0;min-width:0}
+ body[data-view="practice"] header .who{display:none}   /* provider chip is redundant chrome on a phone header */
+ /* when the slide-over editor is open, keep the bottom nav out of the way */
+ body[data-view="practice"].ed-open #mnav{display:none}
+}
+@media(max-width:900px) and (max-height:520px){
+ /* landscape phones: the composer must not eat the whole slab */
+ body[data-view="practice"] .inbar textarea{max-height:120px;min-height:40px}
+}
+@media(max-width:400px){
+ /* very narrow phones: tighten the slim bar so brand + Chats + Editor + HUD + ⋯ all fit
+    without pushing the ⋯ off the right edge. Chats collapses to its icon, HUD to the ring. */
+ body[data-view="practice"] header{gap:5px;padding:8px 10px}
+ body[data-view="practice"] header .logo{font-size:13px;letter-spacing:.05em}
+ body[data-view="practice"] #chatsbtn,
+ body[data-view="practice"] #edtoggle{padding:10px 8px;font-size:10px;letter-spacing:.02em}
+ body[data-view="practice"] .hud{max-width:30px}
+ body[data-view="practice"] .hud .flame{display:none}
+}
 </style></head><body data-view="practice">
 <header>
   <div class="brand"><div class="logo"><span class="bowmark"><svg width="18" height="23" viewBox="0 0 58 76" aria-hidden="true"><path d="M14 6 C40 24 40 52 14 70" stroke="#e7b64b" stroke-width="4" stroke-linecap="round" fill="none"/><line x1="14" y1="6" x2="14" y2="70" stroke="#57d3ce" stroke-width="1.6"/><line x1="14" y1="38" x2="50" y2="38" stroke="#f7d98a" stroke-width="2.4"/><path d="M50 38 l-7 -5 M50 38 l-7 5" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/></svg></span> <span class="g">EKALAVYA</span></div><div class="creed">स्वाध्याय · साधना · सिद्धि</div></div>
   <div class="spacer"></div>
+  <!-- .hdr-tray is display:contents on desktop (transparent to layout → desktop pixel-identical);
+       on phones it becomes a tap-to-open overflow popover so the slim bar stays chat-first. -->
   <button id="chatsbtn" onclick="openDrawer()">☰ Chats</button>
   <button class="tab on" id="edtoggle" onclick="toggleEditor()" title="Show or hide the code editor">▤ Editor</button>
+  <!-- .hdr-tray is display:contents on desktop (transparent to layout → desktop pixel-identical);
+       on phones these three fold into a tap-to-open ⋯ popover so the slim bar stays chat-first. -->
+  <div class="hdr-tray">
   <button id="penaltybtn" onclick="togglePenalty()" title="Turn the cheat penalty on or off">☠ penalty on</button>
   <span class="timerwrap">
     <button id="timerbtn" onclick="toggleTimerMenu(event)" title="Optional focus timer — never ends the session on its own">⏱ Timer</button>
@@ -1679,7 +1821,9 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
     </div>
   </span>
   <button id="wrapbtn" onclick="endSession()" title="Finish this session — the guru summarizes and saves your progress">⏹ Wrap up</button>
+  </div>
   <div class="hud" id="hud"></div>
+  <button class="hdr-more" aria-label="Session menu" onclick="toggleHdrMenu(event)">⋯</button>
   <div class="who" id="who"></div>
 </header>
 <main>
@@ -1727,6 +1871,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
     </div>
     <div class="col">
       <div class="edtoolbar">
+        <button class="ed-back" onclick="closeEditorMobile()" title="Back to the conversation">← Chat</button>
         <button class="modelaunch" onclick="openModes()" title="Choose a mode"><span class="ml-g">◈</span> <span id="modelabel">Daily practice</span> <span class="ml-caret">▾</span></button>
         <select id="mode" onchange="newSession()" style="display:none">
           <option value="practice">Daily practice</option>
@@ -2270,13 +2415,62 @@ function askSelection(){
   stream(q);
 }
 // editor show/hide toggle (canvas-style) — persisted; Submit never hides it
+/* ek-mobile gate: phones (≤900px OR coarse pointer) get the chat-first slide-over behaviour;
+   desktop keeps the untouched split-pane toggle. */
+function ekMobile(){ return window.matchMedia('(max-width:900px)').matches; }
 function toggleEditor(){
+  if(ekMobile()){
+    // slide-over: reveal the near-fullscreen editor/canvas over the conversation
+    const open=document.body.classList.toggle('ed-open');
+    document.getElementById('edtoggle').classList.toggle('on', open);
+    document.body.classList.remove('hdrmenu');
+    if(editor && open) setTimeout(()=>editor.layout(),300);
+    return;
+  }
   const hidden=document.getElementById('practice').classList.toggle('nocode');
   document.getElementById('edtoggle').classList.toggle('on', !hidden);
   localStorage.setItem('ek_nocode', hidden?'1':'0');
   if(editor && !hidden) setTimeout(()=>editor.layout(),60);  // Monaco needs a relayout when reshown
 }
-if(localStorage.getItem('ek_nocode')==='1'){
+function closeEditorMobile(){
+  document.body.classList.remove('ed-open');
+  document.getElementById('edtoggle').classList.remove('on');
+}
+function toggleHdrMenu(e){ if(e){e.stopPropagation();} document.body.classList.toggle('hdrmenu'); }
+document.addEventListener('click',function(e){
+  // dismiss the header ⋯ tray on any outside tap
+  if(!document.body.classList.contains('hdrmenu')) return;
+  if(e.target.closest('.hdr-tray')||e.target.closest('.hdr-more')) return;
+  document.body.classList.remove('hdrmenu');
+});
+/* Keep the composer pinned above the on-screen keyboard (Claude/ChatGPT behaviour):
+   visualViewport tells us how much the keyboard shrank the visible area → we feed that
+   into --kb so the fixed-height arena slab lifts the sticky input into view. Phones only. */
+(function(){
+  const vv=window.visualViewport; if(!vv) return;
+  function sync(){
+    if(!ekMobile()){ document.body.style.removeProperty('--kb'); return; }
+    const kb=Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    document.body.style.setProperty('--kb', kb+'px');
+    if(kb>60){ const l=document.getElementById('log'); if(l) l.scrollTop=l.scrollHeight; }
+  }
+  vv.addEventListener('resize',sync); vv.addEventListener('scroll',sync);
+  window.addEventListener('orientationchange',()=>setTimeout(sync,300));
+})();
+/* measure the real header + bottom-nav heights into CSS vars so the arena slab is exact
+   (avoids a magic-number gap that would hide the input behind the nav). */
+(function(){
+  function measure(){
+    const h=document.querySelector('header'), n=document.getElementById('mnav');
+    if(h) document.body.style.setProperty('--ek-hdr', h.offsetHeight+'px');
+    if(n && getComputedStyle(n).display!=='none') document.body.style.setProperty('--ek-nav', n.offsetHeight+'px');
+  }
+  window.addEventListener('load',measure); window.addEventListener('resize',measure);
+  setTimeout(measure,300);
+})();
+// desktop-only: restore the persisted 'hide editor' preference. On phones the editor is a
+// slide-over (hidden by default), so we don't apply the desktop nocode class there.
+if(!ekMobile() && localStorage.getItem('ek_nocode')==='1'){
   document.getElementById('practice').classList.add('nocode');
   document.getElementById('edtoggle').classList.remove('on');
 }
