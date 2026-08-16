@@ -821,6 +821,8 @@
   // Long soft god-rays raking down from the temple across the whole forest (drawn ABOVE
   // the ground so the beams read over the trees — the reference art's signature light).
   function paintGodRays(g, tp, reduced) {
+    if (LITE) return;   // the broad translucent cone washes into a milky "fog" on a small STATIC
+                        // phone map (no animation to break it up) — skip on mobile; desktop keeps it.
     // the big full-map god-ray cone: its fill already fades to transparent (rayG), so the
     // large-region soft2 blur was redundant cost — dropped.
     const rays = el('g', { opacity: 0.5, 'pointer-events': 'none',
@@ -945,7 +947,7 @@
     // atmospheric depth haze — soft cool bands. These span the FULL width, so a big-region
     // feGaussianBlur (soft2) here was one of the priciest filters on the map; at this low
     // opacity a plain translucent band reads the same, so we drop the live blur.
-    for (let i = 0; i < 5; i++) {
+    if (!LITE) for (let i = 0; i < 5; i++) {   // cool haze bands also read as fog on the small static phone map
       const t = i / 4, y = 300 + t * 200;
       el('rect', { x: 0, y: y - 30, width: VB.w, height: 64, fill: 'rgba(120,170,190,' + (0.09 - t * 0.02).toFixed(3) + ')' }, g);
     }
