@@ -3716,6 +3716,18 @@ body{min-height:100vh;margin:0;padding:0;background:var(--void)}
 /* honour reduced-motion: no slide, no bob — the card is simply present */
 @media(prefers-reduced-motion:reduce){.glass{opacity:1;transform:none;transition:none}}
 @media(max-width:560px){.glass{padding:26px 20px 24px}.glass .ah{font-size:24px}.auth-sec{padding:44px 16px}}
+/* MOBILE tidy (phones): the fixed target/sun/bow scene bled awkwardly past the right edge of
+   the auth card and left dead space above it. Deepen the scrim behind the card so the artwork
+   reads as a calm backdrop (not a cropped graphic beside the form), and lift the card up so it
+   sits just below the hero instead of floating mid-void. Desktop scene is untouched. */
+@media(max-width:560px){
+ .auth-sec{min-height:auto;padding:20px 16px calc(40px + env(safe-area-inset-bottom,0px));justify-content:flex-start}
+ .scene-scrim{background:linear-gradient(180deg,rgba(10,13,28,.5) 0%,rgba(10,13,28,.42) 40%,rgba(10,13,28,.72) 100%)}
+ /* a soft vignette right behind the card kills the right-edge bleed of the target graphic */
+ .auth-sec::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+   background:radial-gradient(120% 80% at 50% 88%,rgba(10,13,28,.82),rgba(10,13,28,.35) 60%,transparent)}
+ .glass{position:relative;z-index:1}
+}
 </style></head><body>
 <div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>
 <div class="scene-scrim"></div>

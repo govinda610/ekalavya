@@ -938,17 +938,26 @@ footer .fm{font-family:var(--f-mono);font-size:11px;color:var(--parch-dim);lette
   .land-nav .links{display:none}                 /* marketing links → the About page still holds them */
   .land-nav .brand{font-size:15px;flex:1;min-width:0}
   .land-nav .btn{padding:9px 13px!important;font-size:12px;white-space:nowrap}
-  /* the giant gold wordmark must never overflow a narrow phone */
-  h1.eka{font-size:clamp(38px,13vw,128px);letter-spacing:.02em;word-break:break-word}
-  .hero-copy,.auth-hero .hero-copy{padding-left:18px;padding-right:18px}
+  /* the giant gold wordmark must never overflow OR clip on a narrow phone — a hair of extra
+     left room keeps the 'E' fully on-screen (it was kissing the edge). */
+  h1.eka{font-size:clamp(38px,13vw,128px);letter-spacing:.02em;word-break:break-word;margin-left:-1px;padding-left:1px}
+  .hero-copy,.auth-hero .hero-copy{padding-left:20px;padding-right:18px}
   .hero-sub{font-size:clamp(15px,4.4vw,27px)}
   .eka-deva{font-size:clamp(18px,5vw,38px)}
-  /* the wide 1180×620 scene: show it WHOLE (contain) — the JS sets preserveAspectRatio=meet.
-     Sit it in the upper band so the archer + sun read above the copy. */
-  .hero-scene{position:absolute;top:0;left:0;right:0;height:46vh;min-height:230px}
+  /* REBALANCE (phones): pull the cinematic scene UP to fill the empty upper band and enlarge it
+     so the archer + clay Droṇa + sun actually read, instead of a small scene floating in the
+     concentric-ring void. Anchor the illustration to the TOP and let it fill the width (slice),
+     then leave a clear gap before the wordmark so nothing overlaps. */
+  .hero-scene{position:absolute;top:0;left:0;right:0;height:56vh;min-height:300px}
   .hero-scene svg{width:100%;height:100%}
+  .hero-scrim{height:56vh;min-height:300px;
+    background:linear-gradient(180deg,rgba(16,21,40,0) 0%,rgba(16,21,40,0) 52%,rgba(16,21,40,.5) 78%,var(--indigo-night) 100%)}
+  /* the concentric yantra rings were reading as dead space on a phone — shrink + fade them so
+     the scene fills the eye instead of empty circles, and lift them into the illustration band. */
+  .hero-yantra{top:24%;width:min(560px,120vw);height:min(560px,120vw);opacity:.08}
   .hero{min-height:100svh;justify-content:flex-end}
-  .hero-copy{margin-top:44vh}                    /* copy sits below the scene band */
+  .hero-copy{margin-top:52vh;padding-bottom:36px}   /* clear gap below the scene → no overlap */
+  .hero-meta{margin-top:20px;gap:8px}
   .scene-fixed svg{object-fit:contain}
 }
 @media(max-width:400px){
