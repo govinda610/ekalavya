@@ -57,11 +57,16 @@ def test_dashboard_and_apis():
 def test_config_includes_first_run_and_onboard():
     from starlette.testclient import TestClient
 
-    from eklavya import config
     from eklavya.db import connect
 
     client = TestClient(create_app())
-    # seeded fixture added a rating -> not a first run
+    # Onboarding is complete only when BOTH a rating AND the completion artifact
+    # (profile.md) exist. The seeded fixture added a rating but no profile, so this
+    # is still a first run — writing the profile completes onboarding.
+    assert client.get("/api/config").json()["first_run"] is True
+    # Write the profile through the same request-bound home the routes use, so
+    # onboarding reads as complete.
+    client.put("/api/profile", json={"text": "# Profile\nonboarded"})
     assert client.get("/api/config").json()["first_run"] is False
     assert "onboard" in client.get("/api/config").json()["kickoff"]
     # wipe ratings + profile -> first run
@@ -69,8 +74,7 @@ def test_config_includes_first_run_and_onboard():
     conn.execute("DELETE FROM ratings")
     conn.commit()
     conn.close()
-    if config.PROFILE_PATH.exists():
-        config.PROFILE_PATH.unlink()
+    client.put("/api/profile", json={"text": ""})
     assert client.get("/api/config").json()["first_run"] is True
 
 

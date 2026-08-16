@@ -106,11 +106,21 @@ def due_count() -> int:
 
 
 def is_first_run() -> bool:
-    """True when Ekalavya has no ratings yet — i.e. the learner hasn't onboarded
-    to Ekalavya (keyed off our own state, not a shared teacher-mode profile)."""
+    """True until onboarding has actually COMPLETED — keyed off our own completion
+    artifact, not a shared teacher-mode profile.
+
+    Onboarding is done only when BOTH exist: at least one graded rating AND the
+    profile.md the tutor writes at the end of onboarding. Gating on ratings alone
+    left a hole: a learner who got one graded rating but never finished onboarding
+    (no profile.md) would permanently skip onboarding. Requiring the completion
+    artifact closes that hole.
+    """
+    from . import config
     from .db import connect, schema_version
 
     if schema_version() is None:
+        return True
+    if not config.paths().profile.exists():
         return True
     conn = connect()
     try:
