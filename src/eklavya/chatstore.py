@@ -37,6 +37,10 @@ def get_checkpointer():
 
         config.ensure_home()
         conn = sqlite3.connect(key, check_same_thread=False)
+        # One shared connection serves every thread of this user (check_same_thread=False),
+        # so concurrent turns from the same user can collide on a write. A busy_timeout makes
+        # SQLite retry briefly under contention instead of raising "database is locked".
+        conn.execute("PRAGMA busy_timeout = 5000;")
         saver = SqliteSaver(conn)
         saver.setup()
         _savers[key] = saver

@@ -47,3 +47,13 @@ def test_touch_is_idempotent_and_preserves_title():
     chatstore.touch_chat("t1", mode="practice")            # a later turn bumps updated_at
     assert chatstore.get_title("t1") == "My chat"          # title is not clobbered
     assert len(chatstore.list_chats()) == 1                # still one row
+
+
+def test_checkpointer_sets_busy_timeout():
+    """The shared checkpointer connection (check_same_thread=False) must set a
+    busy_timeout so same-user concurrent turns retry under write contention instead
+    of raising 'database is locked'."""
+    chatstore._savers.clear()
+    saver = chatstore.get_checkpointer()
+    timeout_ms = saver.conn.execute("PRAGMA busy_timeout").fetchone()[0]
+    assert timeout_ms >= 5000
