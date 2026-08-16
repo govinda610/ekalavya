@@ -607,6 +607,10 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
   .cal-facts{gap:16px}
   .cal-fact,.badge,.pill,.quest,.quest .qtext{min-width:0}
   .cal-fact{flex:1 1 auto}
+  /* clear the SPA's fixed bottom nav: this page renders inside the app iframe on phones, so
+     its last card would otherwise sit UNDER the nav. Pad the scroll container by nav height +
+     the iOS home-indicator safe area. Harmless when the page is opened standalone. */
+  body{padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
 }
 
 /* polish */

@@ -1258,6 +1258,16 @@ button:disabled{opacity:.42;cursor:default}
 .toggle.danger.on{background:linear-gradient(90deg,var(--vermilion-deep),var(--vermilion));border-color:var(--vermilion)}
 .setrow select{background:rgba(6,9,20,.7);color:var(--parch);border:1px solid var(--line-gold);border-radius:5px;padding:8px 11px;font-family:var(--f-mono);font-size:12px;cursor:pointer}
 .setrow select:disabled{opacity:.5}
+/* MOBILE (phones): stack each setting's label ABOVE a full-width control so the Provider
+   dropdown never collapses the label into a skinny column or overflows off the right edge.
+   Desktop keeps the inline label|control row (rule above). */
+@media(max-width:560px){
+ .setrow{flex-direction:column;align-items:stretch;gap:12px;padding:16px 2px}
+ .setrow .si{flex:none}
+ .setrow select{width:100%;font-size:16px;padding:12px 12px;min-height:44px}   /* 16px stops iOS zoom */
+ .setrow .toggle{align-self:flex-start}     /* toggles read fine at their own size, left-aligned */
+ .lb-set .lb-set-top{flex-direction:column;align-items:stretch;gap:12px}
+}
 /* Settings → Leaderboard section: handle input + join/leave + note */
 .lb-set{display:flex;flex-direction:column;gap:12px;padding:18px 4px;border-bottom:1px solid var(--line-soft)}
 .lb-set .lb-set-top{display:flex;align-items:flex-start;gap:18px}
