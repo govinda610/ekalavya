@@ -18,8 +18,7 @@ the value we add is the CROSS-provider hop, so we keep this layer thin.
 
 from __future__ import annotations
 
-import itertools
-import os
+import time
 from typing import Any
 
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -55,17 +54,113 @@ def fallback_order(provider_key: str | None = None) -> list[str]:
     return [first] + [k for k in configured if k != first]
 
 
-# Round-robin cursor for optional entry-provider load-balancing. Advancing this
-# per new session spreads load across providers without changing the *chain*
-# (all configured providers are still tried on failure, just in a rotated order).
-_rr = itertools.count()
+# --- sticky, cache-friendly balancer ---------------------------------------
+#
+# Round-robin (the old EKLAVYA_BALANCE=1) spread each new session across providers, which
+# THRASHED provider-side prompt caches — every session hit a cold cache. The sticky balancer
+# instead keeps ALL requests on ONE provider (the highest-priority configured+eligible one)
+# so its cache stays warm, and only moves off it when that provider is actually exhausted
+# (a transient/rate-limit/quota/5xx error), cooling it down for a while before it's eligible
+# again. When a cooldown expires the provider becomes eligible; we only RECOMPUTE the sticky
+# pointer when the current sticky becomes ineligible (so we don't flap back on the instant a
+# higher-priority provider recovers mid-session).
+#
+# State is process-level: a single uvicorn worker owns it. NOTE: a multi-worker deployment
+# would need this cooldown map + sticky pointer moved to shared state (Redis/db); today we
+# run one worker, so a plain module dict is correct and testable.
+
+# provider_key -> unix timestamp until which it is cooling down (ineligible).
+_cooldowns: dict[str, float] = {}
+# the provider currently pinned as sticky (or None before the first pick).
+_sticky: str | None = None
 
 
-def _rotated_order(order: list[str]) -> list[str]:
+def _now() -> float:
+    return time.time()
+
+
+def priority_order(provider_key: str | None = None) -> list[str]:
+    """Configured providers sorted by the explicit priority order (config.PROVIDER_ORDER),
+    with any provider not named in that order appended (stable) after the ranked ones.
+
+    A preferred ``provider_key`` (an explicit Settings choice) is bumped to the very front so
+    it becomes the sticky primary, with the priority order as its failover tail.
+    """
+    configured = [p.key for p in configured_providers()]
+    if not configured:
+        return [provider_key or config.DEFAULT_PROVIDER]
+
+    rank = {k: i for i, k in enumerate(config.PROVIDER_ORDER)}
+    ordered = sorted(configured, key=lambda k: (rank.get(k, len(rank)), k))
+
+    if provider_key and provider_key in configured:
+        ordered = [provider_key] + [k for k in ordered if k != provider_key]
+    return ordered
+
+
+def _eligible(order: list[str], now: float) -> list[str]:
+    """Providers from ``order`` whose cooldown (if any) has expired at ``now``."""
+    return [k for k in order if _cooldowns.get(k, 0.0) <= now]
+
+
+def sticky_chain(provider_key: str | None = None, now: float | None = None) -> list[str]:
+    """The chain for the sticky balancer: the sticky provider first, then the rest of the
+    priority order as the per-request failover set.
+
+    AUTO (``provider_key`` None): a shared process-level sticky pointer keeps every session on
+    ONE provider so its cache stays warm; it only moves when the current sticky is ineligible
+    (in cooldown or no longer configured), never flapping back the instant a higher-priority
+    provider recovers mid-session.
+
+    PINNED (``provider_key`` set): that provider leads whenever it's eligible; when it is
+    cooling down we lead with the next eligible provider from the priority order. A pinned
+    build does NOT touch the shared auto pointer.
+
+    If every provider is cooling down we still return a full chain (lead = highest-priority) so
+    a request can try anyway — a cooldown gates *becoming sticky*, never the last-resort
+    failover.
+    """
+    global _sticky
+    if now is None:
+        now = _now()
+
+    order = priority_order(provider_key)
     if len(order) <= 1:
+        if provider_key is None:
+            _sticky = order[0] if order else None
         return order
-    n = next(_rr) % len(order)
-    return order[n:] + order[:n]
+
+    eligible = _eligible(order, now)
+    pool = eligible or order  # all cooling down → best-effort over the full order
+
+    if provider_key is not None:
+        # pinned: preferred leads when eligible, else the next eligible provider.
+        lead = order[0] if order[0] in pool else pool[0]
+        return [lead] + [k for k in order if k != lead]
+
+    # auto: recompute the shared sticky only when the current one is ineligible/unknown.
+    if _sticky is None or _sticky not in pool:
+        _sticky = pool[0]
+    return [_sticky] + [k for k in order if k != _sticky]
+
+
+def mark_cooldown(provider_key: str, now: float | None = None) -> None:
+    """Cool a provider down for config.PROVIDER_COOLDOWN seconds (it exhausted). If it was
+    the sticky provider, drop the pointer so the next chain build advances to the next
+    eligible provider."""
+    global _sticky
+    if now is None:
+        now = _now()
+    _cooldowns[provider_key] = now + config.PROVIDER_COOLDOWN
+    if _sticky == provider_key:
+        _sticky = None
+
+
+def _reset_balancer_state() -> None:
+    """Clear the process-level sticky/cooldown state (tests only)."""
+    global _sticky
+    _cooldowns.clear()
+    _sticky = None
 
 
 # --- error classification --------------------------------------------------
@@ -150,6 +245,11 @@ class FallbackChatModel(BaseChatModel):
     build_kwargs: dict[str, Any] = {}
     # Recorded (method, args, kwargs) to replay on each provider's ChatAnthropic.
     binds: list[tuple[str, tuple, dict]] = []
+    # Sticky-auto mode: recompute the chain per request from the live sticky/cooldown state,
+    # and cool a provider down when IT (the sticky lead) exhausts — so the next request
+    # advances to the next eligible provider. When off, `chain` is used verbatim.
+    sticky: bool = False
+    preferred: str | None = None
 
     # pydantic v2 (langchain) config: allow the mutable defaults above.
     model_config = {"arbitrary_types_allowed": True}
@@ -171,7 +271,22 @@ class FallbackChatModel(BaseChatModel):
         return runnable
 
     def _order(self) -> list[str]:
+        """The provider chain for THIS request.
+
+        Sticky-auto recomputes it live so a provider that cooled down (exhausted on an earlier
+        request) is skipped as the lead and the next eligible provider becomes sticky/warm. A
+        pinned (non-sticky) chain is used verbatim.
+        """
+        if self.sticky:
+            return sticky_chain(self.preferred)
         return self.chain
+
+    def _note_failure(self, key: str, order: list[str]) -> None:
+        """In sticky mode, cool the lead (sticky) provider down when it exhausts, so the next
+        request advances off it. Only the current lead triggers a cooldown — a failover
+        provider failing on one request shouldn't evict a still-warm lead."""
+        if self.sticky and order and key == order[0]:
+            mark_cooldown(key)
 
     # -- bind_tools / bind: record, don't lose fallback --
 
@@ -181,6 +296,8 @@ class FallbackChatModel(BaseChatModel):
             model=self.model,
             build_kwargs=dict(self.build_kwargs),
             binds=[*self.binds, (name, args, kwargs)],
+            sticky=self.sticky,
+            preferred=self.preferred,
         )
         return clone
 
@@ -194,25 +311,29 @@ class FallbackChatModel(BaseChatModel):
 
     def _run(self, method: str, *args, **kwargs):
         errors: list[tuple[str, BaseException]] = []
-        for key in self._order():
+        order = self._order()
+        for key in order:
             try:
                 runnable = self._provider_runnable(key)
                 return getattr(runnable, method)(*args, **kwargs)
             except Exception as exc:  # noqa: BLE001
                 if not is_transient(exc):
                     raise
+                self._note_failure(key, order)
                 errors.append((key, exc))
         raise AllProvidersFailed(errors)
 
     async def _arun(self, method: str, *args, **kwargs):
         errors: list[tuple[str, BaseException]] = []
-        for key in self._order():
+        order = self._order()
+        for key in order:
             try:
                 runnable = self._provider_runnable(key)
                 return await getattr(runnable, method)(*args, **kwargs)
             except Exception as exc:  # noqa: BLE001
                 if not is_transient(exc):
                     raise
+                self._note_failure(key, order)
                 errors.append((key, exc))
         raise AllProvidersFailed(errors)
 
@@ -221,7 +342,8 @@ class FallbackChatModel(BaseChatModel):
         has started emitting, a mid-stream error can't be replayed cleanly, so we
         let it propagate rather than double-emit from another provider."""
         errors: list[tuple[str, BaseException]] = []
-        for key in self._order():
+        order = self._order()
+        for key in order:
             try:
                 runnable = self._provider_runnable(key)
                 it = iter(getattr(runnable, method)(*args, **kwargs))
@@ -231,6 +353,7 @@ class FallbackChatModel(BaseChatModel):
             except Exception as exc:  # noqa: BLE001
                 if not is_transient(exc):
                     raise
+                self._note_failure(key, order)
                 errors.append((key, exc))
                 continue
 
@@ -243,7 +366,8 @@ class FallbackChatModel(BaseChatModel):
 
     async def _arun_stream(self, method: str, *args, **kwargs):
         errors: list[tuple[str, BaseException]] = []
-        for key in self._order():
+        order = self._order()
+        for key in order:
             try:
                 runnable = self._provider_runnable(key)
                 agen = getattr(runnable, method)(*args, **kwargs).__aiter__()
@@ -256,6 +380,7 @@ class FallbackChatModel(BaseChatModel):
             except Exception as exc:  # noqa: BLE001
                 if not is_transient(exc):
                     raise
+                self._note_failure(key, order)
                 errors.append((key, exc))
                 continue
 
@@ -301,26 +426,32 @@ class FallbackChatModel(BaseChatModel):
 def build_fallback_chat_model(
     provider_key: str | None = None,
     model: str | None = None,
-    balance: bool | None = None,
+    balance: bool | None = None,  # retained for call-site compat; no longer round-robin
     **kwargs,
 ) -> FallbackChatModel:
     """Build the resilient chat model.
 
-    - ``provider_key`` set → that provider leads the chain (default honoured).
-    - ``provider_key`` None + ``balance`` (or ``EKLAVYA_BALANCE=1``) → the entry
-      provider is chosen round-robin across configured providers, spreading load;
-      the full chain (all configured providers) is still the fallback set.
+    Sticky-auto is the DEFAULT: with no explicit ``provider_key`` the model keeps every
+    request on ONE provider (the highest-priority configured+eligible one, per
+    config.PROVIDER_ORDER) so its prompt cache stays warm, advancing only when that provider
+    exhausts (cooling it down). The full priority order remains the per-request failover set.
+
+    - ``provider_key`` set → that provider is PINNED as the sticky primary (still with the
+      priority order behind it as failover). This is an explicit Settings choice.
+    - ``provider_key`` None → sticky-auto over the configured providers.
     - Single configured provider → chain of length 1, identical to no fallback.
+
+    ``balance`` is accepted but ignored — the old round-robin entry balancer is retired; the
+    sticky balancer supersedes it (see EKLAVYA_BALANCE deprecation in config.py).
     """
-    order = fallback_order(provider_key)
     if provider_key is None:
-        if balance is None:
-            # Read live so the toggle takes effect without a re-import; falls back
-            # to the config default when the env var is unset.
-            balance = os.environ.get(
-                "EKLAVYA_BALANCE",
-                "1" if config.BALANCE_PROVIDERS else "0",
-            ) not in ("0", "", "false", "False")
-        if balance:
-            order = _rotated_order(order)
-    return FallbackChatModel(chain=order, model=model, build_kwargs=kwargs)
+        # sticky-auto: chain recomputed live from the sticky/cooldown state each request.
+        order = priority_order(None)
+        return FallbackChatModel(
+            chain=order, model=model, build_kwargs=kwargs, sticky=True, preferred=None
+        )
+    # explicit pin: this provider leads and is sticky, with the priority order as failover.
+    order = priority_order(provider_key)
+    return FallbackChatModel(
+        chain=order, model=model, build_kwargs=kwargs, sticky=True, preferred=provider_key
+    )

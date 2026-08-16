@@ -113,6 +113,19 @@ def create_app():
         u = auth.get_user(_current_user_id())
         return u.get("email") if u else None
 
+    def _is_admin() -> bool:
+        """True only when the logged-in user's email is the configured owner (EKLAVYA_ADMIN_EMAIL)."""
+        return config.is_admin(_current_email())
+
+    def _require_admin() -> None:
+        """404 for anyone who isn't the admin (404, not 403, so the admin surface's very
+        existence isn't disclosed to non-admins). The auth middleware already guarantees a
+        logged-in user before any route runs."""
+        from fastapi import HTTPException
+
+        if not _is_admin():
+            raise HTTPException(status_code=404)
+
     def _active_provider():
         """The provider to use for this user: their saved Settings choice if it's
         configured, else the constructed default (auto-picked)."""
@@ -135,11 +148,13 @@ def create_app():
         uid = user_id or _current_user_id()
         tools = _TOOLS.get(mode, SESSION_TOOLS)
         if settings.get_provider() == "auto":
-            # Balanced: no pinned lead — the entry provider rotates across configured keys
-            # (still falls back on error). Rebuilds cache-independently of any single key.
+            # Sticky-auto: no pinned lead — the balancer keeps every session on ONE provider
+            # (highest-priority configured+eligible, per config.PROVIDER_ORDER) so its prompt
+            # cache stays warm, advancing only when that provider exhausts (still falls back on
+            # any single request's error). The chain recomputes live, so one cached agent is fine.
             key = (uid, mode, "auto")
             if key not in agents:
-                agents[key] = build_agent(_PROMPTS[mode], tools, provider=None, balance=True)
+                agents[key] = build_agent(_PROMPTS[mode], tools, provider=None)
             return agents[key]
         prov = _active_provider()
         key = (uid, mode, prov.key)   # provider in the key → switching rebuilds the agent
@@ -276,18 +291,19 @@ def create_app():
 
         if settings.get_provider() == "auto":
             configured = providers.configured_providers()
-            return {"provider": "Auto (balanced)",
-                    "model": "rotates across " + str(len(configured)) + " provider(s)",
+            return {"provider": "Auto (sticky)",
+                    "model": "stays on one of " + str(len(configured)) +
+                             " provider(s), fails over on exhaustion",
                     "kickoff": _KICKOFF, "configured": bool(configured),
                     "first_run": report.is_first_run(), "email": _current_email(),
                     "death_on_cheat": settings.get_death_on_cheat(),
-                    "deployed": config.DEPLOYED}
+                    "deployed": config.DEPLOYED, "is_admin": _is_admin()}
         prov = _active_provider()
         return {"provider": prov.label, "model": prov.default_model,
                 "kickoff": _KICKOFF, "configured": prov.is_configured(),
                 "first_run": report.is_first_run(), "email": _current_email(),
                 "death_on_cheat": settings.get_death_on_cheat(),
-                "deployed": config.DEPLOYED}
+                "deployed": config.DEPLOYED, "is_admin": _is_admin()}
 
     @app.get("/api/settings")
     def settings_get() -> dict:
@@ -741,6 +757,44 @@ def create_app():
             raise HTTPException(status_code=404)
         return {"ok": True}
 
+    # --- owner-only admin (approve/reject pending signups) -----------------
+    # Every route is auth-required (the middleware) AND admin-gated (_require_admin → 404 for
+    # non-admins, so the surface's existence isn't disclosed). Visible in the SPA only to the
+    # owner (via the is_admin flag on /api/config).
+    @app.get("/api/admin/pending")
+    def admin_pending() -> dict:
+        from . import auth
+
+        _require_admin()
+        return {"pending": auth.list_pending()}
+
+    @app.post("/api/admin/approve")
+    async def admin_approve(request: Request) -> dict:
+        from . import auth, mailer
+
+        _require_admin()
+        email = ((await request.json()).get("email") or "").strip()
+        ok = auth.approve_user(email)
+        if ok:
+            # tell the user they're in — best-effort, never blocks the approval.
+            site = config.PUBLIC_URL or "the app"
+            where = f"at {config.PUBLIC_URL}" if config.PUBLIC_URL else "at the sign-in page"
+            mailer.send_email(
+                email,
+                "Your Ekalavya account is approved",
+                f"Good news — your Ekalavya account has been approved. "
+                f"You can now sign in {where}.",
+            )
+        return {"ok": ok}
+
+    @app.post("/api/admin/reject")
+    async def admin_reject(request: Request) -> dict:
+        from . import auth
+
+        _require_admin()
+        email = ((await request.json()).get("email") or "").strip()
+        return {"ok": auth.reject_user(email)}
+
     # --- auth (always on) --------------------------------------------------
     # The web app is always account-backed: login/logout routes + the session middleware
     # are always mounted. Locally (DEPLOYED off) the middleware auto-logs-in the resolved
@@ -834,8 +888,21 @@ def _mount_auth(app) -> None:
         except ValueError as exc:
             return RedirectResponse(f"/signup?error={quote(str(exc))}", status_code=303)
         if pending:
+            # Best-effort: notify the owner that someone is awaiting approval. Never blocks signup.
+            from . import mailer
+
+            if config.ADMIN_EMAIL:
+                where = (f"{config.PUBLIC_URL}/settings (Admin)" if config.PUBLIC_URL
+                         else "the Admin page in the app")
+                mailer.send_email(
+                    config.ADMIN_EMAIL,
+                    "New Ekalavya signup — awaiting your approval",
+                    f"{email.strip().lower()} just signed up and is awaiting your approval.\n\n"
+                    f"Approve or reject them at {where}.",
+                )
             return RedirectResponse(
-                "/login?notice=" + quote("Account created — the owner must approve it before you can sign in."),
+                "/login?notice=" + quote("Your request has been sent to the owner — "
+                                         "you'll get an email once it's approved."),
                 status_code=303)
         return _begin_session(uid)
 
@@ -1143,7 +1210,18 @@ button:disabled{opacity:.42;cursor:default}
 .art-echo .q{font-family:var(--f-serif);font-style:italic;font-size:13px;color:var(--parch)}
 #prog,#profile{display:none;height:100%}
 #prog iframe,#profile iframe{width:100%;height:100%;border:0;background:var(--indigo-night)}
-#library,#settings,#leaderboard{display:none;height:100%;overflow-y:auto}
+#library,#settings,#leaderboard,#admin{display:none;height:100%;overflow-y:auto}
+.admin-wrap{padding:26px 26px 60px;max-width:820px;margin:0 auto}
+.admin-wrap .stitle{font-family:var(--f-title);font-size:22px;color:var(--gold-bright);margin-bottom:4px}
+.admin-wrap .ssub{font-family:var(--f-body);font-size:13.5px;color:var(--parch-dim);margin-bottom:20px}
+.pendrow{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1px solid var(--line-soft);border-radius:10px;background:var(--card-surface);margin-bottom:10px}
+.pendrow .pemail{font-family:var(--f-mono);font-size:13.5px;color:var(--parch);font-weight:600}
+.pendrow .pwhen{font-family:var(--f-mono);font-size:11px;color:var(--parch-mute);margin-top:3px}
+.pendrow .pmeta{flex:1;min-width:0}
+.pendrow .pbtns{display:flex;gap:8px;flex:none}
+.pendrow .p-approve,.pendrow .p-reject{font-family:var(--f-mono);font-size:12px;padding:7px 14px;border-radius:7px;cursor:pointer;border:1px solid var(--line-gold);background:rgba(231,182,75,.1);color:var(--gold-bright)}
+.pendrow .p-reject{border-color:var(--vermilion-deep);background:rgba(214,59,42,.1);color:var(--vermilion-glow)}
+.admin-empty{padding:40px;text-align:center;color:var(--parch-dim);font-family:var(--f-body)}
 /* settings screen (template K) — setrows + toggles */
 .settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
 .settings .stitle{font-family:var(--f-display);font-weight:700;font-size:24px;color:var(--parch);margin-bottom:4px}
@@ -1540,6 +1618,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
     <div class="rail-item rail-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg> Leaderboard</div>
     <div class="rail-item" data-rail="profile" onclick="railGo('profile')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg> Profile</div>
     <div class="rail-item rail-settings" data-rail="settings" onclick="railGo('settings')"><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.5"/><path d="M19 12a7 7 0 00-.1-1l2-1.5-2-3.4-2.3 1a7 7 0 00-1.7-1L16.5 2h-9l-.4 2.6a7 7 0 00-1.7 1l-2.3-1-2 3.4 2 1.5a7 7 0 000 2l-2 1.5 2 3.4 2.3-1a7 7 0 001.7 1L7.5 22h9l.4-2.6a7 7 0 001.7-1l2.3 1 2-3.4-2-1.5c.1-.3.1-.7.1-1z" stroke="currentColor" stroke-width="1.2"/></svg> Settings</div>
+    <div class="rail-item rail-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg> Admin</div>
     <div class="rail-mini-hud" id="acctbtn" role="button" tabindex="0" title="Account & sign out" onclick="toggleAcct(event)">
       <div class="rmh-meta"><div class="rmh-name" id="railname">Devotee</div><div class="rmh-title" id="railtitle">Vana-Dhanurdhara</div></div>
       <span class="rmh-caret">▴</span>
@@ -1639,6 +1718,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   <div id="library"></div>
   <div id="settings"></div>
   <div id="leaderboard"></div>
+  <div id="admin"></div>
   </div>
 </main>
 <nav id="mnav" aria-label="Sections">
@@ -1649,6 +1729,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   <button class="ni mnav-lb" data-rail="leaderboard" onclick="railGo('leaderboard')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M6 4h12v4a6 6 0 01-12 0z" stroke="currentColor" stroke-width="1.5"/><path d="M6 5H3v2a3 3 0 003 3M18 5h3v2a3 3 0 01-3 3" stroke="currentColor" stroke-width="1.5"/></svg>Board</button>
   <button class="ni" data-rail="settings" onclick="railGo('settings')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M12 4v3M12 17v3M4 12h3M17 12h3" stroke="currentColor" stroke-width="1.5"/></svg>Settings</button>
   <button class="ni" data-rail="profile" onclick="railGo('profile')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 100-8 4 4 0 000 8z" stroke="currentColor" stroke-width="1.5"/><path d="M5 20c0-3.3 3.1-6 7-6s7 2.7 7 6" stroke="currentColor" stroke-width="1.5"/></svg>Profile</button>
+  <button class="ni mnav-admin" data-rail="admin" onclick="railGo('admin')" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 3l7 3v5c0 4.4-3 8.5-7 10-4-1.5-7-5.6-7-10V6z" stroke="currentColor" stroke-width="1.5"/><path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="1.5"/></svg>Admin</button>
 </nav>
 
 <div id="drawerscrim" onclick="closeDrawer()"></div>
@@ -1729,7 +1810,7 @@ function editorCode(){ if(!editor) return ''; const c=editor.getValue(); return 
 // The rail carries Practice/Overview(prog)/Forest Map(tree)/Library/Settings.
 // Dashboard+Journey+Effectiveness are now ONE unified Overview.
 function showView(v){
-  const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block',leaderboard:'block'};
+  const DISP={practice:'grid',prog:'block',profile:'block',tree:'flex',library:'flex',settings:'block',leaderboard:'block',admin:'block'};
   for(const id of Object.keys(DISP)){ const el=document.getElementById(id); if(el) el.style.display = (id===v)?DISP[id]:'none'; }
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
@@ -1739,6 +1820,7 @@ function showView(v){
   if(v==='library') loadLibrary();
   if(v==='settings') loadSettings();
   if(v==='leaderboard') loadLeaderboard();
+  if(v==='admin') loadAdmin();
 }
 function railGo(v){ showView(v); }
 
@@ -1766,7 +1848,7 @@ function saveSetting(patch){
 function loadSettings(){
   fetch('/api/settings').then(r=>r.json()).then(s=>{
     applyReducedMotion(s.reduced_motion);
-    const autoOpt="<option value='auto'"+(s.active_provider==='auto'?" selected":"")+">Auto (balanced) · load-balances across your keys</option>";
+    const autoOpt="<option value='auto'"+(s.active_provider==='auto'?" selected":"")+">Auto (sticky · fails over on exhaustion)</option>";
     const provOpts=autoOpt+(s.providers||[]).map(p=>
       "<option value='"+p.key+"'"+(p.key===s.active_provider?" selected":"")+(p.configured?"":" disabled")+">"+
       p.label+(p.configured?"":" · no key")+"</option>").join('');
@@ -1796,6 +1878,30 @@ function loadSettings(){
       });
     };
   }).catch(()=>{ document.getElementById('settings').innerHTML="<div class='settings'><div class='ssub'>could not load settings.</div></div>"; });
+}
+
+/* ===== Admin (owner-only: approve/reject pending signups) ===== */
+function loadAdmin(){
+  const root=document.getElementById('admin');
+  fetch('/api/admin/pending').then(r=>{ if(!r.ok) throw new Error('forbidden'); return r.json(); }).then(d=>{
+    const rows=(d.pending||[]).map(u=>
+      "<div class='pendrow'><div class='pmeta'><div class='pemail'>"+esc(u.email)+"</div>"+
+      "<div class='pwhen'>requested "+esc(u.created_at||'')+"</div></div>"+
+      "<div class='pbtns'><button class='p-approve' onclick=\"adminApprove('"+esc(u.email)+"')\">Approve</button>"+
+      "<button class='p-reject' onclick=\"adminReject('"+esc(u.email)+"')\">Reject</button></div></div>").join('');
+    root.innerHTML="<div class='admin-wrap'><div class='stitle'>Admin — approvals</div>"+
+      "<div class='ssub'>Self-service signups awaiting your approval. Approve to let them sign in; reject to remove the request.</div>"+
+      (rows||"<div class='admin-empty'>No pending signups.</div>")+"</div>";
+  }).catch(()=>{ root.innerHTML="<div class='admin-wrap'><div class='admin-empty'>Could not load pending signups.</div></div>"; });
+}
+function adminApprove(email){
+  fetch('/api/admin/approve',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    .then(r=>r.json()).then(()=>loadAdmin()).catch(()=>{});
+}
+function adminReject(email){
+  if(!window.confirm('Reject and remove the signup for '+email+'?')) return;
+  fetch('/api/admin/reject',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:email})})
+    .then(r=>r.json()).then(()=>loadAdmin()).catch(()=>{});
 }
 
 /* ===== Leaderboard (deployed multi-user) ===== */
@@ -2823,6 +2929,8 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
     document.querySelectorAll('.rail-lb,.mnav-lb').forEach(x=>x.hidden=false);
     fetch('/api/leaderboard').then(r=>r.json()).then(d=>{ _lbMe=d.me||_lbMe; }).catch(()=>{});
   }
+  // Admin approvals nav is revealed ONLY for the configured owner (EKLAVYA_ADMIN_EMAIL).
+  if(c.is_admin){ document.querySelectorAll('.rail-admin,.mnav-admin').forEach(x=>x.hidden=false); }
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded

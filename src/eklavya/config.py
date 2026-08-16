@@ -44,19 +44,48 @@ DEPLOYED = os.environ.get("EKLAVYA_DEPLOYED", "0") not in ("0", "", "false", "Fa
 # of the proxy's own address.
 TRUST_PROXY = os.environ.get("EKLAVYA_TRUST_PROXY", "0") not in ("0", "", "false", "False")
 
-# Which provider/model to teach with by default (overridable via env).
-DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "glm")
+# Which provider/model to teach with by default (overridable via env). Qwen leads by
+# default now (it heads the sticky priority order below).
+DEFAULT_PROVIDER = os.environ.get("EKLAVYA_PROVIDER", "qwen")
 
-# Opt-in round-robin load-balancing of the ENTRY provider across configured keys
-# (only when no explicit provider is requested). Off by default, so single-key and
-# explicit-provider setups are unchanged. The cross-provider fallback chain is
-# always active regardless of this flag.
+# The explicit priority order the sticky balancer prefers, highest-priority first,
+# intersected with the configured providers at runtime. Comma-separated env override.
+PROVIDER_ORDER = [
+    p.strip() for p in os.environ.get("EKLAVYA_PROVIDER_ORDER", "qwen,kimi,glm,minimax").split(",")
+    if p.strip()
+]
+
+# How long (seconds) a provider stays "cooling down" after it throws a transient/rate-limit/
+# quota/5xx error before it's eligible to become sticky again.
+PROVIDER_COOLDOWN = int(os.environ.get("EKLAVYA_PROVIDER_COOLDOWN", "300"))
+
+# DEPRECATED — round-robin entry load-balancing has been replaced by the sticky-auto
+# balancer (fallback.py), which keeps requests on ONE provider to preserve its prompt cache
+# and only advances on exhaustion. Kept only so an old EKLAVYA_BALANCE=1 in the environment
+# doesn't error; it no longer changes behaviour.
 BALANCE_PROVIDERS = os.environ.get("EKLAVYA_BALANCE", "0") not in ("0", "", "false", "False")
 
 # When on, a self-service signup creates a PENDING account that the owner must approve
 # (`eklavya approve <email>`) before it can log in — so opening registration in the wild
 # can't be abused by anyone who just types an email + password. Off by default.
 SIGNUP_APPROVAL = os.environ.get("EKLAVYA_SIGNUP_APPROVAL", "0") not in ("0", "", "false", "False")
+
+# The owner's email. The account whose email matches this is the sole ADMIN — it sees the
+# in-app approval page and can approve/reject pending signups. Empty (default) → nobody is
+# admin, so the admin surface is invisible and its routes 404 for everyone.
+ADMIN_EMAIL = os.environ.get("EKLAVYA_ADMIN_EMAIL", "")
+
+# Public base URL of this deployment (e.g. https://ekalavya.example.com), used only to build
+# absolute links in notification emails. Optional; when unset emails use a relative note.
+PUBLIC_URL = os.environ.get("EKLAVYA_PUBLIC_URL", "")
+
+
+def is_admin(email: str | None) -> bool:
+    """True if ``email`` is the configured owner/admin (case-insensitive). When ADMIN_EMAIL is
+    empty, NOBODY is admin."""
+    if not ADMIN_EMAIL or not email:
+        return False
+    return email.strip().lower() == ADMIN_EMAIL.strip().lower()
 
 
 # --- the current user's home (contextvar) ----------------------------------

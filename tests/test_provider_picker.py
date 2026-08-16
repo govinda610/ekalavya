@@ -1,4 +1,4 @@
-"""The Settings provider picker: specific model OR 'Auto (balanced)' load-balancing."""
+"""The Settings provider picker: specific model OR 'Auto (sticky)' balancing."""
 
 import os
 import tempfile
@@ -20,8 +20,8 @@ def test_auto_balanced_is_selectable_and_reflected():
     assert c.put("/api/settings", json={"provider": "auto"}).json()["active_provider"] == "auto"
     assert settings.get_provider() == "auto"
     cfg = c.get("/api/config").json()
-    assert cfg["provider"] == "Auto (balanced)"
-    assert "rotates across" in cfg["model"]
+    assert cfg["provider"] == "Auto (sticky)"
+    assert "fails over on exhaustion" in cfg["model"]
     assert c.get("/api/settings").json()["active_provider"] == "auto"
 
 
@@ -30,9 +30,9 @@ def test_can_override_back_to_a_specific_model():
     c.put("/api/settings", json={"provider": "auto"})
     c.put("/api/settings", json={"provider": "glm"})
     assert settings.get_provider() == "glm"
-    assert c.get("/api/config").json()["provider"] != "Auto (balanced)"
+    assert c.get("/api/config").json()["provider"] != "Auto (sticky)"
 
 
 def test_spa_renders_the_auto_option():
-    assert "Auto (balanced)" in webapp._INDEX
+    assert "Auto (sticky" in webapp._INDEX
     assert "value='auto'" in webapp._INDEX

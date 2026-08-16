@@ -22,13 +22,15 @@ _ALL_KEYS = [
     "EKLAVYA_KIMI_API_KEY", "KIMI_API_KEY", "MOONSHOT_API_KEY",
 ]
 
-from eklavya import fallback  # noqa: E402
+from eklavya import config, fallback  # noqa: E402
 from eklavya.fallback import (  # noqa: E402
     AllProvidersFailed,
     FallbackChatModel,
     build_fallback_chat_model,
     fallback_order,
     is_transient,
+    priority_order,
+    sticky_chain,
 )
 
 
@@ -37,10 +39,14 @@ def _clean_env(monkeypatch):
     for k in _ALL_KEYS:
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("EKLAVYA_PROVIDER", "glm")
+    monkeypatch.setattr(config, "DEFAULT_PROVIDER", "glm")  # legacy fallback_order default
     monkeypatch.delenv("EKLAVYA_BALANCE", raising=False)
-    # reset the round-robin cursor so rotation tests are deterministic
-    fallback._rr = __import__("itertools").count()
+    # deterministic priority order + cooldown, and a clean sticky/cooldown state per test.
+    monkeypatch.setattr(config, "PROVIDER_ORDER", ["qwen", "kimi", "glm", "minimax"])
+    monkeypatch.setattr(config, "PROVIDER_COOLDOWN", 300)
+    fallback._reset_balancer_state()
     yield
+    fallback._reset_balancer_state()
 
 
 def _configure(monkeypatch, *keys):
@@ -301,34 +307,102 @@ def test_bind_tools_replayed_on_fallback_provider_too(monkeypatch):
     assert mm.tools == ["t1"]                             # tools replayed on the fallback
 
 
-# --- load-balancing (round-robin) ------------------------------------------
+# --- sticky, cache-friendly balancer ---------------------------------------
 
 
-def test_round_robin_rotates_entry_provider(monkeypatch):
-    _configure(monkeypatch, "glm", "minimax", "qwen")
-    monkeypatch.setenv("EKLAVYA_BALANCE", "1")
-    leads = [build_fallback_chat_model().chain[0] for _ in range(3)]
-    # Three configured providers, three sessions → each leads once (in some order).
-    assert set(leads) == {"glm", "minimax", "qwen"}
-    # Every session still has the full chain as its fallback set.
-    assert all(set(build_fallback_chat_model().chain) == {"glm", "minimax", "qwen"}
-               for _ in range(3))
+def test_priority_order_qwen_kimi_glm_minimax(monkeypatch):
+    _configure(monkeypatch, "glm", "minimax", "qwen", "kimi")
+    # All four configured → the explicit priority order is honoured.
+    assert priority_order() == ["qwen", "kimi", "glm", "minimax"]
+    # Intersected with only the configured subset, order preserved.
+    monkeypatch.delenv("EKLAVYA_QWEN_API_KEY", raising=False)
+    assert priority_order() == ["kimi", "glm", "minimax"]
 
 
-def test_balancing_off_by_default_keeps_default_first(monkeypatch):
-    _configure(monkeypatch, "glm", "minimax", "qwen")
-    # No EKLAVYA_BALANCE → default provider leads every time.
-    assert all(build_fallback_chat_model().chain[0] == "glm" for _ in range(3))
+def test_priority_order_configurable(monkeypatch):
+    _configure(monkeypatch, "glm", "minimax", "qwen", "kimi")
+    monkeypatch.setattr(config, "PROVIDER_ORDER", ["minimax", "glm", "kimi", "qwen"])
+    assert priority_order() == ["minimax", "glm", "kimi", "qwen"]
 
 
-def test_explicit_provider_is_honoured_even_with_balancing(monkeypatch):
-    _configure(monkeypatch, "glm", "minimax", "qwen")
-    monkeypatch.setenv("EKLAVYA_BALANCE", "1")
-    # An explicit request pins the leader regardless of round-robin.
-    assert all(build_fallback_chat_model("minimax").chain[0] == "minimax" for _ in range(3))
+def test_sticky_stays_on_primary_across_many_requests(monkeypatch):
+    """Cache-preserving: with the primary healthy, EVERY request lands on the same provider."""
+    _configure(monkeypatch, "qwen", "kimi", "glm")
+    served = {k: _OKModel(k) for k in ("qwen", "kimi", "glm")}
+    _inject(monkeypatch, served)
+    model = build_fallback_chat_model()  # sticky-auto
+    picks = [model.invoke("x")["served_by"] for _ in range(20)]
+    assert picks == ["qwen"] * 20  # never left the warm primary
 
 
-def test_single_provider_no_rotation(monkeypatch):
+def test_sticky_advances_and_sticks_on_primary_exhaustion(monkeypatch):
+    """On the primary exhausting, advance to the next priority provider AND stay there."""
+    _configure(monkeypatch, "qwen", "kimi", "glm")
+    boom_then = {"qwen": _BoomModel("qwen", _Transient("429")),
+                 "kimi": _OKModel("kimi"), "glm": _OKModel("glm")}
+    _inject(monkeypatch, boom_then)
+    model = build_fallback_chat_model()
+    # first request: qwen fails (transient) → fails over to kimi this request AND cools qwen.
+    assert model.invoke("a")["served_by"] == "kimi"
+    # qwen is now cooling down → every subsequent request STICKS to kimi (no retry of qwen).
+    assert [model.invoke("x")["served_by"] for _ in range(10)] == ["kimi"] * 10
+
+
+def test_cooldown_expiry_restores_eligibility(monkeypatch):
+    _configure(monkeypatch, "qwen", "kimi")
+    monkeypatch.setattr(config, "PROVIDER_COOLDOWN", 300)
+    # qwen cooled down at t=0 → chain leads with kimi during the cooldown window…
+    fallback.mark_cooldown("qwen", now=0.0)
+    assert sticky_chain(None, now=100.0)[0] == "kimi"
+    # …and once the cooldown elapses, qwen is eligible again as the highest priority. Since the
+    # current sticky (kimi) is still eligible we DON'T flap back mid-session…
+    assert sticky_chain(None, now=400.0)[0] == "kimi"
+    # …but if kimi then cools down too, we recompute to the now-eligible highest-priority qwen.
+    fallback.mark_cooldown("kimi", now=400.0)
+    assert sticky_chain(None, now=800.0)[0] == "qwen"
+
+
+def test_no_flapping_when_current_sticky_still_eligible(monkeypatch):
+    _configure(monkeypatch, "qwen", "kimi", "glm")
+    # kimi is chosen sticky (qwen cooling); when qwen recovers we keep kimi (no needless switch).
+    fallback.mark_cooldown("qwen", now=0.0)
+    assert sticky_chain(None, now=10.0)[0] == "kimi"
+    assert sticky_chain(None, now=1000.0)[0] == "kimi"  # qwen eligible again, but no flap
+
+
+def test_single_request_fails_over_through_whole_chain(monkeypatch):
+    """A single request still tries EVERY configured provider before giving up."""
+    _configure(monkeypatch, "qwen", "kimi", "glm", "minimax")
+    _inject(monkeypatch, {
+        "qwen": _BoomModel("qwen", _Transient("down")),
+        "kimi": _BoomModel("kimi", ConnectionError("refused")),
+        "glm": _BoomModel("glm", _Transient("503")),
+        "minimax": _OKModel("minimax"),
+    })
+    model = build_fallback_chat_model()
+    assert model.invoke("x")["served_by"] == "minimax"  # reached the tail of the chain
+
+
+def test_single_configured_provider_is_chain_of_length_one(monkeypatch):
     _configure(monkeypatch, "glm")
-    monkeypatch.setenv("EKLAVYA_BALANCE", "1")
-    assert build_fallback_chat_model().chain == ["glm"]
+    ok = _OKModel("glm")
+    _inject(monkeypatch, {"glm": ok})
+    model = build_fallback_chat_model()
+    assert model.chain == ["glm"]
+    assert model.invoke("x")["served_by"] == "glm"
+
+
+def test_explicit_pin_leads_with_that_provider(monkeypatch):
+    _configure(monkeypatch, "qwen", "kimi", "glm")
+    _inject(monkeypatch, {k: _OKModel(k) for k in ("qwen", "kimi", "glm")})
+    model = build_fallback_chat_model("glm")  # pinned to glm despite qwen being higher priority
+    assert [model.invoke("x")["served_by"] for _ in range(5)] == ["glm"] * 5
+
+
+def test_explicit_pin_fails_over_and_returns_when_pinned_recovers(monkeypatch):
+    _configure(monkeypatch, "qwen", "kimi", "glm")
+    # pinned to qwen; qwen cooling down → leads with next-priority kimi for now.
+    fallback.mark_cooldown("qwen", now=0.0)
+    assert sticky_chain("qwen", now=10.0)[0] == "kimi"
+    # once qwen's cooldown elapses, the PIN reasserts qwen as the lead (unlike auto's no-flap).
+    assert sticky_chain("qwen", now=1000.0)[0] == "qwen"
