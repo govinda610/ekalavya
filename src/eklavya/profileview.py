@@ -83,7 +83,7 @@ def render() -> str:
   <div class="pstack">
     <section class="card"><h2>{_icon("target")} Goals</h2><div class="quests pquests">{goal_html}</div></section>
     <section class="card"><h2>{_icon("grid")} Mastery map</h2>
-      <table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table>
+      <div class="heatwrap"><table class="heat"><tr><th class="pillar"></th>{axis_head}</tr>{rows}</table></div>
       <div class="legend">
         <span><i style="background:#a89670"></i>unknown</span>
         <span><i style="background:#ff5a3c"></i>gap</span>
@@ -204,6 +204,9 @@ h2 .grow{flex:1}
 .psec-body ul,.psec-body ol{margin:6px 0;padding-left:20px}.psec-body li{margin:3px 0}
 .psec-body p{margin:7px 0}.psec-body strong{color:var(--parch)}
 .psec-body code{font-family:var(--f-mono);font-size:13px;overflow-wrap:anywhere}
+/* the Mastery-map grid can be wider than a phone — let it scroll horizontally
+   inside its card instead of clipping/overflowing the page. */
+.heatwrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
 /* readable data table: zebra rows, aligned cells */
 .psec-body table,.prose table{border-collapse:collapse;font-size:13px}
 .psec-body table th,.psec-body table td,.prose table th,.prose table td{
