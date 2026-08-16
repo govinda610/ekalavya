@@ -715,6 +715,22 @@ def with_session_context(text: str) -> str:
     return f"{head}\n\n{text}" if (text and text.strip()) else head
 
 
+def mastered_groves() -> int:
+    """How many groves are fully MASTERED — the same 'blossoming' count the forest map
+    shows (every concept in the grove has a correct attempt).
+
+    Single source of truth for the Overview headline so it can't diverge from the forest.
+    The active grove is a rendering overlay only; a grove that IS blossoming still counts
+    even while it's the current focus (forest_map relabels it 'active'), so we read the
+    underlying status via `done == total`, which is what 'blossoming' means.
+    """
+    fm = forest_map()
+    if fm.get("empty"):
+        return 0
+    return sum(1 for g in fm.get("groves", [])
+               if g.get("total", 0) > 0 and g.get("done", 0) == g["total"])
+
+
 def overview() -> dict:
     return {
         "stats": progress.stats(),
@@ -723,4 +739,5 @@ def overview() -> dict:
         "sessions": recent_sessions(),
         "due": due_count(),
         "ai_gap": ai_gap(),
+        "mastered_groves": mastered_groves(),
     }

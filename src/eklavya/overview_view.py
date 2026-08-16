@@ -676,8 +676,11 @@ def _journey_band(ov: dict) -> str:
 def render() -> str:
     ov = report.overview()
     eff = effectiveness.summary()
-    strong = sum(1 for cells in ov["grid"]["pillars"].values()
-                 for c in cells.values() if c["level"] == "strong")
+    # "groves mastered" = the forest's BLOSSOMING grove count (report.mastered_groves),
+    # so the headline can't diverge from the forest map. Previously this counted strong
+    # grid CELLS (rating-based, per axis) which is a different aggregation entirely and
+    # showed 0 while the forest showed blossoming groves.
+    strong = ov["mastered_groves"]
 
     return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>Overview · Ekalavya</title>
