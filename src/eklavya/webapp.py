@@ -2099,6 +2099,9 @@ function showView(v){
   document.body.setAttribute('data-view', v);
   // keep both nav surfaces in sync with the active view
   document.querySelectorAll('#prail .rail-item,#mnav .ni').forEach(x=>x.classList.toggle('on', x.dataset.rail===v));
+  // re-apply the mobile chat-first Practice layout every time Practice is (re-)shown — this setup
+  // used to run once at boot, so reaching Practice AFTER landing on the Forest left it broken.
+  if(v==='practice' && typeof syncMobilePractice==='function') syncMobilePractice();
   if(v==='prog') document.getElementById('progframe').src='/progress';   // reload → latest metrics
   if(v==='profile') document.getElementById('pframe').src='/profile';  // reload → latest profile/goals
   if(v==='tree') showForest();
@@ -2519,23 +2522,38 @@ document.addEventListener('click',function(e){
   vv.addEventListener('resize',sync); vv.addEventListener('scroll',sync);
   window.addEventListener('orientationchange',()=>setTimeout(sync,300));
 })();
-/* measure the real header + bottom-nav heights into CSS vars so the arena slab is exact
-   (avoids a magic-number gap that would hide the input behind the nav). */
-(function(){
+/* Mobile chat-first Practice setup — IDEMPOTENT so it can run at boot AND every time Practice
+   becomes the active view (via showView). It was previously a run-once IIFE, which broke the
+   re-navigation flow: an onboarded user lands on the Forest, and when they later tap Practice
+   the chat-first layout wasn't (re-)applied — the composer floated mid-screen with a void below
+   and the placeholder stayed long/clipped. Re-running this on every Practice visit fixes that,
+   and it's a no-op difference on desktop (the mobile branches are gated by ekMobile()). */
+const _DESK_CHAT_PH = (function(){ const ta=document.getElementById('chatin');
+  return ta ? ta.getAttribute('placeholder') : ''; })();   // keep the desktop placeholder verbatim
+function syncMobilePractice(){
   const ta=document.getElementById('chatin');
-  const DESK_PH = ta ? ta.getAttribute('placeholder') : '';   // keep the desktop placeholder verbatim
-  function measure(){
-    const h=document.querySelector('header'), n=document.getElementById('mnav');
-    if(h) document.body.style.setProperty('--ek-hdr', h.offsetHeight+'px');
-    if(n && getComputedStyle(n).display!=='none') document.body.style.setProperty('--ek-nav', n.offsetHeight+'px');
-    // phones: the desktop placeholder ("type your answer…  (Shift+Enter for a new line)") wraps to
-    // two lines and clips in the compact input, so use a short one that fits a single line. Desktop
-    // keeps the full hint (restored below when not mobile).
-    if(ta) ta.setAttribute('placeholder', ekMobile() ? 'Ask Ekalavya…' : DESK_PH);
+  const h=document.querySelector('header'), n=document.getElementById('mnav');
+  if(h) document.body.style.setProperty('--ek-hdr', h.offsetHeight+'px');
+  if(n && getComputedStyle(n).display!=='none') document.body.style.setProperty('--ek-nav', n.offsetHeight+'px');
+  // phones: the desktop placeholder ("type your answer…  (Shift+Enter for a new line)") wraps to
+  // two lines and clips in the compact input, so use a short one that fits a single line. Desktop
+  // keeps the full hint.
+  if(ta) ta.setAttribute('placeholder', ekMobile() ? 'Ask Ekalavya…' : _DESK_CHAT_PH);
+  // showView() sets #practice's inline display to 'grid' (the desktop split-pane). On phones the
+  // chat-first arena wants a flex COLUMN (log grows, composer pinned to the bottom via margin-top:
+  // auto). An inline style beats the stylesheet's mobile `display:flex`, so when Practice is
+  // reached via showView the arena rendered as a two-row grid (chat squeezed to the top half, a
+  // void below). Re-assert the correct display for the current form factor here. When Practice is
+  // the FIRST screen, showView isn't called for it, so this branch just confirms the CSS default.
+  const pr=document.getElementById('practice');
+  if(pr && document.body.dataset.view==='practice'){
+    pr.style.display = ekMobile() ? 'flex' : 'grid';
   }
-  window.addEventListener('load',measure); window.addEventListener('resize',measure);
-  measure(); setTimeout(measure,300);
-})();
+  // keep the empty-state hero centred / the thread scrolled to the latest turn on (re)entry
+  const l=document.getElementById('log'); if(l) l.scrollTop=l.scrollHeight;
+}
+window.addEventListener('load',syncMobilePractice); window.addEventListener('resize',syncMobilePractice);
+syncMobilePractice(); setTimeout(syncMobilePractice,300);
 // desktop-only: restore the persisted 'hide editor' preference. On phones the editor is a
 // slide-over (hidden by default), so we don't apply the desktop nocode class there.
 if(!ekMobile() && localStorage.getItem('ek_nocode')==='1'){
@@ -3586,11 +3604,11 @@ def _hero_scene(preserve: str) -> str:
 # <script>. Drives the draw → loose → fly → hit/miss cycle via the Web Animations API.
 _HERO_JS = r"""<script>
 (function(){
+  // The archer shot-loop plays on EVERY device — phones included — and only rests on the
+  // static bullseye frame when the OS asks for reduced motion. (It used to be force-frozen on
+  // any coarse-pointer / <720px screen, which left the landing hero looking dead on real phones.
+  // The loop is a small SVG WAAPI animation, so the cost on mobile is negligible.)
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // On phones (coarse pointer / small viewport) rest on the resolved static frame too: the
-  // continuous WAAPI shot-loop is battery-costly and janks on low-power devices, and the hero
-  // still reads perfectly as a single composed archer-at-the-bullseye scene.
-  var _coarseHero = (window.matchMedia && window.matchMedia('(pointer:coarse)').matches) || window.innerWidth < 720;
 
   // Show the WHOLE wide cinematic scene on narrow screens (contain), not a cropped centre strip.
   try{
@@ -3599,8 +3617,6 @@ _HERO_JS = r"""<script>
       for(var _i=0;_i<_scenes.length;_i++){ _scenes[_i].setAttribute('preserveAspectRatio','xMidYMid meet'); }
     }
   }catch(_e){}
-
-  if(_coarseHero) reduce = true;
 
   // ---- the progression knob -------------------------------------------
   var LEVEL = 24, MAX_LEVEL = 40;           // illustrative current rank
