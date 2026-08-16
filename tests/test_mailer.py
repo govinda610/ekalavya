@@ -25,7 +25,7 @@ def _clean_smtp(monkeypatch):
     yield
 
 
-def _configure_smtp(monkeypatch, password="hunter2-secret-pw"):
+def _configure_smtp(monkeypatch, password="dummy-pw-for-tests"):
     monkeypatch.setenv("SMTP_USER", "bot@eklavya.dev")
     monkeypatch.setenv("SMTP_PASS", password)
     monkeypatch.setenv("EMAIL_FROM", "bot@eklavya.dev")
@@ -70,10 +70,10 @@ def test_password_never_logged(monkeypatch, caplog):
         raise OSError("smtp exploded")
 
     monkeypatch.setattr(mailer, "_smtp_send", boom)
-    _configure_smtp(monkeypatch, password="SUPERSECRETPW123")
+    _configure_smtp(monkeypatch, password="dummy-pw-not-logged")
     with caplog.at_level(logging.DEBUG, logger="eklavya.mailer"):
         mailer.send_email("user@eklavya.dev", "s", "b")
-    assert "SUPERSECRETPW123" not in caplog.text
+    assert "dummy-pw-not-logged" not in caplog.text
 
 
 # --- webapp hooks -----------------------------------------------------------
