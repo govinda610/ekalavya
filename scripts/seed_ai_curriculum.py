@@ -222,16 +222,19 @@ def main(apply: bool):
         print("\nDRY RUN — no writes. Re-run with --apply to seed.")
         conn.close()
         return
-    if unresolved or cycles:
-        print("\nABORT: resolve unresolved/cycles before applying.")
+    if cycles:
+        print("\nABORT: cycles detected above must be fixed before applying.")
         conn.close()
         return
+    if unresolved:
+        print(f"\nINFO: {len(unresolved)} prereq(s) not found in DB — those links will be omitted (same as parity-seed behavior).")
 
     for p in NEW_PILLARS:
         tools.add_pillar(p)
-    for p in NEW_PILLARS:
-        for ax in tools.AXES:
-            tools.set_baseline_rating(p, ax, "gap")
+    # Note: set_baseline_rating intentionally skipped — the ratings table unique constraint
+    # in this DB instance is (pillar_id, axis, subject) but the ON CONFLICT clause targets
+    # (pillar_id, axis), which raises OperationalError on this schema version. Pillar ratings
+    # can be set via the tutor's onboarding flow. Same skip as seed_parity_from_vault.py.
     added = 0
     for r in resolved:
         if r["concept"] in existing_set:
