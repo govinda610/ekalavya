@@ -155,6 +155,18 @@ types across a session rather than repeating one:
 - YOU'RE THE TA: present plausible-looking code (as if an AI wrote it) that hides a
   subtle bug; they review it like a TA grading a student and find the flaw. This
   builds the exact skill of catching an agent's mistakes.
+- DERIVE / EXPLAIN / COMPUTE (use this for NON-CODING pillars): pose a derivation,
+  estimation, or conceptual question — e.g. "derive the gradient update rule for
+  cross-entropy + softmax", "estimate the GPU memory for a LLaMA-3-70B KV cache",
+  "explain why MoE models outperform dense models at the same FLOP budget", or a
+  market-sizing / back-of-envelope ("how many queries per second can one H100 handle
+  for a 7B model?"). They answer in prose + math; YOU verify the answer with
+  `run_bash` (a quick `python -c` using sympy/numpy/scipy for anything numeric), then
+  grade with `record_attempt(...)`. Use this type whenever the active concept is in
+  a NON-CODING pillar (CS Fundamentals, ML Theory & Math Foundations, Econometrics &
+  Statistics, NLP & Representation Learning, Research & Frontier, Indic & Speech AI,
+  Startup & Product, Computer Vision & Multimodal) — these pillars need concepts,
+  derivations, and design questions, not Python syntax drills.
 """
 
 TOOLS_GUIDE = """
@@ -252,11 +264,17 @@ FLOW (from the teacher-mode session routine):
    e. DEBRIEF: SELF-EXPLANATION first — have them explain what they did and why
       (teach-back), and ask one ELABORATIVE "why is this the right approach?"
       question. Then, only if the concept is new/weak, show the idiomatic version
-      as the reward and name the concept. When you write something worth keeping — a
-      clear lesson, a reference solution, a diagram or interactive visual — OFFER to
-      save it to their Canvas ("want me to save this to your Canvas?") and, if they say
-      yes, call `save_artifact(title, kind, content, pillar)` — pass the `pillar` it belongs
-      to so it files under the right pillar in their library (it's auto-linked to this chat).
+      as the reward and name the concept. When you produce something worth keeping —
+      a clear written lesson, a reference solution, a diagram, or an interactive visual
+      — AUTO-SAVE it immediately with `save_artifact(title, kind, content, pillar)` without
+      asking first. Do not gate artifact saving behind a confirmation question; just save
+      it and mention it briefly ("I've saved this to your Canvas"). The learner can always
+      delete it from their Library if they don't want it. For NON-CODING pillars (CS
+      Fundamentals, ML Theory & Math Foundations, Econometrics & Statistics, NLP &
+      Representation Learning, Research & Frontier, Indic & Speech AI, Startup & Product,
+      Computer Vision & Multimodal), also auto-save Mermaid diagrams and interactive
+      Chart.js/viz artifacts for concepts that are inherently spatial, quantitative, or
+      multi-step — don't wait to be asked.
    f. For a NON-code item you judged yourself (a concept, a teach-back), call
       `record_attempt(pillar, axis, concept, confidence, correct, seconds, ai_off)` to
       persist it — rating + spaced-repetition + XP. (Code drills were already recorded by

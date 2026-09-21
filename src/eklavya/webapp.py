@@ -975,6 +975,24 @@ button.rewind:disabled{opacity:.4;cursor:default}
 .modetile.teal .mt-g,.modetile.peacock .mt-g{color:var(--peacock-bright)}
 .modetile.forest .mt-g{color:var(--forest-lit)}
 @media(max-width:600px){.modes-grid{grid-template-columns:1fr}}
+/* ===== P4: post-login chooser overlay ===== */
+.chooser-ov{position:fixed;inset:0;z-index:1100;display:none;align-items:center;justify-content:center;
+  background:rgba(6,8,18,.78);backdrop-filter:blur(5px);padding:20px}
+.chooser-ov.on{display:flex}
+.chooser-card{width:100%;max-width:780px;max-height:90vh;overflow:auto;background:var(--card-surface);
+  border:var(--card-edge);border-radius:14px;box-shadow:var(--card-lift),0 40px 90px -30px rgba(0,0,0,.85);padding:24px 26px}
+.chooser-h{font-family:var(--f-display);font-weight:700;font-size:20px;color:var(--parch);margin:0 0 6px;text-align:center;letter-spacing:.02em}
+.chooser-sub{font-family:var(--f-body);font-size:12px;color:var(--parch-dim);text-align:center;margin:0 0 18px}
+.chooser-sec{font-family:var(--f-title);font-size:11px;color:var(--gold-bright);letter-spacing:.08em;text-transform:uppercase;margin:0 0 8px}
+.chooser-pillars{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.ch-pillar{display:flex;align-items:center;gap:7px;padding:7px 12px;border-radius:8px;cursor:pointer;
+  background:var(--panel-inner);border:1px solid var(--line-soft);color:var(--parch);font-family:var(--f-body);font-size:12px;transition:.14s}
+.ch-pillar:hover{border-color:var(--gold);background:rgba(231,182,75,.08)}
+.ch-pillar.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.ch-ps{font-size:14px;opacity:.75}.ch-pt{flex:1;text-align:left}.ch-pp{font-size:10px;opacity:.5}
+.chooser-skip{display:block;margin:14px auto 0;font-family:var(--f-title);font-size:12px;color:var(--parch-dim);
+  background:none;border:1px solid var(--line-soft);border-radius:6px;padding:7px 20px;cursor:pointer;transition:.14s}
+.chooser-skip:hover{color:var(--gold-bright);border-color:var(--line-gold)}
 button.submit{font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);border:1px solid var(--gold-deep);
 border-radius:4px;padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
 button.submit:hover{background:rgba(231,182,75,.16)}
@@ -1553,6 +1571,17 @@ body.view-tree .timerwrap,body.view-tree #wrapbtn,body.view-tree #hud{display:no
         <div class="modes-card">
           <div class="modes-h">Choose your trial</div>
           <div class="modes-grid" id="modesgrid"></div>
+        </div>
+      </div>
+      <div id="chooser-ov" class="chooser-ov" onclick="if(event.target===this)_chooserEkalavya()">
+        <div class="chooser-card">
+          <div class="chooser-h">◈ What shall we work on?</div>
+          <div class="chooser-sub">Pick a grove or a mode — or let Ekalavya choose your weakest spot.</div>
+          <div class="chooser-sec">◑ Grove / Pillar</div>
+          <div class="chooser-pillars" id="chooser-pillars"><span style="color:var(--parch-dim);font-size:12px">loading…</span></div>
+          <div class="chooser-sec">⚔ Mode</div>
+          <div class="modes-grid" id="chooser-modes" style="margin-bottom:4px"></div>
+          <button class="chooser-skip" onclick="_chooserEkalavya()">◑ Ekalavya picks my weakest spot</button>
         </div>
       </div>
       <div id="assistpanel" class="hidden">
@@ -2768,13 +2797,68 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   deathOnCheat = c.death_on_cheat !== false; updatePenaltyBtn();
   if(c.first_run){ mode='onboard'; document.getElementById('mode').value='onboard'; }  // new user → onboard, not "welcome back"
   applyMode();
-  stream(c.kickoff[mode]);   // kickoff still streams into the chat log in the background
   // #78 — default home: a NEW user starts in the onboarding CHAT; an already-onboarded
   // returning user opens on the reworked Forest Map (unless the URL deep-links elsewhere).
   const _deep={'/forest':'tree','/library':'library','/settings':'settings'}[location.pathname];
-  if(_deep) showView(_deep);
-  else if(!c.first_run && location.pathname==='/') showView('tree');
+  if(_deep){ stream(c.kickoff[mode]); showView(_deep); }
+  else if(!c.first_run && location.pathname==='/'){
+    // P4: post-login chooser — returning learner picks focus before kickoff streams.
+    showView('tree');
+    _showChooser(c);
+  } else {
+    stream(c.kickoff[mode]);
+  }
 });
+
+// ===== P4: post-login topic/mode chooser =====
+// Shown once on page load for returning (non-first-run) users. After selection the
+// kickoff streams as usual with the chosen mode. Falls back gracefully: if /api/forest
+// fails or the overlay element isn't found, it just streams the default kickoff.
+function _showChooser(cfg){
+  try {
+    const ov = document.getElementById('chooser-ov');
+    if(!ov) return stream(cfg.kickoff[mode]);  // fallback if element missing
+    // Populate mode buttons
+    const mg = document.getElementById('chooser-modes');
+    if(mg) mg.innerHTML = MODES.map(m=>
+      `<button class="modetile ${m.c}${m.v===mode?' cur':''}" onclick="_chooserPickMode('${m.v}')">`+
+      `<span class="mt-g">${m.g}</span><span class="mt-body"><span class="mt-t">${m.t}</span>`+
+      `<span class="mt-d">${m.d}</span></span></button>`).join('');
+    // Populate grove/pillar buttons from /api/forest
+    fetch('/api/forest').then(r=>r.json()).then(fd=>{
+      const pg = document.getElementById('chooser-pillars');
+      if(!pg || !fd.groves) return;
+      const active = fd.groves.filter(g=>g.status!=='blossoming').slice(0,12);
+      pg.innerHTML = active.map(g=>{
+        const pct = g.total>0 ? Math.round(100*g.done/g.total) : 0;
+        const st = g.status==='active'?'◑':g.status==='unlocked'?'○':'⊙';
+        return `<button class="ch-pillar${g.status==='active'?' cur':''}" onclick="_chooserPickPillar(${JSON.stringify(g.pillar)})">`+
+          `<span class="ch-ps">${st}</span><span class="ch-pt">${g.pillar}</span>`+
+          `<span class="ch-pp">${pct}%</span></button>`;
+      }).join('');
+    }).catch(()=>{});
+    ov.classList.add('on');
+  } catch(e){ stream(cfg.kickoff[mode]); }
+}
+function _closeChooser(){
+  const ov=document.getElementById('chooser-ov'); if(ov) ov.classList.remove('on');
+}
+function _chooserPickMode(v){
+  mode=v; document.getElementById('mode').value=v; applyMode(); syncModeLabel();
+  _closeChooser(); showView('practice');
+  fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); }).catch(()=>stream(''));
+}
+function _chooserPickPillar(pillar){
+  _closeChooser(); showView('practice');
+  fetch('/api/config').then(r=>r.json()).then(c=>{
+    stream((c.kickoff[mode]||'') + '\n\n[Focus request: please start today\'s session on the pillar: ' + pillar + ']');
+  }).catch(()=>stream(''));
+}
+function _chooserEkalavya(){
+  _closeChooser(); showView('practice');
+  fetch('/api/config').then(r=>r.json()).then(c=>{ stream(c.kickoff[mode]); }).catch(()=>stream(''));
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape' && document.getElementById('chooser-ov')&&document.getElementById('chooser-ov').classList.contains('on')){ _chooserEkalavya(); } });
 // deep-link handling for client-only routes now runs inside the /api/config callback above.
 </script></body></html>"""
 

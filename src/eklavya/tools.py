@@ -272,7 +272,8 @@ def _clip(text: str) -> str:
 
 
 def suggest_focus(minutes: int = 30) -> str:
-    """Suggest what to work on now: weakest grid cells + any reviews due.
+    """Suggest what to work on now: weakest grid cells + any reviews due + next unlocked
+    curriculum concepts so the agent drills actual curriculum nodes (not just rated cells).
 
     Use this at the start of a session to plan. `minutes` hints how much to fit.
     """
@@ -286,8 +287,51 @@ def suggest_focus(minutes: int = 30) -> str:
                FROM ratings r JOIN pillars p ON p.id = r.pillar_id
                ORDER BY r.rating ASC LIMIT 5"""
         ).fetchall()
+        # P5: surface next unlocked curriculum concepts across the active/weak pillars.
+        # A concept is "unlocked" when all its prereqs are mastered (have a correct attempt)
+        # and it hasn't been mastered itself.  We pull up to 6 unlocked concepts, prioritising
+        # the pillars that showed up as weak above.
+        weak_pillar_names = {r["pillar"] for r in weak}
+        all_curriculum = conn.execute(
+            "SELECT concept, prereqs, pillar FROM curriculum ORDER BY id"
+        ).fetchall()
+        mastered_concepts = {r["detail"] for r in conn.execute(
+            "SELECT DISTINCT detail FROM attempts WHERE correct = 1 AND detail IS NOT NULL"
+        )}
+
+        def _norm(s: str) -> str:
+            return " ".join((s or "").lower().split())
+
+        mastered_norm = {_norm(c) for c in mastered_concepts}
+        concepts = [r["concept"] for r in all_curriculum]
+
+        def _parse_prereqs(text: str, own: str) -> list[str]:
+            text = (text or "").strip()
+            if "|" in text:
+                return [p.strip() for p in text.split("|") if p.strip() and p.strip() != own]
+            by_len = sorted(concepts, key=len, reverse=True)
+            found: list[str] = []
+            for name in by_len:
+                if name != own and name in text and name not in found:
+                    found.append(name)
+            return found
+
+        unlocked: list[tuple[str, str]] = []  # (concept, pillar)
+        for row in all_curriculum:
+            c, prereqs_raw, pillar = row["concept"], row["prereqs"], (row["pillar"] or "")
+            if _norm(c) in mastered_norm:
+                continue  # already mastered
+            deps = _parse_prereqs(prereqs_raw, c)
+            if all(_norm(p) in mastered_norm for p in deps):
+                unlocked.append((c, pillar))
+
+        # Sort: weak pillars first, then the rest.
+        unlocked_weak = [(c, p) for (c, p) in unlocked if p in weak_pillar_names]
+        unlocked_other = [(c, p) for (c, p) in unlocked if p not in weak_pillar_names]
+        next_concepts = (unlocked_weak + unlocked_other)[:6]
     finally:
         conn.close()
+
     n_items = max(1, min(6, minutes // 10))
     lines = [f"Time budget: ~{minutes} min → aim for about {n_items} item(s)."]
     if weak:
@@ -295,6 +339,10 @@ def suggest_focus(minutes: int = 30) -> str:
         lines += [f"  - {r['pillar']} / {r['axis']} ({level_of(r['rating'])})" for r in weak]
     else:
         lines.append("No ratings yet — run onboarding first, or start with a fundamentals drill.")
+    if next_concepts:
+        lines.append("Next unlocked curriculum concepts (not yet mastered, prereqs done):")
+        for (c, p) in next_concepts:
+            lines.append(f"  - [{p}] {c}")
     due = due_now()
     if due:
         lines.append("Reviews due (spaced repetition): " + ", ".join(due[:8]))
