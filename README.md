@@ -43,7 +43,11 @@ because the hall was closed to them.**
   a profile it improves over time.
 - **Drills you daily** — small, gated exercises aimed at your weakest spots. You
   state your confidence *first*, then attempt it yourself. Your code runs in a
-  sandbox and is graded against hidden tests.
+  sandbox and is graded by a **deterministic** checker — it first confirms the
+  reference solution passes the hidden tests, then records the *real* pass/fail,
+  so a code verdict can't be faked. (Maths is checked for symbolic equivalence
+  with SymPy; open-ended work is scored by a rubric judge; plain recall is
+  self-assessed against the shown answer.)
 - **Remembers with spaced repetition** — concepts come back exactly when you're
   about to forget them (FSRS).
 - **Scores calibration, not just correctness** — being confident *and wrong* (the
@@ -169,8 +173,11 @@ The teaching brain is an agent (built on
 that has to be reliable — running code, grading, ratings, spaced-repetition
 scheduling, streaks — is plain Python the agent calls as tools. The agent decides
 *when*; the tools decide *what actually happens*, so your record never depends on
-a model remembering. State lives locally in SQLite; the learner profile is a
-markdown file you can read.
+a model remembering. Code and maths are graded **deterministically** (a
+reference-sanity check even vetoes broken tutor tests before you're scored);
+recall and open-ended work are judged, and then the tools — not the model — do the
+recording, rating, and scheduling. State lives locally in SQLite; the learner
+profile is a markdown file you can read.
 
 ## Why it works — the science
 
