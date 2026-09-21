@@ -70,20 +70,20 @@ def test_run_tests_rejects_silent_noop():
 # --- scoring ---------------------------------------------------------------
 
 def test_elo_moves_the_right_way():
-    assert scoring.update_elo(1000, True) > 1000
-    assert scoring.update_elo(1000, False) < 1000
+    assert scoring.update_rating(1000, True) > 1000
+    assert scoring.update_rating(1000, False) < 1000
 
 
 def test_elo_punishes_confident_wrong_more_than_unsure_wrong():
     # The illusion of knowing: confident + wrong should drop more.
-    confident_wrong = 1000 - scoring.update_elo(1000, False, confidence=3)
-    unsure_wrong = 1000 - scoring.update_elo(1000, False, confidence=1)
+    confident_wrong = 1000 - scoring.update_rating(1000, False, confidence=3)
+    unsure_wrong = 1000 - scoring.update_rating(1000, False, confidence=1)
     assert confident_wrong > unsure_wrong
 
 
 def test_elo_rewards_unsure_right_more_than_confident_right():
-    unsure_right = scoring.update_elo(1000, True, confidence=1) - 1000
-    confident_right = scoring.update_elo(1000, True, confidence=3) - 1000
+    unsure_right = scoring.update_rating(1000, True, confidence=1) - 1000
+    confident_right = scoring.update_rating(1000, True, confidence=3) - 1000
     assert unsure_right > confident_right
 
 

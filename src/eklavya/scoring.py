@@ -17,7 +17,7 @@ _TARGET = 0.65
 _CONFIDENCE_P = {1: 0.25, 2: 0.6, 3: 0.9}
 
 
-def update_elo(current: float, correct: bool, confidence: int = 2) -> float:
+def update_rating(current: float, correct: bool, confidence: int = 2) -> float:
     """Return the new rating after one attempt.
 
     The calibration signal is confidence, not item difficulty (we don't have a

@@ -23,8 +23,14 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Load a local .env if present, so credentials don't have to live in the shell.
-load_dotenv()
+# Load credentials from ~/.eklavya/.env (outside the repo/sandbox code tree) so secrets
+# never sit inside the working directory of an app that executes learner-submitted code.
+# Fall back to a repo-local .env only if the home one is absent (dev convenience).
+_ENV_HOME = Path(os.environ.get("EKLAVYA_HOME", Path.home() / ".eklavya")) / ".env"
+if _ENV_HOME.exists():
+    load_dotenv(_ENV_HOME)
+else:
+    load_dotenv()
 
 # Multi-user is opt-in; the default (0) is the single-user self-host path, byte-for-byte
 # identical to before. Phase 1 only adds the plumbing — no auth/middleware is mounted.

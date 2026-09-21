@@ -406,7 +406,7 @@ def record_attempt(
     """
     from . import progress
     from .scheduling import schedule
-    from .scoring import level_of, tighten, update_elo
+    from .scoring import level_of, tighten, update_rating
 
     if axis not in AXES:
         return f"unknown axis '{axis}'; use one of: {', '.join(AXES)}"
@@ -420,7 +420,7 @@ def record_attempt(
         ).fetchone()
         current = row["rating"] if row else 1000.0
         band = row["confidence"] if row else 0.0
-        new_rating = update_elo(current, bool(correct), int(confidence))
+        new_rating = update_rating(current, bool(correct), int(confidence))
         conn.execute(
             """INSERT INTO ratings(pillar_id, axis, rating, confidence, first_seen, last_practiced)
                VALUES(?, ?, ?, ?, ?, ?)
