@@ -25,3 +25,6 @@ CRITIQUE.md
 
 # local screenshot runtime home
 .shot_home/
+
+# Local agent worktrees / session state — never publish
+.claude/
