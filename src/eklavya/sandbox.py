@@ -50,25 +50,30 @@ def _bwrap_argv(inner: list[str], workdir: str) -> list[str]:
     ONLY `workdir` writable, no network, and the home dir / .env / codebase simply
     absent from the mount namespace."""
     ro: list[str] = ["--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache"]
-    seen: set[str] = set()
-    # System dirs with libraries/tools but NO app secrets or data. Deliberately NOT
+    # System dirs — LITERAL paths (do NOT realpath: on usr-merged systems realpath
+    # collapses /bin -> /usr/bin and produces broken nested binds). Deliberately NO
     # /etc or /opt — those hold /etc/eklavya.env and the DB/codebase, which must stay
     # invisible to jailed learner code.
-    sys_dirs = ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/lib32", "/libx32"]
-    # Python: the venv + interpreter install, including the uv parent dir that holds
-    # short-name symlink dirs (e.g. cpython-3.12 -> cpython-3.12.14). Guarded so we
+    system = ["/usr", "/bin", "/sbin", "/lib", "/lib64", "/lib32", "/libx32"]
+    # Python: the venv + interpreter install, incl. the uv parent dir that holds the
+    # short-name symlink dir (e.g. cpython-3.12 -> cpython-3.12.14). Guarded so we
     # never bind a broad root or the app/home dir (which would re-expose the DB/.env).
     _ROOTS = {"/", "/usr", "/bin", "/sbin", "/lib", "/lib64", "/etc", "/opt", "/var", "/home", "/root", "/tmp"}
-    py_dirs: list[str] = []
+    py: list[str] = []
     for p in (sys.prefix, sys.base_prefix, os.path.dirname(sys.base_prefix),
               os.path.dirname(os.path.realpath(sys.executable))):
         rp = os.path.realpath(p) if p else ""
         if rp and rp not in _ROOTS and rp.count("/") >= 3 and os.path.isdir(rp):
-            py_dirs.append(rp)
-    for rp in [os.path.realpath(d) for d in sys_dirs] + py_dirs:
-        if rp and rp not in seen and os.path.isdir(rp):
-            seen.add(rp)
-            ro += ["--ro-bind", rp, rp]
+            py.append(rp)
+    py.sort(key=len)  # parents before children so the nesting skip below works
+    bound: list[str] = []
+    for src in system + py:
+        if not os.path.exists(src):
+            continue
+        if any(src == b or src.startswith(b.rstrip("/") + "/") for b in bound):
+            continue  # already covered by a bound parent — avoid broken nested binds
+        bound.append(src)
+        ro += ["--ro-bind", src, src]
     return [
         shutil.which("bwrap") or "bwrap", "--unshare-all", "--die-with-parent", "--new-session",
         "--clearenv",
