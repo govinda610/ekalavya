@@ -7,12 +7,20 @@ The code we run is LLM-authored, so we do NOT trust it. Defences:
   - a **CPU-time limit** (POSIX) plus a wall-clock timeout so it can't spin forever;
   - captured stdout/stderr and honest timing.
 
-This is process-level isolation, not a jail. For running untrusted third-party
-code we'd swap in a container/nsjail; for the learner's own code it's enough.
+By default this is process-level isolation. When **bubblewrap** (`bwrap`, Linux)
+is available it is used automatically to add a real *filesystem jail*: the code
+runs in a namespace with a minimal read-only view of the system + Python and
+*only* the throwaway workdir writable — so the learner process cannot see the home
+directory, the `.env`, the codebase, or the network. If `bwrap` is absent (e.g.
+macOS dev) it transparently falls back to the process-isolation path below, so
+behaviour is unchanged. Control with ``EKLAVYA_SANDBOX_JAIL=auto|off`` (default
+``auto``). The jail only wraps code execution — it never touches the database,
+chats, ratings, artifacts, or any learner state.
 """
 
 from __future__ import annotations
 
+import functools
 import os
 import shutil
 import subprocess
@@ -34,6 +42,55 @@ def _apply_limits() -> None:  # runs in the child, before exec (POSIX only)
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))  # no core dumps
 
 
+_JAIL_MODE = os.environ.get("EKLAVYA_SANDBOX_JAIL", "auto").strip().lower()  # auto | off
+
+
+def _bwrap_argv(inner: list[str], workdir: str) -> list[str]:
+    """Wrap `inner` in a bubblewrap jail: a read-only view of the system + Python,
+    ONLY `workdir` writable, no network, and the home dir / .env / codebase simply
+    absent from the mount namespace."""
+    ro: list[str] = []
+    seen: set[str] = set()
+    for p in ("/usr", "/bin", "/sbin", "/lib", "/lib64", "/etc", "/opt", sys.prefix, sys.base_prefix):
+        rp = os.path.realpath(p) if p else ""
+        if rp and rp not in seen and os.path.isdir(rp):
+            seen.add(rp)
+            ro += ["--ro-bind", rp, rp]
+    return [
+        shutil.which("bwrap") or "bwrap", "--unshare-all", "--die-with-parent", "--new-session",
+        "--clearenv",
+        "--setenv", "PATH", _CLEAN_ENV["PATH"], "--setenv", "LANG", "C.UTF-8",
+        "--setenv", "LC_ALL", "C.UTF-8", "--setenv", "HOME", workdir, "--setenv", "TMPDIR", workdir,
+        *ro,
+        "--proc", "/proc", "--dev", "/dev", "--tmpfs", "/tmp",
+        "--bind", workdir, workdir, "--chdir", workdir,
+        "--", *inner,
+    ]
+
+
+@functools.lru_cache(maxsize=1)
+def _jail_ok() -> bool:
+    """True only if bubblewrap is present AND a representative jailed run actually
+    works — so we jail exactly when it won't break the run path, and otherwise fall
+    back transparently to plain process isolation."""
+    if _JAIL_MODE == "off" or not shutil.which("bwrap"):
+        return False
+    wd = tempfile.mkdtemp(prefix="eklavya-jailprobe-")
+    try:
+        argv = _bwrap_argv([sys.executable, "-I", "-c", "import json,os,sys;print('JAILOK')"], wd)
+        r = subprocess.run(argv, capture_output=True, text=True, timeout=15)
+        return r.returncode == 0 and "JAILOK" in r.stdout
+    except Exception:
+        return False
+    finally:
+        shutil.rmtree(wd, ignore_errors=True)
+
+
+def jail_active() -> bool:
+    """Whether learner code is currently being filesystem-jailed (for a self-test)."""
+    return _jail_ok()
+
+
 @dataclass
 class RunResult:
     ok: bool
@@ -47,10 +104,14 @@ def run_python(code: str, stdin: str = "", timeout: float = 8.0) -> RunResult:
     """Execute a snippet in an isolated subprocess; capture output and timing."""
     workdir = tempfile.mkdtemp(prefix="eklavya-run-")
     env = dict(_CLEAN_ENV, HOME=workdir, TMPDIR=workdir)
+    inner = [sys.executable, "-I", "-c", code]
+    # Real filesystem jail when bubblewrap is available (Linux); transparent
+    # fallback to process isolation otherwise, so behaviour never breaks.
+    cmd = _bwrap_argv(inner, workdir) if (_JAIL_MODE != "off" and _jail_ok()) else inner
     start = time.monotonic()
     try:
         proc = subprocess.run(
-            [sys.executable, "-I", "-c", code],
+            cmd,
             input=stdin,
             capture_output=True,
             text=True,
