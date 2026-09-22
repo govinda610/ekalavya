@@ -3358,6 +3358,11 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   const _landing = _deep || ((!c.first_run && location.pathname==='/') ? 'tree' : 'practice');
   window._kickoffCfg = c.kickoff;   // stash so entering an empty Arena LATER (via nav) can auto-start too
   if(_landing!=='practice') showView(_landing);
+  // Post-login choice screen: a returning user lands on the Forest Map; surface the mode
+  // chooser ("what do you want to do?") on top so it's an explicit choice, not the silent map.
+  // Dismiss (click outside) to explore the map instead. First-run onboarding is unaffected;
+  // deep-links (URL to a specific view) skip it. try/catch so it can never break the landing.
+  if(_landing==='tree' && !c.first_run){ try{ openModes(); }catch(e){} }
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
   // explicit arena landing. Deep-links and the returning-user Forest Map must NOT auto-start a
   // thread here (that burned tokens + spawned junk chats on every page load / deep-link) — but
