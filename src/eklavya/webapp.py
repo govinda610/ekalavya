@@ -164,6 +164,19 @@ def create_app():
 
     app = FastAPI(title="Ekalavya", docs_url=None, redoc_url=None)
 
+    @app.middleware("http")
+    async def _no_store_dynamic(request: Request, call_next):
+        """The SPA shell (HTML) and the JSON APIs are dynamic — never let the browser
+        serve a stale copy after a deploy/seed (that hid the chooser + new map topics).
+        Static hashed assets under /static keep their own caching; only text/html and
+        application/json get no-store here."""
+        response = await call_next(request)
+        ct = response.headers.get("content-type", "")
+        if ct.startswith("text/html") or ct.startswith("application/json"):
+            response.headers["Cache-Control"] = "no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
     @app.exception_handler(json.JSONDecodeError)
     async def _bad_json(request: Request, exc: json.JSONDecodeError):
         """A malformed/empty JSON body on any POST/PUT should be a clean 400, not a
