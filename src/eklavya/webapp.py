@@ -2024,6 +2024,15 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
   <div id="admin"></div>
   </div>
 </main>
+<!-- P4: post-login choice screen. TOP-LEVEL (sibling of <main>) so it is NOT inside
+     #practice (which is display:none on the Forest landing — that hid the reused overlay). -->
+<div id="chooser-ov" class="modes-ov" onclick="if(event.target===this)closeChooser()">
+  <div class="modes-card">
+    <div class="modes-h">What shall we work on?</div>
+    <div class="modes-grid" id="chooserModesGrid"></div>
+    <button class="chooser-skip" onclick="closeChooser()" style="display:block;margin:16px auto 0;font-family:var(--f-title);font-size:12px;color:var(--parch-dim);background:none;border:1px solid var(--line-soft);border-radius:6px;padding:8px 22px;cursor:pointer">◑ Explore the map instead</button>
+  </div>
+</div>
 <nav id="mnav" aria-label="Sections">
   <button class="ni" data-rail="prog" onclick="railGo('prog')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M3 11 L12 4 L21 11 V21 H3 Z" stroke="currentColor" stroke-width="1.6"/></svg><span class="nlabel">Progress</span></button>
   <button class="ni" data-rail="tree" onclick="railGo('tree')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 21V11M12 11a5 5 0 100-8 5 5 0 000 8z" stroke="currentColor" stroke-width="1.5"/></svg><span class="nlabel">Forest</span></button>
@@ -3246,6 +3255,17 @@ function openModes(){
 }
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
+// P4 post-login chooser (top-level overlay, shown on the Forest landing).
+function showChooser(){
+  var g=document.getElementById('chooserModesGrid'); if(!g) return;
+  g.innerHTML = MODES.map(function(m){
+    return '<button class="modetile '+m.c+'" onclick="pickChooserMode(\''+m.v+'\')">'+
+      '<span class="mt-g">'+m.g+'</span><span class="mt-body"><span class="mt-t">'+m.t+'</span>'+
+      '<span class="mt-d">'+m.d+'</span></span></button>'; }).join('');
+  document.getElementById('chooser-ov').classList.add('on');
+}
+function closeChooser(){ var o=document.getElementById('chooser-ov'); if(o) o.classList.remove('on'); }
+function pickChooserMode(v){ closeChooser(); document.getElementById('mode').value=v; showView('practice'); newSession(); }
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
@@ -3375,7 +3395,7 @@ fetch('/api/config').then(r=>r.json()).then(c=>{
   // chooser ("what do you want to do?") on top so it's an explicit choice, not the silent map.
   // Dismiss (click outside) to explore the map instead. First-run onboarding is unaffected;
   // deep-links (URL to a specific view) skip it. try/catch so it can never break the landing.
-  if(_landing==='tree' && !c.first_run){ try{ openModes(); }catch(e){} }
+  if(_landing==='tree' && !c.first_run){ try{ showChooser(); }catch(e){} }
   // Only kick off a session when we genuinely land IN the arena: first-run onboarding, or an
   // explicit arena landing. Deep-links and the returning-user Forest Map must NOT auto-start a
   // thread here (that burned tokens + spawned junk chats on every page load / deep-link) — but
