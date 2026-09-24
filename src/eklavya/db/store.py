@@ -181,6 +181,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
     from .. import benchmark
     _optional_step(conn, "benchmark_seed", benchmark.seed_items)
 
+    # OPTIONAL: seed the learning-system parity curriculum (6 new pillars + concepts +
+    # baseline ratings). Runs on EVERY init — new accounts and existing ones alike — so
+    # the enrichment reaches everybody, not just a single manually-seeded account. Purely
+    # additive/idempotent (see seed_curriculum.py); a hiccup must not lock logins out.
+    from .. import seed_curriculum
+    _optional_step(conn, "curriculum_seed", seed_curriculum.ensure_curriculum_seeded)
+
 
 def _add_col(conn: sqlite3.Connection, table: str, col: str, decl: str) -> None:
     """Guarded ADD COLUMN — only if the table exists and the column is absent (idempotent)."""

@@ -1,5 +1,10 @@
 """Ship a starter interview-question bank so a fresh account isn't empty.
 
+`data/seed_questions.json` includes 218 questions from the learning-system parity work
+(recovered from `scripts/seed_questions_expansion.py` on a stale branch — MCP/DSPy/
+LangGraph internals, evals engineering, mechanistic interpretability, and more), on top
+of the original starter bank, so every new account ships with the full breadth.
+
 `ensure_seeded(conn)` loads the curated `data/seed_questions.json` into a user's
 `questions` table — but ONLY when that table is currently empty, so it never
 touches an existing bank (e.g. the migrated owner account with its own questions).
@@ -28,23 +33,14 @@ def _load_file() -> list[dict]:
         return []
 
 
-def ensure_seeded(conn: sqlite3.Connection) -> int:
-    """Load the shipped seed bank iff the questions table is empty. Returns #inserted.
+def _insert_items(conn: sqlite3.Connection, items: list[dict]) -> int:
+    """INSERT OR IGNORE each item (deduped on the question text UNIQUE index). Returns
+    #inserted. Never raises; a bad row is skipped, not fatal. Caller commits.
 
-    Idempotent and safe to call on every launch: once the table has any rows it's a
-    no-op, so it seeds exactly once (a brand-new account) and never re-adds or clobbers.
+    Also used standalone (bypassing `ensure_seeded`'s empty-table gate) to bring an
+    already-seeded account's bank up to date with a newer `seed_questions.json` — see
+    the module docstring for the exact command.
     """
-    try:
-        row = conn.execute("SELECT COUNT(*) FROM questions").fetchone()
-        if row and row[0]:  # already has questions → leave it alone
-            return 0
-    except sqlite3.Error:
-        return 0
-
-    items = _load_file()
-    if not items:
-        return 0
-
     inserted = 0
     cur = conn.cursor()
     for q in items:
@@ -71,6 +67,30 @@ def ensure_seeded(conn: sqlite3.Connection) -> int:
         conn.commit()
     except sqlite3.Error:
         return 0
+    return inserted
+
+
+def ensure_seeded(conn: sqlite3.Connection) -> int:
+    """Load the shipped seed bank iff the questions table is empty. Returns #inserted.
+
+    Idempotent and safe to call on every launch: once the table has any rows it's a
+    no-op, so it seeds exactly once (a brand-new account) and never re-adds or clobbers.
+    An already-seeded (or hand-curated) account is deliberately left alone here — to
+    bring an EXISTING account's bank up to date with a newer seed file, call
+    `_insert_items(conn, _load_file())` directly (dedupes on question text; additive only).
+    """
+    try:
+        row = conn.execute("SELECT COUNT(*) FROM questions").fetchone()
+        if row and row[0]:  # already has questions → leave it alone
+            return 0
+    except sqlite3.Error:
+        return 0
+
+    items = _load_file()
+    if not items:
+        return 0
+
+    inserted = _insert_items(conn, items)
     if inserted:
         log.info("seeded %d starter interview questions into a new question bank", inserted)
     return inserted

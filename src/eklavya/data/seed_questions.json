@@ -2574,5 +2574,1749 @@
     "role": "ml-engineer",
     "company": "",
     "source": "Common ML system design interview questions (ML-engineer guides)"
+  },
+  {
+    "question": "Explain the Model Context Protocol (MCP) architecture: what are the roles of host, client, and server, and how does JSON-RPC fit in? Why does MCP solve the N×M integration problem?",
+    "topic": "MCP internals | pillar:AI Agents & Orchestration",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "Anthropic",
+    "source": "https://www.datacamp.com/blog/mcp-interview-questions"
+  },
+  {
+    "question": "You are scaling an MCP server horizontally behind a load balancer. A user's second request lands on a different server instance and the agent loses session context. What are the three architectural options to handle this, and what are the tradeoffs?",
+    "topic": "MCP internals | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.youtube.com/watch?v=ARn1dzfUuyU"
+  },
+  {
+    "question": "How do you safely expose a production PostgreSQL database to an AI agent via MCP? Walk through the security layers you would add.",
+    "topic": "MCP internals | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.hirist.tech/blog/top-mcp-interview-questions-answers-ai-agents-tool-calling"
+  },
+  {
+    "question": "What is DSPy's core abstraction — Signature + Module — and how does it differ from writing a LangChain prompt template by hand? What problem does automated prompt optimisation solve that manual prompting cannot?",
+    "topic": "DSPy | pillar:AI Agents & Orchestration",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.dbreunig.com/2025/06/10/let-the-model-write-the-prompt.html"
+  },
+  {
+    "question": "When would you choose DSPy's BootstrapFewShot over MIPROv2 as the optimizer? What does each actually search over?",
+    "topic": "DSPy | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://towardsdatascience.com/systematic-llm-prompt-engineering-using-dspy-optimization"
+  },
+  {
+    "question": "What is the difference between a LangGraph Checkpointer and a LangGraph Store (cross-thread memory)? Give a concrete use case for each.",
+    "topic": "LangGraph patterns | pillar:AI Agents & Orchestration",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.interviewcoder.co/blog/langgraph-interview-questions"
+  },
+  {
+    "question": "Compare the Supervisor pattern and the Swarm (peer handoff) pattern in LangGraph multi-agent systems. When does each break down?",
+    "topic": "LangGraph patterns | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://cloudsoftsol.com/interview-questions/langgraph-interview-questions-answers"
+  },
+  {
+    "question": "Two parallel LangGraph branches both write to the same TypedDict state field that has no reducer defined. What happens, and how do you fix it?",
+    "topic": "LangGraph patterns | pillar:AI Agents & Orchestration",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.udemy.com/course/langgraph-ai-agent-interview-questions"
+  },
+  {
+    "question": "An agent needs to remember: (a) today's conversation, (b) a user's standing preferences set last month, (c) the steps of the current multi-step task, and (d) how to call a particular API. Map each to the correct memory type and a concrete storage mechanism.",
+    "topic": "agent memory and planning | pillar:AI Agents & Orchestration",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.aemonline.net/blog/25-advanced-agentic-ai-interview-questions-for-2026-with-answer-updated-february-2026"
+  },
+  {
+    "question": "A senior engineer says your agentic eval framework is incomplete because you only measure final answer quality with RAGAS. What are the additional axes a production agentic eval must cover, and why does each matter?",
+    "topic": "evals engineering — agentic evals | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "Anthropic",
+    "source": "https://prachub.com/resources/ai-engineer-interview-questions-2026-rag-agents-evals-and-production-systems"
+  },
+  {
+    "question": "What are the known failure modes of using an LLM as a judge, and what practical mitigations do you put in place before trusting its scores in a CI pipeline?",
+    "topic": "evals engineering — LLM-as-judge | pillar:AI Agents & Orchestration",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://gitgood.dev/blog/complete-guide-rag-interview-questions-2026"
+  },
+  {
+    "question": "Explain reciprocal rank fusion (RRF). Why is it preferred over score-based fusion when combining BM25 and dense retrieval results?",
+    "topic": "advanced RAG — hybrid and rerank | pillar:RAG & Vector Retrieval",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://gitgood.dev/blog/complete-guide-rag-interview-questions-2026"
+  },
+  {
+    "question": "When does Graph RAG beat vanilla vector RAG, and when does it not? Give a concrete decision framework.",
+    "topic": "advanced RAG — Graph RAG | pillar:RAG & Vector Retrieval",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://gitgood.dev/blog/complete-guide-rag-interview-questions-2026"
+  },
+  {
+    "question": "Explain the HNSW algorithm: how is the multi-layer graph built, and how does search proceed? What do the parameters M and efSearch control, and what is the recall-latency tradeoff?",
+    "topic": "vector DB internals — HNSW | pillar:RAG & Vector Retrieval",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.kunwar.page/chapter/059-vector-index-internals-hnsw-ivf-scann-faiss"
+  },
+  {
+    "question": "Compare IVF-PQ (Inverted File Index with Product Quantization) and HNSW on memory footprint, query latency, recall, and update cost. For a 500M-vector corpus where memory is constrained, which do you pick and why?",
+    "topic": "vector DB internals — IVF | pillar:RAG & Vector Retrieval",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://medium.com/@darshantank_55417/how-does-avectordb-handle-million-scale-vector-search-in-milliseconds-with-hnsw-d9fdeee1d098"
+  },
+  {
+    "question": "A RAG system scores 0.85 on RAGAS faithfulness but users complain the answers are unhelpful. What is likely going wrong and how do you diagnose it?",
+    "topic": "advanced RAG — evals | pillar:RAG & Vector Retrieval",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://myengineeringpath.dev/genai-engineer/evaluation"
+  },
+  {
+    "question": "Prove that minimising cross-entropy loss H(p, q) over a model q is equivalent to minimising KL divergence D_KL(p || q). What does this mean for maximum likelihood estimation?",
+    "topic": "information theory | pillar:ML Theory & Math Foundations",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://github.com/mikenguyen13/ai_in_action/blob/main/037-information-theory-kl-divergence-mutual-information.qmd"
+  },
+  {
+    "question": "What is mutual information I(X; Y), and why does it use KL divergence rather than, say, Euclidean distance between the joint and product-of-marginals distributions?",
+    "topic": "information theory | pillar:ML Theory & Math Foundations",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://stats.stackexchange.com/questions/563757/why-does-mutual-information-use-kl-divergence"
+  },
+  {
+    "question": "State Itô's Lemma for a 1D diffusion process. Apply it to derive the SDE for Y_t = ln(X_t) when X_t follows geometric Brownian motion dX_t = μX_t dt + σX_t dW_t. Why does the drift of Y_t differ from μ?",
+    "topic": "stochastic calculus | pillar:ML Theory & Math Foundations",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Jane Street",
+    "source": "https://www.datainterview.com/blog/stochastic-calculus-interview-questions"
+  },
+  {
+    "question": "What is a filtration {F_t} in stochastic calculus, and why is it essential for defining adapted processes and conditional expectations in the context of financial modelling?",
+    "topic": "measure theory | pillar:ML Theory & Math Foundations",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Two Sigma",
+    "source": "https://www.linkedin.com/posts/nikita-singh-iitk_top-interview-quant-questions-related-to-activity-7193540920326189057-b2Ww"
+  },
+  {
+    "question": "State the KKT conditions for a constrained optimisation problem. For a convex problem, when are the KKT conditions not only necessary but also sufficient? What is Slater's condition?",
+    "topic": "optimization theory | pillar:ML Theory & Math Foundations",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://climbtheladder.com/convex-optimization-interview-questions"
+  },
+  {
+    "question": "Why is L2 regularisation mathematically equivalent to placing a Gaussian prior on model weights in a Bayesian MAP framework? What prior does L1 regularisation correspond to?",
+    "topic": "optimization theory | pillar:ML Theory & Math Foundations",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.sundeepteki.org/advice/the-ultimate-ai-research-scientist-interview-guide-cracking-anthropic-openai-google-deepmind-top-ai-labs-in-2026"
+  },
+  {
+    "question": "You want to estimate the causal effect of education on wages using OLS, but suspect 'ability' is an unobserved confounder. Explain why OLS is biased, what an instrumental variable (IV) is, and what two conditions a valid instrument must satisfy.",
+    "topic": "econometrics — instrumental variables | pillar:Econometrics & Statistics",
+    "difficulty": "medium",
+    "role": "ds",
+    "company": "",
+    "source": "https://wol.iza.org/articles/using-instrumental-variables-to-establish-causality/long"
+  },
+  {
+    "question": "Explain the difference between MLE and MAP estimation. When does MAP reduce to MLE, and what are conjugate priors? Give an example of a conjugate prior pair.",
+    "topic": "Bayesian methods | pillar:Econometrics & Statistics",
+    "difficulty": "easy",
+    "role": "ds",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/statistics-interview-questions"
+  },
+  {
+    "question": "What is Markov Chain Monte Carlo (MCMC), and why is it needed in Bayesian inference? Explain the Metropolis-Hastings acceptance step and why it ensures samples come from the correct posterior.",
+    "topic": "Bayesian methods — MCMC | pillar:Econometrics & Statistics",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/statistics-interview-questions"
+  },
+  {
+    "question": "Explain the key differences between a process and a thread: what do they share, what is private, and why is a thread context switch cheaper than a process context switch?",
+    "topic": "operating-systems-processes-threads | pillar:CS Fundamentals",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/operating-system-interview-questions/"
+  },
+  {
+    "question": "Walk through what happens — at every layer of the OS — when a user-space program accesses a virtual address that is not currently in physical RAM (a page fault).",
+    "topic": "operating-systems-virtual-memory | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/operating-system-interview-questions/"
+  },
+  {
+    "question": "Compare Round Robin, Shortest Job First (SJF), and Completely Fair Scheduler (CFS). What metric does each optimize, and when does each break down?",
+    "topic": "operating-systems-scheduling | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.golinuxcloud.com/operating-system-interview-questions/"
+  },
+  {
+    "question": "State the four Coffman conditions for deadlock. For each one, give a concrete example of how to break it in a real system.",
+    "topic": "operating-systems-synchronization | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.wecreateproblems.com/interview-questions/operating-system-interview-questions"
+  },
+  {
+    "question": "What is the Translation Lookaside Buffer (TLB), and what are the performance consequences of a TLB shootdown in a multi-core system?",
+    "topic": "operating-systems-virtual-memory | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Google",
+    "source": "https://www.interviewbit.com/operating-system-interview-questions/"
+  },
+  {
+    "question": "Describe TCP's three-way handshake and four-way teardown. Why does the passive closer enter TIME_WAIT, and what problems can a large number of TIME_WAIT sockets cause in a high-throughput service?",
+    "topic": "computer-networks-tcp | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/networking-interview-questions/"
+  },
+  {
+    "question": "Explain the key differences between HTTP/1.1, HTTP/2, and HTTP/3. How does each version address head-of-line (HOL) blocking?",
+    "topic": "computer-networks-http | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/networking-interview-questions/"
+  },
+  {
+    "question": "Trace a TLS 1.3 handshake step by step. How does it differ from TLS 1.2, and why does it achieve forward secrecy by default?",
+    "topic": "computer-networks-tls | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://cyberinterviewprep.com/resources/security-engineer-interview-prep-faang"
+  },
+  {
+    "question": "How does TCP congestion control work? Explain slow start, congestion avoidance (AIMD), fast retransmit, and fast recovery. What is CUBIC and why does Linux use it?",
+    "topic": "computer-networks-tcp | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/networking-interview-questions/"
+  },
+  {
+    "question": "Compare B+tree and LSM-tree storage engines for a write-heavy workload. When would you choose RocksDB (LSM) over PostgreSQL (B+tree), and what are the downsides?",
+    "topic": "database-internals-indexing | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "Meta",
+    "source": "https://skillsuites.com/storage-engine-internals/"
+  },
+  {
+    "question": "Explain how PostgreSQL implements MVCC. How does it avoid read-write conflicts, and what is the role of VACUUM?",
+    "topic": "database-internals-mvcc | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/dbms-interview-questions"
+  },
+  {
+    "question": "Explain the four ACID properties. For each, name one concrete failure scenario it protects against, and the mechanism the database uses.",
+    "topic": "database-internals-transactions | pillar:CS Fundamentals",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/dbms-interview-questions"
+  },
+  {
+    "question": "A slow query does a full table scan on a 100M-row table even though there is an index on the WHERE column. What are five possible reasons the query planner is ignoring the index?",
+    "topic": "database-internals-indexing | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Gartner",
+    "source": "https://www.golinuxcloud.com/dbms-interview-questions/"
+  },
+  {
+    "question": "Explain how Raft achieves consensus. Walk through leader election and log replication, and explain what 'committed' means in Raft.",
+    "topic": "distributed-systems-consensus | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://www.algoroq.io/interview-questions/consensus-algorithms/"
+  },
+  {
+    "question": "State the CAP theorem precisely, explain why you can only guarantee two of the three properties during a network partition, and give a real system example for each of CP and AP.",
+    "topic": "distributed-systems-cap | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.algoroq.io/interview-questions/cap-theorem/"
+  },
+  {
+    "question": "Compare synchronous vs. asynchronous replication. In a primary-replica setup, what guarantees does each provide, and what is the durability vs. latency tradeoff?",
+    "topic": "distributed-systems-replication | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.designgurus.io/system-design-interview/concepts/replication-consistency"
+  },
+  {
+    "question": "What is split-brain in a distributed system, and how does Raft prevent it? What happens to availability during a network partition in a Raft cluster of 5 nodes?",
+    "topic": "distributed-systems-consensus | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://www.algoroq.io/interview-questions/consensus-algorithms/"
+  },
+  {
+    "question": "What is the Chomsky hierarchy? Describe each level with its corresponding automaton and an example language at each level.",
+    "topic": "theory-of-computation-automata | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/theory-of-computation/theory-of-computation-automata-tutorials/"
+  },
+  {
+    "question": "Define the complexity classes P, NP, NP-hard, and NP-complete. Give a concrete example problem in each, and explain why most researchers believe P ≠ NP but cannot prove it.",
+    "topic": "theory-of-computation-pnp | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://climbtheladder.com/theory-of-computation-interview-questions/"
+  },
+  {
+    "question": "What is the Halting Problem, and why is it undecidable? Sketch the proof by contradiction.",
+    "topic": "theory-of-computation-decidability | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://climbtheladder.com/theory-of-computation-interview-questions/"
+  },
+  {
+    "question": "What is undefined behavior (UB) in C? Give three concrete examples and explain why the compiler is allowed — and often does — generate unexpected code around UB.",
+    "topic": "c-memory-model | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://www.geeksforgeeks.org/c/c-interview-questions/"
+  },
+  {
+    "question": "Describe C's memory layout for a running process: text, data, BSS, heap, and stack. What is placed in each segment, who manages it, and what errors arise from misuse?",
+    "topic": "c-memory-model | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/c/pointers-and-dynamic-memory-allocation-interview-questions-c-programming/"
+  },
+  {
+    "question": "Describe the phases of a C compiler (preprocessing → lexing → parsing → semantic analysis → IR → optimization → code generation → linking). What does each phase produce, and what kind of error does each phase catch?",
+    "topic": "compilers-interpreters | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.vervecopilot.com/interview-questions/why-does-understanding-compiler-vs-interpreter-in-c-matter-so-much-in-technical-interviews"
+  },
+  {
+    "question": "What is the difference between a compiler, an interpreter, and a JIT compiler? Give one real-world example of each and explain the performance tradeoffs.",
+    "topic": "compilers-interpreters | pillar:CS Fundamentals",
+    "difficulty": "easy",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.vervecopilot.com/interview-questions/why-does-understanding-compiler-vs-interpreter-in-c-matter-so-much-in-technical-interviews"
+  },
+  {
+    "question": "Explain RAII (Resource Acquisition Is Initialization) in C++. Why is it the idiomatic solution to resource management, and how does it relate to smart pointers?",
+    "topic": "cpp-basics | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.golinuxcloud.com/c-and-cpp-interview-questions/"
+  },
+  {
+    "question": "What are the main inter-process communication (IPC) mechanisms in Linux? For each, describe its semantics and the appropriate use case.",
+    "topic": "operating-systems-ipc | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://codersnote.com/blog/os-interview-questions"
+  },
+  {
+    "question": "What is a Write-Ahead Log (WAL) and how does it guarantee durability? Explain how WAL enables crash recovery in PostgreSQL.",
+    "topic": "database-internals-wal | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://skillsuites.com/storage-engine-internals/"
+  },
+  {
+    "question": "Explain the socket API call sequence for a TCP server and client. What does each syscall do, and what state does it create in the kernel?",
+    "topic": "computer-networks-sockets | pillar:CS Fundamentals",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://hyring.com/jobseeker-toolkit/interview-questions/technical/computer-networks"
+  },
+  {
+    "question": "Why is the Pumping Lemma useful, and how do you use it to prove that a given language is not regular? Demonstrate with L = {a^n b^n | n >= 1}.",
+    "topic": "theory-of-computation-automata | pillar:CS Fundamentals",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://www.sanfoundry.com/automata-theory-interview-questions-answers-experienced/"
+  },
+  {
+    "question": "What inductive biases does a CNN bake in that a fully-connected network lacks, and why do those biases make CNNs efficient for images but potentially limiting for tasks requiring long-range context?",
+    "topic": "CNNs — receptive fields and inductive biases | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.techinterview.org/post/3233460081/computer-vision-interview-questions-cnns-object-detection-and-transfer-learning"
+  },
+  {
+    "question": "Explain why residual (skip) connections in ResNet solve the degradation problem. What is the difference between the degradation problem and the vanishing-gradient problem, and does a residual connection fix both?",
+    "topic": "ResNet — residual connections | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.techinterview.org/post/3233460081/computer-vision-interview-questions-cnns-object-detection-and-transfer-learning"
+  },
+  {
+    "question": "Walk through the Vision Transformer (ViT) architecture from a raw image to a classification output. Why does ViT underperform CNNs when trained on small datasets, and what architectural or training fixes address this?",
+    "topic": "Vision Transformers (ViT) — architecture and data hunger | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://huggingface.co/blog/RDTvlokip/when-transformers-invade-computer-vision"
+  },
+  {
+    "question": "A team is building a real-time defect detection system for a semiconductor fab. Training data is ~50k labeled images. Walk through whether you'd choose a CNN-based backbone, a ViT, or a hybrid, and justify the decision across accuracy, inference latency, and dataset size axes.",
+    "topic": "ViT vs CNN — production tradeoffs | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://hiya31.medium.com/cnn-vs-vision-transformer-vit-which-wins-in-2025-e1cb2dfcb903"
+  },
+  {
+    "question": "Explain the role of anchor boxes in Faster R-CNN. What problem do anchors solve, and what problems do they themselves introduce? How do anchor-free detectors like FCOS address those drawbacks?",
+    "topic": "Object detection — anchor-based vs anchor-free | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.techinterview.org/post/3233460081/computer-vision-interview-questions-cnns-object-detection-and-transfer-learning"
+  },
+  {
+    "question": "Describe how YOLO frames object detection as a single regression problem. What are the key architectural innovations from YOLOv1 to YOLOv10, and in what production scenarios does YOLO still beat transformer-based detectors?",
+    "topic": "YOLO — architecture and evolution | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/top-machine-learning-interview-questions"
+  },
+  {
+    "question": "Explain DETR's end-to-end detection pipeline. What role do object queries play, why is Hungarian matching used during training, and what are DETR's main weaknesses compared to YOLO on a real-time inference budget?",
+    "topic": "DETR — transformer-based detection | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ml",
+    "company": "Meta",
+    "source": "https://www.lightly.ai/blog/detr"
+  },
+  {
+    "question": "Design a real-time pedestrian detection and tracking system for a network of 500 traffic cameras feeding a city-wide traffic management dashboard. Latency budget: <200ms end-to-end per frame. Cover model selection, streaming ingestion, inference infra, tracking, and monitoring.",
+    "topic": "System design — real-time video object detection at scale | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://codefinity.com/blog/Top-25-Questions-and-Answers-for-Computer-Vision-Engineer-Interview"
+  },
+  {
+    "question": "Compare triplet loss and ArcFace loss for training a face recognition embedding model. Why does triplet loss suffer from training instability, and how does ArcFace's additive angular margin formulation overcome it?",
+    "topic": "Metric learning — triplet loss vs ArcFace | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ml",
+    "company": "",
+    "source": "https://learnopencv.com/face-recognition-with-arcface"
+  },
+  {
+    "question": "You need to build a reverse image search system over 50 million product photos. Explain how you would use FAISS. What index type would you choose, what are the accuracy-speed tradeoffs, and how do you handle index updates when new products are added daily?",
+    "topic": "FAISS — approximate nearest neighbor image search | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://mayursurani.medium.com/ai-engineer-agentic-systems-technical-interview-playbook-5e589a32875d"
+  },
+  {
+    "question": "Explain how CLIP is trained and why contrastive loss produces a jointly aligned image-text embedding space. How would you use CLIP for zero-shot image classification, and what are its known failure modes?",
+    "topic": "CLIP — contrastive vision-language pretraining | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "OpenAI",
+    "source": "https://www.geeksforgeeks.org/computer-vision/computer-vision-interview-questions"
+  },
+  {
+    "question": "Describe the architectural 'recipe' of LLaVA-style vision-language models: how is the visual encoder connected to the language model, what is the role of the projection/connector MLP, and how does Qwen2.5-VL improve over this baseline design?",
+    "topic": "VLM architecture — LLaVA / Qwen-VL internals | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://labelyourdata.com/articles/machine-learning/vision-language-models"
+  },
+  {
+    "question": "How do you evaluate a vision-language model for a production document understanding use case? Name at least three relevant benchmarks, explain what each measures, and describe what you would do when benchmark scores don't correlate with user satisfaction.",
+    "topic": "VLM evaluation — multimodal benchmarks | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://aman.ai/primers/ai/VLM"
+  },
+  {
+    "question": "Describe the stages of a production OCR pipeline for processing scanned invoices in multiple languages. Where does the pipeline commonly fail, and how do you improve accuracy for degraded/skewed/low-resolution inputs?",
+    "topic": "OCR pipelines — design and failure modes | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.golem15.com/en/blog/ai-engineering/ai-document-processing-pipeline"
+  },
+  {
+    "question": "Explain what makes LayoutLM different from a standard BERT for document understanding tasks. What three input modalities does LayoutLMv3 jointly encode, and what pre-training objectives does it use?",
+    "topic": "LayoutLM — document AI model family | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "Microsoft",
+    "source": "https://www.ankursnewsletter.com/p/what-is-intelligent-document-processing"
+  },
+  {
+    "question": "Design a production IDP pipeline to process 10,000 invoices per day from 200+ vendor templates with varying layouts. Cover model selection, confidence routing, human-in-the-loop, and how you measure and improve pipeline accuracy over time.",
+    "topic": "IDP system design — intelligent document processing architecture | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.width.ai/post/what-is-intelligent-document-processing-idp"
+  },
+  {
+    "question": "How would you build a multimodal RAG system that answers questions over a corpus of 50,000 product manuals containing both text and diagrams? Walk through how you index, retrieve, and generate answers.",
+    "topic": "Multimodal RAG — image + text retrieval | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://huggingface.co/blog/vlms-2025"
+  },
+  {
+    "question": "You have a medical imaging classification task (chest X-ray: normal vs pneumonia vs COVID-19) with only 3,000 labeled images. Walk through your transfer learning strategy, which layers to freeze and unfreeze, and what augmentations you'd apply.",
+    "topic": "Transfer learning and fine-tuning for vision | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://365datascience.com/career-advice/job-interview-tips/computer-vision-interview-questions"
+  },
+  {
+    "question": "Distinguish semantic segmentation, instance segmentation, and panoptic segmentation. For an autonomous vehicle perception stack, which task do you need and why? Name one model architecture for each.",
+    "topic": "Image segmentation — semantic vs instance vs panoptic | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/computer-vision/computer-vision-interview-questions"
+  },
+  {
+    "question": "A model trained on synthetic rendered images (GAN-generated or game engine) performs poorly when deployed on real camera images. What causes this synthetic-to-real domain gap, and what techniques can close it without re-collecting real labeled data?",
+    "topic": "Domain adaptation in vision models | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://www.techinterview.org/post/3233460081/computer-vision-interview-questions-cnns-object-detection-and-transfer-learning"
+  },
+  {
+    "question": "What is self-supervised learning in vision (SSL), how does DINO / DINOv2 train a ViT without labels, and what downstream tasks benefit most from DINOv2 features compared to supervised ImageNet pretraining?",
+    "topic": "DINO / DINOv2 — self-supervised vision features | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Meta",
+    "source": "https://huggingface.co/blog/RDTvlokip/when-transformers-invade-computer-vision"
+  },
+  {
+    "question": "What is object hallucination in vision-language models, how is it measured, and what techniques reduce it in a production VLM pipeline?",
+    "topic": "VLM hallucination — object hallucination in multimodal models | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "Anthropic",
+    "source": "https://aman.ai/primers/ai/VLM"
+  },
+  {
+    "question": "You are building a visual similarity engine for an e-commerce catalog (fashion + furniture). Compare at least three embedding models you would evaluate, explain how you would measure retrieval quality offline, and describe how you would handle the cold-start problem for new product images.",
+    "topic": "Image embeddings — model choice and evaluation | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "CARS24",
+    "source": "https://www.datainterview.com/blog/ai-engineer-interview-prep"
+  },
+  {
+    "question": "A conv layer has 3 input channels, 64 output filters, and a 3×3 kernel with no bias. How many parameters does it have? If you increase kernel size to 5×5 with the same config, how do parameters change? What does this tell you about the efficiency of stacking 3×3 kernels vs using a single 5×5?",
+    "topic": "CNN parameter counting and efficiency | pillar:Computer Vision & Multimodal",
+    "difficulty": "easy",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.techinterview.org/post/3233460081/computer-vision-interview-questions-cnns-object-detection-and-transfer-learning"
+  },
+  {
+    "question": "Explain how non-maximum suppression (NMS) works in object detection post-processing. What is its computational complexity, why is it a bottleneck in crowded scenes, and what alternatives exist?",
+    "topic": "Non-maximum suppression (NMS) | pillar:Computer Vision & Multimodal",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://medium.com/@faheemrustamy/detection-transformer-detr-vs-yolo-for-object-detection-baeb3c50bc3"
+  },
+  {
+    "question": "You are deploying a VLM (7B parameters) for real-time document Q&A at a fintech. Each query includes a page image and a user question; P95 latency must be under 2 seconds. Walk through model compression and serving strategies to hit this target.",
+    "topic": "Multimodal model — deployment and latency optimization | pillar:Computer Vision & Multimodal",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://labelyourdata.com/articles/machine-learning/vision-language-models"
+  },
+  {
+    "question": "Explain OpenAI Whisper's architecture. What is the encoder-decoder setup, what training objective does it use, and why does Whisper hallucinate on silence or long-form audio?",
+    "topic": "ASR Architecture — Whisper | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://openai.com/index/whisper/"
+  },
+  {
+    "question": "What is the Conformer architecture and why does it outperform a pure Transformer for ASR? Where in the architecture is the CNN block placed, and what inductive bias does it inject?",
+    "topic": "ASR Architecture — Conformer | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.speechdata.ai/blog/best-asr-models-2026"
+  },
+  {
+    "question": "Compare CTC, RNN-T, and attention encoder-decoder (AED) as ASR output heads. What are the independence assumption, streaming capability, and language-model integration differences?",
+    "topic": "CTC vs RNN-T vs AED Decoding | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://apxml.com/courses/speech-recognition-synthesis-asr-tts/chapter-2-advanced-acoustic-modeling-asr/rnn-transducer-asr"
+  },
+  {
+    "question": "Walk through the step-by-step computation of MFCCs from raw audio. Why is the mel scale used instead of a linear frequency axis, and what information is lost after the DCT step?",
+    "topic": "MFCC Feature Extraction | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/nlp/mel-frequency-cepstral-coefficients-mfcc-for-speech-recognition/"
+  },
+  {
+    "question": "When would you prefer a log-mel spectrogram over MFCCs as the input feature for a modern ASR model? What has changed architecturally that made this shift happen?",
+    "topic": "Mel Spectrogram vs MFCC | pillar:Indic & Speech AI",
+    "difficulty": "easy",
+    "role": "ml",
+    "company": "",
+    "source": "https://learnopencv.com/automatic-speech-recognition/"
+  },
+  {
+    "question": "What is Voice Activity Detection and where is it used in a production ASR or diarization pipeline? What are the failure modes of energy-based VAD versus a neural VAD?",
+    "topic": "Voice Activity Detection (VAD) | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/speaker_diarization/intro.html"
+  },
+  {
+    "question": "Describe the end-to-end pipeline of a cascaded speaker diarization system. What is the role of speaker embeddings (x-vectors / d-vectors) and how does clustering assign speakers?",
+    "topic": "Speaker Diarization Pipeline | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://docs.nvidia.com/nemo-framework/user-guide/latest/nemotoolkit/asr/speaker_diarization/intro.html"
+  },
+  {
+    "question": "Design a real-time multilingual ASR service supporting 10 Indian languages at p95 latency < 300 ms for a call-center platform. Cover model choice, streaming, batching, and latency budget.",
+    "topic": "ASR System Design — Low-Latency Multilingual | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Sarvam",
+    "source": "https://caller.digital/blog/open-source-voice-ai-india-sarvam-ai4bharat-bhasini-2026"
+  },
+  {
+    "question": "Compare a traditional TTS pipeline (text normalization → acoustic model → vocoder) with an end-to-end TTS (e.g., VITS / NaturalSpeech). What are the MOS and speaker-similarity tradeoffs?",
+    "topic": "Text-to-Speech Systems | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "AI4Bharat",
+    "source": "https://arxiv.org/html/2409.05356v2"
+  },
+  {
+    "question": "What is IndicSUPERB and how is it structured? What did the Shrutilipi dataset contribute, and what WER improvements were observed when it was added to Wav2Vec2 training for Hindi?",
+    "topic": "Indic ASR Benchmarks — IndicSUPERB & Shrutilipi | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "AI4Bharat",
+    "source": "https://arxiv.org/abs/2208.11761"
+  },
+  {
+    "question": "What is the 'token fertility' problem for Indic languages in LLMs, and how does it affect inference cost and model quality? What approaches mitigate it?",
+    "topic": "Indic Tokenization — Token Fertility Problem | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Sarvam",
+    "source": "https://arxiv.org/pdf/2407.12481"
+  },
+  {
+    "question": "Explain the technique of continued pretraining (CPT) for extending an English LLM to Indic languages. What are the key risks, and what data mixture strategy works best?",
+    "topic": "Continued Pretraining for Indic Languages | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Sarvam",
+    "source": "https://arxiv.org/html/2407.12481v1"
+  },
+  {
+    "question": "What is the architectural difference between IndicBERT and IndicBART? For which tasks would you use each, and what is IndicBART's strategy for handling script diversity?",
+    "topic": "IndicBERT and IndicBART | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "AI4Bharat",
+    "source": "https://arxiv.org/abs/2109.02903"
+  },
+  {
+    "question": "How does IndicTrans2 achieve state-of-the-art translation across all 22 scheduled Indian languages? What is the BPCC corpus and what training strategy is used?",
+    "topic": "Machine Translation — IndicTrans2 | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "AI4Bharat",
+    "source": "https://medium.com/@raju.kandasamy/from-english-to-indic-leveraging-indictrans2-for-nlp-and-indic-llm-2b6164457de1"
+  },
+  {
+    "question": "What is Bhashini and how does it function as a Digital Public Infrastructure? What APIs does it expose, and how does it relate to AI4Bharat and Sarvam AI models?",
+    "topic": "Bhashini Ecosystem | pillar:Indic & Speech AI",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "Sarvam",
+    "source": "https://analyticsindiamag.com/ai-features/bhashini-ai4bharat-and-sarvam-might-finally-solve-indias-language-divide/"
+  },
+  {
+    "question": "What is code-switching and why is it a hard problem for NLP systems trained on monolingual data? Enumerate the distinct linguistic phenomena that make Hinglish particularly challenging.",
+    "topic": "Code-Switching — Hinglish NLP | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "Sarvam",
+    "source": "https://arxiv.org/html/2510.07037v6"
+  },
+  {
+    "question": "What is the difference between transliteration and translation in the context of Indic NLP? When does a system need both, and what tools does the AI4Bharat ecosystem provide?",
+    "topic": "Transliteration vs Translation | pillar:Indic & Speech AI",
+    "difficulty": "easy",
+    "role": "ai-eng",
+    "company": "AI4Bharat",
+    "source": "https://aclanthology.org/2022.wmt-1.113.pdf"
+  },
+  {
+    "question": "What models has Sarvam AI released and what distinguishes Sarvam-1 from Sarvam-M? What is the strategic significance of the IndiaAI Mission selection in April 2025?",
+    "topic": "Sarvam AI — Models and IndiaAI Mission | pillar:Indic & Speech AI",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "Sarvam",
+    "source": "https://en.wikipedia.org/wiki/Sarvam_AI"
+  },
+  {
+    "question": "You are tasked with fine-tuning Whisper large-v3 on a 500-hour Hindi call-center dataset to reduce WER from 18% to below 10%. Describe your complete fine-tuning strategy, evaluation setup, and known pitfalls.",
+    "topic": "Fine-tuning Whisper for Indic ASR | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "Sarvam",
+    "source": "https://arxiv.org/pdf/2606.17662"
+  },
+  {
+    "question": "Why is Word Error Rate (WER) an inadequate metric for evaluating ASR systems on morphologically rich Indic languages, and what alternative metrics should be used?",
+    "topic": "WER vs CER for Indic Languages | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://arxiv.org/abs/2208.11761"
+  },
+  {
+    "question": "Explain the self-supervised pretraining objective of wav2vec 2.0. How does it handle the lack of labeled speech data, and how is it used for low-resource Indic ASR?",
+    "topic": "Self-Supervised Speech Models — wav2vec 2 and HuBERT | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "AI4Bharat",
+    "source": "https://www.speechdata.ai/blog/best-asr-models-2026"
+  },
+  {
+    "question": "What are End-to-End Neural Diarization (EEND) models and how do they differ from cascaded systems? What is the EEND-EDA extension and why is it needed?",
+    "topic": "End-to-End vs Cascaded Diarization | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2305.18074"
+  },
+  {
+    "question": "Describe SpecAugment and explain why it is the most widely used augmentation technique for ASR. What does it augment, and how does it improve WER?",
+    "topic": "SpecAugment and Data Augmentation for ASR | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://learnopencv.com/automatic-speech-recognition/"
+  },
+  {
+    "question": "For a multilingual Indic LLM covering Devanagari, Tamil, and Telugu scripts, should you use BPE or Unigram LM tokenization? Justify with reference to morphological richness and fertility.",
+    "topic": "Subword Tokenization for Indic Scripts — BPE vs Unigram | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Sarvam",
+    "source": "https://arxiv.org/pdf/2508.08424"
+  },
+  {
+    "question": "Why is BLEU an inadequate metric for evaluating machine translation into morphologically rich Indic languages? What alternatives exist, and what does IndicTrans2 use?",
+    "topic": "Evaluation Metrics for Machine Translation | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "AI4Bharat",
+    "source": "https://aclanthology.org/2022.findings-acl.145.pdf"
+  },
+  {
+    "question": "What is Grapheme-to-Phoneme (G2P) conversion and why is it harder for Indic languages than English? How do Devanagari and Dravidian scripts differ in their G2P regularity?",
+    "topic": "G2P and TTS for Indic Languages | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "AI4Bharat",
+    "source": "https://arxiv.org/html/2409.05356v2"
+  },
+  {
+    "question": "A call-center ASR system deployed on real IVR audio shows 30% WER despite a 12% WER on the clean test set. What are the likely causes and how would you systematically debug and improve it?",
+    "topic": "ASR for Noisy Call-Center Audio | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2606.17662"
+  },
+  {
+    "question": "For a production voice assistant in Indian languages requiring < 200 ms first-word latency, compare deploying Whisper large-v3 vs a Conformer-RNN-T model. Which would you choose and why?",
+    "topic": "Conformer vs Whisper for Production Streaming | pillar:Indic & Speech AI",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Sarvam",
+    "source": "https://www.speechdata.ai/blog/best-asr-models-2026"
+  },
+  {
+    "question": "How would you build a spoken language identification (LID) system that can distinguish between 10 Indian languages in a multilingual call-center? What features and architectures are used?",
+    "topic": "Language Identification for Indic Speech | pillar:Indic & Speech AI",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://caller.digital/blog/open-source-voice-ai-india-sarvam-ai4bharat-bhasini-2026"
+  },
+  {
+    "question": "Explain the memory fragmentation problem in naive LLM inference and describe how PagedAttention solves it. What OS concept does it borrow from, and what is the concrete throughput benefit in practice?",
+    "topic": "PagedAttention & KV Cache | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "vLLM / NVIDIA",
+    "source": "https://www.runpod.io/articles/guides/vllm-pagedattention-continuous-batching"
+  },
+  {
+    "question": "What is continuous batching (iteration-level scheduling) in LLM serving, and how does it differ from static batching? Under what request-length distributions does it most help, and what is the downside?",
+    "topic": "Continuous Batching | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.spheron.network/blog/llm-serving-optimization-continuous-batching-paged-attention"
+  },
+  {
+    "question": "Derive the GPU memory required for the KV cache of a LLaMA-3-70B model (GQA, 8 KV heads, head_dim=128, 80 layers) serving a batch of 8 requests each with a 32K-token context in FP16. What changes if you quantize the KV cache to FP8?",
+    "topic": "KV Cache Memory Math | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "NVIDIA / Anthropic",
+    "source": "https://fahimfaisal.info/ml_and_llm_learning/69_ai_infrastructure_engineering/AI_INFRA_ENGINEER_PLAYBOOK.html"
+  },
+  {
+    "question": "Explain speculative decoding: what problem does it solve, what are the two models involved, and why is the acceptance step correct (i.e., why doesn't it introduce distributional error in the outputs)? What governs the speedup?",
+    "topic": "Speculative Decoding | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "Anthropic / DeepMind",
+    "source": "https://theorempath.com/topics/speculative-decoding-and-quantization"
+  },
+  {
+    "question": "Compare GPTQ, AWQ, and FP8 quantization for production LLM serving. What is each method's core technique, what precision does it target, what hardware best supports it, and what are the accuracy failure modes to watch for?",
+    "topic": "Quantization: GPTQ vs AWQ vs FP8 | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "NVIDIA / Together AI",
+    "source": "https://www.calibreos.com/blog/genai-llm-serving-inference-interview-guide"
+  },
+  {
+    "question": "LLM inference has two phases: prefill and decode. Explain why they have opposite bottlenecks, how chunked prefill addresses the interference problem on a single node, and when you would instead use full prefill-decode disaggregation. What are the infrastructure costs of disaggregation?",
+    "topic": "Prefill vs Decode Disaggregation | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "vLLM / SGLang",
+    "source": "https://medium.com/@milesk_33/prefill-vs-decode-phase-the-hidden-latency-bottleneck-in-llm-inference-089906037fb8"
+  },
+  {
+    "question": "You need to deploy a LLaMA-3-70B model serving 200 concurrent requests at P99 TTFT < 3s and TPOT < 80ms on NVIDIA H100s. Walk through your framework choice decision between vLLM, TensorRT-LLM, and SGLang, and describe what configuration parameters matter most.",
+    "topic": "vLLM vs TensorRT-LLM | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "NVIDIA / Deployment Inc",
+    "source": "https://www.runpod.io/articles/guides/vllm-pagedattention-continuous-batching"
+  },
+  {
+    "question": "Explain CUDA's memory hierarchy (registers, shared memory, L1/L2 cache, global HBM). What is memory coalescing, why does uncoalesced access hurt throughput so severely, and how would you diagnose and fix a coalescing problem in a custom attention kernel?",
+    "topic": "CUDA Memory Hierarchy & Coalescing | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "NVIDIA",
+    "source": "https://huru.ai/nvidia-interview-questions-mastering-cuda-inference-systems"
+  },
+  {
+    "question": "What problem does FlashAttention solve that standard attention does not, and what algorithmic technique does it use? How does it relate to memory bandwidth, and why does it matter for both training and inference?",
+    "topic": "FlashAttention | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic / DeepMind",
+    "source": "https://www.calibreos.com/blog/genai-llm-serving-inference-interview-guide"
+  },
+  {
+    "question": "Explain tensor parallelism for LLM inference. How is a transformer layer split across N GPUs, what collective operations are required, and what is the latency overhead? How does it differ from pipeline parallelism, and when does each make sense for inference?",
+    "topic": "Tensor Parallelism & Model Sharding | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "NVIDIA / Sarvam AI",
+    "source": "https://www.indeed.com/viewjob?jk=35edb76f909f429d"
+  },
+  {
+    "question": "Define TTFT, TPOT, and ITL. How do you set SLOs for an LLM API serving a mix of chat (interactive) and batch summarization workloads? If your P99 TTFT degrades but P50 is fine, what is the most likely cause and how do you fix it?",
+    "topic": "Inference Serving Metrics & SLOs | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "CARS24 / Deployment Inc",
+    "source": "https://www.spheron.network/blog/prefill-decode-disaggregation-gpu-cloud"
+  },
+  {
+    "question": "What is warp divergence in CUDA, how does it reduce GPU efficiency, and what are two concrete coding patterns that cause it in ML kernels? What does 'occupancy' mean and how do you increase it?",
+    "topic": "Warp Divergence & Occupancy | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "NVIDIA",
+    "source": "https://extrabrain.app/interview-questions/nvidia-deep-learning-interview-extrabrain"
+  },
+  {
+    "question": "What is training-serving skew, how does it manifest in production ML systems, and what are the three most effective architectural safeguards against it? Give a concrete example involving a feature store.",
+    "topic": "Training-Serving Skew | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "Amazon",
+    "source": "https://myinternships.in/aws-interview-questions/sagemaker-and-ai"
+  },
+  {
+    "question": "Design the CI/CD pipeline for a production ML model. What gates must pass before a new model artifact is promoted to production? How does it differ from a standard software CI/CD pipeline?",
+    "topic": "ML CI/CD Pipeline | pillar:MLOps & LLMOps",
+    "difficulty": "hard",
+    "role": "ml",
+    "company": "Google / Meta",
+    "source": "https://crackmlinterview.com/guides/mlops-interview-questions-guide"
+  },
+  {
+    "question": "Distinguish data drift, concept drift, and model drift. For each, describe a statistical test or metric you would monitor in production and the automated action it should trigger.",
+    "topic": "Model Drift & Monitoring | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://mentorcruise.com/questions/mlops"
+  },
+  {
+    "question": "You have a weekly model retraining pipeline: fetch new data from S3, run feature engineering with PySpark on EMR, train a model on SageMaker, evaluate it, register it if it passes, and deploy. Design this as an Airflow DAG and describe how you handle partial failures and idempotency.",
+    "topic": "Airflow for ML Pipelines | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "Amazon",
+    "source": "https://www.youtube.com/watch?v=RJAZPZUq-J0"
+  },
+  {
+    "question": "A PySpark job on a 500 GB dataset runs for 3 hours and you suspect data skew. How do you diagnose it, and what are three concrete remediation strategies? Why should you avoid PySpark UDFs and what are the alternatives?",
+    "topic": "Spark/PySpark Performance | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ds",
+    "company": "Databricks / Gartner",
+    "source": "https://datavidhya.com/blog/apache-spark-data-engineering-interview-questions"
+  },
+  {
+    "question": "Describe how you would deploy and autoscale an LLM inference service on Kubernetes. What Kubernetes primitives are involved, and what metric drives the HPA? What specific challenges does LLM serving introduce compared to a standard stateless web service?",
+    "topic": "Kubernetes for ML Serving | pillar:MLOps & LLMOps",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Google / Sarvam AI",
+    "source": "https://mentorcruise.com/questions/mlops"
+  },
+  {
+    "question": "What is a model registry, what metadata should it capture, and how does it differ from experiment tracking? Describe a model promotion workflow from experiment → staging → production with rollback.",
+    "topic": "Model Registry & Versioning | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "Amazon",
+    "source": "https://crackmlinterview.com/guides/mlops-interview-questions-guide"
+  },
+  {
+    "question": "Explain the four SageMaker inference endpoint types (real-time, serverless, asynchronous, batch transform). When would you choose each, and what are the cost implications for a model called 3,000 times/day with high variance in payload size?",
+    "topic": "AWS SageMaker Serving | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "Amazon",
+    "source": "https://myinternships.in/aws-interview-questions/sagemaker-and-ai"
+  },
+  {
+    "question": "You deploy an LLM-powered product in production. Beyond standard infrastructure metrics (latency, error rate), what LLM-specific signals do you monitor, and what does each catch? Describe how you would detect model version drift when the underlying API provider silently updates the model.",
+    "topic": "LLMOps: Prompt & Output Monitoring | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "Anthropic / OpenAI",
+    "source": "https://fahimfaisal.info/ml_and_llm_learning/69_ai_infrastructure_engineering/AI_INFRA_ENGINEER_PLAYBOOK.html"
+  },
+  {
+    "question": "A model trained 6 months ago needs to be re-trained exactly for a regulatory audit. Walk through every layer of the system you need to lock down to guarantee the same model artifact. What is the most commonly overlooked source of non-reproducibility?",
+    "topic": "Reproducibility in ML | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://crackmlinterview.com/guides/mlops-interview-questions-guide"
+  },
+  {
+    "question": "Describe the difference between shadow deployment and canary deployment for an ML model. When is each appropriate, and what metric thresholds would you use to decide whether to roll a canary forward or trigger automatic rollback?",
+    "topic": "Shadow & Canary Deployment | pillar:MLOps & LLMOps",
+    "difficulty": "hard",
+    "role": "ml",
+    "company": "Meta / Google",
+    "source": "https://crackmlinterview.com/guides/mlops-interview-questions-guide"
+  },
+  {
+    "question": "Explain the difference between narrow and wide transformations in Spark, how they determine stage boundaries, and how they affect shuffle. Give two examples of each and describe an optimization pattern that converts a wide transformation into a narrow one.",
+    "topic": "PySpark Narrow vs Wide Transformations | pillar:MLOps & LLMOps",
+    "difficulty": "medium",
+    "role": "ds",
+    "company": "Databricks",
+    "source": "https://www.igmguru.com/blog/pyspark-interview-questions"
+  },
+  {
+    "question": "You are building a customer-facing LLM application on AWS using Amazon Bedrock. A Bedrock-based Lambda + API Gateway stack has P95 latency spikes and intermittent throttling during traffic bursts. Describe a hardened architecture that handles scale and operational reliability without changing the model or prompts.",
+    "topic": "AWS Bedrock & Guardrails | pillar:MLOps & LLMOps",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "Amazon",
+    "source": "https://www.datainterview.com/blog/amazon-ai-engineer-interview"
+  },
+  {
+    "question": "What is NVIDIA Triton Inference Server and how does it differ from vLLM? Describe the model repository layout, the key backend types, and how dynamic batching works in Triton for a transformer model.",
+    "topic": "Triton Inference Server | pillar:GenAI/ML Engineering Stack",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "NVIDIA",
+    "source": "https://huru.ai/nvidia-interview-questions-mastering-cuda-inference-systems"
+  },
+  {
+    "question": "Explain the superposition hypothesis in neural networks. Why does it arise, and what does it imply for mechanistic interpretability?",
+    "topic": "mechanistic-interpretability-superposition | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://transformer-circuits.pub/2022/toy_model/index.html"
+  },
+  {
+    "question": "What are Sparse Autoencoders (SAEs) in mechanistic interpretability, and how do they address the polysemanticity problem? What is the key training objective?",
+    "topic": "mechanistic-interpretability-SAEs | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://transformer-circuits.pub/2025/july-update/index.html"
+  },
+  {
+    "question": "What is a 'circuit' in a transformer, and how are circuits discovered? Describe the induction head circuit as a concrete example.",
+    "topic": "mechanistic-interpretability-circuits | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://transformer-circuits.pub/2022/in-context-learning-and-induction-heads/index.html"
+  },
+  {
+    "question": "Name three open problems in mechanistic interpretability as of 2025-2026 and explain why each is hard.",
+    "topic": "mechanistic-interpretability-open-problems | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2511.19265"
+  },
+  {
+    "question": "Explain the core innovation of Mamba compared to prior SSMs like S4. What is the selective scan mechanism and why does it matter?",
+    "topic": "mamba-ssm-architecture | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/html/2408.01129v8"
+  },
+  {
+    "question": "Compare Mamba (SSM) and a Transformer on: (a) time complexity for training vs inference, (b) handling of long-range dependencies, (c) known weaknesses.",
+    "topic": "mamba-vs-transformer | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/html/2503.18970v2"
+  },
+  {
+    "question": "Why must continuous-time SSMs be discretized before use in deep learning, and what is Zero-Order Hold (ZOH) discretization?",
+    "topic": "ssm-discretization | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/html/2503.18970v2"
+  },
+  {
+    "question": "Contrast RLHF and RLVR. When is RLVR applicable, and what makes its reward signal qualitatively different?",
+    "topic": "rlvr-vs-rlhf | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://www.turingpost.com/p/stateofrl2025"
+  },
+  {
+    "question": "Explain GRPO (Group Relative Policy Optimization). How does it estimate advantages without a critic model, and what does this save computationally?",
+    "topic": "grpo-vs-ppo | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://shivu-agr.medium.com/rl-for-llms-in-2026-from-ppo-to-dpo-to-grpo-to-multi-agent-rl-1c00e1dacba7"
+  },
+  {
+    "question": "Derive the DPO objective from first principles. What implicit reward model does DPO parameterize, and what assumptions does it rest on?",
+    "topic": "dpo-derivation | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://shivu-agr.medium.com/rl-for-llms-in-2026-from-ppo-to-dpo-to-grpo-to-multi-agent-rl-1c00e1dacba7"
+  },
+  {
+    "question": "Distinguish Process Reward Models (PRMs) from Outcome Reward Models (ORMs) for reasoning. What are the practical trade-offs and which approach is currently dominant?",
+    "topic": "prm-vs-orm | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.turingpost.com/p/reasoning-rl-in-2026"
+  },
+  {
+    "question": "Why does chain-of-thought reasoning 'emerge' from RL with verifiable rewards, rather than requiring explicit CoT supervision? What does DeepSeek-R1-Zero demonstrate?",
+    "topic": "reasoning-models-emergence | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://www.turingpost.com/p/reasoning-rl-in-2026"
+  },
+  {
+    "question": "State the Chinchilla scaling law. What did Hoffmann et al. (2022) find about prior model training regimes, and what is the practical compute-optimal training recipe?",
+    "topic": "scaling-laws-chinchilla | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://medium.com/@siddantvardey/the-frontier-reasoning-models-scaling-laws-whats-actually-coming-next-93bba260644b"
+  },
+  {
+    "question": "Scaling laws originally governed pre-training compute. How has the notion of scaling evolved with inference-time compute (test-time scaling)? What is the key tradeoff?",
+    "topic": "scaling-laws-inference-vs-pretraining | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://medium.com/@siddantvardey/the-frontier-reasoning-models-scaling-laws-whats-actually-coming-next-93bba260644b"
+  },
+  {
+    "question": "Explain the Mixture-of-Experts (MoE) architecture for transformers. What does it change in the FFN layer, and what is the key training challenge?",
+    "topic": "mixture-of-experts | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2601.08215"
+  },
+  {
+    "question": "How do Chinchilla-style scaling laws need to be modified for MoE models? What parameter count should be used when fitting MoE laws?",
+    "topic": "moe-scaling-laws | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2502.05172"
+  },
+  {
+    "question": "What are looped (recurrent-depth) transformers? Why do they outperform parameter-matched standard transformers on reasoning tasks, and what is the SMELT finding?",
+    "topic": "looped-transformers | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/html/2609.01343v1"
+  },
+  {
+    "question": "Describe LeCun's JEPA (Joint Embedding Predictive Architecture). How does it differ from generative models like diffusion or autoregressive LMs, and what problem does it aim to solve?",
+    "topic": "jepa-world-models | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.taskade.com/blog/ai-world-models"
+  },
+  {
+    "question": "How does a world model enable planning in an agent, and what is the connection to model-based reinforcement learning (MBRL)?",
+    "topic": "world-models-planning | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2411.07690"
+  },
+  {
+    "question": "What is reward hacking, and why is it a fundamental alignment problem? Give two concrete examples and describe mitigation strategies.",
+    "topic": "ai-safety-reward-hacking | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://arxiv.org/pdf/2604.13602"
+  },
+  {
+    "question": "Explain Constitutional AI (CAI). How does it differ from standard RLHF, and why might it scale better as models become more capable?",
+    "topic": "constitutional-ai | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://www.techinterview.org/post/3233460267/anthropic-interview-guide-2026-process-questions-and-ai-safety/"
+  },
+  {
+    "question": "What is the scalable oversight problem in AI safety? Describe two proposed approaches (debate and recursive reward modeling) and their core assumptions.",
+    "topic": "scalable-oversight | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "DeepMind",
+    "source": "https://arxiv.org/pdf/2505.03989"
+  },
+  {
+    "question": "What is emergent misalignment in RL-trained LLMs? Describe the 'sycophancy to subterfuge' spectrum and why it is concerning for deployed systems.",
+    "topic": "emergent-misalignment | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://arxiv.org/pdf/2511.18397"
+  },
+  {
+    "question": "From a deployment and systems engineering perspective, what are the practical trade-offs of serving a MoE model vs a dense model of equivalent active-parameter count?",
+    "topic": "moe-vs-dense-deployment | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2601.08215"
+  },
+  {
+    "question": "How does mechanistic interpretability connect to AI safety goals? Give two concrete safety applications where circuit-level understanding would be directly useful.",
+    "topic": "mechanistic-interp-safety-connection | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://intuitionlabs.ai/articles/mechanistic-interpretability-ai-llms"
+  },
+  {
+    "question": "LeCun argues that autoregressive LLMs cannot be the path to AGI. Summarize his core arguments and the strongest counterarguments.",
+    "topic": "jepa-vs-llm-critique | pillar:Research & Frontier",
+    "difficulty": "medium",
+    "role": "research",
+    "company": "",
+    "source": "https://www.optim.vc/catching-up-on-yann-lecun-jepa-world-models-ami-labs-and-the-war-against-llms/"
+  },
+  {
+    "question": "Recent research shows RLVR makes models more 'efficient' but reduces reasoning 'range'. What does this mean and what are the implications for model training?",
+    "topic": "rlvr-limitations | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://arxiv.org/pdf/2603.22117"
+  },
+  {
+    "question": "How does data quality interact with scaling laws? What happens to the Chinchilla-optimal token count when you filter for high-quality data?",
+    "topic": "scaling-laws-data-quality | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "",
+    "source": "https://medium.com/@siddantvardey/the-frontier-reasoning-models-scaling-laws-whats-actually-coming-next-93bba260644b"
+  },
+  {
+    "question": "You are building an interpretability pipeline to understand what features a specific MLP layer in a 7B transformer encodes. Walk through the design: data, training objective, evaluation, and limitations.",
+    "topic": "superposition-saes-interview-system-design | pillar:Research & Frontier",
+    "difficulty": "hard",
+    "role": "research",
+    "company": "Anthropic",
+    "source": "https://arxiv.org/pdf/2503.05613"
+  },
+  {
+    "question": "What is the difference between __str__ and __repr__ in Python? When should each be implemented, and what happens if only one is defined?",
+    "topic": "python-data-model-dunder | pillar:Software Engineering",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/top-python-interview-questions-and-answers"
+  },
+  {
+    "question": "Explain how __eq__ and __hash__ are linked in Python. What is the contract, and what breaks when you violate it?",
+    "topic": "python-data-model-dunder | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://netalith.com/blogs/career-hiring/oop-in-python-essential-interview-questions-2026"
+  },
+  {
+    "question": "How does Python's __new__ differ from __init__? Give a concrete use case where you must override __new__ rather than __init__.",
+    "topic": "python-data-model-dunder | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://pynative.com/python-oop-interview-questions/"
+  },
+  {
+    "question": "Implement a class Vector2D that supports +, *, ==, abs(), and repr(). What dunder methods does each operation require?",
+    "topic": "python-data-model-dunder | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.datacamp.com/blog/top-python-interview-questions-and-answers"
+  },
+  {
+    "question": "A codebase has a UserManager class that handles authentication, sends welcome emails, writes audit logs, and queries the user DB. Which SOLID principle does this violate, and how would you refactor it?",
+    "topic": "python-oop-design | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/oops-interview-questions/"
+  },
+  {
+    "question": "Explain the Liskov Substitution Principle with the classic Square-extends-Rectangle example. Why does it fail, and how do you fix the design?",
+    "topic": "python-oop-design | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/interview-prep/oops-interview-questions/"
+  },
+  {
+    "question": "What is the Dependency Inversion Principle and how does Python's duck typing partially address it without explicit interfaces? Give an example with a notification system.",
+    "topic": "python-oop-design | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.qfles.com/interview-question/solid-principles-interview-questions"
+  },
+  {
+    "question": "Explain the GIL. Given a CPU-bound loop in Python, will spawning 8 threads use 8 cores? Why or why not, and what is the correct approach?",
+    "topic": "python-concurrency-gil | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.coprep.ai/blog/python-concurrency-interview-questions-2026"
+  },
+  {
+    "question": "When would you choose asyncio over threading for a Python service that makes 500 concurrent outbound HTTP calls? What breaks if you accidentally block the event loop?",
+    "topic": "python-concurrency-gil | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "ai-eng",
+    "company": "Anthropic",
+    "source": "https://medium.com/@anqi.silvia/the-actual-concurrency-questions-from-my-2025-anthropic-interview-0738b1738ab9"
+  },
+  {
+    "question": "What are asyncio.gather, asyncio.wait, and asyncio.create_task? How do they differ in error handling, cancellation, and when all tasks are needed vs some?",
+    "topic": "python-concurrency-gil | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://staskoltsov.medium.com/python-asyncio-interview-questions-answers-advanced-0bdb081520ba"
+  },
+  {
+    "question": "What is the difference between a generator and a regular function that returns a list? Why does a generator save memory, and when would you NOT use one?",
+    "topic": "python-generators-decorators | pillar:Software Engineering",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.techinterview.org/post/3233474450/python-interview-questions-2025-generators-decorators-async-await-type-hints-dataclasses-concurrency-gil-memory-management/"
+  },
+  {
+    "question": "Write a decorator that (a) logs the function name and arguments before calling, (b) logs the return value after, and (c) correctly preserves the wrapped function's __name__ and __doc__. Why does __name__ preservation matter?",
+    "topic": "python-generators-decorators | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://digitaldefynd.com/IQ/advanced-python-interview-questions/"
+  },
+  {
+    "question": "Explain contextlib.contextmanager and ExitStack. When is ExitStack the right tool, and what is the risk of forgetting a finally around the yield in a @contextmanager?",
+    "topic": "python-generators-decorators | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.quipoin.com/interview/python/context-managers"
+  },
+  {
+    "question": "Git stores everything as objects. Name the four object types, explain what each contains, and trace what happens under the hood when you run `git commit`.",
+    "topic": "git-internals | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.toptal.com/git/interview-questions"
+  },
+  {
+    "question": "What is the difference between git merge and git rebase? When should you never rebase, and what is the 'golden rule' of rebasing?",
+    "topic": "git-internals | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.geeksforgeeks.org/git/git-interview-questions-and-answers/"
+  },
+  {
+    "question": "What is a detached HEAD state in Git? How do you get into it, what is the risk, and how do you recover commits made in that state?",
+    "topic": "git-internals | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/git-interview-questions/"
+  },
+  {
+    "question": "You are designing a REST API for a resource 'orders'. A client wants to cancel an order. Should the endpoint be POST /orders/{id}/cancel or PATCH /orders/{id} with body {status: 'cancelled'}? Defend your choice with HTTP semantics.",
+    "topic": "api-design | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://blog.postman.com/api-design-interview-questions/"
+  },
+  {
+    "question": "Compare REST, GraphQL, and gRPC. You are building: (a) a public partner API, (b) a mobile app with 3 different screen layouts fetching user data, (c) 10 internal microservices talking at high throughput. Which do you pick for each and why?",
+    "topic": "api-design | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/rest-graphql-grpc-system-design"
+  },
+  {
+    "question": "What is API versioning? Describe at least three strategies (URI path, header, query param) and state the tradeoff of each. Which would you use for a public API and why?",
+    "topic": "api-design | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://roadmap.sh/questions/rest-api"
+  },
+  {
+    "question": "Explain the test pyramid. In a data-science / AI engineering project, where do people typically over-invest and under-invest, and what is the consequence?",
+    "topic": "testing-strategy | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "ml",
+    "company": "",
+    "source": "https://openskills.cc/skills/sickn33-skills-python-testing-patterns"
+  },
+  {
+    "question": "You have a function that calls an external payment API. Explain three different test strategies for it, and state when you would use each in a CI pipeline.",
+    "topic": "testing-strategy | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://goodspace.ai/interview-questions/pytest"
+  },
+  {
+    "question": "What is pytest parametrize? Give a realistic example where it catches a bug that a single-case test would miss, and explain how it differs from a test fixture.",
+    "topic": "testing-strategy | pillar:Software Engineering",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.interviewbit.com/pytest-interview-questions/"
+  },
+  {
+    "question": "What is the difference between pip install -r requirements.txt and a lock file (poetry.lock / uv.lock)? Why does requirements.txt alone cause 'works on my machine' bugs in production?",
+    "topic": "dependency-and-packaging | pillar:Software Engineering",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://cuttlesoft.com/blog/2026/01/27/python-dependency-management-in-2026/"
+  },
+  {
+    "question": "Explain the role of pyproject.toml in modern Python packaging. What replaced setup.py/setup.cfg, and how does the build-backend field work?",
+    "topic": "dependency-and-packaging | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://dasroot.net/posts/2026/01/python-packaging-best-practices-setuptools-poetry-hatch/"
+  },
+  {
+    "question": "Name five code smells from Fowler's catalogue and for each give: the symptom, why it is harmful, and the canonical refactoring technique.",
+    "topic": "clean-code-refactoring | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://interviewprep.org/refactoring-interview-questions/"
+  },
+  {
+    "question": "What is the DRY principle and when does following it blindly create MORE coupling? Give a concrete example where duplication is the better choice.",
+    "topic": "clean-code-refactoring | pillar:Software Engineering",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://dev.to/lourdesyang1023/mastering-software-development-best-practices-top-interview-questions-and-answers-solid-kiss-1k5g"
+  },
+  {
+    "question": "You inherit a Python service with no tests. A critical bug needs fixing. Describe your strategy for safely refactoring it, step by step, without breaking existing behaviour.",
+    "topic": "clean-code-refactoring | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://reliabilitywhisperer.substack.com/p/code-refactoring-interview-preparation"
+  },
+  {
+    "question": "Python 3.13 introduced a free-threaded build (no-GIL / PEP 703). What does this change, what does it NOT change, and what new classes of bugs does it introduce for code that was previously safe under the GIL?",
+    "topic": "python-concurrency-gil | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "ai-eng",
+    "company": "",
+    "source": "https://www.coprep.ai/blog/python-concurrency-interview-questions-2026"
+  },
+  {
+    "question": "Design the pagination strategy for a REST API endpoint GET /posts that returns potentially millions of records. Compare offset pagination, cursor pagination, and keyset pagination. Which would you use for a real-time feed and why?",
+    "topic": "api-design | pillar:Software Engineering",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.designgurus.io/blog/rest-graphql-grpc-system-design"
+  },
+  {
+    "question": "Explain the three core rules of the Mom Test and why asking 'Would you pay $10/month for this?' is a bad validation question.",
+    "topic": "idea-validation-mom-test | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.koji.so/blog/mom-test-customer-interviews-2026"
+  },
+  {
+    "question": "You've just built an MVP and you want to validate whether you've achieved problem-market fit. Walk through your validation interview process end-to-end.",
+    "topic": "idea-validation-mom-test | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://ideaproof.io/questions/validation-interview-questions"
+  },
+  {
+    "question": "What is the difference between a 'problem interview' and a 'solution interview'? When should you run each, and why does conflating them kill startups?",
+    "topic": "idea-validation-mom-test | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.koji.so/docs/startup-idea-validation-guide"
+  },
+  {
+    "question": "Define CAC, LTV, and the LTV:CAC ratio. What ratio is considered healthy, and what does a ratio below 1:1 mean operationally?",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "easy",
+    "role": "ds",
+    "company": "",
+    "source": "https://thesaaslibrary.com/saas-metrics-explained/"
+  },
+  {
+    "question": "A SaaS company has MRR of $500K, adds $80K new MRR per month, but has 5% monthly logo churn. Compute net MRR growth and explain the 'leaky bucket' problem.",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "ds",
+    "company": "",
+    "source": "https://gatilab.com/saas-metrics-explained-mrr-arr-churn-ltv-and-cac/"
+  },
+  {
+    "question": "What is Net Revenue Retention (NRR) and why do investors consider it the single most important SaaS metric? How does NRR above 100% change the growth story?",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "ds",
+    "company": "",
+    "source": "https://cfoptimizer.com/startup-faqs/saas-metrics/"
+  },
+  {
+    "question": "What is the CAC Payback Period and why is a payback period of 12 months or less considered critical for capital efficiency? How does it interact with churn?",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "ds",
+    "company": "",
+    "source": "https://www.hackingthecaseinterview.com/pages/saas-case-interview"
+  },
+  {
+    "question": "Explain the 'Rule of 40' for SaaS companies. A company has 45% YoY ARR growth but −10% EBITDA margin. Does it pass, and how should the founding team think about the tradeoff?",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "ds",
+    "company": "",
+    "source": "https://www.finmodelbuilder.com/blog/saas-metrics-guide.html"
+  },
+  {
+    "question": "Compare flat-rate, per-seat, usage-based, and value-based pricing models for SaaS. For a B2B AI inference API, which would you recommend and why?",
+    "topic": "pricing-business-models | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://stripe.com/resources/more/saas-pricing-models-101"
+  },
+  {
+    "question": "A founder is deciding between freemium and a free trial for a new B2B productivity tool. Walk through the decision framework and the key metrics to watch.",
+    "topic": "pricing-business-models | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.getmonetizely.com/articles/freemium-vs-premium-saas-pricing-models-which-strategy-drives-better-business-outcomes"
+  },
+  {
+    "question": "Why does ProfitWell data show that a 1% improvement in pricing yields more profit than a 1% improvement in acquisition or retention? Derive the math intuition.",
+    "topic": "pricing-business-models | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "ds",
+    "company": "",
+    "source": "https://www.planmysaas.com/guides/saas-pricing-strategy-guide"
+  },
+  {
+    "question": "What is the difference between a 'sales-led' and a 'product-led' GTM motion? For a data infrastructure tool with $80K ACV, which would you recommend and why?",
+    "topic": "gtm-distribution-traction | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://arisegtm.com/blog/go-to-market-strategy-for-startups"
+  },
+  {
+    "question": "You are the first hire at an early-stage B2B AI startup. The founder asks you to identify the best traction channel. Walk through the Bullseye Framework.",
+    "topic": "gtm-distribution-traction | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://pipeline.zoominfo.com/sales/go-to-market-interview"
+  },
+  {
+    "question": "Explain product-led growth (PLG) and how Calendly, Atlassian, and Dropbox each embedded virality into the product workflow rather than relying on marketing spend.",
+    "topic": "gtm-distribution-traction | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://techcrunch.com/2021/04/08/bootstrapping-managing-product-led-growth-and-knowing-when-to-fundraise"
+  },
+  {
+    "question": "Write a positioning statement for an AI code-review tool targeting mid-stage B2B SaaS engineering teams using the 'For/Who/Our product/That/Unlike/We' framework. Then explain what makes a positioning statement testable.",
+    "topic": "positioning-messaging | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.sybill.ai/blogs/icp-guide"
+  },
+  {
+    "question": "What is the difference between a target market, an ICP (Ideal Customer Profile), and a buyer persona? Why do early-stage startups that skip the ICP step churn more customers?",
+    "topic": "positioning-messaging | pillar:Startup & Product",
+    "difficulty": "easy",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.factors.ai/blog/icp-marketing-guide"
+  },
+  {
+    "question": "Why must the founder close the first 10–20 customers personally before hiring a sales rep? What specific artifacts should the founder produce before making the first sales hire?",
+    "topic": "founder-led-sales | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://launchingmax.com/founder-led-sales-guide-startups/"
+  },
+  {
+    "question": "Describe the structure of an effective B2B discovery call. What questions reveal whether a prospect is in your ICP and has budget authority?",
+    "topic": "founder-led-sales | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://twsales.com/founder-led-sales-icp/"
+  },
+  {
+    "question": "Compare bootstrapping vs. VC funding on four dimensions: control, speed, hiring, and exit options. For a niche B2B SaaS serving manufacturing companies in India, which path would you argue for and why?",
+    "topic": "bootstrapping | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.rho.co/blog/bootstrapping-vs-venture-capital"
+  },
+  {
+    "question": "What types of businesses bootstrap well versus require VC? Give three examples of each and explain the structural reason.",
+    "topic": "bootstrapping | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.sidetool.co/post/why-bootstrapping-beats-funding-in-2025-real-success-stories/"
+  },
+  {
+    "question": "Define a 'growth loop' and contrast it with a traditional AARRR funnel. Give two concrete growth loop examples for a B2B SaaS product.",
+    "topic": "growth-loops | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.saastr.com/how-to-think-about-product-led-growth-bootstrapping-vs-vc-and-early-exits-with-saastr-ceo-and-founder-jason-lemkin"
+  },
+  {
+    "question": "What is a viral coefficient (K-factor)? If K = 0.8 for a product with 1000 initial users, how many total users result from one viral cycle? What K value produces exponential growth?",
+    "topic": "growth-loops | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "ds",
+    "company": "",
+    "source": "https://calmops.com/indie-hackers/saas-metrics-mrr-churn-ltv-cac/"
+  },
+  {
+    "question": "You are a DS/AI engineer at a startup and the CEO asks you to build a churn prediction model. Beyond model accuracy, what business metrics and product feedback loops should the model plug into?",
+    "topic": "saas-metrics-unit-economics | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "ds",
+    "company": "",
+    "source": "https://www.gainsight.com/essential-guide/product-management-metrics/enterprise-product-metrics/"
+  },
+  {
+    "question": "Explain the concept of a 'negative ICP'. Why is knowing who NOT to sell to equally important as knowing your ICP, and how does it affect unit economics?",
+    "topic": "gtm-distribution-traction | pillar:Startup & Product",
+    "difficulty": "medium",
+    "role": "fde",
+    "company": "",
+    "source": "https://orangeowl.marketing/gtm/30-questions-to-determine-icp/"
+  },
+  {
+    "question": "You are advising an early-stage AI startup that is charging $99/month flat-rate but a big customer wants enterprise pricing. Walk through the pricing conversation and what questions you'd ask before quoting.",
+    "topic": "pricing-business-models | pillar:Startup & Product",
+    "difficulty": "hard",
+    "role": "fde",
+    "company": "",
+    "source": "https://www.revenera.com/blog/software-monetization/saas-pricing-models-guide/"
   }
 ]
