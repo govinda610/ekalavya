@@ -1162,6 +1162,82 @@ button.rewind:disabled{opacity:.4;cursor:default}
 .modetile.teal .mt-g,.modetile.peacock .mt-g{color:var(--peacock-bright)}
 .modetile.forest .mt-g{color:var(--forest-lit)}
 @media(max-width:600px){.modes-grid{grid-template-columns:1fr}}
+/* ===== P4 post-login chooser — "Constellation of the Archer". All namespaced ekch- and
+   scoped to #chooser-ov so it never collides with the rest of the app. Animations auto-quiet
+   under body.reduce-motion (global rule above). Devanagari uses the vendored --f-deva. ===== */
+#chooser-ov{padding:0}
+#chooser-ov .ekch-root{position:relative;width:100%;height:100%;overflow:auto}
+#chooser-ov .ekch-bg{position:fixed;inset:0;overflow:hidden;z-index:0;
+  background:radial-gradient(120% 80% at 50% -6%,#1a2547 0%,#121a38 30%,#0b1024 58%,#0a0d1c 82%),linear-gradient(180deg,#10163200 0%,#0a0d1c 92%)}
+#chooser-ov .ekch-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;opacity:.06;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 2.5deg,var(--gold) 2.5deg 3deg,transparent 3deg 15deg),radial-gradient(circle,transparent 28%,var(--gold) 28.3%,transparent 29%),radial-gradient(circle,transparent 40%,var(--gold) 40.3%,transparent 41%),radial-gradient(circle,transparent 49%,var(--gold) 49.3%,transparent 50%);
+  -webkit-mask:radial-gradient(circle,#000 50%,transparent 51%);mask:radial-gradient(circle,#000 50%,transparent 51%);animation:ekchSpin 140s linear infinite}
+#chooser-ov .ekch-watermark2{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;height:520px;opacity:.05;pointer-events:none;
+  background:conic-gradient(from 0deg,transparent 0 10deg,var(--gold-bright) 10deg 11deg,transparent 11deg 30deg);
+  -webkit-mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);animation:ekchSpinR 100s linear infinite}
+#chooser-ov .ekch-crestglow{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:620px;height:340px;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(231,182,75,.16),rgba(231,182,75,.05) 45%,transparent 72%);filter:blur(14px)}
+#chooser-ov .ekch-dim{position:absolute;inset:0;background:radial-gradient(88% 82% at 50% 50%,rgba(4,6,14,.5),rgba(4,6,14,.82))}
+#chooser-ov .ekch-stars{position:absolute;inset:0;background-image:radial-gradient(1.4px 1.4px at 12% 18%,rgba(255,255,255,.7),transparent),radial-gradient(1.2px 1.2px at 28% 8%,rgba(255,255,255,.5),transparent),radial-gradient(1.6px 1.6px at 62% 14%,rgba(255,255,255,.6),transparent),radial-gradient(1.1px 1.1px at 82% 6%,rgba(255,255,255,.5),transparent),radial-gradient(1.3px 1.3px at 91% 22%,rgba(255,255,255,.45),transparent),radial-gradient(1px 1px at 8% 44%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 95% 55%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 45% 4%,rgba(255,255,255,.5),transparent)}
+#chooser-ov .ekch-godray{position:absolute;top:-18%;left:50%;transform:translateX(-50%) rotate(4deg);width:520px;height:1200px;background:linear-gradient(180deg,rgba(231,182,75,.2),rgba(231,182,75,.05) 45%,transparent 72%);filter:blur(30px);mix-blend-mode:screen;animation:ekchGlow 7s ease-in-out infinite}
+#chooser-ov .ekch-godray.b2{transform:translateX(-52%) rotate(-7deg);width:300px;opacity:.7;animation-duration:9s}
+#chooser-ov .ekch-godray.b3{transform:translateX(-46%) rotate(11deg);width:240px;opacity:.55;animation-duration:11s}
+#chooser-ov .ekch-embers{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 18% 70%,rgba(231,182,75,.5),transparent),radial-gradient(1.6px 1.6px at 34% 82%,rgba(247,217,138,.45),transparent),radial-gradient(2px 2px at 66% 76%,rgba(231,182,75,.4),transparent),radial-gradient(1.5px 1.5px at 78% 88%,rgba(247,217,138,.4),transparent),radial-gradient(1.8px 1.8px at 52% 92%,rgba(231,182,75,.35),transparent),radial-gradient(1.4px 1.4px at 88% 66%,rgba(247,217,138,.4),transparent),radial-gradient(1.6px 1.6px at 10% 90%,rgba(231,182,75,.4),transparent);filter:drop-shadow(0 0 4px rgba(231,182,75,.4));animation:ekchEmber 10s ease-in-out infinite}
+#chooser-ov .ekch-temple{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);width:130px;height:150px;opacity:.4;pointer-events:none;background:linear-gradient(180deg,rgba(231,182,75,.5),rgba(231,182,75,.16) 60%,transparent);clip-path:polygon(50% 0,55% 10%,52% 10%,55% 22%,51% 22%,55% 36%,50% 36%,58% 54%,58% 62%,66% 62%,66% 100%,34% 100%,34% 62%,42% 62%,42% 54%,50% 36%,45% 36%,49% 22%,45% 22%,48% 10%,45% 10%);filter:blur(.6px) drop-shadow(0 0 22px rgba(231,182,75,.4))}
+#chooser-ov .ekch-treeline{position:absolute;bottom:0;left:0;right:0;height:220px;background:radial-gradient(70px 130px at 10% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 24% 100%,#060812 60%,transparent 62%),radial-gradient(60px 120px at 40% 100%,#050710 60%,transparent 62%),radial-gradient(95px 175px at 56% 100%,#070a16 60%,transparent 62%),radial-gradient(65px 130px at 72% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 88% 100%,#060812 60%,transparent 62%),radial-gradient(55px 110px at 96% 100%,#050710 60%,transparent 62%),radial-gradient(60px 120px at 4% 100%,#060812 60%,transparent 62%),linear-gradient(180deg,transparent,#04060e 72%)}
+#chooser-ov .ekch-vignette{position:absolute;inset:0;box-shadow:inset 0 0 360px 110px rgba(0,0,0,.82);pointer-events:none}
+#chooser-ov .ekch-fc{position:fixed;width:64px;height:64px;z-index:6;opacity:.5;pointer-events:none;color:var(--gold-deep)}
+#chooser-ov .ekch-fc.tl{top:26px;left:26px}#chooser-ov .ekch-fc.tr{top:26px;right:26px;transform:scaleX(-1)}
+#chooser-ov .ekch-fc.bl{bottom:26px;left:26px;transform:scaleY(-1)}#chooser-ov .ekch-fc.br{bottom:26px;right:26px;transform:scale(-1)}
+#chooser-ov .ekch-wrap{position:relative;z-index:5;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 20px;text-align:center}
+#chooser-ov .ekch-dev{font-family:var(--f-deva)}
+#chooser-ov .ekch-crest{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
+#chooser-ov .ekch-emblem{position:relative;width:104px;height:104px;margin-bottom:8px}
+#chooser-ov .ekch-chakra{position:absolute;inset:0;opacity:.85;background:conic-gradient(from 0deg,transparent 0 5deg,rgba(231,182,75,.65) 5deg 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);filter:drop-shadow(0 0 6px rgba(231,182,75,.5));animation:ekchRot 40s linear infinite}
+#chooser-ov .ekch-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(231,182,75,.6);box-shadow:0 0 26px -4px rgba(231,182,75,.5),inset 0 0 22px rgba(231,182,75,.12)}
+#chooser-ov .ekch-ring2{position:absolute;inset:10px;border-radius:50%;border:1px dashed rgba(231,182,75,.42)}
+#chooser-ov .ekch-emblem svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(247,217,138,.6))}
+#chooser-ov .ekch-kicker{font-family:var(--f-display);color:var(--gold);letter-spacing:.42em;font-size:11px;text-shadow:0 0 18px rgba(231,182,75,.5);display:flex;align-items:center;gap:10px}
+#chooser-ov .ekch-kicker .ekch-dev{font-size:15px;letter-spacing:.14em;color:var(--gold-bright)}
+#chooser-ov .ekch-h1line{display:flex;align-items:center;gap:22px;margin:8px 0 6px}
+#chooser-ov .ekch-orn{width:90px;height:1px;background:linear-gradient(90deg,transparent,var(--gold));position:relative}
+#chooser-ov .ekch-orn.r{background:linear-gradient(90deg,var(--gold),transparent)}
+#chooser-ov .ekch-orn::after{content:"\2756";position:absolute;right:-6px;top:-10px;color:var(--gold);font-size:11px}
+#chooser-ov .ekch-orn.r::after{right:auto;left:-6px}
+#chooser-ov .ekch-h1{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--gold-bright);letter-spacing:.01em;margin:0;text-shadow:0 0 40px rgba(231,182,75,.5),0 2px 4px rgba(0,0,0,.9)}
+#chooser-ov .ekch-sub{font-family:var(--f-body);font-style:italic;color:var(--parch-dim);font-size:15px;margin:0 0 6px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+#chooser-ov .ekch-devnag{font-family:var(--f-title);color:var(--gold-deep);font-size:13px;letter-spacing:.34em;margin:2px 0 0;opacity:.9}
+#chooser-ov .ekch-seclbl{font-family:var(--f-display);font-size:11px;letter-spacing:.28em;color:var(--gold);margin:16px 0 10px;opacity:.85}
+#chooser-ov .ekch-pillars{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:980px}
+#chooser-ov .ekch-chip{font-family:var(--f-body);font-size:12px;color:var(--parch-dim);padding:6px 13px;border-radius:999px;cursor:pointer;position:relative;background:rgba(9,12,24,.66);border:1px solid var(--line-gold);display:flex;align-items:center;gap:7px;transition:.16s;box-shadow:0 4px 14px -6px rgba(0,0,0,.8)}
+#chooser-ov .ekch-chip .ekch-pct{font-family:var(--f-display);font-size:10.5px;color:var(--parch-mute)}
+#chooser-ov .ekch-chip .ekch-bar{position:absolute;left:6px;right:6px;bottom:2px;height:2px;border-radius:2px;background:rgba(79,214,192,.2)}
+#chooser-ov .ekch-chip .ekch-bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p,0%);background:var(--peacock-bright);border-radius:2px;box-shadow:0 0 6px var(--peacock-bright)}
+#chooser-ov .ekch-chip:hover{border-color:var(--gold);color:var(--parch);transform:translateY(-1px)}
+#chooser-ov .ekch-chip.sel{background:linear-gradient(180deg,rgba(79,214,192,.2),rgba(9,12,24,.7));border-color:var(--peacock-bright);color:var(--parch);box-shadow:0 0 22px -4px var(--peacock-bright)}
+#chooser-ov .ekch-chip.sel .ekch-pct{color:var(--gold-bright)}
+#chooser-ov .ekch-constel{display:grid;grid-template-columns:repeat(4,minmax(180px,206px));gap:16px 18px;justify-content:center;margin-top:2px}
+#chooser-ov .ekch-panel{position:relative;padding:18px 16px 16px;border-radius:16px;cursor:pointer;text-align:center;transition:.22s;background:radial-gradient(120% 120% at 50% 0%,rgba(22,28,50,.74),rgba(9,12,24,.68));border:1px solid var(--acc,var(--gold));box-shadow:0 0 0 4px rgba(0,0,0,.35),0 14px 40px -12px rgba(0,0,0,.9),0 0 26px -8px var(--acc,var(--gold));color:var(--parch);font:inherit;display:flex;flex-direction:column;align-items:center}
+#chooser-ov .ekch-panel::before{content:"";position:absolute;inset:5px;border-radius:11px;border:1px solid rgba(255,255,255,.06);pointer-events:none}
+#chooser-ov .ekch-kal{position:absolute;width:16px;height:16px;pointer-events:none;opacity:.72;color:var(--acc,var(--gold))}
+#chooser-ov .ekch-kal.tl{top:7px;left:7px}#chooser-ov .ekch-kal.tr{top:7px;right:7px;transform:scaleX(-1)}
+#chooser-ov .ekch-kal.bl{bottom:7px;left:7px;transform:scaleY(-1)}#chooser-ov .ekch-kal.br{bottom:7px;right:7px;transform:scale(-1)}
+#chooser-ov .ekch-glyph{font-size:28px;color:var(--acc,var(--gold));margin-bottom:8px;text-shadow:0 0 20px var(--acc,var(--gold))}
+#chooser-ov .ekch-tt{font-family:var(--f-display);font-size:15px;font-weight:600;color:var(--parch);margin-bottom:5px;letter-spacing:.02em}
+#chooser-ov .ekch-td{font-family:var(--f-body);font-size:12px;line-height:1.42;color:var(--parch-dim)}
+#chooser-ov .ekch-panel:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 0 0 4px rgba(0,0,0,.35),0 22px 50px -12px rgba(0,0,0,.9),0 0 44px -4px var(--acc,var(--gold))}
+#chooser-ov .ekch-panel.ekch-pick{border-style:dashed;background:radial-gradient(120% 120% at 50% 0%,rgba(18,22,40,.55),rgba(9,12,24,.5))}
+#chooser-ov .ekch-skip{margin-top:22px;display:flex;align-items:center;gap:14px;justify-content:center}
+#chooser-ov .ekch-seal{width:44px;height:44px;border-radius:50%;flex:0 0 auto;background:radial-gradient(circle at 38% 34%,#d85a44,#a83521 60%,#7d2314);box-shadow:0 6px 16px -4px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#f7d98a;font-size:20px;border:2px solid rgba(125,35,20,.6);text-shadow:0 1px 2px rgba(0,0,0,.5)}
+#chooser-ov .ekch-skip button{font-family:var(--f-title);font-size:15px;color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:999px;padding:11px 30px;cursor:pointer;letter-spacing:.03em;transition:.2s;box-shadow:0 6px 20px -8px rgba(0,0,0,.8)}
+#chooser-ov .ekch-skip button:hover{background:rgba(231,182,75,.14)}
+@keyframes ekchSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes ekchSpinR{to{transform:translate(-50%,-50%) rotate(-360deg)}}
+@keyframes ekchRot{to{transform:rotate(360deg)}}
+@keyframes ekchGlow{0%,100%{opacity:.55}50%{opacity:.9}}
+@keyframes ekchEmber{0%{transform:translateY(6px);opacity:.4}50%{opacity:.8}100%{transform:translateY(-12px);opacity:.4}}
+@media(max-width:900px){#chooser-ov .ekch-constel{grid-template-columns:repeat(2,minmax(160px,1fr))}}
+@media(max-width:560px){#chooser-ov .ekch-constel{grid-template-columns:1fr}#chooser-ov .ekch-h1{font-size:26px}}
 button.submit{font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);border:1px solid var(--gold-deep);
 border-radius:4px;padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
 button.submit:hover{background:rgba(231,182,75,.16)}
@@ -2026,11 +2102,51 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 </main>
 <!-- P4: post-login choice screen. TOP-LEVEL (sibling of <main>) so it is NOT inside
      #practice (which is display:none on the Forest landing — that hid the reused overlay). -->
-<div id="chooser-ov" class="modes-ov" onclick="if(event.target===this)closeChooser()">
-  <div class="modes-card">
-    <div class="modes-h">What shall we work on?</div>
-    <div class="modes-grid" id="chooserModesGrid"></div>
-    <button class="chooser-skip" onclick="closeChooser()" style="display:block;margin:16px auto 0;font-family:var(--f-title);font-size:12px;color:var(--parch-dim);background:none;border:1px solid var(--line-soft);border-radius:6px;padding:8px 22px;cursor:pointer">◑ Explore the map instead</button>
+<div id="chooser-ov" class="modes-ov">
+  <div class="ekch-root">
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+      <g id="ekch-kal"><path d="M2 2 L2 8 M2 2 L8 2" stroke="currentColor" stroke-width="1.1" fill="none" stroke-linecap="round"/><path d="M2 2 C8 4, 9 9, 13 12" stroke="currentColor" stroke-width=".9" fill="none"/><circle cx="13" cy="12" r="1.2" fill="currentColor"/></g>
+      <g id="ekch-flourish"><path d="M8 8 L26 8 M8 8 L8 26" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/><path d="M8 8 C22 12, 30 20, 34 34 C36 42, 44 44, 50 40" stroke="currentColor" stroke-width="1.1" fill="none"/><path d="M34 34 C30 40, 24 40, 22 34 C21 30, 25 27, 28 30 C30 32, 28 35, 26 34" stroke="currentColor" stroke-width=".9" fill="none"/><circle cx="50" cy="40" r="2" fill="currentColor"/><path d="M14 14 C20 15, 22 21, 20 27" stroke="currentColor" stroke-width=".8" fill="none"/><path d="M8 20 C13 20, 15 16, 14 12" stroke="currentColor" stroke-width=".8" fill="none"/></g>
+    </defs></svg>
+    <div class="ekch-bg" aria-hidden="true">
+      <div class="ekch-watermark"></div><div class="ekch-watermark2"></div>
+      <div class="ekch-godray"></div><div class="ekch-godray b2"></div><div class="ekch-godray b3"></div>
+      <div class="ekch-stars"></div><div class="ekch-embers"></div>
+      <div class="ekch-temple"></div><div class="ekch-treeline"></div>
+      <div class="ekch-crestglow"></div><div class="ekch-dim"></div><div class="ekch-vignette"></div>
+    </div>
+    <svg class="ekch-fc tl" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
+    <svg class="ekch-fc tr" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
+    <svg class="ekch-fc bl" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
+    <svg class="ekch-fc br" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
+    <div class="ekch-wrap" onclick="if(event.target===this)closeChooser()">
+      <div class="ekch-crest">
+        <div class="ekch-emblem">
+          <div class="ekch-chakra"></div><div class="ekch-ring"></div><div class="ekch-ring2"></div>
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <path d="M34 22 C58 34, 58 66, 34 78" fill="none" stroke="#f7d98a" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M34 22 C28 27, 28 33, 33 37" fill="none" stroke="#f7d98a" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M34 78 C28 73, 28 67, 33 63" fill="none" stroke="#f7d98a" stroke-width="3.4" stroke-linecap="round"/>
+            <path d="M34 22 L30 50 L34 78" fill="none" stroke="rgba(231,182,75,.85)" stroke-width="1.4"/>
+            <line x1="30" y1="50" x2="76" y2="50" stroke="#f7d98a" stroke-width="2.6" stroke-linecap="round"/>
+            <path d="M76 50 L69 45 M76 50 L69 55 M76 50 L71 50" fill="none" stroke="#f7d98a" stroke-width="2.4" stroke-linecap="round"/>
+            <path d="M30 50 L36 45 M30 50 L36 55 M33 50 L38 46 M33 50 L38 54" fill="none" stroke="rgba(247,217,138,.9)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="ekch-kicker"><span class="ekch-dev">एकलव्य</span> · FOREST OF MASTERY</div>
+      </div>
+      <div class="ekch-h1line"><span class="ekch-orn"></span><h2 class="ekch-h1">◈ What shall we work on?</h2><span class="ekch-orn r"></span></div>
+      <p class="ekch-sub">Pick a grove or a mode — or let Ekalavya choose your weakest spot.</p>
+      <div class="ekch-devnag ekch-dev">धनुर्विद्या · the discipline of the bow</div>
+      <div class="ekch-seclbl">◑&nbsp;&nbsp;CHOOSE A GROVE</div>
+      <div class="ekch-pillars" id="chooserGroves"></div>
+      <div class="ekch-seclbl">⚔&nbsp;&nbsp;CHOOSE A MODE</div>
+      <div class="ekch-constel" id="chooserModesGrid"></div>
+      <div class="ekch-skip">
+        <div class="ekch-seal ekch-dev">ए</div>
+        <button onclick="pickChooserMode('practice')">◑ Ekalavya picks my weakest spot</button>
+      </div>
+    </div>
   </div>
 </div>
 <nav id="mnav" aria-label="Sections">
@@ -3255,17 +3371,50 @@ function openModes(){
 }
 function closeModes(){ document.getElementById('modes').classList.remove('on'); }
 function pickMode(v){ document.getElementById('mode').value=v; closeModes(); newSession(); }
-// P4 post-login chooser (top-level overlay, shown on the Forest landing).
+// P4 post-login chooser — "Constellation of the Archer" (top-level themed overlay, shown on the
+// Forest landing for an already-onboarded returning user; first-run users go to onboarding, not here).
+function _ekEsc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];}); }
+function _ekAcc(c){ return {teal:'var(--peacock-bright)',red:'var(--vermilion-glow)',gold:'var(--gold)',dragon:'var(--gold-bright)',peacock:'var(--peacock-bright)',forest:'var(--forest-lit)'}[c] || 'var(--gold)'; }
+function _ekKal(){ return '<svg class="ekch-kal tl" viewBox="0 0 16 16" aria-hidden="true"><use href="#ekch-kal"/></svg>'+
+  '<svg class="ekch-kal tr" viewBox="0 0 16 16" aria-hidden="true"><use href="#ekch-kal"/></svg>'+
+  '<svg class="ekch-kal bl" viewBox="0 0 16 16" aria-hidden="true"><use href="#ekch-kal"/></svg>'+
+  '<svg class="ekch-kal br" viewBox="0 0 16 16" aria-hidden="true"><use href="#ekch-kal"/></svg>'; }
 function showChooser(){
-  var g=document.getElementById('chooserModesGrid'); if(!g) return;
-  g.innerHTML = MODES.map(function(m){
-    return '<button class="modetile '+m.c+'" onclick="pickChooserMode(\''+m.v+'\')">'+
-      '<span class="mt-g">'+m.g+'</span><span class="mt-body"><span class="mt-t">'+m.t+'</span>'+
-      '<span class="mt-d">'+m.d+'</span></span></button>'; }).join('');
-  document.getElementById('chooser-ov').classList.add('on');
+  var ov=document.getElementById('chooser-ov'); if(!ov) return;
+  var g=document.getElementById('chooserModesGrid');
+  if(g){
+    g.innerHTML = MODES.map(function(m){
+      return '<button class="ekch-panel" style="--acc:'+_ekAcc(m.c)+'" onclick="pickChooserMode(\''+m.v+'\')">'+
+        _ekKal()+'<span class="ekch-glyph">'+m.g+'</span><span class="ekch-tt">'+_ekEsc(m.t)+'</span>'+
+        '<span class="ekch-td">'+_ekEsc(m.d)+'</span></button>'; }).join('')
+      + '<button class="ekch-panel ekch-pick" style="--acc:var(--gold-deep)" onclick="pickChooserMode(\'practice\')">'+
+        _ekKal()+'<span class="ekch-glyph" style="color:var(--gold)">◑</span><span class="ekch-tt">Ekalavya picks</span>'+
+        '<span class="ekch-td">The master finds your weakest spot.</span></button>';
+  }
+  ov.classList.add('on');
+  // Grove chips — real curriculum data, so the map's pillars + progress show here too and update as
+  // the curriculum grows. Best-effort: the overlay is already shown; a fetch hiccup just omits chips.
+  var box=document.getElementById('chooserGroves'); if(!box) return;
+  box.innerHTML='';
+  fetch('/api/forest').then(function(r){return r.json();}).then(function(d){
+    var groves=(d&&d.groves)||[];
+    if(!groves.length){ return; }
+    groves.sort(function(a,b){return (a.order||0)-(b.order||0);});
+    box.innerHTML = groves.map(function(gv){
+      var pct=gv.total?Math.round(gv.done/gv.total*100):0;
+      var sel=gv.status==='active'?' sel':'';
+      return '<button class="ekch-chip'+sel+'" style="--p:'+pct+'%" data-pillar="'+_ekEsc(gv.pillar)+'">'+
+        '<span>'+_ekEsc(gv.pillar)+'</span><span class="ekch-pct">'+pct+'%</span><span class="ekch-bar"></span></button>';
+    }).join('');
+    Array.prototype.forEach.call(box.querySelectorAll('.ekch-chip'), function(b){
+      b.addEventListener('click', function(){ pickChooserGrove(b.getAttribute('data-pillar')); });
+    });
+  }).catch(function(){});
 }
 function closeChooser(){ var o=document.getElementById('chooser-ov'); if(o) o.classList.remove('on'); }
 function pickChooserMode(v){ closeChooser(); document.getElementById('mode').value=v; showView('practice'); newSession(); }
+// Pick a GROVE (pillar) instead of a mode → drill into that grove on the Forest Map (existing flow).
+function pickChooserGrove(p){ closeChooser(); showView('tree'); if(typeof showGrove==='function'){ showGrove(p); } }
 
 // --- chats drawer (persistent history) ---
 function rel(s){ return (s||'').replace('T',' ').slice(0,16); }
