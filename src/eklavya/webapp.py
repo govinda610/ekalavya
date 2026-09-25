@@ -3513,7 +3513,14 @@ function showChooser(){
 }
 function closeChooser(){ var o=document.getElementById('chooser-ov'); if(o) o.classList.remove('on');
   var _m=document.querySelector('main'); if(_m) _m.style.display=''; }  // restore the forest/app behind
-function pickChooserMode(v){ closeChooser(); document.getElementById('mode').value=v; showView('practice'); newSession(); }
+function pickChooserMode(v){
+  // Prepare a FRESH session WITHOUT streaming (new thread, cleared log, welcome), THEN switch to
+  // Practice and let showView()'s single maybeAutoKickoff() fire exactly one kickoff. Calling both
+  // showView('practice') (which auto-kickoffs) AND newSession(true) double-fired the first message —
+  // the second wiped the first's log + collided on the `streaming` guard, so nothing showed until
+  // the learner typed something manually.
+  closeChooser(); document.getElementById('mode').value=v; newSession(false); showView('practice');
+}
 // Pick a GROVE (pillar) instead of a mode → drill into that grove on the Forest Map (existing flow).
 function pickChooserGrove(p){ closeChooser(); showView('tree'); if(typeof showGrove==='function'){ showGrove(p); } }
 
