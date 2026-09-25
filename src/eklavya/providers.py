@@ -62,11 +62,11 @@ PROVIDERS: dict[str, Provider] = {
         label="Qwen (Alibaba)",
         base_url="https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic",
         token_env=("EKLAVYA_QWEN_API_KEY", "QWEN_API_KEY", "DASHSCOPE_API_KEY"),
-        default_model="qwen3.8-max-preview",
-        # qwen3.8-flash = cheap/fast tier (~$0.15/$0.47 per M vs $2/$6 for max), 1M context —
-        # far more usage + faster; added for cost/throughput. NOTE: only `default_model` is used
-        # today — adding to this list is a catalogue entry until it's made default (see note below).
-        models=("qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.8-flash", "qwen3.6-flash"),
+        # Default = qwen3.8-flash: cheap/fast tier (~$0.15/$0.47 per M vs $2/$6 for max), 1M context,
+        # ~1.2s TTFT (validated live) — far more usage + cost headroom at ~same speed. qwen3.8-max-preview
+        # remains available for max quality (select it as the model if a picker/override is wired).
+        default_model="qwen3.8-flash",
+        models=("qwen3.8-flash", "qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash"),
     ),
     "kimi": Provider(
         key="kimi",
