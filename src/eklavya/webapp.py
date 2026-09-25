@@ -1194,10 +1194,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
   background:radial-gradient(120% 80% at 50% -6%,#1a2547 0%,#121a38 30%,#0b1024 58%,#0a0d1c 82%),linear-gradient(180deg,#10163200 0%,#0a0d1c 92%)}
 #chooser-ov .ekch-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;height:900px;opacity:.06;pointer-events:none;
   background:conic-gradient(from 0deg,transparent 0 2.5deg,var(--gold) 2.5deg 3deg,transparent 3deg 15deg),radial-gradient(circle,transparent 28%,var(--gold) 28.3%,transparent 29%),radial-gradient(circle,transparent 40%,var(--gold) 40.3%,transparent 41%),radial-gradient(circle,transparent 49%,var(--gold) 49.3%,transparent 50%);
-  -webkit-mask:radial-gradient(circle,#000 50%,transparent 51%);mask:radial-gradient(circle,#000 50%,transparent 51%);animation:ekchSpin 140s linear infinite}
+  -webkit-mask:radial-gradient(circle,#000 50%,transparent 51%);mask:radial-gradient(circle,#000 50%,transparent 51%)}
 #chooser-ov .ekch-watermark2{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:520px;height:520px;opacity:.05;pointer-events:none;
   background:conic-gradient(from 0deg,transparent 0 10deg,var(--gold-bright) 10deg 11deg,transparent 11deg 30deg);
-  -webkit-mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);animation:ekchSpinR 100s linear infinite}
+  -webkit-mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%)}
 #chooser-ov .ekch-crestglow{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:620px;height:340px;pointer-events:none;
   background:radial-gradient(ellipse at center,rgba(231,182,75,.14),rgba(231,182,75,.05) 45%,transparent 72%)}
 #chooser-ov .ekch-dim{position:absolute;inset:0;background:radial-gradient(88% 82% at 50% 50%,rgba(4,6,14,.5),rgba(4,6,14,.82))}
@@ -1224,7 +1224,7 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-dev{font-family:var(--f-deva)}
 #chooser-ov .ekch-crest{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
 #chooser-ov .ekch-emblem{position:relative;width:104px;height:104px;margin-bottom:8px}
-#chooser-ov .ekch-chakra{position:absolute;inset:0;opacity:.85;background:conic-gradient(from 0deg,transparent 0 5deg,rgba(231,182,75,.65) 5deg 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);animation:ekchRot 40s linear infinite}
+#chooser-ov .ekch-chakra{position:absolute;inset:0;opacity:.85;background:conic-gradient(from 0deg,transparent 0 5deg,rgba(231,182,75,.65) 5deg 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%)}
 #chooser-ov .ekch-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(231,182,75,.6);box-shadow:0 0 26px -4px rgba(231,182,75,.5),inset 0 0 22px rgba(231,182,75,.12)}
 #chooser-ov .ekch-ring2{position:absolute;inset:10px;border-radius:50%;border:1px dashed rgba(231,182,75,.42)}
 #chooser-ov .ekch-emblem svg{position:absolute;inset:0;width:100%;height:100%}
