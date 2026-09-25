@@ -43,7 +43,11 @@ PROVIDERS: dict[str, Provider] = {
         base_url="https://api.z.ai/api/anthropic",
         token_env=("EKLAVYA_GLM_API_KEY", "GLM_API_KEY", "Z_AI_API_KEY"),
         default_model="glm-5.2",
-        models=("glm-5.2", "glm-5-turbo", "glm-4.6V"),
+        # glm-5.3 = current flagship + fast (~2.4s TTFT; 5.2/5.1 already route to it server-side).
+        # glm-5.3-flash = cheaper/more-usage but NOT faster on this plan (reasoning always-on →
+        # ~8s TTFT when tested). glm-5.3-flashx is NOT on the current coding plan (429), so omitted.
+        # NOTE: only `default_model` is actually used today — see the providers note below.
+        models=("glm-5.3", "glm-5.3-flash", "glm-5.2", "glm-5-turbo", "glm-4.6V"),
     ),
     "minimax": Provider(
         key="minimax",
@@ -59,7 +63,10 @@ PROVIDERS: dict[str, Provider] = {
         base_url="https://token-plan.ap-southeast-1.maas.aliyuncs.com/apps/anthropic",
         token_env=("EKLAVYA_QWEN_API_KEY", "QWEN_API_KEY", "DASHSCOPE_API_KEY"),
         default_model="qwen3.8-max-preview",
-        models=("qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.6-flash"),
+        # qwen3.8-flash = cheap/fast tier (~$0.15/$0.47 per M vs $2/$6 for max), 1M context —
+        # far more usage + faster; added for cost/throughput. NOTE: only `default_model` is used
+        # today — adding to this list is a catalogue entry until it's made default (see note below).
+        models=("qwen3.8-max-preview", "qwen3.7-max", "qwen3.7-plus", "qwen3.8-flash", "qwen3.6-flash"),
     ),
     "kimi": Provider(
         key="kimi",
