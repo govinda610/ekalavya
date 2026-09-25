@@ -1256,7 +1256,7 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-glyph{font-size:28px;color:var(--acc,var(--gold));margin-bottom:8px;text-shadow:0 0 20px var(--acc,var(--gold));display:inline-flex}
 /* hand-drawn mode glyphs: monochrome SVG that inherits the tile's accent colour + soft gold glow */
 .ekg{width:1em;height:1em;display:block}
-#chooser-ov .ekch-glyph .ekg{width:34px;height:34px;filter:drop-shadow(0 0 10px var(--acc,var(--gold)))}
+#chooser-ov .ekch-glyph .ekg{width:34px;height:34px}
 .modetile .mt-g .ekg{width:26px;height:26px}
 #chooser-ov .ekch-tt{font-family:var(--f-display);font-size:15px;font-weight:600;color:var(--parch);margin-bottom:5px;letter-spacing:.02em}
 #chooser-ov .ekch-td{font-family:var(--f-body);font-size:12px;line-height:1.42;color:var(--parch-dim)}
@@ -2200,7 +2200,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
       <div class="ekch-devnag ekch-dev">धनुर्विद्या · the discipline of the bow</div>
       <div class="ekch-seclbl">◑&nbsp;&nbsp;CHOOSE A GROVE</div>
       <div class="ekch-pillars" id="chooserGroves"></div>
-      <div class="ekch-seclbl">⚔&nbsp;&nbsp;CHOOSE A MODE</div>
+      <div class="ekch-seclbl">◈&nbsp;&nbsp;CHOOSE A MODE</div>
       <div class="ekch-constel" id="chooserModesGrid"></div>
       <div class="ekch-skip">
         <div class="ekch-seal ekch-dev">ए</div>
