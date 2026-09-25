@@ -3486,6 +3486,12 @@ function showChooser(){
         '<span class="ekch-td">The master finds your weakest spot.</span></button>';
   }
   ov.classList.add('on');
+  // Hide <main> entirely while the chooser is open. The chooser is an opaque, position:fixed
+  // overlay that fully covers <main>, so this is invisible — but it STOPS the animated Forest
+  // scene (SMIL fireflies/god-rays/mist) from repainting behind the overlay, which was churning
+  // the GPU compositor and causing the flicker / "things disappear" on real hardware. Restored in
+  // closeChooser (and its callers). display:none = zero rendering for that subtree, guaranteed.
+  var _m=document.querySelector('main'); if(_m) _m.style.display='none';
   // Grove chips — real curriculum data, so the map's pillars + progress show here too and update as
   // the curriculum grows. Best-effort: the overlay is already shown; a fetch hiccup just omits chips.
   var box=document.getElementById('chooserGroves'); if(!box) return;
@@ -3505,7 +3511,8 @@ function showChooser(){
     });
   }).catch(function(){});
 }
-function closeChooser(){ var o=document.getElementById('chooser-ov'); if(o) o.classList.remove('on'); }
+function closeChooser(){ var o=document.getElementById('chooser-ov'); if(o) o.classList.remove('on');
+  var _m=document.querySelector('main'); if(_m) _m.style.display=''; }  // restore the forest/app behind
 function pickChooserMode(v){ closeChooser(); document.getElementById('mode').value=v; showView('practice'); newSession(); }
 // Pick a GROVE (pillar) instead of a mode → drill into that grove on the Forest Map (existing flow).
 function pickChooserGrove(p){ closeChooser(); showView('tree'); if(typeof showGrove==='function'){ showGrove(p); } }
