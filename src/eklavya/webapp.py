@@ -1165,7 +1165,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
 /* ===== P4 post-login chooser — "Constellation of the Archer". All namespaced ekch- and
    scoped to #chooser-ov so it never collides with the rest of the app. Animations auto-quiet
    under body.reduce-motion (global rule above). Devanagari uses the vendored --f-deva. ===== */
-#chooser-ov{padding:0}
+/* Fully opaque + no backdrop-filter: the Forest 2D scene renders right behind this overlay and is
+   constantly animating; letting it show through a translucent/blurred backdrop caused whole-screen
+   flicker (every frame re-sampled the moving scene). An opaque cover occludes it entirely. */
+#chooser-ov{padding:0;background:#0a0d1c;backdrop-filter:none;-webkit-backdrop-filter:none}
 #chooser-ov .ekch-root{position:relative;width:100%;height:100%;overflow:auto}
 #chooser-ov .ekch-bg{position:fixed;inset:0;overflow:hidden;z-index:0;
   background:radial-gradient(120% 80% at 50% -6%,#1a2547 0%,#121a38 30%,#0b1024 58%,#0a0d1c 82%),linear-gradient(180deg,#10163200 0%,#0a0d1c 92%)}
@@ -1179,9 +1182,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
   background:radial-gradient(ellipse at center,rgba(231,182,75,.16),rgba(231,182,75,.05) 45%,transparent 72%);filter:blur(14px)}
 #chooser-ov .ekch-dim{position:absolute;inset:0;background:radial-gradient(88% 82% at 50% 50%,rgba(4,6,14,.5),rgba(4,6,14,.82))}
 #chooser-ov .ekch-stars{position:absolute;inset:0;background-image:radial-gradient(1.4px 1.4px at 12% 18%,rgba(255,255,255,.7),transparent),radial-gradient(1.2px 1.2px at 28% 8%,rgba(255,255,255,.5),transparent),radial-gradient(1.6px 1.6px at 62% 14%,rgba(255,255,255,.6),transparent),radial-gradient(1.1px 1.1px at 82% 6%,rgba(255,255,255,.5),transparent),radial-gradient(1.3px 1.3px at 91% 22%,rgba(255,255,255,.45),transparent),radial-gradient(1px 1px at 8% 44%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 95% 55%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 45% 4%,rgba(255,255,255,.5),transparent)}
-#chooser-ov .ekch-godray{position:absolute;top:-18%;left:50%;transform:translateX(-50%) rotate(4deg);width:520px;height:1200px;background:linear-gradient(180deg,rgba(231,182,75,.2),rgba(231,182,75,.05) 45%,transparent 72%);filter:blur(30px);mix-blend-mode:screen;animation:ekchGlow 7s ease-in-out infinite}
-#chooser-ov .ekch-godray.b2{transform:translateX(-52%) rotate(-7deg);width:300px;opacity:.7;animation-duration:9s}
-#chooser-ov .ekch-godray.b3{transform:translateX(-46%) rotate(11deg);width:240px;opacity:.55;animation-duration:11s}
+/* god-rays: static (no animated blur / no screen-blend — both were flicker sources). */
+#chooser-ov .ekch-godray{position:absolute;top:-18%;left:50%;transform:translateX(-50%) rotate(4deg);width:520px;height:1200px;background:linear-gradient(180deg,rgba(231,182,75,.18),rgba(231,182,75,.045) 45%,transparent 72%);filter:blur(28px);opacity:.7}
+#chooser-ov .ekch-godray.b2{transform:translateX(-52%) rotate(-7deg);width:300px;opacity:.5}
+#chooser-ov .ekch-godray.b3{transform:translateX(-46%) rotate(11deg);width:240px;opacity:.4}
 #chooser-ov .ekch-embers{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 18% 70%,rgba(231,182,75,.5),transparent),radial-gradient(1.6px 1.6px at 34% 82%,rgba(247,217,138,.45),transparent),radial-gradient(2px 2px at 66% 76%,rgba(231,182,75,.4),transparent),radial-gradient(1.5px 1.5px at 78% 88%,rgba(247,217,138,.4),transparent),radial-gradient(1.8px 1.8px at 52% 92%,rgba(231,182,75,.35),transparent),radial-gradient(1.4px 1.4px at 88% 66%,rgba(247,217,138,.4),transparent),radial-gradient(1.6px 1.6px at 10% 90%,rgba(231,182,75,.4),transparent);filter:drop-shadow(0 0 4px rgba(231,182,75,.4));animation:ekchEmber 10s ease-in-out infinite}
 #chooser-ov .ekch-temple{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);width:130px;height:150px;opacity:.4;pointer-events:none;background:linear-gradient(180deg,rgba(231,182,75,.5),rgba(231,182,75,.16) 60%,transparent);clip-path:polygon(50% 0,55% 10%,52% 10%,55% 22%,51% 22%,55% 36%,50% 36%,58% 54%,58% 62%,66% 62%,66% 100%,34% 100%,34% 62%,42% 62%,42% 54%,50% 36%,45% 36%,49% 22%,45% 22%,48% 10%,45% 10%);filter:blur(.6px) drop-shadow(0 0 22px rgba(231,182,75,.4))}
 #chooser-ov .ekch-treeline{position:absolute;bottom:0;left:0;right:0;height:220px;background:radial-gradient(70px 130px at 10% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 24% 100%,#060812 60%,transparent 62%),radial-gradient(60px 120px at 40% 100%,#050710 60%,transparent 62%),radial-gradient(95px 175px at 56% 100%,#070a16 60%,transparent 62%),radial-gradient(65px 130px at 72% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 88% 100%,#060812 60%,transparent 62%),radial-gradient(55px 110px at 96% 100%,#050710 60%,transparent 62%),radial-gradient(60px 120px at 4% 100%,#060812 60%,transparent 62%),linear-gradient(180deg,transparent,#04060e 72%)}
@@ -1231,10 +1235,11 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-seal{width:44px;height:44px;border-radius:50%;flex:0 0 auto;background:radial-gradient(circle at 38% 34%,#d85a44,#a83521 60%,#7d2314);box-shadow:0 6px 16px -4px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#f7d98a;font-size:20px;border:2px solid rgba(125,35,20,.6);text-shadow:0 1px 2px rgba(0,0,0,.5)}
 #chooser-ov .ekch-skip button{font-family:var(--f-title);font-size:15px;color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:999px;padding:11px 30px;cursor:pointer;letter-spacing:.03em;transition:.2s;box-shadow:0 6px 20px -8px rgba(0,0,0,.8)}
 #chooser-ov .ekch-skip button:hover{background:rgba(231,182,75,.14)}
+/* keep the remaining (cheap) animated layers on their own GPU layer to avoid repaint flicker */
+#chooser-ov .ekch-watermark,#chooser-ov .ekch-watermark2,#chooser-ov .ekch-embers,#chooser-ov .ekch-chakra{will-change:transform;backface-visibility:hidden}
 @keyframes ekchSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes ekchSpinR{to{transform:translate(-50%,-50%) rotate(-360deg)}}
 @keyframes ekchRot{to{transform:rotate(360deg)}}
-@keyframes ekchGlow{0%,100%{opacity:.55}50%{opacity:.9}}
 @keyframes ekchEmber{0%{transform:translateY(6px);opacity:.4}50%{opacity:.8}100%{transform:translateY(-12px);opacity:.4}}
 @media(max-width:900px){#chooser-ov .ekch-constel{grid-template-columns:repeat(2,minmax(160px,1fr))}}
 @media(max-width:560px){#chooser-ov .ekch-constel{grid-template-columns:1fr}#chooser-ov .ekch-h1{font-size:26px}}
