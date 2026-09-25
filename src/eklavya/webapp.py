@@ -1198,15 +1198,15 @@ button.rewind:disabled{opacity:.4;cursor:default}
   background:conic-gradient(from 0deg,transparent 0 10deg,var(--gold-bright) 10deg 11deg,transparent 11deg 30deg);
   -webkit-mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);mask:radial-gradient(circle,transparent 30%,#000 31%,#000 49%,transparent 50%);animation:ekchSpinR 100s linear infinite}
 #chooser-ov .ekch-crestglow{position:absolute;top:40px;left:50%;transform:translateX(-50%);width:620px;height:340px;pointer-events:none;
-  background:radial-gradient(ellipse at center,rgba(231,182,75,.16),rgba(231,182,75,.05) 45%,transparent 72%);filter:blur(14px)}
+  background:radial-gradient(ellipse at center,rgba(231,182,75,.14),rgba(231,182,75,.05) 45%,transparent 72%)}
 #chooser-ov .ekch-dim{position:absolute;inset:0;background:radial-gradient(88% 82% at 50% 50%,rgba(4,6,14,.5),rgba(4,6,14,.82))}
 #chooser-ov .ekch-stars{position:absolute;inset:0;background-image:radial-gradient(1.4px 1.4px at 12% 18%,rgba(255,255,255,.7),transparent),radial-gradient(1.2px 1.2px at 28% 8%,rgba(255,255,255,.5),transparent),radial-gradient(1.6px 1.6px at 62% 14%,rgba(255,255,255,.6),transparent),radial-gradient(1.1px 1.1px at 82% 6%,rgba(255,255,255,.5),transparent),radial-gradient(1.3px 1.3px at 91% 22%,rgba(255,255,255,.45),transparent),radial-gradient(1px 1px at 8% 44%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 95% 55%,rgba(255,255,255,.4),transparent),radial-gradient(1.2px 1.2px at 45% 4%,rgba(255,255,255,.5),transparent)}
 /* god-rays: static (no animated blur / no screen-blend — both were flicker sources). */
-#chooser-ov .ekch-godray{position:absolute;top:-18%;left:50%;transform:translateX(-50%) rotate(4deg);width:520px;height:1200px;background:linear-gradient(180deg,rgba(231,182,75,.18),rgba(231,182,75,.045) 45%,transparent 72%);filter:blur(28px);opacity:.7}
+#chooser-ov .ekch-godray{position:absolute;top:-18%;left:50%;transform:translateX(-50%) rotate(4deg);width:520px;height:1200px;background:linear-gradient(180deg,rgba(231,182,75,.12),rgba(231,182,75,.03) 45%,transparent 72%);opacity:.7}
 #chooser-ov .ekch-godray.b2{transform:translateX(-52%) rotate(-7deg);width:300px;opacity:.5}
 #chooser-ov .ekch-godray.b3{transform:translateX(-46%) rotate(11deg);width:240px;opacity:.4}
-#chooser-ov .ekch-embers{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 18% 70%,rgba(231,182,75,.5),transparent),radial-gradient(1.6px 1.6px at 34% 82%,rgba(247,217,138,.45),transparent),radial-gradient(2px 2px at 66% 76%,rgba(231,182,75,.4),transparent),radial-gradient(1.5px 1.5px at 78% 88%,rgba(247,217,138,.4),transparent),radial-gradient(1.8px 1.8px at 52% 92%,rgba(231,182,75,.35),transparent),radial-gradient(1.4px 1.4px at 88% 66%,rgba(247,217,138,.4),transparent),radial-gradient(1.6px 1.6px at 10% 90%,rgba(231,182,75,.4),transparent);filter:drop-shadow(0 0 4px rgba(231,182,75,.4));animation:ekchEmber 10s ease-in-out infinite}
-#chooser-ov .ekch-temple{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);width:130px;height:150px;opacity:.4;pointer-events:none;background:linear-gradient(180deg,rgba(231,182,75,.5),rgba(231,182,75,.16) 60%,transparent);clip-path:polygon(50% 0,55% 10%,52% 10%,55% 22%,51% 22%,55% 36%,50% 36%,58% 54%,58% 62%,66% 62%,66% 100%,34% 100%,34% 62%,42% 62%,42% 54%,50% 36%,45% 36%,49% 22%,45% 22%,48% 10%,45% 10%);filter:blur(.6px) drop-shadow(0 0 22px rgba(231,182,75,.4))}
+#chooser-ov .ekch-embers{position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(2px 2px at 18% 70%,rgba(231,182,75,.5),transparent),radial-gradient(1.6px 1.6px at 34% 82%,rgba(247,217,138,.45),transparent),radial-gradient(2px 2px at 66% 76%,rgba(231,182,75,.4),transparent),radial-gradient(1.5px 1.5px at 78% 88%,rgba(247,217,138,.4),transparent),radial-gradient(1.8px 1.8px at 52% 92%,rgba(231,182,75,.35),transparent),radial-gradient(1.4px 1.4px at 88% 66%,rgba(247,217,138,.4),transparent),radial-gradient(1.6px 1.6px at 10% 90%,rgba(231,182,75,.4),transparent)}
+#chooser-ov .ekch-temple{position:absolute;bottom:96px;left:50%;transform:translateX(-50%);width:130px;height:150px;opacity:.4;pointer-events:none;background:linear-gradient(180deg,rgba(231,182,75,.5),rgba(231,182,75,.16) 60%,transparent);clip-path:polygon(50% 0,55% 10%,52% 10%,55% 22%,51% 22%,55% 36%,50% 36%,58% 54%,58% 62%,66% 62%,66% 100%,34% 100%,34% 62%,42% 62%,42% 54%,50% 36%,45% 36%,49% 22%,45% 22%,48% 10%,45% 10%)}
 #chooser-ov .ekch-treeline{position:absolute;bottom:0;left:0;right:0;height:220px;background:radial-gradient(70px 130px at 10% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 24% 100%,#060812 60%,transparent 62%),radial-gradient(60px 120px at 40% 100%,#050710 60%,transparent 62%),radial-gradient(95px 175px at 56% 100%,#070a16 60%,transparent 62%),radial-gradient(65px 130px at 72% 100%,#050710 60%,transparent 62%),radial-gradient(90px 160px at 88% 100%,#060812 60%,transparent 62%),radial-gradient(55px 110px at 96% 100%,#050710 60%,transparent 62%),radial-gradient(60px 120px at 4% 100%,#060812 60%,transparent 62%),linear-gradient(180deg,transparent,#04060e 72%)}
 #chooser-ov .ekch-vignette{position:absolute;inset:0;box-shadow:inset 0 0 360px 110px rgba(0,0,0,.82);pointer-events:none}
 #chooser-ov .ekch-fc{position:fixed;width:64px;height:64px;z-index:6;opacity:.5;pointer-events:none;color:var(--gold-deep)}
@@ -1216,10 +1216,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-dev{font-family:var(--f-deva)}
 #chooser-ov .ekch-crest{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
 #chooser-ov .ekch-emblem{position:relative;width:104px;height:104px;margin-bottom:8px}
-#chooser-ov .ekch-chakra{position:absolute;inset:0;opacity:.85;background:conic-gradient(from 0deg,transparent 0 5deg,rgba(231,182,75,.65) 5deg 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);filter:drop-shadow(0 0 6px rgba(231,182,75,.5));animation:ekchRot 40s linear infinite}
+#chooser-ov .ekch-chakra{position:absolute;inset:0;opacity:.85;background:conic-gradient(from 0deg,transparent 0 5deg,rgba(231,182,75,.65) 5deg 6deg,transparent 6deg 15deg);-webkit-mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);mask:radial-gradient(circle,transparent 42%,#000 43%,#000 50%,transparent 51%);animation:ekchRot 40s linear infinite}
 #chooser-ov .ekch-ring{position:absolute;inset:0;border-radius:50%;border:1.5px solid rgba(231,182,75,.6);box-shadow:0 0 26px -4px rgba(231,182,75,.5),inset 0 0 22px rgba(231,182,75,.12)}
 #chooser-ov .ekch-ring2{position:absolute;inset:10px;border-radius:50%;border:1px dashed rgba(231,182,75,.42)}
-#chooser-ov .ekch-emblem svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 0 10px rgba(247,217,138,.6))}
+#chooser-ov .ekch-emblem svg{position:absolute;inset:0;width:100%;height:100%}
 #chooser-ov .ekch-kicker{font-family:var(--f-display);color:var(--gold);letter-spacing:.42em;font-size:11px;text-shadow:0 0 18px rgba(231,182,75,.5);display:flex;align-items:center;gap:10px}
 #chooser-ov .ekch-kicker .ekch-dev{font-size:15px;letter-spacing:.14em;color:var(--gold-bright)}
 #chooser-ov .ekch-h1line{display:flex;align-items:center;gap:22px;margin:8px 0 6px}
@@ -1254,8 +1254,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-seal{width:44px;height:44px;border-radius:50%;flex:0 0 auto;background:radial-gradient(circle at 38% 34%,#d85a44,#a83521 60%,#7d2314);box-shadow:0 6px 16px -4px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#f7d98a;font-size:20px;border:2px solid rgba(125,35,20,.6);text-shadow:0 1px 2px rgba(0,0,0,.5)}
 #chooser-ov .ekch-skip button{font-family:var(--f-title);font-size:15px;color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:999px;padding:11px 30px;cursor:pointer;letter-spacing:.03em;transition:.2s;box-shadow:0 6px 20px -8px rgba(0,0,0,.8)}
 #chooser-ov .ekch-skip button:hover{background:rgba(231,182,75,.14)}
-/* keep the remaining (cheap) animated layers on their own GPU layer to avoid repaint flicker */
-#chooser-ov .ekch-watermark,#chooser-ov .ekch-watermark2,#chooser-ov .ekch-embers,#chooser-ov .ekch-chakra{will-change:transform;backface-visibility:hidden}
+/* NO filter/will-change on the chooser's bg layers: filter(blur/drop-shadow)+will-change on large
+   animated layers made Chrome's compositor flash those layers BLACK (top god-ray row + bottom ember
+   row). Glow now comes from gradients/opacity only; the sole motion is transform-only rotation
+   (mandala + chakra), which is GPU-safe and cannot black-flash. */
 @keyframes ekchSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
 @keyframes ekchSpinR{to{transform:translate(-50%,-50%) rotate(-360deg)}}
 @keyframes ekchRot{to{transform:rotate(360deg)}}
