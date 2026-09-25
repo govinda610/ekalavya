@@ -20,6 +20,18 @@ from eklavya import config
 def _reset_bound_context():
     home_token = config._current_home.set(None)
     thread_token = config._current_thread.set(None)
+    # Rate-limit / login-throttle state is module-level and per-process; clear it so a bucket
+    # drained by one test (all TestClient requests share one client IP) can't leak into another.
+    try:
+        from eklavya import ratelimit
+        ratelimit._buckets.clear()
+    except Exception:
+        pass
+    try:
+        from eklavya import auth
+        auth._fails.clear()
+    except Exception:
+        pass
     try:
         yield
     finally:

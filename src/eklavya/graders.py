@@ -106,14 +106,24 @@ def grade_numeric(answer: str, key: str, tol: float = 0.0, rel: float = 0.0) -> 
 
 # --- symbolic (SymPy equivalence) -----------------------------------------
 
+def _unsafe_expr(s: str) -> bool:
+    """SymPy's parse_expr is eval-based and NOT safe on untrusted input. A genuine maths answer
+    never contains dunder attribute access, statement separators, or newlines — reject those so
+    the classic ``().__class__.__bases__…`` / multi-statement escapes can't reach the parser.
+    (Belt-and-braces alongside the length + wall-time guards; the truly heavy path stays in the
+    subprocess sandbox.)"""
+    return ("__" in s) or (";" in s) or ("\n" in s) or ("\\" in s)
+
+
 def _sympify(expr: str):
     """Parse an expression string into a SymPy object (implicit multiplication + ^ as
-    power, like a human writes maths). Returns None on any parse failure, on over-long input
-    (a symbolic-bomb guard), or on a parse that runs past the wall-time limit."""
+    power, like a human writes maths). Returns None on any parse failure, on over-long or
+    unsafe input (a symbolic-bomb / injection guard), or on a parse that runs past the
+    wall-time limit."""
     from sympy.parsing.sympy_parser import (  # local import: sympy is a real but heavy dep
         convert_xor, implicit_multiplication_application, parse_expr, standard_transformations)
     s = str(expr).strip()
-    if len(s) > _MAX_EXPR_LEN:
+    if len(s) > _MAX_EXPR_LEN or _unsafe_expr(s):
         return None
     try:
         transforms = standard_transformations + (
@@ -206,7 +216,7 @@ def _sympify_units(text: str):
     from sympy.parsing.sympy_parser import (
         implicit_multiplication_application, parse_expr, standard_transformations)
     s = str(text).strip()
-    if len(s) > _MAX_EXPR_LEN:
+    if len(s) > _MAX_EXPR_LEN or _unsafe_expr(s):
         return None
     try:
         local = {name: getattr(u, name) for name in dir(u) if not name.startswith("_")}

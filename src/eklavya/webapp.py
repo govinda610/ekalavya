@@ -445,6 +445,12 @@ def create_app():
 
     @app.post("/api/stream")
     async def stream(request: Request):
+        from . import ratelimit
+        who = _current_email() or client_ip(request)
+        if not ratelimit.allow("stream:" + who, rate=30, per=60, burst=12):
+            return JSONResponse(
+                {"error": "Too many requests in a short time — please wait a few seconds."},
+                status_code=429)
         body = await request.json()
         mode = body.get("mode", "practice")
         thread = body.get("thread") or str(uuid.uuid4())
@@ -487,8 +493,14 @@ def create_app():
         No agent, no grading — a plain run→output loop the learner can lean on."""
         from starlette.concurrency import run_in_threadpool
 
+        from . import ratelimit
         from .sandbox import run_python
 
+        who = _current_email() or client_ip(request)
+        if not ratelimit.allow("run:" + who, rate=30, per=60, burst=10):
+            return JSONResponse(
+                {"ok": False, "stdout": "", "stderr": "Too many runs in a short time — wait a moment.",
+                 "exit_code": -1, "seconds": 0.0}, status_code=429)
         body = await request.json()
         r = await run_in_threadpool(run_python, body.get("code", ""))
         return {"ok": r.ok, "stdout": r.stdout, "stderr": r.stderr,
@@ -901,6 +913,13 @@ def _mount_auth(app) -> None:
     async def signup_submit(request: Request):
         from urllib.parse import quote
 
+        from . import ratelimit
+
+        # Rate-limit signups per IP (abuse / admin-inbox flooding / email enumeration).
+        if not ratelimit.allow("signup:" + client_ip(request), rate=5, per=3600, burst=5):
+            return RedirectResponse(
+                "/signup?error=" + quote("Too many attempts — please try again later."),
+                status_code=303)
         form = await request.form()
         email = (form.get("email") or "").strip()
         password = form.get("password") or ""
