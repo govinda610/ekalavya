@@ -184,8 +184,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
     def _secure(response):
         for header, value in _SECURITY_HEADERS.items():
             response.headers.setdefault(header, value)
-        # Never cache the SPA HTML — a normal refresh must always get the current UI (stale
-        # cached pages made fixed bugs look unfixed). Static assets (fonts/js/css) still cache.
-        if response.headers.get("content-type", "").startswith("text/html"):
+        # Never cache dynamic responses — the SPA HTML AND JSON APIs (incl. the auth-required
+        # 401/redirect early-returns, which skip the app's own no-store middleware). Static
+        # assets (fonts/js/css) still cache under /static.
+        ct = response.headers.get("content-type", "")
+        if ct.startswith("text/html") or ct.startswith("application/json"):
             response.headers.setdefault("Cache-Control", "no-store")
         return response

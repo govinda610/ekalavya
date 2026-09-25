@@ -2340,11 +2340,15 @@ function loadAdmin(){
     const rows=(d.pending||[]).map(u=>
       "<div class='pendrow'><div class='pmeta'><div class='pemail'>"+esc(u.email)+"</div>"+
       "<div class='pwhen'>requested "+esc(u.created_at||'')+"</div></div>"+
-      "<div class='pbtns'><button class='p-approve' onclick=\"adminApprove('"+esc(u.email)+"')\">Approve</button>"+
-      "<button class='p-reject' onclick=\"adminReject('"+esc(u.email)+"')\">Reject</button></div></div>").join('');
+      "<div class='pbtns'><button class='p-approve' data-email=\""+esc(u.email)+"\">Approve</button>"+
+      "<button class='p-reject' data-email=\""+esc(u.email)+"\">Reject</button></div></div>").join('');
     root.innerHTML="<div class='admin-wrap'><div class='stitle'>Admin — approvals</div>"+
       "<div class='ssub'>Self-service signups awaiting your approval. Approve to let them sign in; reject to remove the request.</div>"+
       (rows||"<div class='admin-empty'>No pending signups.</div>")+"</div>";
+    // Bind via addEventListener reading a data-attribute (NOT a string-built inline onclick) so a
+    // hostile email string can never break out of an attribute and execute as JS in the admin session.
+    root.querySelectorAll('.p-approve').forEach(function(b){ b.addEventListener('click',function(){ adminApprove(b.getAttribute('data-email')); }); });
+    root.querySelectorAll('.p-reject').forEach(function(b){ b.addEventListener('click',function(){ adminReject(b.getAttribute('data-email')); }); });
   }).catch(()=>{ root.innerHTML="<div class='admin-wrap'><div class='admin-empty'>Could not load pending signups.</div></div>"; });
 }
 function adminApprove(email){

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import functools
 import os
+import secrets
 import shutil
 import subprocess
 import sys
@@ -29,10 +30,10 @@ import tempfile
 import time
 from dataclasses import dataclass
 
-_PASS_MARKER = "__EKLAVYA_TESTS_PASSED__"
 # A minimal environment — deliberately without the parent's variables (API keys!).
 _CLEAN_ENV = {"PATH": "/usr/bin:/bin:/usr/local/bin", "LANG": "C.UTF-8", "LC_ALL": "C.UTF-8"}
 _CPU_SECONDS = 30  # belt-and-suspenders beyond the wall-clock timeout
+_FSIZE_BYTES = 64 * 1024 * 1024  # cap file writes so a run can't fill the disk
 
 
 def _apply_limits() -> None:  # runs in the child, before exec (POSIX only)
@@ -40,6 +41,13 @@ def _apply_limits() -> None:  # runs in the child, before exec (POSIX only)
 
     resource.setrlimit(resource.RLIMIT_CPU, (_CPU_SECONDS, _CPU_SECONDS))
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))  # no core dumps
+    # Cap total bytes any single file can grow to, so a run can't fill the host disk. (Memory
+    # and process-count limits are enforced at the cgroup level by the systemd unit — RLIMIT_AS
+    # would break legitimate numpy/torch virtual-memory reservations, so we don't set it here.)
+    try:
+        resource.setrlimit(resource.RLIMIT_FSIZE, (_FSIZE_BYTES, _FSIZE_BYTES))
+    except (ValueError, OSError):
+        pass
 
 
 _JAIL_MODE = os.environ.get("EKLAVYA_SANDBOX_JAIL", "auto").strip().lower()  # auto | off
@@ -125,7 +133,21 @@ def run_python(code: str, stdin: str = "", timeout: float = 8.0) -> RunResult:
     inner = [sys.executable, "-I", "-c", code]
     # Real filesystem jail when bubblewrap is available (Linux); transparent
     # fallback to process isolation otherwise, so behaviour never breaks.
-    cmd = _bwrap_argv(inner, workdir) if (_JAIL_MODE != "off" and _jail_ok()) else inner
+    jailed = _JAIL_MODE != "off" and _jail_ok()
+    if _JAIL_MODE != "off" and not jailed:
+        # Fail CLOSED in a deployed / multi-user context: never execute untrusted code without
+        # the filesystem+network jail (that would expose /etc/eklavya.env, every user's DB, and
+        # the network). Local single-user dev keeps the process-isolation fallback below.
+        from . import config
+        if getattr(config, "DEPLOYED", False):
+            shutil.rmtree(workdir, ignore_errors=True)
+            return RunResult(
+                False, "",
+                "Sandbox unavailable: the code jail (bubblewrap) is not functional on this host, "
+                "so running untrusted code was refused. Ask the operator to install/enable bwrap.",
+                -1, 0.0,
+            )
+    cmd = _bwrap_argv(inner, workdir) if jailed else inner
     start = time.monotonic()
     try:
         proc = subprocess.run(
@@ -151,14 +173,43 @@ def run_python(code: str, stdin: str = "", timeout: float = 8.0) -> RunResult:
     )
 
 
-def run_tests(code: str, tests: str, timeout: float = 8.0) -> RunResult:
-    """Run learner `code` followed by `tests` (which use `assert`).
+def _test_harness(code: str, tests: str, token: str) -> str:
+    """Build the grading harness. The learner's `code` is exec'd in a controlled namespace
+    with SystemExit swallowed — so it can neither skip the tests nor exit early to fake a
+    pass — then `tests` run in that same namespace (ANY exception → nonzero exit), and only
+    then do WE emit `token`. `code`/`tests`/`token` are embedded via repr() (safe literals)."""
+    return (
+        "import sys as _s\n"
+        "_ns = {}\n"
+        "try:\n"
+        "    exec(compile(" + repr(code) + ", 'solution', 'exec'), _ns)\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "except BaseException as _e:\n"
+        "    _s.stderr.write('error while loading your code: %r\\n' % (_e,)); _s.exit(1)\n"
+        "try:\n"
+        "    exec(compile(" + repr(tests) + ", 'tests', 'exec'), _ns)\n"
+        "except SystemExit:\n"
+        "    _s.stderr.write('the tests did not run to completion\\n'); _s.exit(1)\n"
+        "except BaseException as _e:\n"
+        "    _s.stderr.write('a test failed: %r\\n' % (_e,)); _s.exit(1)\n"
+        "_s.stdout.write(" + repr(token) + ")\n"
+    )
 
-    Passes only if the process exits cleanly AND the marker prints — so a test
-    file that silently does nothing can't be mistaken for success.
+
+def run_tests(code: str, tests: str, timeout: float = 8.0) -> RunResult:
+    """Run learner `code`, then `tests` (which use `assert`), and pass ONLY when the tests
+    actually run to completion without raising — proven by a per-run RANDOM token our harness
+    emits afterwards, which the submission cannot see or guess.
+
+    This closes the old "print the fixed success marker and sys.exit(0) before the tests run"
+    spoof: the learner code is exec'd with SystemExit swallowed (it can't skip the tests) and
+    the token is random per call (it can't be printed by the submission). A learner using
+    CPython frame introspection / os._exit is a far higher bar; the frozen IRT benchmark
+    remains the independent credibility backstop.
     """
-    script = f"{code}\n\n{tests}\n\nprint({_PASS_MARKER!r})"
-    result = run_python(script, timeout=timeout)
-    passed = result.ok and _PASS_MARKER in result.stdout
-    clean_stdout = result.stdout.replace(_PASS_MARKER + "\n", "").replace(_PASS_MARKER, "")
+    token = secrets.token_hex(16)
+    result = run_python(_test_harness(code, tests, token), timeout=timeout)
+    passed = result.ok and token in result.stdout
+    clean_stdout = result.stdout.replace(token, "")
     return RunResult(passed, clean_stdout, result.stderr, result.exit_code, result.seconds)

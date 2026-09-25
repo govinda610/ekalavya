@@ -40,7 +40,8 @@ def update_elo(current: float, correct: bool | float, confidence: int = 2) -> fl
     claimed = _CONFIDENCE_P.get(int(confidence), 0.6)
     surprise = abs(score - claimed)  # 0 = perfectly calibrated, 1 = maximally wrong
     k = _BASE_K * (1.0 + surprise)   # up to 2× on a big miscalibration
-    return round(current + k * (score - _TARGET), 1)
+    new = current + k * (score - _TARGET)
+    return round(max(100.0, min(3000.0, new)), 1)  # clamp so repeated runs can't drift to absurd values
 
 
 def tighten(band: float) -> float:

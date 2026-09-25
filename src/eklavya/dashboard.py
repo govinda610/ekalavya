@@ -226,7 +226,7 @@ def render(ov: dict) -> str:
     sums: dict[str, list] = {a: [] for a in axes}
     for cells in g["pillars"].values():
         for a, cell in cells.items():
-            sums[a].append(cell["rating"])
+            sums.setdefault(a, []).append(cell["rating"])  # tolerate any off-catalog axis (never 500)
     bars = ""
     for a in axes:
         vals = sums[a]

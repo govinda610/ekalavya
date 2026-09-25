@@ -15,11 +15,16 @@ hashed with argon2id (``argon2-cffi``).
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import time
 import uuid
 
 from . import config
+
+# Practical email validation — also rejects HTML/JS metacharacters (', ", <, >, ;, spaces),
+# so a hostile "email" can't be smuggled into any page that renders it.
+_EMAIL_RE = re.compile(r"^[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}$")
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS users (
@@ -75,7 +80,7 @@ def create_user(email: str, password: str, status: str = "active") -> str:
     plaintext is never stored or logged. ``status`` is 'active' normally, or 'pending' when
     the signup-approval gate is on (the owner approves before the account can log in)."""
     email = email.strip().lower()
-    if not email or "@" not in email:
+    if not _EMAIL_RE.match(email) or len(email) > 254:
         raise ValueError("a valid email is required")
     if len(password) < 10:
         raise ValueError("password must be at least 10 characters")
@@ -354,6 +359,11 @@ def record_failure(email: str, ip: str) -> None:
     now = time.time()
     key = (email.strip().lower(), ip or "")
     _fails[key] = _recent(key, now) + [now]
+    # Opportunistic sweep so the dict can't grow unbounded on a long-lived process: once it
+    # gets large, drop every key whose failures have all aged out of the window.
+    if len(_fails) > 512:
+        for k in [k for k, v in list(_fails.items()) if not _recent(k, now)]:
+            _fails.pop(k, None)
 
 
 def reset_failures(email: str, ip: str) -> None:

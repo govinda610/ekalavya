@@ -106,14 +106,20 @@ def elo(subject: str | None = None) -> dict:
     series = [{"day": r["day"], "rating": round(r["rating"], 1), "n": r["n"]} for r in daily]
     overall = round(sum(p["rating"] for p in pillars) / len(pillars)) if pillars else None
     slope = _slope([(i, s["rating"]) for i, s in enumerate(series)])
+    # Split into top/bottom so a pillar is never shown as BOTH a strength and a weakness (the old
+    # top-3 / bottom-3 overlapped when a learner had ≤5 rated pillars). Split-half → disjoint, and
+    # still populated for small n (e.g. n=2 → 1 strength + 1 weakness).
+    n = len(pillars)
+    k_s = min(3, (n + 1) // 2)
+    k_w = min(3, n // 2)
     return {
-        "n_pillars": len(pillars),
+        "n_pillars": n,
         "history_n": hist_n,
         "overall_rating": overall,
         "series": series,
         "slope": round(slope, 2) if slope is not None else None,
-        "strengths": pillars[:3],
-        "weaknesses": list(reversed(pillars[-3:])) if pillars else [],
+        "strengths": pillars[:k_s],
+        "weaknesses": list(reversed(pillars[n - k_w:])) if k_w else [],  # weakest first, disjoint
     }
 
 

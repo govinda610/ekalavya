@@ -223,8 +223,8 @@ import re as _re
 # The private "[session context — …]" briefing (and the "[Learner preferences — …]" block that
 # may follow it) the app prepends to each user turn (#59/#88) is for the AGENT only — strip it
 # from anything the learner sees (transcript, chat title).
-_CTX_RE = _re.compile(r"^\[session context —[^\]]*\]\s*\n+")
-_PREFS_RE = _re.compile(r"^\[Learner preferences —[^\]]*\]\s*\n+")
+_CTX_RE = _re.compile(r"^\[session context —[^\n]*\]\s*\n+")
+_PREFS_RE = _re.compile(r"^\[Learner preferences —[^\n]*\]\s*\n+")
 
 
 def _strip_ctx(text: str) -> str:

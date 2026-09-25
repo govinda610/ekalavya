@@ -160,7 +160,7 @@ _SUBJECT_STARTER_ITEMS: list[tuple[str, str, int, str, str, str, str]] = [
     ("stats", "Inference", 3,
      "Which clause of a t-test compares to the critical value: the test statistic or the "
      "p-value's own threshold? Answer 'test statistic' or 'p-value'.",
-     "test statistic|p-value", "choice", ""),
+     "test statistic", "choice", ""),
     ("stats", "OLS", 3,
      "In simple OLS y = a + b x, if cov(x,y) > 0 and var(x) > 0, is the slope b positive or "
      "negative? Answer 'positive' or 'negative'.", "positive", "choice", ""),

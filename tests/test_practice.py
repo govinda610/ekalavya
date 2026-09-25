@@ -62,9 +62,21 @@ def test_run_tests_pass_and_fail():
 
 def test_run_tests_rejects_silent_noop():
     # Tests that do nothing must not count as a pass.
-    assert run_tests("x = 1", "pass").ok  # marker still prints → pass
+    assert run_tests("x = 1", "pass").ok  # tests ran to completion → pass
     # but a crashing test fails
     assert not run_tests("x = 1", "assert False").ok
+
+
+def test_run_tests_rejects_marker_spoof():
+    # A submission that prints the (old, fixed) success marker and/or exits early MUST NOT pass
+    # when the hidden tests would fail — the tests must actually run. Regression for the
+    # tamper-proofing hole where `print(marker); sys.exit(0)` faked a pass.
+    assert not run_tests('print("__EKLAVYA_TESTS_PASSED__")\nimport sys; sys.exit(0)',
+                         "assert 1 == 2").ok
+    assert not run_tests("import os; os._exit(0)", "assert 1 == 2").ok
+    # ...and a submission that tries to exit early but whose tests genuinely pass still passes,
+    # because SystemExit in the learner code is swallowed and the tests then run.
+    assert run_tests("def f():\n    return 7\nimport sys; sys.exit(0)", "assert f() == 7").ok
 
 
 # --- scoring ---------------------------------------------------------------
