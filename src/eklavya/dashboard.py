@@ -96,11 +96,24 @@ def _pct(rating: float) -> int:
 
 
 def _cell(cell: dict | None) -> str:
+    """A single mastery-grid cell, colour-GRADED by rating so a wall of same-level cells still
+    reads as a heat-map: dim at the floor, brightening toward gold as the rating climbs. The hue
+    still comes from the level (unknown/gap/familiar/strong); the *intensity* tracks the rating."""
     if not cell:
         return '<td class="cell empty"></td>'
     c = LEVEL_COLOR.get(cell["level"], "#3a4658")
-    return (f'<td class="cell" style="color:{c};border-color:{c}66;background:{c}14;'
-            f'box-shadow:0 0 12px {c}22 inset" title="rating {cell["rating"]}">{cell["level"]}</td>')
+    # 0..1 across the same 800..1500 span the axis bars use, so intensity is comparable everywhere.
+    rating = cell.get("rating", 800)
+    t = max(0.0, min(1.0, (rating - 800) / (1500 - 800)))
+    # hex alpha bytes: fill 0x0e→0x3c, glow 0x14→0x4e, border 0x4d→0xcc — dim floor, vivid peak.
+    fill = f"{0x0e + round(t * (0x3c - 0x0e)):02x}"
+    glow = f"{0x14 + round(t * (0x4e - 0x14)):02x}"
+    edge = f"{0x4d + round(t * (0xcc - 0x4d)):02x}"
+    # the lowest, unlearned cells read as quietly locked (lower text opacity) so the eye skips them.
+    op = 0.55 + 0.45 * t
+    return (f'<td class="cell" style="color:{c};opacity:{op:.2f};border-color:{c}{edge};'
+            f'background:{c}{fill};box-shadow:0 0 12px {c}{glow} inset" '
+            f'title="rating {round(rating)}">{cell["level"]}</td>')
 
 
 # Every badge the app can award, as (icon, title, description, predicate). The predicate reads
@@ -318,6 +331,7 @@ def render(ov: dict) -> str:
         <span><i style="background:#ff5a3c"></i>gap</span>
         <span><i style="background:#57d3ce"></i>familiar</span>
         <span><i style="background:#e7b64b"></i>strong</span>
+        <span class="legend-int"><i class="grad"></i>brighter = higher rating</span>
       </div>
     </section>
     <section class="card b-axes">
@@ -546,6 +560,7 @@ table{width:100%;border-collapse:separate;border-spacing:5px}
 .legend{display:flex;gap:16px;margin-top:12px;font-family:var(--f-mono);font-size:10px;color:var(--parch-dim);
   letter-spacing:.06em;text-transform:uppercase;flex-wrap:wrap}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.legend .legend-int i.grad{width:32px;border-radius:3px;background:linear-gradient(90deg,rgba(231,182,75,.16),var(--gold))}
 
 /* axis bars */
 .bars{display:flex;flex-direction:column;gap:13px;margin-top:4px}

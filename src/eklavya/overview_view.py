@@ -274,6 +274,7 @@ def _mastery_band(ov: dict) -> str:
           <span><i style="background:#ff5a3c"></i>gap</span>
           <span><i style="background:#57d3ce"></i>familiar</span>
           <span><i style="background:#e7b64b"></i>strong</span>
+          <span class="legend-int"><i class="grad"></i>brighter = higher rating</span>
         </div></section>
       <section class="card ov-axes"><h2>{_icon("bars")} Skill axes</h2>
         <div class="bars">{bars}</div></section>

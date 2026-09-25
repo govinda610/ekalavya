@@ -436,6 +436,8 @@ def render() -> str:
             f'<span>No benchmark sittings yet · run <code>eklavya assess</code> '
             f'({bm["bank_size"]} frozen, AI-off items) to fix a baseline θ.</span>'
             '</div>'
+            '<div class="empty-cta-wrap"><a class="empty-cta" href="/">'
+            'Take the calibration assessment</a></div>'
         )
 
     # --- gap card (AI-off ↔ AI-on, and whether it's closing) ---
@@ -634,6 +636,13 @@ _EFCSS = """
 .efempty .efdash{font-family:var(--f-display);font-weight:800;font-size:34px;color:var(--parch-mute);line-height:1;flex:none}
 .efempty>span:last-child{font-family:var(--f-body);font-size:13px;line-height:1.45;color:var(--parch-dim)}
 .efspark-empty{display:flex;align-items:center;min-height:64px;font-family:var(--f-mono);font-size:12px}
+/* on-theme primary CTA for the empty benchmark card */
+.empty-cta-wrap{margin-top:14px}
+.empty-cta{display:inline-block;font-family:var(--f-title);font-size:14px;letter-spacing:.02em;cursor:pointer;
+  text-decoration:none;color:#2a1c07;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
+  border:1px solid var(--gold-deep);border-radius:999px;padding:10px 22px;
+  box-shadow:0 8px 22px -10px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,246,223,.5);transition:.16s}
+.empty-cta:hover{filter:brightness(1.06);box-shadow:0 10px 28px -8px rgba(231,182,75,.85)}
 @media(max-width:820px){
   .efgrid{grid-template-columns:1fr;grid-template-areas:"bench" "unaided" "gap" "elo" "strong" "weak" "ret" "cal" "dose" "out"}
   .efgrid .card{min-height:0}

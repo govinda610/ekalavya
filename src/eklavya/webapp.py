@@ -978,12 +978,13 @@ _INDEX = r"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
 :root{
 --indigo-night:#101528;--indigo-deep:#0b1122;--void:#0a0d1c;
 --stone:#231d18;--stone-dark:#181310;--stone-warm:#3a2f26;
---parch:#e8dcc0;--parch-dim:#cfc0a0;--parch-mute:#a89670;
+--parch:#e8dcc0;--parch-dim:#cfc0a0;--parch-mute:#bfa982;
 --gold:#e7b64b;--gold-bright:#f7d98a;--gold-deep:#b8862f;--gold-ember:#8a5e1f;
 --vermilion:#d63b2a;--vermilion-deep:#8f2318;--vermilion-glow:#ff5a3c;
 --peacock:#2ea3a0;--peacock-bright:#57d3ce;--peacock-deep:#124d4c;
 --forest:#2f6b3c;--forest-lit:#52a061;
 --line-gold:rgba(231,182,75,.28);--line-soft:rgba(231,182,75,.14);--ink:#0a0c18;
+--r-sm:8px;--r-md:12px;--r-lg:16px;--r-pill:999px;
 --f-display:'Cinzel',serif;--f-title:'Marcellus',serif;--f-body:'Spectral',serif;
 --f-serif:'Cormorant Garamond',serif;--f-deva:'Tiro Devanagari Hindi',serif;
 --f-mono:'JetBrains Mono',ui-monospace,monospace;
@@ -1156,7 +1157,7 @@ button.rewind:disabled{opacity:.4;cursor:default}
 .edtoolbar .grow{flex:1}
 /* ===== visual game-mode chooser ===== */
 .modelaunch{background:linear-gradient(180deg,rgba(231,182,75,.14),rgba(20,15,10,.5));color:var(--gold-bright);
-  border:1px solid var(--line-gold);border-radius:6px;padding:7px 12px;font-family:var(--f-title);font-size:12px;
+  border:1px solid var(--line-gold);border-radius:var(--r-sm);padding:7px 12px;font-family:var(--f-title);font-size:12px;
   cursor:pointer;display:flex;align-items:center;gap:7px;transition:.15s;min-height:34px}
 .modelaunch:hover{border-color:var(--gold);background:linear-gradient(180deg,rgba(231,182,75,.22),rgba(20,15,10,.5))}
 .modelaunch .ml-g{font-size:13px}.modelaunch .ml-caret{opacity:.6;font-size:10px}
@@ -1164,10 +1165,10 @@ button.rewind:disabled{opacity:.4;cursor:default}
   background:rgba(6,8,18,.72);backdrop-filter:blur(4px);padding:24px}
 .modes-ov.on{display:flex}
 .modes-card{width:100%;max-width:720px;max-height:88vh;overflow:auto;background:var(--card-surface);
-  border:var(--card-edge);border-radius:14px;box-shadow:var(--card-lift),0 40px 90px -30px rgba(0,0,0,.8);padding:26px}
+  border:var(--card-edge);border-radius:var(--r-lg);box-shadow:var(--card-lift),0 40px 90px -30px rgba(0,0,0,.8);padding:26px}
 .modes-h{font-family:var(--f-display);font-weight:700;font-size:22px;color:var(--parch);margin:0 0 18px;text-align:center;letter-spacing:.02em}
 .modes-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.modetile{display:flex;gap:13px;align-items:flex-start;text-align:left;padding:15px 16px;border-radius:11px;cursor:pointer;
+.modetile{display:flex;gap:13px;align-items:flex-start;text-align:left;padding:15px 16px;border-radius:var(--r-md);cursor:pointer;
   background:var(--panel-inner);border:1px solid var(--line-soft);box-shadow:var(--panel-inner-lift);transition:.15s;color:var(--parch)}
 .modetile:hover{border-color:var(--gold);transform:translateY(-2px)}
 .modetile.cur{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
@@ -1212,6 +1213,13 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-fc{position:fixed;width:64px;height:64px;z-index:6;opacity:.5;pointer-events:none;color:var(--gold-deep)}
 #chooser-ov .ekch-fc.tl{top:26px;left:26px}#chooser-ov .ekch-fc.tr{top:26px;right:26px;transform:scaleX(-1)}
 #chooser-ov .ekch-fc.bl{bottom:26px;left:26px;transform:scaleY(-1)}#chooser-ov .ekch-fc.br{bottom:26px;right:26px;transform:scale(-1)}
+/* dismiss control — gold ✕ ringed in a hairline circle, on-theme; sits above every scene layer */
+#chooser-ov .ekch-close{position:fixed;top:20px;right:20px;z-index:20;width:38px;height:38px;padding:0;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--gold);
+  background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:var(--r-pill);
+  box-shadow:0 4px 14px -6px rgba(0,0,0,.8);transition:.16s}
+#chooser-ov .ekch-close:hover{color:var(--gold-bright);border-color:var(--gold);background:rgba(231,182,75,.14);transform:rotate(90deg)}
+#chooser-ov .ekch-close svg{width:18px;height:18px}
 #chooser-ov .ekch-wrap{position:relative;z-index:5;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:34px 20px;text-align:center}
 #chooser-ov .ekch-dev{font-family:var(--f-deva)}
 #chooser-ov .ekch-crest{position:relative;display:flex;flex-direction:column;align-items:center;margin-bottom:4px}
@@ -1232,7 +1240,7 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-devnag{font-family:var(--f-title);color:var(--gold-deep);font-size:13px;letter-spacing:.34em;margin:2px 0 0;opacity:.9}
 #chooser-ov .ekch-seclbl{font-family:var(--f-display);font-size:11px;letter-spacing:.28em;color:var(--gold);margin:16px 0 10px;opacity:.85}
 #chooser-ov .ekch-pillars{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:980px}
-#chooser-ov .ekch-chip{font-family:var(--f-body);font-size:12px;color:var(--parch-dim);padding:6px 13px;border-radius:999px;cursor:pointer;position:relative;background:rgba(9,12,24,.66);border:1px solid var(--line-gold);display:flex;align-items:center;gap:7px;transition:.16s;box-shadow:0 4px 14px -6px rgba(0,0,0,.8)}
+#chooser-ov .ekch-chip{font-family:var(--f-body);font-size:12px;color:var(--parch-dim);padding:6px 13px;border-radius:var(--r-pill);cursor:pointer;position:relative;background:rgba(9,12,24,.66);border:1px solid var(--line-gold);display:flex;align-items:center;gap:7px;transition:.16s;box-shadow:0 4px 14px -6px rgba(0,0,0,.8)}
 #chooser-ov .ekch-chip .ekch-pct{font-family:var(--f-display);font-size:10.5px;color:var(--parch-mute)}
 #chooser-ov .ekch-chip .ekch-bar{position:absolute;left:6px;right:6px;bottom:2px;height:2px;border-radius:2px;background:rgba(79,214,192,.2)}
 #chooser-ov .ekch-chip .ekch-bar::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--p,0%);background:var(--peacock-bright);border-radius:2px;box-shadow:0 0 6px var(--peacock-bright)}
@@ -1240,19 +1248,23 @@ button.rewind:disabled{opacity:.4;cursor:default}
 #chooser-ov .ekch-chip.sel{background:linear-gradient(180deg,rgba(79,214,192,.2),rgba(9,12,24,.7));border-color:var(--peacock-bright);color:var(--parch);box-shadow:0 0 22px -4px var(--peacock-bright)}
 #chooser-ov .ekch-chip.sel .ekch-pct{color:var(--gold-bright)}
 #chooser-ov .ekch-constel{display:grid;grid-template-columns:repeat(4,minmax(180px,206px));gap:16px 18px;justify-content:center;margin-top:2px}
-#chooser-ov .ekch-panel{position:relative;padding:18px 16px 16px;border-radius:16px;cursor:pointer;text-align:center;transition:.22s;background:radial-gradient(120% 120% at 50% 0%,rgba(22,28,50,.74),rgba(9,12,24,.68));border:1px solid var(--acc,var(--gold));box-shadow:0 0 0 4px rgba(0,0,0,.35),0 14px 40px -12px rgba(0,0,0,.9),0 0 26px -8px var(--acc,var(--gold));color:var(--parch);font:inherit;display:flex;flex-direction:column;align-items:center}
-#chooser-ov .ekch-panel::before{content:"";position:absolute;inset:5px;border-radius:11px;border:1px solid rgba(255,255,255,.06);pointer-events:none}
+#chooser-ov .ekch-panel{position:relative;padding:18px 16px 16px;border-radius:var(--r-lg);cursor:pointer;text-align:center;transition:.22s;background:radial-gradient(120% 120% at 50% 0%,rgba(22,28,50,.74),rgba(9,12,24,.68));border:1px solid var(--acc,var(--gold));box-shadow:0 0 0 4px rgba(0,0,0,.35),0 14px 40px -12px rgba(0,0,0,.9),0 0 26px -8px var(--acc,var(--gold));color:var(--parch);font:inherit;display:flex;flex-direction:column;align-items:center}
+#chooser-ov .ekch-panel::before{content:"";position:absolute;inset:5px;border-radius:var(--r-md);border:1px solid rgba(255,255,255,.06);pointer-events:none}
 #chooser-ov .ekch-kal{position:absolute;width:16px;height:16px;pointer-events:none;opacity:.72;color:var(--acc,var(--gold))}
 #chooser-ov .ekch-kal.tl{top:7px;left:7px}#chooser-ov .ekch-kal.tr{top:7px;right:7px;transform:scaleX(-1)}
 #chooser-ov .ekch-kal.bl{bottom:7px;left:7px;transform:scaleY(-1)}#chooser-ov .ekch-kal.br{bottom:7px;right:7px;transform:scale(-1)}
-#chooser-ov .ekch-glyph{font-size:28px;color:var(--acc,var(--gold));margin-bottom:8px;text-shadow:0 0 20px var(--acc,var(--gold))}
+#chooser-ov .ekch-glyph{font-size:28px;color:var(--acc,var(--gold));margin-bottom:8px;text-shadow:0 0 20px var(--acc,var(--gold));display:inline-flex}
+/* hand-drawn mode glyphs: monochrome SVG that inherits the tile's accent colour + soft gold glow */
+.ekg{width:1em;height:1em;display:block}
+#chooser-ov .ekch-glyph .ekg{width:34px;height:34px;filter:drop-shadow(0 0 10px var(--acc,var(--gold)))}
+.modetile .mt-g .ekg{width:26px;height:26px}
 #chooser-ov .ekch-tt{font-family:var(--f-display);font-size:15px;font-weight:600;color:var(--parch);margin-bottom:5px;letter-spacing:.02em}
 #chooser-ov .ekch-td{font-family:var(--f-body);font-size:12px;line-height:1.42;color:var(--parch-dim)}
 #chooser-ov .ekch-panel:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 0 0 4px rgba(0,0,0,.35),0 22px 50px -12px rgba(0,0,0,.9),0 0 44px -4px var(--acc,var(--gold))}
 #chooser-ov .ekch-panel.ekch-pick{border-style:dashed;background:radial-gradient(120% 120% at 50% 0%,rgba(18,22,40,.55),rgba(9,12,24,.5))}
 #chooser-ov .ekch-skip{margin-top:22px;display:flex;align-items:center;gap:14px;justify-content:center}
 #chooser-ov .ekch-seal{width:44px;height:44px;border-radius:50%;flex:0 0 auto;background:radial-gradient(circle at 38% 34%,#d85a44,#a83521 60%,#7d2314);box-shadow:0 6px 16px -4px rgba(0,0,0,.7),inset 0 2px 4px rgba(255,255,255,.3),inset 0 -4px 8px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;color:#f7d98a;font-size:20px;border:2px solid rgba(125,35,20,.6);text-shadow:0 1px 2px rgba(0,0,0,.5)}
-#chooser-ov .ekch-skip button{font-family:var(--f-title);font-size:15px;color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:999px;padding:11px 30px;cursor:pointer;letter-spacing:.03em;transition:.2s;box-shadow:0 6px 20px -8px rgba(0,0,0,.8)}
+#chooser-ov .ekch-skip button{font-family:var(--f-title);font-size:15px;color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);border-radius:var(--r-pill);padding:11px 30px;cursor:pointer;letter-spacing:.03em;transition:.2s;box-shadow:0 6px 20px -8px rgba(0,0,0,.8)}
 #chooser-ov .ekch-skip button:hover{background:rgba(231,182,75,.14)}
 /* NO filter/will-change on the chooser's bg layers: filter(blur/drop-shadow)+will-change on large
    animated layers made Chrome's compositor flash those layers BLACK (top god-ray row + bottom ember
@@ -1265,9 +1277,9 @@ button.rewind:disabled{opacity:.4;cursor:default}
 @media(max-width:900px){#chooser-ov .ekch-constel{grid-template-columns:repeat(2,minmax(160px,1fr))}}
 @media(max-width:560px){#chooser-ov .ekch-constel{grid-template-columns:1fr}#chooser-ov .ekch-h1{font-size:26px}}
 button.submit{font-family:var(--f-title);letter-spacing:.02em;font-size:13px;background:rgba(231,182,75,.08);color:var(--gold-bright);border:1px solid var(--gold-deep);
-border-radius:4px;padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
+border-radius:var(--r-sm);padding:8px 15px;font-weight:600;cursor:pointer;transition:.16s}
 button.submit:hover{background:rgba(231,182,75,.16)}
-button.ghost{background:rgba(6,9,20,.5);color:var(--parch-dim);border:1px solid var(--line-gold);border-radius:4px;padding:8px 13px;cursor:pointer;font-family:var(--f-title);font-size:13px;transition:.16s}
+button.ghost{background:rgba(6,9,20,.5);color:var(--parch-dim);border:1px solid var(--line-gold);border-radius:var(--r-sm);padding:8px 13px;cursor:pointer;font-family:var(--f-title);font-size:13px;transition:.16s}
 button.ghost:hover{color:var(--gold-bright);border-color:var(--gold-deep)}
 button.ghost.run{color:var(--peacock-bright);border-color:rgba(46,163,160,.4)}
 button.ghost.run:hover{color:var(--peacock-bright);border-color:var(--peacock)}
@@ -1362,12 +1374,24 @@ button:disabled{opacity:.42;cursor:default}
 .settings{padding:26px 26px 60px;max-width:720px;margin:0 auto}
 .settings .stitle{font-family:var(--f-display);font-weight:700;font-size:24px;color:var(--parch);margin-bottom:4px}
 .settings .ssub{font-family:var(--f-serif);font-style:italic;font-size:14px;color:var(--parch-dim);margin-bottom:16px}
+/* group the rows under a titled section on a faint carved panel so the page reads as a crafted
+   surface, not a few rows floating in a void. Purely structural — no new settings. */
+.set-sec{margin-top:8px;padding:6px 18px 10px;border:1px solid var(--line-soft);border-radius:var(--r-lg);
+  background:linear-gradient(160deg,rgba(35,29,24,.34),rgba(10,14,26,.42));box-shadow:var(--panel-inner-lift)}
+.set-sechd{font-family:var(--f-mono);font-size:10px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--gold);opacity:.8;display:flex;align-items:center;gap:10px;margin:12px 2px 2px}
+.set-sechd::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line-gold),transparent)}
+/* ornamental closing rule — a centred gold diamond on a hairline, the same motif as the arena */
+.set-foot{display:flex;align-items:center;justify-content:center;margin:26px auto 0;max-width:420px;position:relative}
+.set-foot::before,.set-foot::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,transparent,var(--line-gold))}
+.set-foot::after{background:linear-gradient(90deg,var(--line-gold),transparent)}
+.set-foot-glyph{color:var(--gold);opacity:.7;font-size:13px;padding:0 14px}
 .setrow{display:flex;align-items:center;gap:18px;padding:18px 4px;border-bottom:1px solid var(--line-soft)}
 .setrow:last-child{border-bottom:0}
 .setrow .si{flex:1}
 .setrow .st{font-family:var(--f-title);font-size:16px;color:var(--parch)}
 .setrow .sd{font-family:var(--f-body);font-size:13px;color:var(--parch-dim);margin-top:2px}
-.toggle{width:52px;height:28px;border-radius:20px;background:rgba(6,9,20,.7);border:1px solid var(--line-gold);position:relative;flex:none;cursor:pointer}
+.toggle{width:52px;height:28px;border-radius:var(--r-pill);background:rgba(6,9,20,.7);border:1px solid var(--line-gold);position:relative;flex:none;cursor:pointer}
 .toggle.on{background:linear-gradient(90deg,var(--gold-deep),var(--gold));border-color:var(--gold)}
 .toggle i{position:absolute;top:2px;left:2px;width:22px;height:22px;border-radius:50%;background:var(--parch);transition:.2s}
 .toggle.on i{left:26px;background:#2a1c07}
@@ -1474,7 +1498,7 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 .lib-phead .lp-name{font-family:var(--f-display);font-size:16px;letter-spacing:.01em;color:var(--parch)}
 .lib-phead .lp-n{font-family:var(--f-mono);font-size:10px;color:var(--gold-ember);border:1px solid var(--line-gold);border-radius:20px;padding:1px 8px}
 .artcard{position:relative;padding:18px 20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;
- border:1px solid rgba(231,182,75,.22);border-radius:10px;
+ border:1px solid rgba(231,182,75,.22);border-radius:var(--r-md);
  background:linear-gradient(168deg,rgba(46,38,30,.72) 0%,rgba(28,26,42,.7) 34%,rgba(13,14,28,.82) 100%);
  box-shadow:inset 0 1px 0 rgba(247,217,138,.14),0 20px 44px -30px rgba(0,0,0,.7),0 3px 10px -6px rgba(0,0,0,.5);transition:.16s}
 .artcard:hover{border-color:rgba(231,182,75,.4);box-shadow:inset 0 1px 0 rgba(247,217,138,.2),0 14px 34px -16px rgba(231,182,75,.4),0 20px 44px -28px rgba(0,0,0,.75)}
@@ -1488,6 +1512,13 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
 .artcard .apin{position:absolute;top:12px;right:12px;background:none;border:none;cursor:pointer;font-size:14px;color:var(--parch-mute);opacity:.6}
 .artcard .apin.on{color:var(--gold-bright);opacity:1}
 .lib-empty{grid-column:1/-1;text-align:center;padding:50px 20px;color:var(--parch-dim);font-family:var(--f-body)}
+/* on-theme primary CTA for empty states (Scriptorium / Effectiveness) — warm gold, gentle glow */
+.empty-cta-wrap{margin-top:18px}
+.empty-cta{font-family:var(--f-title);font-size:14px;letter-spacing:.02em;cursor:pointer;
+  color:#2a1c07;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
+  border:1px solid var(--gold-deep);border-radius:var(--r-pill);padding:11px 24px;
+  box-shadow:0 8px 22px -10px rgba(231,182,75,.7),inset 0 1px 0 rgba(255,246,223,.5);transition:.16s}
+.empty-cta:hover{filter:brightness(1.06);box-shadow:0 10px 28px -8px rgba(231,182,75,.85)}
 .lib-newbtn{font-family:var(--f-title);font-size:13px;background:linear-gradient(180deg,var(--gold-bright),var(--gold) 55%,var(--gold-deep));
  color:#2a1c07;border:none;border-radius:4px;padding:10px 18px;font-weight:600;cursor:pointer}
 /* ===== Skill Tree — D's data-driven FOREST MAP (groves on a winding path) =====
@@ -2141,6 +2172,9 @@ body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{an
       <div class="ekch-temple"></div><div class="ekch-treeline"></div>
       <div class="ekch-crestglow"></div><div class="ekch-dim"></div><div class="ekch-vignette"></div>
     </div>
+    <button type="button" class="ekch-close" aria-label="Close" title="Close (Esc)" onclick="closeChooser()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
+    </button>
     <svg class="ekch-fc tl" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
     <svg class="ekch-fc tr" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
     <svg class="ekch-fc bl" viewBox="0 0 64 64" aria-hidden="true"><use href="#ekch-flourish"/></svg>
@@ -2330,12 +2364,15 @@ function loadSettings(){
     document.getElementById('settings').innerHTML=
      "<div class='settings'>"+
      "<div class='stitle'>Settings</div><div class='ssub'>How the guru of stone teaches, and how it grades.</div>"+
+     "<div class='set-sec'><div class='set-sechd'>The discipline</div>"+
      "<div class='setrow' id='sr-cheat'><div class='si'><div class='st'>Cheat penalty</div><div class='sd'>Paste a full solution and the round is lost — merit drops, the streak breaks. Type it yourself to reclaim.</div></div>"+tog(s.death_on_cheat,true)+"</div>"+
      "<div class='setrow' id='sr-motion'><div class='si'><div class='st'>Reduced motion</div><div class='sd'>Stills the ceremony, bloom, and flame animations. Respects your OS setting by default.</div></div>"+tog(s.reduced_motion,false)+"</div>"+
      "<div class='setrow' id='sr-voice'><div class='si'><div class='st'>Guru voice</div><div class='sd'>Stone guru (stern, epic) vs. plain mentor. Same grading either way.</div></div>"+tog(s.guru_voice,false)+"</div>"+
      "<div class='setrow' id='sr-prov'><div class='si'><div class='st'>Provider</div><div class='sd'>Which model powers the tutor. Only providers with a key set are selectable.</div></div>"+
      "<select id='provselect'>"+provOpts+"</select></div>"+
      (_deployed?lbSettingsSection():"")+
+     "</div>"+
+     "<div class='set-foot' aria-hidden='true'><span class='set-foot-glyph'>✦</span></div>"+
      "</div>";
     if(_deployed) wireLbSettings();
     // wire the toggles
@@ -2513,7 +2550,8 @@ function loadLibrary(){
     const flabels={'':'All',markdown:'Lessons',code:'Code',viz:'Visuals',html:'HTML'};
     const pills=filters.map(f=>"<span class='lib-pill"+(f===_libFilter?' on':'')+"' role='button' tabindex='0' aria-current='"+(f===_libFilter?'true':'false')+"' onclick=\"setLibFilter('"+f+"')\">"+flabels[f]+"</span>").join('');
     let body;
-    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and it'll appear here.</div></div>"; }
+    if(!list.length){ body="<div class='lib-grid'><div class='lib-empty'>The Scriptorium is quiet — the guru hasn't written anything here yet. Ask for a lesson and it'll appear here."+
+      "<div class='empty-cta-wrap'><button class='empty-cta' onclick=\"showView('practice')\">Ask Ekalavya for your first lesson</button></div></div></div>"; }
     else {
       // group by PILLAR or by CHAT (toggle). Unfiled → 'General'/'Unfiled', sorted last.
       const byChat=_libGroup==='chat';
@@ -3288,6 +3326,10 @@ async function runCode(){
 // nothing is open does Esc cancel a stream (and never while editing a past turn).
 document.addEventListener('keydown',function(e){
   if(e.key!=='Escape') return;
+  const chooser=document.getElementById('chooser-ov');
+  // the post-login chooser takes precedence when open — dismiss it and swallow the key so it
+  // never also aborts an in-flight reply. Only when it's closed do the other handlers run.
+  if(chooser && chooser.classList.contains('on')){ e.preventDefault(); e.stopPropagation(); closeChooser(); return; }
   const modes=document.getElementById('modes'), drawer=document.getElementById('drawer');
   if(modes && modes.classList.contains('on')){ e.preventDefault(); closeModes(); return; }
   if(drawer && drawer.classList.contains('open')){ e.preventDefault(); closeDrawer(); return; }
@@ -3382,14 +3424,36 @@ function newSession(kickoff=true){
 }
 
 // ===== visual game-mode chooser (the modes were buried in a 30px dropdown) =====
+// Hand-drawn gold-stroked SVG glyphs (monochrome via currentColor → var(--acc)) — replaces the
+// off-brand geometric chars + full-colour emoji with iconography consistent with the app's line art.
+function _ekG(inner){ return '<svg class="ekg" viewBox="0 0 24 24" fill="none" stroke="currentColor" '
+  +'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+inner+'</svg>'; }
+const _EKGLYPH={
+ // bow + nocked arrow — the daily draw
+ practice:_ekG('<path d="M7 3C13 8 13 16 7 21"/><path d="M7 3C5 6 5 18 7 21"/><line x1="6" y1="12" x2="20" y2="12"/><path d="M20 12l-3-2M20 12l-3 2"/>'),
+ // crossed swords — the gauntlet
+ gauntlet:_ekG('<path d="M18 4l-9 9M6 4l9 9"/><path d="M4 20l4-4M20 20l-4-4"/><path d="M13 13l3 3M11 13l-3 3"/>'),
+ // lightning bolt — blitz
+ blitz:_ekG('<path d="M13 2L5 13h6l-2 9 8-11h-6z"/>'),
+ // coiled serpent-flame — the boss
+ boss:_ekG('<path d="M5 15c0-4 3-6 6-6s5 1.5 5 4-2 3.5-4 3.5-3-1-3-2.5 1-2 2-2"/><path d="M16 9c1.5-1.5 2-3.5 1-5"/><circle cx="9.5" cy="13.5" r=".6" fill="currentColor" stroke="none"/>'),
+ // scorecard / clipboard — mock interview
+ mock:_ekG('<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="14" y2="14"/>'),
+ // node graph — AI-enabled interview
+ aiinterview:_ekG('<circle cx="12" cy="5" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><path d="M11 7l-5 9M13 7l5 9M7 18h10"/>'),
+ // document / scroll — take-home
+ takehome:_ekG('<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><line x1="10" y1="12" x2="15" y2="12"/><line x1="10" y1="16" x2="15" y2="16"/>'),
+ // aim/target — Ekalavya picks
+ pick:_ekG('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="1" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="23"/>'),
+};
 const MODES=[
- {v:'practice',   g:'◑', t:'Daily practice',       d:'Gated drills tuned to your weakest spots.',                 c:'teal'},
- {v:'gauntlet',   g:'⚔', t:'The Gauntlet',          d:'Endless, escalating. It hunts your weaknesses and uses them against you. Die, learn, rematch.', c:'red'},
- {v:'blitz',      g:'⚡', t:'Blitz',                 d:'Rapid-fire recall against the clock — fluency under pressure.', c:'gold'},
- {v:'boss',       g:'🐉', t:'Boss fight',            d:'One brutal, multi-part problem. Beat it to conquer a whole pillar.', c:'dragon'},
- {v:'mock',       g:'◆', t:'Mock interview',        d:'A realistic loop with an honest, specific scorecard.',       c:'peacock'},
- {v:'aiinterview',g:'◈', t:'AI-enabled interview',  d:'The 2026 format — graded on HOW you wield the AI, not just the answer.', c:'teal'},
- {v:'takehome',   g:'▤', t:'Take-home',             d:'A longer, build-something assignment on your own time.',      c:'forest'},
+ {v:'practice',   g:_EKGLYPH.practice,   t:'Daily practice',       d:'Gated drills tuned to your weakest spots.',                 c:'teal'},
+ {v:'gauntlet',   g:_EKGLYPH.gauntlet,   t:'The Gauntlet',          d:'Endless, escalating. It hunts your weaknesses and uses them against you. Die, learn, rematch.', c:'red'},
+ {v:'blitz',      g:_EKGLYPH.blitz,      t:'Blitz',                 d:'Rapid-fire recall against the clock — fluency under pressure.', c:'gold'},
+ {v:'boss',       g:_EKGLYPH.boss,       t:'Boss fight',            d:'One brutal, multi-part problem. Beat it to conquer a whole pillar.', c:'dragon'},
+ {v:'mock',       g:_EKGLYPH.mock,       t:'Mock interview',        d:'A realistic loop with an honest, specific scorecard.',       c:'peacock'},
+ {v:'aiinterview',g:_EKGLYPH.aiinterview,t:'AI-enabled interview',  d:'The 2026 format — graded on HOW you wield the AI, not just the answer.', c:'teal'},
+ {v:'takehome',   g:_EKGLYPH.takehome,   t:'Take-home',             d:'A longer, build-something assignment on your own time.',      c:'forest'},
 ];
 function syncModeLabel(){ const m=MODES.find(x=>x.v===mode); if(m) document.getElementById('modelabel').textContent=m.t; }
 function openModes(){
@@ -3418,7 +3482,7 @@ function showChooser(){
         _ekKal()+'<span class="ekch-glyph">'+m.g+'</span><span class="ekch-tt">'+_ekEsc(m.t)+'</span>'+
         '<span class="ekch-td">'+_ekEsc(m.d)+'</span></button>'; }).join('')
       + '<button class="ekch-panel ekch-pick" style="--acc:var(--gold-deep)" onclick="pickChooserMode(\'practice\')">'+
-        _ekKal()+'<span class="ekch-glyph" style="color:var(--gold)">◑</span><span class="ekch-tt">Ekalavya picks</span>'+
+        _ekKal()+'<span class="ekch-glyph" style="color:var(--gold)">'+_EKGLYPH.pick+'</span><span class="ekch-tt">Ekalavya picks</span>'+
         '<span class="ekch-td">The master finds your weakest spot.</span></button>';
   }
   ov.classList.add('on');
@@ -4058,6 +4122,24 @@ body{min-height:100vh;margin:0;padding:0;background:var(--void)}
  .auth-sec::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
    background:radial-gradient(120% 80% at 50% 88%,rgba(10,13,28,.82),rgba(10,13,28,.35) 60%,transparent)}
  .glass{position:relative;z-index:1}
+}
+/* PHONES (≤430px): the full-height hero pushed the sign-in card entirely below the fold, so the
+   first paint was a near-empty brand screen. Shrink the hero to ~64svh and give the scroll cue a
+   pulsing gold pill so the card peeks into the first viewport and the way down is obvious. Desktop
+   (rules above, no max-width) is untouched. */
+@media(max-width:430px){
+ .auth-hero{min-height:62svh;padding-bottom:14px}
+ /* the shared phone rule pushes hero copy down 52vh (to clear the landing scene); on the AUTH
+    route pull it back up so the hero fits ~62svh and the sign-in card peeks into the first paint. */
+ .auth-hero .hero-copy{margin-top:20vh;padding-bottom:14px}
+ .auth-hero .hero-sub{margin-bottom:8px;font-size:clamp(14px,4vw,20px)}
+ .auth-hero .hero-meta{display:none}   /* the four meta chips are decorative — drop them so the card rises */
+ .auth-sec{padding-top:8px}
+ .scrollcue{display:inline-block;margin-top:10px;padding:8px 18px;border-radius:999px;
+   color:var(--gold-bright);background:rgba(9,12,24,.6);border:1px solid var(--line-gold);
+   box-shadow:0 6px 18px -8px rgba(0,0,0,.8);animation:cuebob 1.6s ease-in-out infinite}
+ @keyframes cuebob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
+ @media(prefers-reduced-motion:reduce){.scrollcue{animation:none}}
 }
 </style></head><body>
 <div class="scene-fixed">""" + _hero_scene("xMidYMid slice") + r"""</div>

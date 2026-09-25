@@ -89,6 +89,7 @@ def render() -> str:
         <span><i style="background:#ff5a3c"></i>gap</span>
         <span><i style="background:#57d3ce"></i>familiar</span>
         <span><i style="background:#e7b64b"></i>strong</span>
+        <span class="legend-int"><i class="grad"></i>brighter = higher rating</span>
       </div>
     </section>
   </div>
